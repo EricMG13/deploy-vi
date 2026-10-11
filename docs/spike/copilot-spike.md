@@ -4,20 +4,28 @@ Owner-run on the work machine (Plan 01, Task 2). Paste each `rbot-probe-result.m
 
 | Check | Claude model | GPT model |
 |---|---|---|
-| Date run | | |
-| Model name (picker) | | |
-| OS and shell | | |
-| Python command and version | | |
+| Date run (`date` output) | | |
+| Model name (picker, owner) | | |
+| Model name (self-reported) | | |
+| OS | | |
+| Shell | | |
+| Python command (PY) and version | | |
 | `pip install --user pypdf openpyxl` works | | |
-| `/skills` lists `rbot-probe` from `~/.copilot/skills/` | | |
+| Skill file present in `~/.copilot/skills/rbot-probe` (file check) | | |
+| `/skills` lists `rbot-probe` (owner, from screen) | | |
 | Subagent started | | |
 | Subagent read a workspace file | | |
 | Subagent ran a terminal command | | |
 | Subagent wrote a workspace file | | |
-| Fetch tool exists / fetch succeeded | | |
+| Subagent and main hash outputs match | | |
+| Fetch tool exists | | |
+| SEC fetch status or error | | |
+| Control fetch (code.visualstudio.com) status | | |
 | Context window, tokens (from GitHub's Copilot model docs) | | |
 
 **Smallest context window across the two models (tokens):** 
+
+**Provisional size budget in use until this record is filled:** 51,200 bytes (128k tokens × 4 × 0.10).
 
 **Module size budget** = smallest window × 4 bytes × 0.10 = ____ bytes (goes into `rbot/catalog.json` in Task 8).
 
@@ -29,6 +37,11 @@ Every "no" above changes the design before Plan 02 starts; record the change her
 - Python older than 3.11 → lower the floor in `pyproject.toml` (decision record 0001).
 - pip blocked → Plan 02 uses only the standard library for xlsx (zipfile + xml) and needs the analyst to export PDFs as text.
 - No fetch tool → Deep Research is Source Pack-only (ADR 0004 consequence).
+- Subagent could not read a workspace file → the orchestrator reads inputs and passes their content in the subagent task.
+- `/skills` does not list `rbot-probe` from `~/.copilot/skills/` → the install location must change; record where it does load from.
+- pip install works but the import fails → treat as pip blocked (stdlib-only xlsx path).
+- Only `python3` exists on macOS/Linux → every command uses `python3`.
+- Fetch tool exists but the SEC fetch fails → Deep Research stays Source Pack-only unless the control URL succeeds and a public source with a declared User-Agent is reachable.
 - Windows → `install.ps1` is the primary installer and every MODULE.md command uses `python`, not `python3`.
 
 ## Raw results
