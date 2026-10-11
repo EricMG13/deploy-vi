@@ -1,0 +1,38 @@
+# Copilot spike — results
+
+Owner-run on the work machine (Plan 01, Task 2). Paste each `rbot-probe-result.md` below it, then fill the table. Dates in ISO form.
+
+| Check | Claude model | GPT model |
+|---|---|---|
+| Date run | | |
+| Model name (picker) | | |
+| OS and shell | | |
+| Python command and version | | |
+| `pip install --user pypdf openpyxl` works | | |
+| `/skills` lists `rbot-probe` from `~/.copilot/skills/` | | |
+| Subagent started | | |
+| Subagent read a workspace file | | |
+| Subagent ran a terminal command | | |
+| Subagent wrote a workspace file | | |
+| Fetch tool exists / fetch succeeded | | |
+| Context window, tokens (from GitHub's Copilot model docs) | | |
+
+**Smallest context window across the two models (tokens):** 
+
+**Module size budget** = smallest window × 4 bytes × 0.10 = ____ bytes (goes into `rbot/catalog.json` in Task 8).
+
+## Outcome
+
+Every "no" above changes the design before Plan 02 starts; record the change here and in the spec:
+- Subagent cannot run the terminal or write files → the orchestrator runs every script and writes every file; subagents return Handoff text only.
+- No subagents at all → modules run sequentially in the main chat, one module file per step, with a context reset between modules by starting a new chat from `run-state.json`.
+- Python older than 3.11 → lower the floor in `pyproject.toml` (decision record 0001).
+- pip blocked → Plan 02 uses only the standard library for xlsx (zipfile + xml) and needs the analyst to export PDFs as text.
+- No fetch tool → Deep Research is Source Pack-only (ADR 0004 consequence).
+- Windows → `install.ps1` is the primary installer and every MODULE.md command uses `python`, not `python3`.
+
+## Raw results
+
+### Claude model
+
+### GPT model
