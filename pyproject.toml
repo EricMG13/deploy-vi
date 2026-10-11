@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "RBOT: leveraged-finance credit research as a GitHub Copilot skill"
 requires-python = ">=3.11"
 dependencies = [
+    "openpyxl==3.1.5",
     "pypdf==6.19.0",
 ]
 
@@ -61,4 +62,5 @@ dev = [
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "ruff>=0.17.0",
+    "types-openpyxl==3.1.5.20260827",
 ]

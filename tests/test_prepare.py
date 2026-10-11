@@ -35,12 +35,14 @@ def _text(run: Path, record: dict[str, Any]) -> str:
     return (run / str(record["prepared"])).read_text(encoding="utf-8")
 
 
-def test_text_and_markdown_become_page_anchored_text(tmp_path: Path) -> None:
+def test_text_markdown_and_html_become_page_anchored_text(tmp_path: Path) -> None:
+    html = b"<html><style>p{}</style><p>Net revenue</p><table><tr><td>Q2</td><td>2,993</td></tr>"
     run, index = _prepared(
         tmp_path,
         {
             "CZR_10Q.txt": (SEC_COVER + "\fpage two text\n").encode(),
-            "note.md": b"# Note\nOne page.\n",
+            "note.md": b"# Note\nOne page only.\n",
+            "release.html": html + b"</table><script>alert(1)</script></html>",
         },
     )
     tenq = index["CZR_10Q.txt"]
@@ -50,7 +52,8 @@ def test_text_and_markdown_become_page_anchored_text(tmp_path: Path) -> None:
     assert tenq["entities"] == ["CAESARS ENTERTAINMENT, INC."]
     assert tenq["dates"] == ["2026-06-30"]
     assert tenq["excerpt"].startswith("Commission File No. 001-36629 CAESARS ENTERTAINMENT, INC.")
-    assert _text(run, index["note.md"]) == "<<< page 1 >>>\n# Note\nOne page.\n"
+    assert _text(run, index["note.md"]) == "<<< page 1 >>>\n# Note\nOne page only.\n"
+    assert _text(run, index["release.html"]) == "<<< page 1 >>>\nNet revenue\n| Q2 | 2,993\n"
 
 
 def test_pdf_pages_scans_and_unreadable_files(tmp_path: Path) -> None:
@@ -81,7 +84,18 @@ def test_prepare_reports_unreadable_files_and_still_exits_0(
     _prepared(tmp_path, {"a.txt": b"text\n", "memo.docx": b"PK"})
     out = capsys.readouterr().out
     assert "unreadable: memo.docx: no reader for .docx files\n" in out
-    assert out.endswith("prepared/index.json: 2 file(s), 1 unreadable\n")
+    assert "prepared/index.json: 2 file(s), 1 unreadable\n" in out
+
+
+def test_only_reprepares_one_file_and_keeps_the_rest(tmp_path: Path) -> None:
+    run, index = _prepared(tmp_path, {"a.txt": b"first\n", "b.txt": b"second\n"})
+    (tmp_path / "pack" / "b.txt").write_text("second, edited\n", encoding="utf-8")
+    assert main(["inventory", "--run", str(run)]) == 0
+    assert main(["prepare", "--run", str(run), "--only", "b.txt"]) == 0
+    again = {r["path"]: r for r in load_index(run)["files"]}
+    assert again["a.txt"] == index["a.txt"]
+    assert _text(run, again["b.txt"]) == "<<< page 1 >>>\nsecond, edited\n"
+    assert main(["prepare", "--run", str(run), "--only", "nope.txt"]) == 1
 
 
 def test_prepare_without_an_inventory_exits_1(
@@ -127,6 +141,9 @@ def test_prepare_pages_and_markers(pack_id: str, prepared_run: Callable[[str], P
         text = _text(run, record)
         markers = [int(n) for n in re.findall(r"^<<< page (\d+) >>>$", text, re.M)]
         assert markers == list(range(1, record["pages"] + 1)), f.path
+        if record["kind"] in ("csv", "xlsx"):
+            assert not re.search(r"#N/A|#VALUE!|#DIV/0!|#NAME\?", text), f.path
+        assert record["image_read"] is (record["kind"] == "image"), f.path
 
 
 @pytest.mark.corpus
