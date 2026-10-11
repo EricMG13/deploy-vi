@@ -292,3 +292,27 @@ def test_inventory_is_deterministic(pack_id: str, corpus_pack: Callable[[str], P
     for path, f in registered.items():
         assert listed[path]["sha256"] == f.sha256
         assert listed[path]["pages"] == f.pages
+
+
+def test_loose_files_in_rbot_runs_are_ignored_not_unreadable(tmp_path: Path) -> None:
+    pack = _pack(tmp_path)
+    (pack / "rbot-runs" / ".DS_Store").write_bytes(b"x")
+    (pack / "rbot-runs" / "notes.txt").write_text("hi", encoding="utf-8")
+    run = make_run(pack)
+    assert main(["inventory", "--run", str(run)]) == 0
+    skipped = [s["path"] for s in _inventory(run)["skipped"]]
+    assert not [p for p in skipped if p.startswith("rbot-runs/")]
+
+
+def test_an_unreadable_earlier_run_gives_the_real_error_text(tmp_path: Path) -> None:
+    pack = _pack(tmp_path)
+    locked = pack / "rbot-runs" / "20260101-locked"
+    locked.mkdir()
+    run = make_run(pack)
+    locked.chmod(0)
+    try:
+        assert main(["inventory", "--run", str(run)]) == 0
+    finally:
+        locked.chmod(0o700)
+    reasons = {s["path"]: s["reason"] for s in _inventory(run)["skipped"]}
+    assert reasons["rbot-runs/20260101-locked"] == "unreadable: Permission denied"

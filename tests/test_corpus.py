@@ -291,6 +291,7 @@ def test_a_root_value_or_external_path_cannot_leave_the_repo_or_be_absolute(
         registry, registry.pack("p1"), resolve_roots(registry, _roots_env(tmp_path / "b"))
     )
     assert "absolute path not allowed" in problem.message
+    assert problem.in_repo
 
 
 def test_a_registry_that_is_an_array_or_lacks_pack_keys_is_named(tmp_path: Path) -> None:

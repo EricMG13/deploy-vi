@@ -213,7 +213,7 @@ def _check(
         where = locate(pack, f, roots)
         if f.external and (f.external.startswith("/") or "//" in f.external):
             text = f"{pack.id}: {f.path}: absolute path not allowed in {f.external!r}"
-            problems.append(Problem(MISSING, local, text))
+            problems.append(Problem(MISSING, True, text))
         elif where is None:
             lost.setdefault(_root_name(pack, f), []).append(f)
         elif message := _check_file(pack, f, where, roots[_root_name(pack, f)]):

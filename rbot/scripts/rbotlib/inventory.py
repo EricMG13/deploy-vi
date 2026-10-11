@@ -136,12 +136,16 @@ def _rel(pack: Path, path: Path, reason: str) -> dict[str, str]:
 
 
 def _reports_in(pack: Path, folder: Path, skipped: list[dict[str, str]]) -> list[Path]:
-    """The report files of one other run folder; links and unreadable folders are skipped."""
+    """The report files of one other run folder; loose files are ignored, links and
+    unreadable folders are skipped with the reason."""
     if folder.is_symlink():
         skipped.append(_rel(pack, folder, "symbolic link"))
-    elif not os.access(folder, os.R_OK | os.X_OK):
-        skipped.append(_rel(pack, folder, "unreadable: Permission denied"))
-    else:
+    elif folder.is_dir():
+        try:
+            os.listdir(folder)
+        except OSError as exc:
+            skipped.append(_rel(pack, folder, f"unreadable: {exc.strerror or exc}"))
+            return []
         named = [folder / n for n in REPORT_NAMES]
         skipped += [_rel(pack, p, "symbolic link") for p in named if p.is_symlink()]
         return [p for p in named if p.is_file() and not p.is_symlink()]

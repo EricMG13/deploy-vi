@@ -189,13 +189,19 @@ _LETTER = r"[^\W\d_]"
 _BREAK = re.compile(rf"({_LETTER})[-\u00ad\u2010-\u2012\u2212]\s*\n\s*({_LETTER})")
 
 
+_THIN_GROUPS = re.compile(r"(?<!\d)\d{1,3}(?:[\u202f\u2009\u00a0]\d{3})+(?!\d)")
+_THIN = re.compile(r"[\u202f\u2009\u00a0]")
+
+
 def normalise(text: str) -> str:
     """Compare text as a reader would: NFKC, case-folded, plain quotes and dashes, one space.
 
     A hyphen (or soft hyphen) at a line break between two letters is joined
-    (`inter-\\nnational`); the soft hyphen is dropped elsewhere.
+    (`inter-\\nnational`); the soft hyphen is dropped elsewhere. A thousands group
+    separated by a thin, narrow or no-break space (`11 486`) becomes one number.
     """
-    joined = _BREAK.sub(r"\1\2", unicodedata.normalize("NFKC", text))
+    grouped = _THIN_GROUPS.sub(lambda m: _THIN.sub("", m.group()), text)
+    joined = _BREAK.sub(r"\1\2", unicodedata.normalize("NFKC", grouped))
     return " ".join(joined.translate(_QUOTES).casefold().split())
 
 
@@ -203,10 +209,22 @@ def _parts(excerpt: str) -> list[str]:
     return [n for n in (normalise(p) for p in re.split(r"\.\.\.|\u2026", excerpt)) if n]
 
 
+_SIGNED = re.compile(r"(?:us\$|[$\u00a3\u20ac\u00a5])?\d")
+_CUT_AFTER = r"(?!\s?(?:%|x\b|bps?\b))(?!-\d)"
+
+
 def _needle(text: str) -> re.Pattern[str]:
-    """The text as a whole-token match that never starts or ends inside a number or drops a sign."""
-    before = r"(?<!\w)(?<!\d[.,])" + (r"(?<!-)" if text[0].isdigit() else "")
-    return re.compile(before + re.escape(text) + r"(?!\w)(?![.,]\d)")
+    """The text as a whole-token match that never starts or ends inside a number.
+
+    A leading number or currency amount is not a match when a minus sign (not a
+    range hyphen as in `300-325` or `Q2-2026`) or an opening bracket sits before it;
+    a trailing number is not a match when a `%`, `x`, `bp(s)` or range follows it.
+    """
+    before = r"(?<!\w)(?<!\d[.,])"
+    if _SIGNED.match(text):
+        before += r"(?<!(?<!\w)-)" + (r"(?<!\()" if ")" not in text else "")
+    after = r"(?!\w)(?![.,]\d)" + (_CUT_AFTER if text[-1].isdigit() else "")
+    return re.compile(before + re.escape(text) + after)
 
 
 def excerpt_found(text: str, excerpt: str) -> bool:
@@ -262,6 +280,8 @@ def _fetched(run: Path, source: str) -> str | None:
     """The body of a flat file directly in fetched/ (front matter stripped), else None."""
     if not source.startswith("fetched/") or any(ord(c) < 32 for c in source):
         return None
+    if len(source.encode("utf-8")) > 255:
+        return None
     if (run / "fetched").is_symlink():
         return None
     path = (run / source).resolve()
@@ -308,6 +328,9 @@ def _anchor(row: list[str], source_text: Source) -> Finding | None:
     cid, source, locator, excerpt = row[:4]
     if too_short(excerpt):
         need = f"{MIN_EXCERPT_TOKENS} words and {MIN_EXCERPT_CHARS} characters"
+        joined = " ".join(_parts(excerpt))
+        if len(joined.split()) >= MIN_EXCERPT_TOKENS and len(joined) >= MIN_EXCERPT_CHARS:
+            need = f"each part between ellipses needs {MIN_PART_TOKENS} words"
         return Finding("citation_unanchored", f"{cid}: excerpt needs {need}: {excerpt!r}")
     scope = _scope(pages(source_text.text), locator)
     if scope is None:

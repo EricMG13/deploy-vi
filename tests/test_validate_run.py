@@ -277,3 +277,56 @@ def test_citations_anchor_in_real_filings(
     assert check(handoff_text.replace(CITATION, cover), contract, rules, ford) == (0, [])
     moved = handoff_text.replace(CITATION, cover.replace("p.1", "p.2"))
     assert check(moved, contract, rules, ford)[0] == EXIT_MALFORMED
+
+
+@pytest.mark.parametrize(
+    ("source", "excerpt"),
+    [
+        ("Net loss was \u2212$5 million for the quarter.", "$5 million for the quarter"),
+        ("Net loss was -$5 million for the quarter.", "$5 million for the quarter"),
+        ("Net income ($5 million) in Q2", "$5 million"),
+        ("Net income (5 million) in Q2", "5 million"),
+        ("Net income (US$5 million) in Q2", "US$5 million"),
+        ("growth was 4% y/y", "growth was 4"),
+        ("leverage was 5x at end", "leverage was 5"),
+        ("spread was 25 bps wider", "spread was 25"),
+        ("Price Talk SOFR + 300\u2013325 bps", "Price Talk SOFR + 300"),
+        ("Price Talk SOFR + 300-325 bps", "Price Talk SOFR + 300"),
+        ("revenues were 11\u202f486 in Q2", "revenues were 11"),
+        ("revenues were 11\u00a0486 in Q2", "revenues were 11"),
+    ],
+)
+def test_a_cut_sign_unit_range_or_thousands_group_does_not_anchor(
+    source: str, excerpt: str
+) -> None:
+    assert not excerpt_found(source, excerpt)
+
+
+@pytest.mark.parametrize(
+    ("source", "excerpt"),
+    [
+        ("Price Talk SOFR + 300\u2013325 bps", "325 bps"),
+        ("Results for Q2-2026 were", "2026 were"),
+        ("revenues were 11\u202f486 in Q2", "revenues were 11\u202f486"),
+        ("revenues were 11\u2009486 in Q2", "revenues were 11\u00a0486"),
+        ("Net income ($5 million) in Q2", "income ($5 million)"),
+    ],
+)
+def test_a_range_a_quarter_label_and_thin_space_thousands_anchor(source: str, excerpt: str) -> None:
+    assert excerpt_found(source, excerpt)
+
+
+def test_thin_space_thousands_normalise_to_one_number() -> None:
+    assert normalise("11\u202f486 and 1\u2009234\u2009567") == "11486 and 1234567"
+    assert normalise("page 3 405 words") == "page 3 405 words"
+
+
+def test_a_thin_ellipsis_part_is_named_and_a_long_source_name_is_unknown(
+    handoff_text: str, contract: Contract, rules: Rules, run: Path
+) -> None:
+    row = _row("TEST_10Q.txt", "p.3", "the ... and ... of")
+    _, found = _codes(handoff_text.replace(CITATION, row), contract, rules, run)
+    assert "each part between ellipses needs 2 words" in found[0]
+    long = _row("fetched/" + "a" * 300 + ".md", "p.1", "revenue was 100 here")
+    _, found = _codes(handoff_text.replace(CITATION, long), contract, rules, run)
+    assert [f.split(":")[0] for f in found] == ["source_unknown"]
