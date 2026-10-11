@@ -1,12 +1,16 @@
-"""`rbot` command line: validate a Handoff, render a MODULE.md, check the tree."""
+"""`rbot` command line. Each later command lives with its module (`add_command`).
+
+A command given `--run <RUN>` appends one line to `<RUN>/log/rbot.log`.
+"""
 
 from __future__ import annotations
 
 import argparse
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
-from rbotlib import corpus
+from rbotlib import corpus, inventory
 from rbotlib.catalog import check_tree
 from rbotlib.contract import ContractError, load_contract
 from rbotlib.render import render_module
@@ -60,6 +64,14 @@ def _check(args: argparse.Namespace) -> int:
     return 1 if problems else 0
 
 
+def _log(run: Path, argv: list[str], code: int) -> None:
+    """One line per command in <RUN>/log/rbot.log: time, command, exit (spec section 8.1)."""
+    (run / "log").mkdir(exist_ok=True)
+    stamp = datetime.now(UTC).isoformat(timespec="seconds")
+    with (run / "log" / "rbot.log").open("a", encoding="utf-8") as log:
+        log.write(f"{stamp}\t{' '.join(argv)}\t{code}\n")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="rbot")
     parser.add_argument("--root", type=Path, default=RBOT_ROOT, help="the RBOT folder")
@@ -75,6 +87,10 @@ def main(argv: list[str] | None = None) -> int:
     c = sub.add_parser("check", help="contracts, generated modules, Pathways, Front Pages, budget")
     c.set_defaults(run=_check)
     corpus.add_command(sub)
+    inventory.add_command(sub)
     args = parser.parse_args(argv)
     result: int = args.run(args)
+    run_dir = getattr(args, "run_dir", None)
+    if run_dir and Path(run_dir).is_dir():
+        _log(Path(run_dir), sys.argv[1:] if argv is None else argv, result)
     return result

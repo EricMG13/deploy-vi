@@ -5,13 +5,14 @@ from __future__ import annotations
 import json
 import os
 import shutil
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from rbotlib.contract import contract_from_dict
-from rbotlib.corpus import Problem, load_registry
+from rbotlib.corpus import Problem, load_registry, materialise, resolve_roots, verify
 from rbotlib.render import render_module
 from rbotlib.rules import RBOT_ROOT, Rules, load_rules
 
@@ -88,3 +89,19 @@ def corpus_gate(problems: list[Problem]) -> None:
     if level == "1" or (level == "synthetic" and any(p.in_repo for p in problems)):
         pytest.fail(message)
     pytest.skip(message)
+
+
+@pytest.fixture(scope="session")
+def corpus_pack(tmp_path_factory: pytest.TempPathFactory) -> Callable[[str], Path]:
+    """Materialise a corpus pack once per session as a throwaway Source Pack."""
+    made: dict[str, Path] = {}
+
+    def get(pack_id: str) -> Path:
+        if pack_id not in made:
+            pack = CORPUS.pack(pack_id)
+            roots = resolve_roots(CORPUS)
+            corpus_gate(verify(CORPUS, pack, roots))
+            made[pack_id] = materialise(CORPUS, pack, roots, tmp_path_factory.mktemp(pack_id))
+        return made[pack_id]
+
+    return get

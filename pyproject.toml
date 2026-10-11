@@ -3,7 +3,9 @@ name = "deploy-vi"
 version = "0.1.0"
 description = "RBOT: leveraged-finance credit research as a GitHub Copilot skill"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "pypdf==6.19.0",
+]
 
 [tool.uv]
 package = false
@@ -25,7 +27,9 @@ ignore = ["TRY003"]
 max-complexity = 10
 
 [tool.ruff.lint.isort]
-known-first-party = ["rbotlib", "conftest", "check_suppressions", "check_bandit_floor"]
+known-first-party = [
+  "rbotlib", "conftest", "builders", "check_suppressions", "check_bandit_floor",
+]
 
 [tool.mypy]
 python_version = "3.11"
