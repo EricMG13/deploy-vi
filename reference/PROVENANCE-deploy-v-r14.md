@@ -6,3 +6,4 @@ Read-only copy of the Deploy V fork vendored in caos-databricks, used as referen
 - Commit: `a14f9051` on branch `claude/book-model-01-vendor-cp1-r14` (fork round r14: CP-1 pro forma register and debt terms)
 - Copied with: `git -C <caos> archive a14f9051 vendor/deploy-v | tar -x -C reference/deploy-v-r14 --strip-components=2`
 - Integrity: `python3 -B reference/deploy-v-r14/verify_package.py` exits 0 on this copy.
+- Location: this file lives outside `reference/deploy-v-r14/` because a file inside the package breaks the inventory check in `verify_package.py`.

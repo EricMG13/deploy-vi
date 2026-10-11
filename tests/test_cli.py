@@ -40,3 +40,22 @@ def test_check_returns_1_on_problems(tree: Path, capsys: pytest.CaptureFixture[s
 
 def test_the_shipped_tree_checks_clean() -> None:
     assert main(["check"]) == 0
+
+
+def test_validate_names_an_unknown_module_or_missing_handoff(
+    tree: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    good = str(FIXTURES / "handoff_cp_x.md")
+    assert main(["--root", str(tree), "validate", good, "--module", "CP-NOPE"]) == 1
+    err = capsys.readouterr().err
+    assert err.startswith("error: ") and "CP-NOPE" in err
+    assert main(["--root", str(tree), "validate", "missing.md", "--module", "CP-X"]) == 1
+    assert "error: " in capsys.readouterr().err
+
+
+def test_render_module_names_an_unknown_module(
+    tree: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["--root", str(tree), "render-module", "CP-NOPE"]) == 1
+    err = capsys.readouterr().err
+    assert err.startswith("error: ") and "CP-NOPE" in err

@@ -52,7 +52,13 @@ def load_catalog(root: Path) -> Catalog:
 
 def load_contracts(root: Path, rules: Rules, problems: list[str]) -> dict[str, Contract]:
     contracts: dict[str, Contract] = {}
-    for path in sorted((root / "modules").glob("*/contract.json")):
+    modules = root / "modules"
+    folders = sorted(p for p in modules.iterdir() if p.is_dir()) if modules.is_dir() else []
+    for folder in folders:
+        path = folder / "contract.json"
+        if not path.is_file():
+            problems.append(f"{folder.name}: no contract.json")
+            continue
         try:
             contract = load_contract(path, rules)
         except (ContractError, ValueError, KeyError) as exc:
@@ -60,6 +66,7 @@ def load_contracts(root: Path, rules: Rules, problems: list[str]) -> dict[str, C
             continue
         if contract.module_id != path.parent.name:
             problems.append(f"{path.parent.name}: module_id is {contract.module_id!r}")
+            continue
         contracts[contract.module_id] = contract
     return contracts
 

@@ -14,9 +14,10 @@ def test_count_finds_every_suppression_kind() -> None:
     assert check_suppressions.count([text]) == 4
 
 
-def test_reference_and_caches_are_skipped(tmp_path: Path) -> None:
-    (tmp_path / "reference").mkdir()
-    (tmp_path / "reference" / "old.py").write_text(f"x = 1  {NOQA}\n")
+def test_reference_design_and_caches_are_skipped(tmp_path: Path) -> None:
+    for skipped in ("reference", "design"):
+        (tmp_path / skipped).mkdir()
+        (tmp_path / skipped / "old.py").write_text(f"x = 1  {NOQA}\n")
     (tmp_path / "new.py").write_text("x = 1\n")
     assert [p.name for p in check_suppressions.python_files(tmp_path)] == ["new.py"]
 

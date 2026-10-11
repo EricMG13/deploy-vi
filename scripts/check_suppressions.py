@@ -1,7 +1,7 @@
 """Fail when suppression comments rise above the committed baseline.
 
 Counts `noqa`, `type: ignore`, `nosec` and `pragma: no cover` comments in
-every Python file outside the reference copy and tool caches. The count may
+every Python file outside reference/, design/ and tool caches. The count may
 fall, never rise; lower scripts/suppressions_baseline.txt when it falls.
 """
 

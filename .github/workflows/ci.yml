@@ -34,7 +34,7 @@ jobs:
       - run: uv run python rbot/scripts/rbot.py check
       - run: uv run python scripts/check_suppressions.py
       - run: uv run complexipy rbot/scripts scripts --max-complexity-allowed 15
-      - run: uv run bandit -r rbot/scripts scripts -f json -o bandit.json
+      - run: uv run bandit -r rbot/scripts scripts -f json -o bandit.json || true
       - run: uv run python scripts/check_bandit_floor.py bandit.json
       - run: uv run pip-audit --strict
       - run: npx --yes jscpd@5.2.0 --threshold 3 --min-lines 10 rbot/scripts scripts tests

@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from conftest import fixture_json, write_catalog, write_module
-from rbotlib.catalog import check_tree, load_catalog
+from rbotlib.catalog import check_tree, load_catalog, load_contracts
 from rbotlib.rules import Rules
 
 
@@ -110,3 +110,22 @@ def test_bad_contracts_and_misfiled_modules_are_named(tree: Path, rules: Rules) 
     problems = check_tree(tree, rules)
     assert any(p.startswith("CP-BAD: CP-BAD: missing title") for p in problems)
     assert "CP-W: module_id is 'CP-Y'" in problems
+
+
+def test_a_module_folder_without_a_contract_is_named(tree: Path, rules: Rules) -> None:
+    ghost = tree / "modules" / "CP-GHOST"
+    ghost.mkdir()
+    (ghost / "MODULE.md").write_text("hand written\n", encoding="utf-8")
+    assert "CP-GHOST: no contract.json" in check_tree(tree, rules)
+
+
+def test_a_misfiled_contract_never_replaces_the_original(tree: Path, rules: Rules) -> None:
+    moved = tree / "modules" / "CP-Z"
+    moved.mkdir()
+    data = fixture_json("contract_cp_y.json")
+    data["title"] = "Impostor"
+    (moved / "contract.json").write_text(json.dumps(data), encoding="utf-8")
+    problems: list[str] = []
+    contracts = load_contracts(tree, rules, problems)
+    assert "CP-Z: module_id is 'CP-Y'" in problems
+    assert contracts["CP-Y"].title == "Example Consumer"
