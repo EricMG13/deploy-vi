@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Credit Snapshot: Caesars Entertainment, Inc. (CZR) · RBOT Report, period spine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..700;1,14..32,400..700&family=Inter+Tight:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/tokens.css">
+<link rel="stylesheet" href="report-c.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="mockup-banner" hidden data-artifact-only>Design mockup · figures from Caesars' public filings · every score, recommendation and view is illustrative, not investment research</div>
+  <a class="skip" href="#front">Skip to the call</a>
+
+  <header class="mast">
+    <div class="mast__in">
+      <div class="mast__title">
+        <h1 id="title">Credit Snapshot: Caesars Entertainment, Inc.</h1>
+        <p class="mast__meta" id="mast-meta"></p>
+      </div>
+      <img class="brand-logo logo logo--on-dark" data-brand src="../../brand/ssim-logo-horizontal-white.png" alt="State Street Investment Management" width="149" height="22">
+    </div>
+  </header>
+
+  <nav class="nav" aria-label="Report sections">
+    <div class="nav__in">
+      <ol id="nav-list">
+        <li><a href="#front">The call</a></li>
+        <li><a href="#snapshot">Credit Snapshot</a></li>
+        <li><a href="#analysis">Analysis <span class="nav__count" id="nav-mods"></span></a></li>
+        <li><a href="#model">Model</a></li>
+        <li><a href="#portfolio-fit">Portfolio Fit</a></li>
+        <li><a href="#evidence">Evidence <span class="nav__count" id="nav-ev"></span></a></li>
+        <li><a href="#limitations">Limitations <span class="nav__count" id="nav-lim"></span></a></li>
+      </ol>
+      <a class="nav__period" href="#spine" aria-label="Selected period; go to the period spine"><span>Period</span> <b id="nav-period">LTM Q2 2026</b></a>
+    </div>
+  </nav>
+
+  <main id="main">
+    <div class="front" id="front" tabindex="-1">
+      <div class="verdict" id="verdict" aria-label="The call"></div>
+      <section class="spine-sec" id="spine" aria-labelledby="spine-h"></section>
+      <section class="period" id="period" aria-labelledby="period-h" aria-live="polite"></section>
+    </div>
+
+    <section class="sec" id="snapshot" aria-labelledby="snapshot-h">
+      <h2 class="bar" id="snapshot-h">Credit Snapshot <span class="bar__meta">House template blocks, in template order; the highlighted column follows the period spine</span></h2>
+      <div class="snap" id="snap"></div>
+    </section>
+
+    <section class="sec" id="analysis" aria-labelledby="analysis-h">
+      <h2 class="bar" id="analysis-h">Analysis by module <span class="bar__meta" id="analysis-meta"></span></h2>
+      <div class="sec__lede"><p>Each module shows its headline finding and its chart. Open a module for the detail; every figure opens to its source.</p></div>
+      <div class="mods" id="mods"></div>
+    </section>
+
+    <section class="sec" id="model" aria-labelledby="model-h">
+      <h2 class="bar" id="model-h">Model <span class="bar__meta">US$ m unless stated; columns are the period spine's stops</span></h2>
+      <div class="model-strip" id="model-strip"></div>
+      <div class="bands" id="bands"></div>
+    </section>
+
+    <section class="sec" id="portfolio-fit" aria-labelledby="pf-h">
+      <h2 class="bar" id="pf-h">Portfolio Fit: Test CLO I <span class="bar__meta" id="pf-meta"></span></h2>
+      <div id="pfit"></div>
+    </section>
+
+    <section class="sec" id="evidence" aria-labelledby="ev-h">
+      <h2 class="bar" id="ev-h">Evidence <span class="bar__meta" id="ev-meta"></span></h2>
+      <div id="evid"></div>
+    </section>
+
+    <section class="sec" id="limitations" aria-labelledby="lim-h">
+      <h2 class="bar" id="lim-h">Limitations <span class="bar__meta" id="lim-meta"></span></h2>
+      <div id="lims"></div>
+    </section>
+
+    <footer class="foot" id="foot"></footer>
+  </main>
+</div>
+
+<script src="shared/data.js"></script>
+<script src="shared/charts.js"></script>
+<script src="report-c.js"></script>
+</body>
+</html>

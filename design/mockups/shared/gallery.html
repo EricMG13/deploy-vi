@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RBOT Report foundation: tokens, components and charts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..700;1,14..32,400..700&family=Inter+Tight:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css">
+<style>
+  /* gallery-only layout */
+  .page { max-width: 1320px; margin: 0 auto; padding: 0 var(--s-5) var(--s-8); }
+  .masthead { background: var(--navy); color: #fff; }
+  .masthead__inner { max-width: 1320px; margin: 0 auto; padding: var(--s-5); display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s-5); }
+  .masthead h1 { color: #fff; font-size: var(--fs-2xl); }
+  .masthead p { color: var(--on-navy-2); margin: var(--s-2) 0 0; }
+  .masthead .logo--on-dark { height: 26px; margin-top: 6px; }
+  .sec { margin-top: var(--s-7); }
+  .sec > .bar { margin-bottom: 0; }
+  .sec__body { background: var(--sheet); border: var(--frame); border-top: 0; padding: var(--s-4); }
+  .sec__lede { color: var(--ink-2); font-size: var(--fs-table); margin-bottom: var(--s-4); }
+  .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-5) var(--s-5); }
+  .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-4); }
+  @media (max-width: 1100px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--s-3); margin: 0; padding: 0; list-style: none; }
+  .swatch { border: 1px solid var(--grey-200); font-size: var(--fs-xs); }
+  .swatch__chip { height: 44px; }
+  .swatch__meta { padding: var(--s-1) var(--s-2); line-height: 1.35; }
+  .swatch__meta b { display: block; color: var(--navy); font-size: var(--fs-table); }
+  .typescale > div { display: grid; grid-template-columns: 9rem 1fr; align-items: baseline; gap: var(--s-3); padding: var(--s-1) 0; border-bottom: var(--rule); }
+  .typescale code, .api code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.75rem; color: var(--ink-2); }
+  .row { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-3); align-items: center; margin-bottom: var(--s-3); }
+  .row__label { width: 9.5rem; flex: none; font-size: var(--fs-xs); color: var(--ink-2); font-weight: 600; }
+  .on-navy { background: var(--navy); color: #fff; padding: var(--s-3); }
+  .logo-pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); }
+  .logo-pair > div { display: flex; align-items: center; justify-content: space-between; padding: var(--s-4); min-height: 96px; font-size: var(--fs-xs); }
+  .logo-pair .light { background: var(--sheet); border: 1px solid var(--grey-200); color: var(--ink-2); }
+  .logo-pair .dark { background: var(--navy); color: var(--on-navy-2); }
+  .logo-pair .blue { background: var(--blue); color: #fff; }
+  .chart-cell { border: 1px solid var(--grey-100); padding: var(--s-3); min-width: 0; }
+  .two-blocks { display: grid; grid-template-columns: 3fr 2fr; gap: var(--s-5); align-items: start; }
+  @media (max-width: 1100px) { .two-blocks { grid-template-columns: 1fr; } }
+  .prose p { font-size: var(--fs-base); }
+  #err { display: none; background: var(--negative-text); color: #fff; padding: var(--s-2) var(--s-4); font-weight: 600; }
+  #err.on { display: block; }
+  .api { font-size: var(--fs-table); color: var(--ink-2); margin: var(--s-2) 0 0; }
+</style>
+<script>
+  window.__errors = [];
+  window.addEventListener("error", function (e) {
+    window.__errors.push(e.message + " @" + (e.lineno || "?"));
+    var b = document.getElementById("err");
+    if (b) { b.textContent = "Script error: " + window.__errors.join(" | "); b.className = "on"; }
+  });
+</script>
+</head>
+<body>
+<div id="err" role="alert"></div>
+<header class="masthead">
+  <div class="masthead__inner">
+    <div>
+      <h1>Report foundation: tokens, components, charts</h1>
+      <p>What the three Report mockups share. Caesars figures are real and cited; every score, call and thesis line is illustrative, because no RBOT run exists.</p>
+    </div>
+    <img class="logo logo--on-dark" src="../../../brand/ssim-logo-horizontal-white.png" alt="State Street Investment Management">
+  </div>
+</header>
+
+<main class="page">
+
+  <section class="sec" aria-labelledby="s-colour">
+    <h2 class="bar" id="s-colour">Colour</h2>
+    <div class="sec__body">
+      <p class="sec__lede">House pair navy and electric blue on a cool grey ground. Mint and lemon are accents for state on navy only. The chart palette is five hues, a neutral and a critical red; blue against orange stays distinct under every common colour-vision deficiency, and lines also differ by point shape and dash.</p>
+      <ul class="swatches" id="swatches-brand"></ul>
+      <h3 class="chart__title" style="display:block;margin:var(--s-4) 0 var(--s-2)">Chart palette</h3>
+      <ul class="swatches" id="swatches-chart"></ul>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="s-type">
+    <h2 class="bar" id="s-type">Type</h2>
+    <div class="sec__body typescale" id="typescale"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="s-snapshot">
+    <h2 class="bar" id="s-snapshot">Blocks and tables</h2>
+    <div class="sec__body">
+      <p class="sec__lede">The template's blocks: a navy bar with white bold capitals over a framed sheet. Click any figure for its source; the corner mark says whether it is cited (blue triangle) or calculated (navy square).</p>
+      <div class="two-blocks">
+        <div class="block">
+          <div class="bar">Company profile <span class="bar__meta">Caesars Entertainment, Inc.</span></div>
+          <table class="dt dt--kv" id="t-profile"><caption class="vh">Company profile</caption><tbody></tbody></table>
+        </div>
+        <div class="block">
+          <div class="bar">Analyst recommendation <span class="illus">Illustrative</span></div>
+          <table class="dt dt--kv" id="t-rec"><caption class="vh">Analyst recommendation</caption><tbody></tbody></table>
+        </div>
+      </div>
+      <div class="block" style="margin-top:var(--s-5)">
+        <div class="bar">Financials <span class="bar__meta">US$ m; negatives in parentheses as filed</span></div>
+        <div class="table-scroll"><table class="dt" id="t-fin"></table></div>
+      </div>
+      <div class="block" style="margin-top:var(--s-5)">
+        <div class="bar">Capital structure <span class="bar__meta">30 June 2026; x LTM Adj. EBITDA</span></div>
+        <div class="table-scroll"><table class="dt" id="t-cap"></table></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="s-expand">
+    <h2 class="bar" id="s-expand">Sections and tabs</h2>
+    <div class="sec__body">
+      <details class="xp" open>
+        <summary>Credit metrics</summary>
+        <div class="xp__body">
+          <p class="prose" id="xp-lede"></p>
+          <div data-tabs>
+            <div class="tabs__list" aria-label="Credit metric tables">
+              <button class="tabs__tab" id="tab-m" aria-controls="panel-m" aria-selected="true" type="button">Credit metrics</button>
+              <button class="tabs__tab" id="tab-b" aria-controls="panel-b" type="button">Balance sheet</button>
+              <button class="tabs__tab" id="tab-a" aria-controls="panel-a" type="button">EBITDA adjustments</button>
+            </div>
+            <div class="tabs__panel" id="panel-m"><table class="dt dt--framed" id="t-metrics"></table></div>
+            <div class="tabs__panel" id="panel-b" hidden><table class="dt dt--framed" id="t-bs"></table></div>
+            <div class="tabs__panel" id="panel-a" hidden><table class="dt dt--framed" id="t-adj"></table></div>
+          </div>
+        </div>
+      </details>
+      <details class="xp">
+        <summary>Liquidity</summary>
+        <div class="xp__body"><table class="dt dt--framed" id="t-liq" style="max-width:40rem"></table></div>
+      </details>
+      <details class="xp xp--light" style="margin-top:var(--s-4)">
+        <summary>Light variant, for detail nested inside a block</summary>
+        <div class="xp__body"><p>Use the light variant inside an open section, so a nested disclosure never competes with the navy section bars.</p></div>
+      </details>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="s-prov">
+    <h2 class="bar" id="s-prov">Provenance vocabulary</h2>
+    <div class="sec__body">
+      <div class="prov-key" style="margin-bottom:var(--s-4)" aria-label="Provenance key">
+        <span><button type="button" class="cite" data-ref="C1">C1</button> Cited: file, line, verbatim excerpt</span>
+        <span><button type="button" class="calc" data-ref="K2">K2</button> Calculated: formula and its cited inputs</span>
+        <span><span class="prov-model">Model-authored</span><span class="tag-model">Model</span></span>
+        <span><span class="illus">Illustrative</span> No RBOT run: a design placeholder judgement</span>
+        <span><span class="synth">Synthetic</span> Test CLO I portfolio files</span>
+        <span><button type="button" class="gap" data-ref="G10"><span class="gap__reason">not in the sources (reason on click)</span></button></span>
+      </div>
+      <div class="prose" id="prov-prose"></div>
+      <div class="illus-band" style="margin-top:var(--s-3)"><span class="illus">Illustrative</span><span>Use this band above any block of judgement: scores, recommendations, valuation, thesis, strengths and weaknesses, risks.</span></div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="s-status">
+    <h2 class="bar" id="s-status">Status chips and house scales</h2>
+    <div class="sec__body">
+      <div class="row"><span class="row__label">Module status</span><span id="st-module"></span></div>
+      <div class="row"><span class="row__label">Portfolio Fit</span><span id="st-fit"></span></div>
+      <div class="row"><span class="row__label">Recommendation</span><span id="sc-rec" class="row" style="margin:0"></span></div>
+      <div class="row"><span class="row__label">Credit Score</span><span id="sc-score" class="row" style="margin:0"></span></div>
+      <div class="row"><span class="row__label">Valuation</span><span id="sc-val" class="row" style="margin:0"></span></div>
+      <div class="row"><span class="row__label">Credit Direction</span>
+        <span class="dir dir--up">Improving</span><span class="dir dir--flat">Stable</span><span class="dir dir--down">Deteriorating</span></div>
+      <div class="row"><span class="row__label">Sector Outlook</span>
+        <span class="dir dir--up">Positive</span><span class="dir dir--flat">Neutral</span><span class="dir dir--down">Negative</span></div>
+      <div class="row"><span class="row__label">Large, on navy</span><span class="on-navy row" style="margin:0" id="sc-navy"></span></div>
+      <h3 class="chart__title" style="display:block;margin:var(--s-4) 0 var(--s-2)">Module statuses for this run <span class="illus">Illustrative</span></h3>
+      <table class="dt dt--framed" id="t-modules"></table>
+      <div class="row" style="margin-top:var(--s-4)">
+        <span class="row__label">Buttons</span>
+        <button class="btn" type="button">Open evidence</button>
+        <button class="btn btn--quiet" type="button">Show table</button>
+        <button class="btn" type="button" disabled>Export (disabled)</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="s-logo">
+    <h2 class="bar" id="s-logo">Logo usage</h2>
+    <div class="sec__body">
+      <div class="logo-pair">
+        <div class="dark"><span>Horizontal white on navy</span><img class="logo logo--on-dark" src="../../../brand/ssim-logo-horizontal-white.png" alt="State Street Investment Management"></div>
+        <div class="light"><span>Stacked black on white or grey</span><img class="logo logo--on-light" src="../../../brand/ssim-logo-stacked-black-trim.png" alt="State Street Investment Management"></div>
+      </div>
+      <p class="api">Never recoloured or redrawn. The white file also sits on electric blue; the stacked black file on white or #F0F2F5 only.</p>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="s-charts">
+    <h2 class="bar" id="s-charts">Charts</h2>
+    <div class="sec__body">
+      <p class="sec__lede">Every chart has a title, a one-line summary, a legend and a table twin. Each mark is focusable (Tab), names its value and origin, and opens its source on Enter or click. Solid marks are cited or calculated; hatched, hollow or dashed marks are projected, model-authored or illustrative; an n/a gap carries its reason.</p>
+      <div class="chart-strip">
+        <div class="chart-cell" id="c-leverage"></div>
+        <div class="chart-cell" id="c-coverage"></div>
+        <div class="chart-cell" id="c-liquidity"></div>
+      </div>
+      <p class="api"><code>RBOTCharts.lineStrip</code>, three in a <code>.chart-strip</code>: the Model chart strip.</p>
+      <div class="grid2" style="margin-top:var(--s-5)">
+        <div><div class="chart-cell" id="c-revenue"></div><p class="api"><code>RBOTCharts.columns</code></p></div>
+        <div><div class="chart-cell" id="c-interest"></div><p class="api"><code>RBOTCharts.lineStrip</code> with projected points (dashed)</p></div>
+        <div><div class="chart-cell" id="c-segments"></div><p class="api"><code>RBOTCharts.dumbbell</code></p></div>
+        <div><div class="chart-cell" id="c-wall"></div><p class="api"><code>RBOTCharts.stackedColumns</code></p></div>
+        <div><div class="chart-cell" id="c-bridge"></div><p class="api"><code>RBOTCharts.waterfall</code>, reconciling</p></div>
+        <div><div class="chart-cell" id="c-cash"></div><p class="api"><code>RBOTCharts.waterfall</code> with an unexplained residual</p></div>
+        <div><div class="chart-cell" id="c-yield"></div><p class="api"><code>RBOTCharts.scatter</code>, spread-curve form (yield: spreads are a gap)</p></div>
+        <div><div class="chart-cell" id="c-peer"></div><p class="api"><code>RBOTCharts.rangeStrip</code>, three issuers (no quartiles)</p></div>
+        <div><div class="chart-cell" id="c-covenant"></div><p class="api"><code>RBOTCharts.bullet</code>: covenant level not cited, so the threshold is an n/a gap</p></div>
+        <div><div class="chart-cell" id="c-clo"></div><p class="api"><code>RBOTCharts.bullet</code> on Test CLO I limits <span class="synth">Synthetic</span></p></div>
+        <div><div class="chart-cell" id="c-sectors"></div><p class="api"><code>RBOTCharts.rangeStrip</code> with quartiles <span class="synth">Synthetic</span></p></div>
+        <div><div class="chart-cell" id="c-risk"></div><p class="api"><code>RBOTCharts.riskMatrix</code> <span class="illus">Illustrative</span></p></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="data.js"></script>
+<script src="charts.js"></script>
+<script>
+(function () {
+  "use strict";
+  var D = window.RBOT_DATA, UI = window.RBOTUI, C = window.RBOTCharts, el = UI.el;
+  var F = D.figures;
+  function $(id) { return document.getElementById(id); }
+
+  /* ---- colour swatches */
+  var brand = [["--navy", "#000533", "Navy: bars, headings, ink"], ["--blue", "#0017E5", "Electric blue: interaction, primary series"],
+    ["--ground", "#F0F2F5", "Ground"], ["--sheet", "#FFFFFF", "Sheet"], ["--grey-100", "#E1E3E6", "Rules, sub-bars"],
+    ["--grey-200", "#C5C8CC", "Borders"], ["--grey-400", "#8D939D", "Neutral marks (not text)"], ["--grey-600", "#55585E", "Secondary text"],
+    ["--soft-blue", "#CBE4FE", "Selection, hover"], ["--soft-blue-50", "#E7F5FF", "Faint fill"], ["--mint", "#1EFF8F", "Accent on navy only"],
+    ["--mint-soft", "#A5FFD2", "Accent fill"], ["--positive", "#0F8048", "Positive"], ["--negative", "#D4625D", "Negative marks"],
+    ["--negative-text", "#A6100F", "Negative text, critical"]];
+  var chart = [["--chart-1", "#0017E5", "Series 1: the issuer"], ["--chart-2", "#C4410C", "Series 2: orange"], ["--chart-3", "#000533", "Series 3: totals, navy"],
+    ["--chart-4", "#55585E", "Series 4: slate"], ["--chart-5", "#2B8FD6", "Series 5: mid blue"], ["--chart-neutral", "#8D939D", "Sixth series, rules, peers"],
+    ["--chart-critical", "#A6100F", "Residuals, breaches only"]];
+  function swatches(list, target) {
+    list.forEach(function (s) {
+      var chip = el("div", { class: "swatch__chip" }); chip.style.background = "var(" + s[0] + ")";
+      $(target).appendChild(el("li", { class: "swatch" }, [chip, el("div", { class: "swatch__meta" }, [el("b", { text: s[0] }), s[1] + " · " + s[2]])]));
+    });
+  }
+  swatches(brand, "swatches-brand"); swatches(chart, "swatches-chart");
+
+  /* ---- type scale */
+  [["--fs-2xl", "Inter Tight 800", "Credit Snapshot: Caesars Entertainment", "head", 800],
+   ["--fs-xl", "Inter Tight 700", "Capital structure and liquidity", "head", 700],
+   ["--fs-lg", "Inter Tight 700", "Investment thesis", "head", 700],
+   ["--fs-md", "Inter Tight 700", "Leverage and interest cover", "head", 700],
+   ["--fs-base", "Inter 400, body 14px", "Caesars reported Adjusted EBITDA of 920 for Q2 2026 on net revenues of 2,993.", "body", 400],
+   ["--fs-table", "Inter 400, tables 13px, tabular", "11,807  3,592  (62)  3.29x  8.063520%", "body", 400],
+   ["--fs-xs", "Inter 500, captions 12px", "Source: Caesars Q2 2026 10-Q, line 449", "body", 500]].forEach(function (t) {
+    var sample = el("div", { text: t[2] });
+    sample.style.fontSize = "var(" + t[0] + ")"; sample.style.fontWeight = t[4];
+    sample.style.fontFamily = t[3] === "head" ? "var(--font-head)" : "var(--font-body)";
+    if (t[0] === "--fs-table") sample.className = "num";
+    $("typescale").appendChild(el("div", {}, [el("code", { text: t[0] + " · " + t[1] }), sample]));
+  });
+
+  /* ---- helpers */
+  function td(d, opts) { var c = el("td", { class: (opts && opts.text) ? null : "num" }); UI.cell(c, d, opts && opts.unit); return c; }
+  function kv(tbody, label, content) { tbody.appendChild(el("tr", {}, [el("th", { scope: "row", text: label }), el("td", {}, content)])); }
+  function fig(k) { return F[k]; }
+  function datumOf(k) { var f = F[k]; return { v: f.v, prov: f.prov, ref: f.ref, reason: f.reason }; }
+
+  /* ---- company profile */
+  var tb = $("t-profile").tBodies[0];
+  var I = D.illustrative;
+  kv(tb, "Issuer", [el("span", { text: fig("issuer.name").v }), UI.chip(fig("issuer.name").ref)]);
+  kv(tb, "Ticker", [el("span", { text: fig("issuer.ticker").v }), UI.chip(fig("issuer.ticker").ref)]);
+  kv(tb, "Morningstar Issuer ID", [UI.value({ v: null, ref: "G" + Object.keys(D.gaps).filter(function (g) { return D.gaps[g].field === "morningstar_issuer_id"; })[0].slice(1), reason: "not in the sources" })]);
+  kv(tb, "Management", [el("span", { text: "CEO " + fig("issuer.ceo").v }), UI.chip(fig("issuer.ceo").ref), el("span", { text: " · CFO " + fig("issuer.cfo").v }), UI.chip(fig("issuer.cfo").ref)]);
+  kv(tb, "Ratings (issue level, M/S)", [el("span", { text: "SS 2032s " + fig("trace_czr_12769gac4_moodys").v + " / " + fig("trace_czr_12769gac4_sp").v }), UI.chip(fig("trace_czr_12769gac4_moodys").ref), UI.chip(fig("trace_czr_12769gac4_sp").ref)]);
+  kv(tb, "Sector Outlook", [el("span", { class: "dir dir--flat", text: I.sectorOutlook.word }), UI.illus()]);
+  kv(tb, "Sponsor Quality", [el("span", { class: "prov-model", text: I.sponsorQuality.word }), UI.illus()]);
+  kv(tb, "Credit Score", [UI.scale({ kind: "score", pos: I.creditScore.pos, illustrative: true, label: "Credit Score" }), UI.illus()]);
+  kv(tb, "Credit Direction", [el("span", { class: "dir dir--down", text: I.creditDirection.word }), UI.illus()]);
+
+  var tr = $("t-rec").tBodies[0];
+  kv(tr, "Analyst", [el("span", { text: D.meta.analyst.v })]);
+  kv(tr, "Date", [el("span", { class: "num", text: D.meta.analysisDate })]);
+  Object.keys(I.recommendation).forEach(function (k) {
+    var r = I.recommendation[k];
+    kv(tr, k, [UI.scale({ kind: "rec", pos: r.pos, word: r.word, illustrative: true, label: k })]);
+  });
+  kv(tr, "Valuation", [UI.scale({ kind: "val", pos: I.valuation.pos, illustrative: true, label: "Valuation" })]);
+
+  /* ---- financials */
+  var T = D.tables.financials, ft = $("t-fin");
+  ft.appendChild(el("caption", { class: "vh", text: "Financials, US$ m" }));
+  ft.appendChild(el("thead", {}, [el("tr", {}, [el("th", { scope: "col", text: "US$ m" })].concat(T.columns.map(function (c) { return el("th", { scope: "col", class: "num", text: c }); })))]));
+  var fb = el("tbody"); ft.appendChild(fb);
+  T.rows.forEach(function (r) {
+    var row = el("tr", { class: r.kind === "sub" ? "sub" : r.kind === "total" ? "total" : null }, [el("th", { scope: "row", text: r.label })]);
+    r.cells.forEach(function (d) { row.appendChild(td(d, { unit: r.label.indexOf("%") === 0 ? "%" : "" })); });
+    fb.appendChild(row);
+  });
+
+  /* ---- capital structure */
+  var cap = D.tables.capitalStructure, ct = $("t-cap");
+  var heads = ["Facility", "Debt type", "Ratings (M/S)", "Coupon | %", "Maturity", "Price", "Outstanding | US$ m", "Structuring multiple | x", "SSIM multiple | x", "% EV", "Recommendation"];
+  ct.appendChild(el("thead", {}, [el("tr", {}, heads.map(function (hd, i) {
+    var p = hd.split(" | ");
+    return el("th", { scope: "col", class: i >= 5 && i < 10 ? "num" : null }, [p[0], p[1] ? el("span", { class: "unit", text: p[1] }) : null]);
+  }))]));
+  var cb = el("tbody"); ct.appendChild(cb);
+  var recs = {}; I.byInstrument.forEach(function (r) { recs[r.facility] = r; });
+  function capRow(r) {
+    var rec = recs[r.facility];
+    cb.appendChild(el("tr", {}, [el("th", { scope: "row", text: r.facility }), el("td", { text: r.debtType }), td(r.ratings, { text: true }),
+      td(r.coupon), td(r.maturity, { text: true }), td(r.bid), td(r.outstanding), td(r.structuring_multiple), td(r.ssim_multiple), td(r.pct_ev),
+      el("td", {}, [rec ? UI.scale({ kind: "rec", pos: rec.pos, word: rec.word, illustrative: true, label: r.facility }) : ""])]));
+  }
+  function subtotal(label, d, cls) {
+    var row = el("tr", { class: cls || "total" }, [el("th", { scope: "row", colspan: 6, text: label })]);
+    row.firstChild.style.textAlign = "right";
+    row.appendChild(td(d)); row.appendChild(el("td", { colspan: 4 }));
+    cb.appendChild(row);
+  }
+  cap.rows.filter(function (r) { return r.rank === "secured"; }).forEach(capRow);
+  subtotal("Senior secured debt", cap.subtotals.senior_secured);
+  cap.rows.filter(function (r) { return r.rank === "unsecured"; }).forEach(capRow);
+  subtotal("Unsecured debt", cap.subtotals.unsecured);
+  cap.rows.filter(function (r) { return r.rank === "other"; }).forEach(capRow);
+  subtotal("Total debt", cap.subtotals.total_debt);
+  subtotal("Cash", cap.subtotals.cash, "sub");
+  subtotal("(Implied) Equity, at the merger value", cap.subtotals.implied_equity, "sub");
+  subtotal("EV, merger transaction value", cap.subtotals.ev);
+  subtotal("PF interest", cap.subtotals.pf_interest, "sub");
+
+  /* ---- metric tables in tabs */
+  function grid(tableId, t) {
+    var tt = $(tableId);
+    tt.appendChild(el("caption", { class: "vh", text: t.title }));
+    tt.appendChild(el("thead", {}, [el("tr", {}, [el("th", { scope: "col", text: t.unit })].concat(t.columns.map(function (c) { return el("th", { scope: "col", class: "num", text: c }); })))]));
+    var b = el("tbody"); tt.appendChild(b);
+    t.rows.forEach(function (r) {
+      var row = el("tr", { class: r.kind === "total" ? "total" : r.kind === "sub" ? "sub" : r.kind === "indent" ? "indent" : null }, [el("th", { scope: "row", text: r.label })]);
+      r.cells.forEach(function (d) { row.appendChild(td(d)); });
+      b.appendChild(row);
+    });
+  }
+  grid("t-metrics", D.tables.creditMetrics); grid("t-bs", D.tables.balanceSheet); grid("t-adj", D.tables.ebitdaAdjustments);
+  var lt = $("t-liq"), lb = el("tbody");
+  lt.appendChild(el("thead", {}, [el("tr", {}, [el("th", { scope: "col", text: "Liquidity at 30 June 2026" }), el("th", { scope: "col", class: "num", text: "US$ m" })])]));
+  lt.appendChild(lb);
+  D.tables.liquidity.rows.forEach(function (r, i, a) { lb.appendChild(el("tr", { class: i === a.length - 1 ? "total" : null }, [el("th", { scope: "row", text: r.label }), td(r.cell)])); });
+  var lede = $("xp-lede");
+  lede.appendChild(document.createTextNode("Total leverage "));
+  lede.appendChild(UI.value(datumOf("total_leverage_ltm"), "x"));
+  lede.appendChild(document.createTextNode(" at LTM Q2 2026, before any merger debt; FY2023 and FY2024 show as n/a because year-end debt was not extracted "));
+  lede.appendChild(UI.chip(D.tables.creditMetrics.rows[1].cells[0].ref));
+  lede.appendChild(document.createTextNode("."));
+
+  /* ---- provenance prose */
+  var pp = $("prov-prose"), p1 = el("p"), p2 = el("p");
+  p1.appendChild(document.createTextNode("Cited: LTM net revenues "));
+  p1.appendChild(UI.value(datumOf("ltm_net_revenues_q2_2026")));
+  p1.appendChild(document.createTextNode(" rest on the FY2025 10-K and the Q2 2026 release; total debt, face value "));
+  p1.appendChild(UI.value(datumOf("total_debt_face_2026_06_30")));
+  p1.appendChild(document.createTextNode(" is quoted from the 10-Q. Calculated: net leverage "));
+  p1.appendChild(UI.value(datumOf("net_leverage_ltm"), "x"));
+  p1.appendChild(document.createTextNode(". Gap: Fitch rating "));
+  p1.appendChild(UI.value({ v: null, ref: Object.keys(D.gaps).filter(function (g) { return D.gaps[g].field === "rating_fitch"; })[0], reason: "not found in these files" }));
+  p1.appendChild(document.createTextNode("."));
+  p2.appendChild(el("span", { class: "prov-model", text: I.thesis.text }));
+  I.thesis.refs.forEach(function (r) { p2.appendChild(UI.chip(r)); });
+  p2.appendChild(UI.illus());
+  pp.appendChild(p1); pp.appendChild(p2);
+
+  /* ---- status and scales */
+  ["Pass", "Restricted", "Blocked"].forEach(function (w) { $("st-module").appendChild(UI.status(w)); $("st-module").appendChild(document.createTextNode(" ")); });
+  ["Fits", "Watch", "Breaches"].forEach(function (w) { $("st-fit").appendChild(UI.status(w)); $("st-fit").appendChild(document.createTextNode(" ")); });
+  [1, 2, 3, 4, 5].forEach(function (p) { $("sc-rec").appendChild(UI.scale({ kind: "rec", pos: p })); });
+  $("sc-rec").appendChild(UI.scale({ kind: "rec", pos: null, word: "Avoid" }));
+  $("sc-rec").appendChild(UI.scale({ kind: "rec", pos: null, word: "N/A" }));
+  [1, 2, 3, 4, 5].forEach(function (p) { $("sc-score").appendChild(UI.scale({ kind: "score", pos: p })); });
+  [1, 2, 3, 4, 5].forEach(function (p) { $("sc-val").appendChild(UI.scale({ kind: "val", pos: p })); });
+  $("sc-navy").appendChild(UI.scale({ kind: "rec", pos: 2, size: "lg", label: "Indexed HY", illustrative: true }));
+  $("sc-navy").appendChild(UI.scale({ kind: "score", pos: 3, size: "lg", label: "Credit Score", illustrative: true }));
+  $("sc-navy").appendChild(UI.status("Restricted"));
+  $("sc-navy").appendChild(el("span", { class: "dir dir--down", text: "Deteriorating" }));
+  $("sc-navy").appendChild(UI.illus());
+  var mt = $("t-modules");
+  mt.appendChild(el("thead", {}, [el("tr", {}, ["Module", "Name", "Status", "Reason"].map(function (x) { return el("th", { scope: "col", text: x }); }))]));
+  var mb = el("tbody"); mt.appendChild(mb);
+  D.modules.forEach(function (m) {
+    var reason = el("td", {}, [m.reason + " "]);
+    m.refs.forEach(function (r) { reason.appendChild(UI.chip(r)); });
+    mb.appendChild(el("tr", {}, [el("th", { scope: "row", text: m.id }), el("td", { text: m.name }), el("td", {}, [UI.status(m.status)]), reason]));
+  });
+
+  /* ---- charts */
+  var K = D.charts;
+  function spec(s, n) { return Object.assign({ headingLevel: 3, number: n }, s); }
+  C.lineStrip($("c-leverage"), spec(K.leverage, "Figure 1"));
+  C.lineStrip($("c-coverage"), spec(K.coverage, "Figure 2"));
+  C.lineStrip($("c-liquidity"), spec(K.liquidity, "Figure 3"));
+  C.columns($("c-revenue"), spec(K.revenueEbitda, "Figure 4"));
+  C.lineStrip($("c-interest"), spec(K.interestPath, "Figure 5"));
+  C.dumbbell($("c-segments"), spec(K.segments, "Figure 6"));
+  C.stackedColumns($("c-wall"), spec(K.maturityWall, "Figure 7"));
+  C.waterfall($("c-bridge"), spec(K.ebitdaBridge, "Figure 8"));
+  C.waterfall($("c-cash"), spec(K.cashBridge, "Figure 9"));
+  C.scatter($("c-yield"), spec(K.yieldCurve, "Figure 10"));
+  C.rangeStrip($("c-peer"), spec(K.peerRange, "Figure 11"));
+  C.bullet($("c-covenant"), spec(K.covenant, "Figure 12"));
+  C.bullet($("c-clo"), spec(K.cloLimits, "Figure 13"));
+  C.rangeStrip($("c-sectors"), spec(K.cloSectors, "Figure 14"));
+  C.riskMatrix($("c-risk"), spec(K.risk, "Figure 15"));
+
+  UI.init(document);
+  /* #demo: open one table twin and one citation popover, for screenshot review */
+  if (location.hash === "#demo") {
+    document.querySelector("#c-wall .chart__toggle").click();
+    document.querySelector("#c-cash .chart__toggle").click();
+    var cellBtn = document.querySelector("#t-fin .cellref");
+    UI.open(cellBtn.getAttribute("data-ref"), cellBtn);
+  }
+  document.documentElement.setAttribute("data-ready", "1");
+})();
+</script>
+</body>
+</html>

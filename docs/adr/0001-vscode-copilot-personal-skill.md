@@ -1,0 +1,3 @@
+# Host RBOT as a personal GitHub Copilot skill in VS Code Agent mode
+
+Deploy V and earlier RBOT generations targeted Microsoft 365 Copilot (declarative agents, then Cowork skills with saved-memory launchers and OneDrive folder grounding). Deploy VI targets GitHub Copilot in VS Code Agent mode instead, installed as a personal skill (`~/.copilot/skills/rbot/`) so it loads in whatever issuer folder the analyst opens, and confidential source documents never sit inside a git repository. Agent mode can run Python (with pip packages) in the terminal, so deterministic figures, document parsing and validation stay script-owned rather than model-derived.
