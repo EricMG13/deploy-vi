@@ -757,7 +757,7 @@ Exit codes unless stated: 0 success, 1 failure with a message naming the cause. 
 
 | Command | Arguments | Inputs | Outputs | Exit codes | Plan |
 |---|---|---|---|---|---|
-| `validate` | `<handoff> --module <ID> [--run <RUN>]` | Handoff, contract, rules; with `--run`: `inventory.json`, `prepared/`, `fetched/` | findings on stdout, `exit <n>` | 0 valid, 2 malformed, 3 blocked, 4 identity (Plan 01); new findings `too_large`, `source_unknown` (cited `source` not in the inventory or `fetched/`), `citation_unanchored` (excerpt not found in the prepared text of that file; with page locator `p.<n>`, not on that page) → 2 | 01; `--run` in 02 |
+| `validate` | `<handoff> --module <ID> [--run <RUN>]` | Handoff, contract, rules; with `--run`: `inventory.json`, `prepared/`, `fetched/` | findings on stdout, `exit <n>` | 0 valid, 2 malformed, 3 blocked, 4 identity (Plan 01); new findings `too_large`, `source_unknown` (cited `source` not in the inventory or `fetched/`), `citation_unanchored` (excerpt not found in the prepared text of that file at token and number boundaries after the shared normalisation; with a page locator — `p.`, `pp.`, `pg.`, `page(s)`, with or without a space — not on that page; an excerpt under 2 tokens or 8 characters, or an ellipsis part under 2 tokens, is unanchored) → 2; a run-folder read failure → 1 with `error: <path>: <reason>` (amended 2026-10-11) | 01; `--run` in 02 |
 | `render-module` | `<ID> [--write]` | contract | MODULE.md | 0 | 01 |
 | `check` | — | tree | problems | 0 / 1 | 01; extensions §14 |
 | `new-run` | `--pack <dir> [--issuer <hint>] [--objective <text>]` | pack | run folder with `run-state.json` | 0; 1 when an unfinished run exists (prints its id; use `next`) | 06 |
@@ -777,7 +777,7 @@ Exit codes unless stated: 0 success, 1 failure with a message naming the cause. 
 | `fetch` | `--run <RUN> --url <URL> [--question <id>]` | network (only when the host exposes it; otherwise exit 1 `no fetch tool`) | `fetched/<nn>-<host>.md` | 0; 1 | 10 |
 | `diff` | `--run <RUN> --prior <report.html\|report.md>` | the prior Report's embedded JSON, current Handoffs | `prior/diff.json`, `prior/diff.md` | 0; 1 when the prior file has no `rbot-run` JSON | 11 |
 | `render` | `--run <RUN> [--md-only]` | every accepted/blocked Handoff, `model.json`, `fit/`, `prior/`, catalog `blocks`, `report/` assets | `report.md`, `report.html`; `report.written_at` in state | 0; 1 when a Front Page table has no owner in the run (never: `rbot check` prevents it) | 07 |
-| `corpus` | `verify [--pack <id>]` / `list` | `tests/corpus/corpus.json`, `RBOT_CORPUS_ROOTS` | verification report | 0; 1 when a file is missing or its hash differs; 2 when a root is unresolved | 02 |
+| `corpus` | `verify [--pack <id>]` / `list` | `tests/corpus/corpus.json`, `RBOT_CORPUS_ROOTS` | verification report | 0; 1 when a file is missing or its hash differs; 2 when a root is unresolved, a registry entry escapes its root, or the registry/`RBOT_CORPUS_ROOTS` is malformed (usage error, message named) | 02 |
 | `version` | — | — | `rbot <version> <git sha>` | 0 | 06 |
 
 Repo-only tooling (not in `rbot.py`): `scripts/proxy_run.py` and `scripts/scorecard.py` (§12.6), `scripts/ab_grade.py` (§12.7).
@@ -1024,7 +1024,7 @@ Every pack in `corpus-inventory.md` is listed; ids are the caos ids unchanged, `
 
 ### 12.3 pytest marker and the require rule
 
-`tests/conftest.py` registers the `corpus` marker (`--strict-markers` already on). A corpus test resolves its pack through `corpus.json`; when a root is unresolved or a file's hash differs: if `RBOT_REQUIRE_CORPUS=1` the test **fails** with the unresolved root or mismatched file named; otherwise it is skipped with the same message. CI sets `RBOT_REQUIRE_CORPUS=1` for synthetic packs always (they are in the repo) and for external packs only on the owner's machine (`make corpus` target runs `RBOT_REQUIRE_CORPUS=1 uv run pytest -m corpus`). `rbot corpus verify` is the same check as a command.
+`tests/conftest.py` registers the `corpus` marker (`--strict-markers` already on). A corpus test resolves its pack through `corpus.json`; when a root is unresolved or a file's hash differs: if `RBOT_REQUIRE_CORPUS=1` the test **fails** with the unresolved root or mismatched file named; otherwise it is skipped with the same message. `RBOT_REQUIRE_CORPUS` takes `1` (every problem fails), `synthetic` (only in-repo problems fail; external roots that are unresolved skip — what CI sets, since CI has no external roots) or empty (skip); any other value fails the run. The owner's machine runs `RBOT_REQUIRE_CORPUS=1` with `RBOT_CORPUS_ROOTS` set (`make corpus`). (Amended 2026-10-11, Plan 02 review.) `rbot corpus verify` is the same check as a command.
 
 ### 12.4 Storage
 
