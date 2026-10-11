@@ -10,7 +10,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from rbotlib import corpus, inventory
+from rbotlib import corpus, inventory, prepare
 from rbotlib.catalog import check_tree
 from rbotlib.contract import ContractError, load_contract
 from rbotlib.render import render_module
@@ -88,6 +88,7 @@ def main(argv: list[str] | None = None) -> int:
     c.set_defaults(run=_check)
     corpus.add_command(sub)
     inventory.add_command(sub)
+    prepare.add_command(sub)
     args = parser.parse_args(argv)
     result: int = args.run(args)
     run_dir = getattr(args, "run_dir", None)

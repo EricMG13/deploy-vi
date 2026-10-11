@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 
+from rbotlib.cli import main
 from rbotlib.contract import contract_from_dict
 from rbotlib.corpus import Problem, load_registry, materialise, resolve_roots, verify
 from rbotlib.render import render_module
@@ -102,6 +103,23 @@ def corpus_pack(tmp_path_factory: pytest.TempPathFactory) -> Callable[[str], Pat
             roots = resolve_roots(CORPUS)
             corpus_gate(verify(CORPUS, pack, roots))
             made[pack_id] = materialise(CORPUS, pack, roots, tmp_path_factory.mktemp(pack_id))
+        return made[pack_id]
+
+    return get
+
+
+@pytest.fixture(scope="session")
+def prepared_run(corpus_pack: Callable[[str], Path]) -> Callable[[str], Path]:
+    """A run folder per corpus pack with `rbot inventory` and `rbot prepare` done, once."""
+    made: dict[str, Path] = {}
+
+    def get(pack_id: str) -> Path:
+        if pack_id not in made:
+            run = corpus_pack(pack_id) / "rbot-runs" / f"20261011-{pack_id}-prepared"
+            run.mkdir(parents=True)
+            assert main(["inventory", "--run", str(run)]) == 0
+            assert main(["prepare", "--run", str(run)]) == 0
+            made[pack_id] = run
         return made[pack_id]
 
     return get
