@@ -25,18 +25,17 @@
         <span class="pane__issuer" id="pane-issuer"></span>
         <span class="pane__meta" id="pane-meta"></span>
       </div>
-      <nav class="nav" id="nav" aria-label="Report views"></nav>
-      <div class="pane__key">
-        <h2>How to read a figure</h2>
-        <ul>
-          <li><button type="button" class="cite" data-ref="C1">C1</button> Cited: opens file, line and excerpt</li>
-          <li><button type="button" class="calc" data-ref="K2">K2</button> Calculated: opens the formula</li>
-          <li><span class="gapref" aria-hidden="true">G8</span> Gap: missing, with its reason</li>
-          <li><span class="prov-model">Model-authored</span><span class="tag-model">Model</span></li>
-          <li><span class="illus">Illustrative</span> no RBOT run exists</li>
-          <li><span class="synth">Synthetic</span> Test CLO I files</li>
-        </ul>
+      <div class="pane__search" role="search">
+        <label class="pane__search-l" for="pane-search">Search the Report</label>
+        <input class="pane__search-i" id="pane-search" type="search" autocomplete="off" placeholder="Figures, findings, sources" aria-controls="pane-results">
+        <p class="vh" id="pane-search-status" role="status" aria-live="polite"></p>
+        <ul class="pane__results" id="pane-results" hidden></ul>
       </div>
+      <details class="pane__key" id="pane-key">
+        <summary>Key</summary>
+        <div class="pane__keybody" id="pane-keybody"></div>
+      </details>
+      <nav class="nav" id="nav" aria-label="Report views"></nav>
     </div>
   </aside>
   <main class="main" id="main" tabindex="-1"></main>

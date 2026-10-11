@@ -50,3 +50,11 @@ Chosen: **A — IC paper**, amended:
 4. Clarity and polish: impeccable critique by Opus at max effort; implementation by a different model (Sonnet).
 
 Amended FIRST VIEWPORT (A): left pane (logo, issuer, run line, navigation: Snapshot, each module with status, Model, Portfolio Fit, Evidence, Limitations); main: title band with the call per Strategy and Valuation, key findings, company description with operating model, then the Model chart strip and capital structure; every block collapsible and linked to its module view.
+
+### Critique fixes (owner answers, 2026-10-11)
+
+After the dual-assessment critique (23/40) the owner chose to fix every issue and ruled:
+1. **Scope:** all issues, the five priority issues and the minor ones.
+2. **Snapshot company description:** one sentence plus a five-row cited operating-model fact table (segments, revenue mix, footprint, owned versus leased real estate, digital), set beside Key findings. The full prose stays in the Financial analysis module behind "Full analysis". The KPI tile strip is removed. Acceptance: at 1440x900 all four Model-strip plots and the capital-structure bar are inside the first viewport.
+3. **Status label:** the reader-facing word for `qa_status` Restricted is "With limitations". Pass stays Pass and Blocked stays Blocked. The internal data keeps Restricted and is mapped only at display.
+4. **Call band:** neutral. Every position box is white on navy and the word ("Modest OW") carries the meaning, with no tone colours in the band. This also fixes the 2.75:1 contrast failure. The meter stays visible at laptop widths. The H1 is the issuer. "Collapse all" moves out of the band.
