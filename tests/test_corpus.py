@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import pytest
@@ -71,6 +71,11 @@ def test_the_registry_is_well_formed(rules: Rules) -> None:
             assert f.cls in rules.source_classes, f.path
             assert f.document_type in rules.scales["document_type"], f.path
             assert (f.pages is not None) == f.path.lower().endswith(".pdf"), f.path
+            for rel in (f.path, pack.path, f.external or ""):
+                assert not PurePosixPath(rel).is_absolute(), f.path
+                assert ".." not in PurePosixPath(rel).parts, f.path
+            if f.external:
+                assert f.external.partition("/")[0] in CORPUS.roots, f.path
 
 
 def test_unresolved_external_roots_are_named(tmp_path: Path) -> None:
@@ -80,7 +85,8 @@ def test_unresolved_external_roots_are_named(tmp_path: Path) -> None:
     assert "ext" not in roots
     problems = verify(registry, registry.pack("p1"), roots)
     assert [(p.code, p.in_repo) for p in problems] == [(UNRESOLVED, False)]
-    assert "root 'ext' is unresolved; set RBOT_CORPUS_ROOTS" in problems[0].message
+    message = "p1: root 'ext' is unresolved for 1 file(s); set RBOT_CORPUS_ROOTS"
+    assert message in problems[0].message
 
 
 def test_missing_and_changed_files_are_named(tmp_path: Path) -> None:
@@ -89,7 +95,7 @@ def test_missing_and_changed_files_are_named(tmp_path: Path) -> None:
     registry = load_registry(_registry(tmp_path, {"a.txt": data}, listed))
     roots = resolve_roots(registry, {ROOTS_ENV: json.dumps({"ext": str(tmp_path / "ext")})})
     messages = [(p.code, p.message) for p in verify(registry, registry.pack("p1"), roots)]
-    assert messages[0] == (MISSING, "p1: a.txt: sha256 differs")
+    assert messages[0][0] == MISSING and "p1: a.txt: sha256 differs at " in messages[0][1]
     assert messages[1][0] == MISSING and messages[1][1].startswith("p1: b.txt: missing at ")
 
 
@@ -131,6 +137,101 @@ def test_corpus_command_lists_and_verifies(
     assert capsys.readouterr().out == "ok p1 (1 files)\nexit 0\n"
     (tmp_path / "ext" / "pack" / "a.txt").write_bytes(b"edited\n")
     assert main(["corpus", "verify", "--registry", registry]) == MISSING
+
+
+def _roots_env(tmp_path: Path) -> dict[str, str]:
+    return {ROOTS_ENV: json.dumps({"ext": str(tmp_path / "ext")})}
+
+
+@pytest.mark.parametrize("entry", ["../../outside.txt", "OUTSIDE_ABSOLUTE"])
+def test_a_registry_entry_cannot_escape_its_root(tmp_path: Path, entry: str) -> None:
+    data = b"secret\n"
+    outside = tmp_path / "outside.txt"
+    outside.write_bytes(data)
+    name = str(outside) if entry == "OUTSIDE_ABSOLUTE" else entry
+    registry = load_registry(_registry(tmp_path, {}, {name: _sha(data)}))
+    roots = resolve_roots(registry, _roots_env(tmp_path))
+    problems = verify(registry, registry.pack("p1"), roots)
+    assert [(p.code, "escapes root" in p.message) for p in problems] == [(MISSING, True)]
+    with pytest.raises(CorpusError, match="escapes root"):
+        materialise(registry, registry.pack("p1"), roots, tmp_path / "copy")
+
+
+def test_materialise_refuses_a_target_outside_the_destination(tmp_path: Path) -> None:
+    data = b"sibling\n"
+    registry = load_registry(_registry(tmp_path, {}, {"../sibling.txt": _sha(data)}))
+    (tmp_path / "ext" / "sibling.txt").write_bytes(data)
+    roots = resolve_roots(registry, _roots_env(tmp_path))
+    assert verify(registry, registry.pack("p1"), roots) == []
+    with pytest.raises(CorpusError, match="outside the destination"):
+        materialise(registry, registry.pack("p1"), roots, tmp_path / "copy")
+    assert not (tmp_path / "sibling.txt").exists()
+
+
+def test_a_bad_require_value_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(REQUIRE_ENV, "yes")
+    expected = r"RBOT_REQUIRE_CORPUS is 'yes'; expected '', '1' or 'synthetic'"
+    with pytest.raises(pytest.fail.Exception, match=expected):
+        corpus_gate([Problem(MISSING, True, "p1: a.txt: missing")])
+    with pytest.raises(pytest.fail.Exception, match="'yes'"):
+        corpus_gate([])
+
+
+def test_a_root_that_is_not_a_folder_is_named(tmp_path: Path) -> None:
+    data = b"filing text\n"
+    registry = load_registry(_registry(tmp_path, {"a.txt": data}, {"a.txt": _sha(data)}))
+    gone = tmp_path / "nowhere"
+    roots = resolve_roots(registry, {ROOTS_ENV: json.dumps({"ext": str(gone)})})
+    (problem,) = verify(registry, registry.pack("p1"), roots)
+    assert problem.code == UNRESOLVED
+    assert f"root 'ext' -> {gone} is not a folder" in problem.message
+
+
+def test_a_hash_mismatch_names_the_path_and_both_hashes(tmp_path: Path) -> None:
+    data = b"filing text\n"
+    registry = load_registry(_registry(tmp_path, {"a.txt": data}, {"a.txt": "ab" * 32}))
+    roots = resolve_roots(registry, _roots_env(tmp_path))
+    (problem,) = verify(registry, registry.pack("p1"), roots)
+    where = tmp_path / "ext" / "pack" / "a.txt"
+    expected = f"sha256 differs at {where}: registry {'ab' * 6}, file {_sha(data)[:12]}"
+    assert expected in problem.message
+
+
+def test_unresolved_roots_are_grouped_per_pack_and_root(tmp_path: Path) -> None:
+    listed = {n: _sha(b"x") for n in ("a.txt", "b.txt", "c.txt")}
+    registry = load_registry(_registry(tmp_path, {}, listed))
+    problems = verify(registry, registry.pack("p1"), resolve_roots(registry, {}))
+    assert len(problems) == 1
+    message = "p1: root 'ext' is unresolved for 3 file(s); set RBOT_CORPUS_ROOTS"
+    assert message in problems[0].message
+
+
+def test_a_malformed_registry_or_root_value_is_named(tmp_path: Path) -> None:
+    path = _registry(tmp_path, {}, {})
+    body = json.loads(path.read_text(encoding="utf-8"))
+    del body["packs"][0]["root"]
+    path.write_text(json.dumps(body), encoding="utf-8")
+    with pytest.raises(CorpusError, match=re.escape(f"{path}: pack 0: missing root")):
+        load_registry(path)
+    body["packs"][0]["root"] = "ext"
+    body["packs"][0]["files"] = [{"path": "a.txt"}]
+    path.write_text(json.dumps(body), encoding="utf-8")
+    with pytest.raises(CorpusError, match=re.escape(f"{path}: pack 0: file 0: missing sha256")):
+        load_registry(path)
+    good = load_registry(_registry(tmp_path / "g", {}, {}))
+    with pytest.raises(CorpusError, match="root 'ext' must be a string"):
+        resolve_roots(good, {ROOTS_ENV: json.dumps({"ext": 5})})
+
+
+def test_the_corpus_command_reports_a_bad_registry(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    bad = tmp_path / "corpus.json"
+    bad.write_text(json.dumps({"schema": "other/1"}), encoding="utf-8")
+    assert main(["corpus", "list", "--registry", str(bad)]) == 2
+    assert "expected 'rbot-corpus/1'" in capsys.readouterr().out
+    assert main(["corpus", "list", "--registry", str(tmp_path / "none.json")]) == 2
+    assert "none.json" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(

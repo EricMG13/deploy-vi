@@ -74,6 +74,7 @@ def tree(tmp_path: Path, rules: Rules) -> Path:
 
 CORPUS = load_registry()
 REQUIRE_ENV = "RBOT_REQUIRE_CORPUS"
+REQUIRE_VALUES = {"", "1", "synthetic"}
 
 
 def corpus_gate(problems: list[Problem]) -> None:
@@ -83,10 +84,12 @@ def corpus_gate(problems: list[Problem]) -> None:
     only on in-repo files and skips the external ones (CI); otherwise the test skips.
     The message names the unresolved root or the mismatched file either way.
     """
+    level = os.environ.get(REQUIRE_ENV, "")
+    if level not in REQUIRE_VALUES:
+        pytest.fail(f"{REQUIRE_ENV} is {level!r}; expected '', '1' or 'synthetic'")
     if not problems:
         return
     message = "; ".join(p.message for p in problems)
-    level = os.environ.get(REQUIRE_ENV, "")
     if level == "1" or (level == "synthetic" and any(p.in_repo for p in problems)):
         pytest.fail(message)
     pytest.skip(message)
