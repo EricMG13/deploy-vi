@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import json
+import logging
+import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
+from pypdf import PdfWriter
 
 from builders import make_pdf, make_run
 from conftest import CORPUS
+from rbotlib import inventory as inventory_module
 from rbotlib.cli import main
 from rbotlib.inventory import RunError, pack_root
 
@@ -113,6 +117,132 @@ def test_an_empty_pack_or_a_stray_folder_exits_1(
     (tmp_path / "stray").mkdir()
     assert main(["inventory", "--run", str(tmp_path / "stray")]) == 1
     assert "not inside a rbot-runs/ folder" in capsys.readouterr().out
+
+
+def test_a_symlinked_run_folder_or_runs_folder_is_skipped(tmp_path: Path) -> None:
+    pack = _pack(tmp_path)
+    outside = tmp_path / "outside" / "20260101-evil"
+    outside.mkdir(parents=True)
+    (outside / "report.html").write_text('<script id="rbot-run">{}</script>', encoding="utf-8")
+    (pack / "rbot-runs" / "20260101-evil").symlink_to(outside, target_is_directory=True)
+    run = make_run(pack)
+    main(["inventory", "--run", str(run)])
+    data = _inventory(run)
+    assert not [f for f in data["files"] if "evil" in f["path"]]
+    assert {"path": "rbot-runs/20260101-evil", "reason": "symbolic link"} in data["skipped"]
+    moved = tmp_path / "moved-runs"
+    (pack / "rbot-runs").rename(moved)
+    (pack / "rbot-runs").symlink_to(moved, target_is_directory=True)
+    state = {"schema": "rbot-run-state/1", "pack_root": str(pack)}
+    (moved / run.name / "run-state.json").write_text(json.dumps(state), encoding="utf-8")
+    main(["inventory", "--run", str(pack / "rbot-runs" / run.name)])
+    data = _inventory(run)
+    assert not [f for f in data["files"] if f["path"].startswith("rbot-runs/")]
+    assert {"path": "rbot-runs", "reason": "symbolic link"} in data["skipped"]
+
+
+def test_a_run_inside_the_pack_never_lists_its_own_outputs(tmp_path: Path) -> None:
+    pack = _pack(tmp_path)
+    run = pack / "analysis" / "run1"
+    run.mkdir(parents=True)
+    state = {"schema": "rbot-run-state/1", "pack_root": str(pack)}
+    (run / "run-state.json").write_text(json.dumps(state), encoding="utf-8")
+    main(["inventory", "--run", str(run)])
+    first = _inventory(run)
+    main(["inventory", "--run", str(run)])
+    second = _inventory(run)
+    assert not [f for f in first["files"] if f["path"].startswith("analysis/run1")]
+    assert [f["path"] for f in first["files"]] == [f["path"] for f in second["files"]]
+
+
+def test_run_dot_inside_the_run_folder_works(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pack = _pack(tmp_path)
+    run = make_run(pack)
+    (run / "report.html").write_text('<script id="rbot-run">{}</script>', encoding="utf-8")
+    monkeypatch.chdir(run)
+    assert main(["inventory", "--run", "."]) == 0
+    paths = [f["path"] for f in _inventory(run)["files"]]
+    assert not [p for p in paths if p.endswith(run.name + "/report.html")]
+
+
+def test_a_relative_pack_root_in_run_state_is_refused(tmp_path: Path) -> None:
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "run-state.json").write_text(json.dumps({"pack_root": "pack"}), encoding="utf-8")
+    with pytest.raises(RunError, match="pack_root must be an absolute path"):
+        pack_root(run)
+
+
+def test_an_unreadable_file_is_skipped_with_its_reason(tmp_path: Path) -> None:
+    pack = _pack(tmp_path)
+    locked = pack / "locked.txt"
+    locked.write_text("secret", encoding="utf-8")
+    locked.chmod(0)
+    try:
+        run = make_run(pack)
+        assert main(["inventory", "--run", str(run)]) == 0
+    finally:
+        locked.chmod(0o600)
+    data = _inventory(run)
+    assert "locked.txt" not in [f["path"] for f in data["files"]]
+    (entry,) = [s for s in data["skipped"] if s["path"] == "locked.txt"]
+    assert entry["reason"].startswith("unreadable: ") and "ermission" in entry["reason"]
+
+
+def test_an_unreadable_pdf_says_why(tmp_path: Path) -> None:
+    pack = _pack(tmp_path)
+    writer = PdfWriter()
+    writer.add_blank_page(100, 100)
+    writer.encrypt("pw", algorithm="RC4-128")
+    with (pack / "locked.pdf").open("wb") as handle:
+        writer.write(handle)
+    run = make_run(pack)
+    main(["inventory", "--run", str(run)])
+    by_path = {f["path"]: f for f in _inventory(run)["files"]}
+    assert by_path["locked.pdf"]["pages"] is None
+    assert by_path["locked.pdf"]["problem"].startswith("encrypted PDF")
+    assert by_path["broken.pdf"]["pages"] is None
+    assert re.match(r"\w+: .+", by_path["broken.pdf"]["problem"])
+    assert "problem" not in by_path["report.pdf"]
+
+
+def test_pypdf_warnings_are_captured_not_logged(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, capfd: pytest.CaptureFixture[str]
+) -> None:
+    pack = tmp_path / "pack"
+    pack.mkdir()
+    damaged = make_pdf(["hello world"]).replace(b"startxref\n", b"startxref\n9")
+    (pack / "damaged.pdf").write_bytes(damaged)
+    run = make_run(pack)
+    with caplog.at_level(logging.WARNING):
+        main(["inventory", "--run", str(run)])
+    assert not [r for r in caplog.records if r.name.startswith("pypdf")]
+    assert capfd.readouterr().err == ""
+    (entry,) = _inventory(run)["files"]
+    assert entry["pages"] == 1 and "startxref" in entry["problem"]
+
+
+def test_a_missing_pack_is_named(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    run = tmp_path / "run"
+    run.mkdir()
+    state = {"pack_root": str(tmp_path / "gone")}
+    (run / "run-state.json").write_text(json.dumps(state), encoding="utf-8")
+    assert main(["inventory", "--run", str(run)]) == 1
+    assert f"{tmp_path / 'gone'}: no such Source Pack" in capsys.readouterr().out
+
+
+def test_a_raising_command_is_still_logged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    run = make_run(_pack(tmp_path))
+
+    def boom(_run: Path) -> None:
+        raise OSError("disk gone")
+
+    monkeypatch.setattr(inventory_module, "write", boom)
+    with pytest.raises(OSError, match="disk gone"):
+        main(["inventory", "--run", str(run)])
+    assert (run / "log" / "rbot.log").read_text(encoding="utf-8").endswith("\t1\n")
 
 
 @pytest.mark.corpus

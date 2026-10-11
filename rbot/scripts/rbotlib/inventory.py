@@ -12,7 +12,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -49,11 +52,14 @@ def pack_root(run: Path) -> Path:
     state = run / "run-state.json"
     if state.is_file():
         try:
-            return Path(json.loads(state.read_text(encoding="utf-8"))["pack_root"])
-        except (json.JSONDecodeError, KeyError) as exc:
+            root = Path(json.loads(state.read_text(encoding="utf-8"))["pack_root"])
+        except (json.JSONDecodeError, KeyError, TypeError) as exc:
             raise RunError(f"{state}: no readable pack_root ({exc})") from exc
+        if not root.is_absolute():
+            raise RunError(f"{state}: pack_root must be an absolute path, not {str(root)!r}")
+        return root.resolve()
     if run.parent.name == RUNS:
-        return run.parent.parent
+        return run.parent.parent.resolve()
     raise RunError(f"{run}: no run-state.json and not inside a {RUNS}/ folder")
 
 
@@ -61,15 +67,45 @@ def kind_of(path: Path) -> str:
     return KINDS.get(path.suffix.lower().lstrip("."), "other")
 
 
-def pdf_pages(path: Path) -> int | None:
-    """Page count, or None when pypdf cannot open the file (prepare records why)."""
+class _Collect(logging.Handler):
+    def __init__(self, seen: list[str]) -> None:
+        super().__init__(logging.WARNING)
+        self.seen = seen
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.seen.append(record.getMessage())
+
+
+@contextmanager
+def pypdf_warnings() -> Iterator[list[str]]:
+    """Keep pypdf's log warnings off the console and hand them back as text."""
+    log = logging.getLogger("pypdf")
+    seen: list[str] = []
+    handler, propagate = _Collect(seen), log.propagate
+    log.addHandler(handler)
+    log.propagate = False
+    try:
+        yield seen
+    finally:
+        log.removeHandler(handler)
+        log.propagate = propagate
+
+
+def _open_pdf(path: Path) -> tuple[int | None, str | None]:
     try:
         reader = PdfReader(path)
-        if reader.is_encrypted:
-            reader.decrypt("")
-        return len(reader.pages)
-    except (PyPdfError, ValueError, KeyError, OSError):
-        return None
+        if reader.is_encrypted and not reader.decrypt(""):
+            return None, "encrypted PDF: a password is needed"
+        return len(reader.pages), None
+    except (PyPdfError, ValueError, KeyError, OSError) as exc:
+        return None, f"{type(exc).__name__}: {exc}"
+
+
+def pdf_info(path: Path) -> tuple[int | None, str | None]:
+    """(page count or None, problem): why pypdf cannot open the file, else its warnings."""
+    with pypdf_warnings() as seen:
+        pages, problem = _open_pdf(path)
+    return pages, problem or "; ".join(dict.fromkeys(seen)) or None
 
 
 def _skip_reason(path: Path) -> str | None:
@@ -82,31 +118,45 @@ def _skip_reason(path: Path) -> str | None:
     return None
 
 
-def _earlier_reports(runs: Path, run_name: str) -> list[Path]:
-    """Report files of other runs in the pack's rbot-runs/ folder."""
-    if not runs.is_dir():
+def _earlier_reports(pack: Path, run: Path, skipped: list[dict[str, str]]) -> list[Path]:
+    """Report files of other runs in the pack's rbot-runs/ folder (never through a symlink)."""
+    runs = pack / RUNS
+    if runs.is_symlink() or not runs.is_dir():
         return []
-    found = [
-        runs / d / name for d in sorted(os.listdir(runs)) if d != run_name for name in REPORT_NAMES
-    ]
+    found: list[Path] = []
+    for d in sorted(os.listdir(runs)):
+        folder = runs / d
+        if folder.is_symlink():
+            skipped.append({"path": folder.relative_to(pack).as_posix(), "reason": "symbolic link"})
+        elif folder.resolve() != run:
+            found += [folder / name for name in REPORT_NAMES]
     return [p for p in found if p.is_file() and not p.is_symlink()]
 
 
-def _walk(pack: Path, run_name: str) -> tuple[list[Path], list[dict[str, str]]]:
+def _walk(pack: Path, run: Path) -> tuple[list[Path], list[dict[str, str]]]:
     keep: list[Path] = []
     skipped: list[dict[str, str]] = []
+
+    def note(path: Path, reason: str) -> None:
+        skipped.append({"path": path.relative_to(pack).as_posix(), "reason": reason})
 
     def usable(path: Path) -> bool:
         reason = _skip_reason(path)
         if reason:
-            skipped.append({"path": path.relative_to(pack).as_posix(), "reason": reason})
+            note(path, reason)
         return reason is None
 
-    for folder, dirs, names in os.walk(pack):
+    def unreadable(exc: OSError) -> None:
+        note(Path(exc.filename or pack), f"unreadable: {exc.strerror or exc}")
+
+    def walked(here: Path, d: str) -> bool:
+        return usable(here / d) and not (here == pack and d == RUNS) and (here / d).resolve() != run
+
+    for folder, dirs, names in os.walk(pack, onerror=unreadable):
         here = Path(folder)
-        dirs[:] = [d for d in sorted(dirs) if usable(here / d) and not (here == pack and d == RUNS)]
+        dirs[:] = [d for d in sorted(dirs) if walked(here, d)]
         keep += [here / n for n in sorted(names) if usable(here / n)]
-    return keep + _earlier_reports(pack / RUNS, run_name), skipped
+    return keep + _earlier_reports(pack, run, skipped), skipped
 
 
 def _entry(path: Path, rel: str) -> dict[str, Any]:
@@ -114,20 +164,31 @@ def _entry(path: Path, rel: str) -> dict[str, Any]:
     report = False
     if kind in ("html", "md"):
         report = REPORT_MARKER in path.read_text(encoding="utf-8", errors="replace")
-    return {
+    entry: dict[str, Any] = {
         "path": rel,
         "size": path.stat().st_size,
         "sha256": sha256_file(path),
         "extension": path.suffix.lower().lstrip("."),
         "kind": kind,
-        "pages": pdf_pages(path) if kind == "pdf" else None,
+        "pages": None,
         "rbot_report": report,
     }
+    if kind == "pdf":
+        entry["pages"], problem = pdf_info(path)
+        if problem:
+            entry["problem"] = problem
+    return entry
 
 
-def build(pack: Path, run_name: str) -> dict[str, Any]:
-    keep, skipped = _walk(pack, run_name)
-    files = [_entry(path, path.relative_to(pack).as_posix()) for path in keep]
+def build(pack: Path, run: Path) -> dict[str, Any]:
+    keep, skipped = _walk(pack, run)
+    files = []
+    for path in keep:
+        rel = path.relative_to(pack).as_posix()
+        try:
+            files.append(_entry(path, rel))
+        except OSError as exc:
+            skipped.append({"path": rel, "reason": f"unreadable: {exc.strerror or exc}"})
     return {
         "schema": SCHEMA,
         "pack_root": str(pack),
@@ -138,10 +199,13 @@ def build(pack: Path, run_name: str) -> dict[str, Any]:
 
 
 def write(run: Path) -> dict[str, Any]:
+    run = run.resolve()
     if not run.is_dir():
         raise RunError(f"{run}: no such run folder")
     pack = pack_root(run)
-    inventory = build(pack, run.name)
+    if not pack.is_dir():
+        raise RunError(f"{pack}: no such Source Pack")
+    inventory = build(pack, run)
     if not inventory["files"]:
         raise RunError(f"{pack}: the Source Pack has no files")
     text = json.dumps(inventory, indent=2, ensure_ascii=False) + "\n"

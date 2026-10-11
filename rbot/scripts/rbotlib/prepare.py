@@ -29,7 +29,7 @@ from pypdf import PdfReader
 from pypdf.errors import PyPdfError
 
 from rbotlib import portfolio
-from rbotlib.inventory import RunError
+from rbotlib.inventory import RunError, pypdf_warnings
 from rbotlib.rules import Rules, load_rules
 
 SCHEMA = "rbot-prepared/1"
@@ -100,10 +100,11 @@ def read_html(path: Path) -> Prepared:
 def read_pdf(path: Path) -> Prepared:
     """PDF pages through pypdf; a PDF with (almost) no extractable text is a scan."""
     try:
-        reader = PdfReader(path)
-        if reader.is_encrypted and not reader.decrypt(""):
-            raise UnreadableError("encrypted PDF: a password is needed")
-        pages = [(page.extract_text() or "").replace("\r\n", "\n") for page in reader.pages]
+        with pypdf_warnings():
+            reader = PdfReader(path)
+            if reader.is_encrypted and not reader.decrypt(""):
+                raise UnreadableError("encrypted PDF: a password is needed")
+            pages = [(page.extract_text() or "").replace("\r\n", "\n") for page in reader.pages]
     except (PyPdfError, ValueError, KeyError, OSError) as exc:
         raise UnreadableError(f"pypdf could not read the PDF: {type(exc).__name__}: {exc}") from exc
     if sum(len(p.strip()) for p in pages) < MIN_PDF_TEXT:

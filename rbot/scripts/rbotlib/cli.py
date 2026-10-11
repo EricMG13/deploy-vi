@@ -93,8 +93,11 @@ def main(argv: list[str] | None = None) -> int:
     prepare.add_command(sub)
     brief.add_command(sub)
     args = parser.parse_args(argv)
-    result: int = args.run(args)
-    run_dir = getattr(args, "run_dir", None)
-    if run_dir and Path(run_dir).is_dir():
-        _log(Path(run_dir), sys.argv[1:] if argv is None else argv, result)
+    result = 1  # what the log records when the command raises
+    try:
+        result = int(args.run(args))
+    finally:
+        run_dir = getattr(args, "run_dir", None)
+        if run_dir and Path(run_dir).is_dir():
+            _log(Path(run_dir), sys.argv[1:] if argv is None else argv, result)
     return result
