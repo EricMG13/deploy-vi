@@ -633,6 +633,7 @@ Bands 1–12 and line ids exactly as caos `layout.py` (§5 of `model-api.md`): b
 | From | What the Model reads |
 |---|---|
 | `CP-1` | §2.2 registers; `cp1.instrument_identity` (identifiers, ratings for the capital structure); `cp1.equity_value`; `cp1.entity_profile` (currency and unit must match the period register). A new tranche: facility row with `facility_id` = Run Brief `tranche_id`, `period_id` = LTM, `carrying_value` `0`, terms from the term sheet; PF rows `facility:<tranche_id>` = size, `total_debt` = net new debt, `cash_interest_paid` = PF interest from a source in the pack (never derived from Price Talk; absent → no row and limitation `PF_INTEREST_NOT_SOURCED`), repaid facilities as negative `facility:<id>` rows, `cash_and_equivalents` for cash to balance sheet, all cited. |
+| `CP-1` (pro forma, amended 2026-10-12) | A new tranche is written as `facility:<id>` pro forma rows only; the Model sums facility rows into total debt, so CP-1 never also writes a pro forma total-debt line (it would double count). |
 | `CP-1D` | `cp1d.addback_assessment` (`house_realization_status`, `verdict`), `cp1d.debt_like_items`. |
 | `CP-2G` | `cp2g.cp_model_forecast_drivers` (division growth), `cp2g.forecast_periods`, `cp2g.forecast_movements`, `cp2g.forecast_amortisation`, `cp2g.rate_deck`; the CP-CF request is assembled by `rbot model --projection`: `opening` from the Model (cash and debt by facility at the base period), `periods`, `drivers`, `contractual.amortisation`, `units`, `perimeter` = `cp1.entity_profile.perimeter`. Horizon: three fiscal years after the base period; base period: the latest LTM (caos D109). |
 | `CP-4` | Not read (caos reads no CP-4 table); covenant figures stay in `cp4.covenant_tests`. |
@@ -661,7 +662,8 @@ Prepared portfolio JSON (`"schema": "rbot-portfolio/1"`):
  "nav": "630.9", "par": "634.0", "currency": "USD", "unit": "MILLIONS",
  "positions": [{"issuer_id": "CZR", "issuer_name": "...", "instrument_id": "...", "par": "6.0", "pct_nav": "0.95", "sector": "...", "rating": "B1", "country": "US", "currency": "USD", "seniority": "Senior secured", "asset_type": "Loan"}],
  "limits": [{"limit_id": "C-04", "category": "Concentration", "parameter": "Single obligor", "scope": "issuer|sector|rating_bucket|country|asset_type|seniority|maturity|currency|other", "scope_value": null, "limit_value": "2.0", "unit": "pct_nav|pct_par|amount|count|years", "limit_kind": "Hard|Soft", "current_value": "0.95", "source": "CP-6A_-_Portfolio_Constraints_Compliance_Monitor_-_Test_CLO_I_Ltd.csv row 4"}],
- "unparsed": [{"row": "...", "reason": "unit not recognised"}]}
+ "unparsed": [{"row": "...", "reason": "unit not recognised"}],
+ "notes": ["... (dropped tables, case-only id collisions, ambiguous units — amended 2026-10-12)"]}
 ```
 
 **Arithmetic** (Decimal, per portfolio × instrument; instruments = every `cp1.instrument_identity` row plus each new tranche):
