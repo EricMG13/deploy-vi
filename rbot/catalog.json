@@ -1,0 +1,31 @@
+{
+  "size_budget_bytes": 51200,
+  "host_tables": {
+    "snapshot.run_header": "RUN_BRIEF",
+    "snapshot.transaction_summary": "RUN_BRIEF",
+    "snapshot.capital_structure": "MODEL",
+    "snapshot.ebitda_adjustments": "MODEL",
+    "snapshot.financials": "MODEL"
+  },
+  "front_pages": {
+    "credit_snapshot": {
+      "title": "Credit Snapshot",
+      "tables": [
+        "snapshot.run_header",
+        "snapshot.company_profile",
+        "snapshot.business_description",
+        "snapshot.transaction_summary",
+        "snapshot.capital_structure",
+        "snapshot.instrument_levels",
+        "snapshot.ebitda_adjustments",
+        "snapshot.credit_view",
+        "snapshot.strengths_weaknesses",
+        "snapshot.historical_performance",
+        "snapshot.financials",
+        "snapshot.relative_value",
+        "snapshot.recommendation"
+      ]
+    }
+  },
+  "pathways": []
+}

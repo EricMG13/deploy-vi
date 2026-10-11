@@ -31,6 +31,8 @@ Owner-run on the work machine (Plan 01, Task 2). Paste each `rbot-probe-result.m
 
 ## Outcome
 
+Provisional module size budget 51,200 bytes in rbot/catalog.json, pending the owner's spike run.
+
 Every "no" above changes the design before Plan 02 starts; record the change here and in the spec:
 - Subagent cannot run the terminal or write files → the orchestrator runs every script and writes every file; subagents return Handoff text only.
 - No subagents at all → modules run sequentially in the main chat, one module file per step, with a context reset between modules by starting a new chat from `run-state.json`.

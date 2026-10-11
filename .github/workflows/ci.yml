@@ -31,6 +31,7 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run mypy
       - run: uv run pytest
+      - run: uv run python rbot/scripts/rbot.py check
       - run: uv run python scripts/check_suppressions.py
       - run: uv run complexipy rbot/scripts scripts --max-complexity-allowed 15
       - run: uv run bandit -r rbot/scripts scripts -f json -o bandit.json
