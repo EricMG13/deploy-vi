@@ -1,0 +1,34 @@
+{
+  "module_id": "CP-X",
+  "title": "Example Producer",
+  "reader_question": "What do the example filings show?",
+  "inputs": [
+    {"sources": ["issuer"], "why": "the filings"},
+    {"run_brief": ["issuer", "as_of_date"], "why": "entity and period anchor"}
+  ],
+  "process": ["Read the filings.", "Fill every table from them."],
+  "tables": [
+    {
+      "id": "cpx.facts",
+      "title": "Facts",
+      "min_rows": 1,
+      "columns": [
+        {"name": "fact", "critical": true},
+        {"name": "value", "critical": true},
+        {"name": "note"}
+      ],
+      "consumers": ["CP-Y"]
+    },
+    {
+      "id": "snapshot.view",
+      "title": "View",
+      "min_rows": 1,
+      "columns": [
+        {"name": "credit_score", "critical": true, "scale": "credit_score"},
+        {"name": "direction", "scale": "credit_direction"}
+      ],
+      "consumers": ["REPORT"]
+    }
+  ],
+  "prohibited": ["No investment opinion."]
+}
