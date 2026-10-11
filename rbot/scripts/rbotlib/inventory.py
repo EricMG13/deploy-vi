@@ -14,6 +14,7 @@ import argparse
 import json
 import logging
 import os
+import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -94,12 +95,19 @@ def pypdf_warnings() -> Iterator[list[str]]:
 
 
 def write_atomic(path: Path, text: str) -> None:
-    """Write beside the target, then `os.replace`: a failed write never leaves half a file."""
-    temp = path.with_name(path.name + ".tmp")
+    """Write to a unique temp file beside the target, fsync, then `os.replace`: a failed write
+    never leaves half a file, and two writers never share a temp name."""
+    handle = tempfile.NamedTemporaryFile(
+        "w", encoding="utf-8", dir=path.parent, prefix=path.name + ".", suffix=".tmp", delete=False
+    )
+    temp = Path(handle.name)
     try:
-        temp.write_text(text, encoding="utf-8")
+        with handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
         os.replace(temp, path)
-    except OSError:
+    except BaseException:
         temp.unlink(missing_ok=True)
         raise
 

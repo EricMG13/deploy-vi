@@ -267,7 +267,7 @@ def pages(prepared_text: str) -> dict[int, str]:
     """The text of each `<<< page N >>>` section; only the next number opens a page."""
     found: dict[int, list[str]] = {}
     at = 0
-    for line in prepared_text.splitlines(keepends=True):
+    for line in re.split(r"(?<=\n)", prepared_text):  # \n only: other breaks stay in the line
         m = _PAGE_LINE.match(line.rstrip("\n"))
         if m and int(m.group(1)) == len(found) + 1:
             at = int(m.group(1))

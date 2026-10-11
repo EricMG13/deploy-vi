@@ -418,4 +418,7 @@ def write_all(run: Path, found: dict[str, Portfolio], rules: Rules) -> list[dict
         text = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
         write_atomic(run / name, text)
         written.append({"portfolio_id": portfolio_id, "json": name})
+    for stale in folder.glob("*.json"):  # a portfolio that is no longer in the pack
+        if stale.name not in {f"{w['portfolio_id']}.json" for w in written}:
+            stale.unlink()
     return written
