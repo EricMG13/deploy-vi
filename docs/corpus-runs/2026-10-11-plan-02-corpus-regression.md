@@ -1,34 +1,38 @@
-# Corpus regression — Plan 02 (intake and corpus), 2026-10-11
+# Corpus regression — Plan 02 (intake and corpus)
 
-Run during Plan 02's verification on the full corpus (`RBOT_CORPUS_ROOTS` set to caos-databricks `qualification/` at `5ca9118e` and `TEST-Issuer Data`), `RBOT_REQUIRE_CORPUS=1`. Plan 02 adds no module and no Pathway, so there is no proxy-run scorecard and no A/B; this record covers every deterministic corpus check and proxy step 1.
+Re-run at branch `build/02h-final` (commit `645382d`) with `RBOT_REQUIRE_CORPUS=1` and `RBOT_CORPUS_ROOTS` set to caos-databricks `qualification/` (caos-databricks at `d0cf49e0`) and `TEST-Issuer Data`. Everything below is copied from the saved stdout of that run; nothing is carried over from earlier records. Plan 02 adds no module and no Pathway, so there is no proxy-run scorecard and no A/B.
 
 ## Registry
 
-- `rbot corpus verify`: 34 packs ok (33 external, 1 synthetic), 198 file entries, `exit 0`.
+- `rbot corpus verify`: 34 packs, each printed `ok`, then `exit 0`. 198 file entries over the 34 packs. Packs by root: `caos-qualification` 29, `test-issuer-data` 4, `synthetic` 1.
 
-## Deterministic corpus checks (110 passed, 0 failed, 0 skipped)
+## Corpus tests: `pytest -m corpus`, 110 passed, 0 failed, 0 skipped
 
-| Check | Cases | Result |
-|---|---|---|
-| `test_corpus_hashes_match[pack]` | 34 | every file's sha256 matches |
-| `test_inventory_is_deterministic[pack]` | 34 | two `rbot inventory` runs identical apart from time; files, sha256 and PDF page counts equal the registry |
-| `test_prepare_pages_and_markers[pack]` | 34 | no file unreadable; PDF pages equal the registry; page markers `1..N`; no spreadsheet error marker survives; only images are `image_read` |
-| `test_entity_trap_flagged` | 2 | `tid-ford`: the mis-filed 10-K names `SIX FLAGS ENTERTAINMENT CORPORATION`; `tid-six-flags`: the mis-filed 10-K names `Ford Motor Company`; neither names its pack's issuer |
-| `test_citations_anchor_in_real_filings` | 1 | a CZR 10-K line with escaped pipes anchors, a one-digit change does not; the Six Flags registrant anchors on p.1, not p.2 |
-| `test_primary_pack_traps` | 1 | duplicate TRACE file (same sha256), screenshot `image_read`, VMO2 PDF 47 pages naming `VMED O2 UK HOLDINGS LIMITED`, Sector RV `Gaming` sheet, Bloomberg `#N/A` cells empty |
-| `test_primary_pack_portfolio_json` | 1 | `TEST_CLO_I`: Strategy CLO, NAV 630.9, par 634.0, MILLIONS, 10 positions, no Caesars exposure, 10 maximum limits, 7 rows unparsed with reasons |
-| `test_expectations_anchor_in_their_sources[czr-2026q2-primary]` | 1 | all 38 expectations anchored in their sources or backed by a spec rule |
-| `test_step_1_on_the_primary_pack` | 1 | proxy step 1 prepares all 30 files, none unreadable, portfolio `TEST_CLO_I` |
-| `test_brief_citations_anchor_in_the_primary_pack` | 1 | every citation of the CP-0 fixture and of the written Run Brief anchored |
+| Test function | Cases passed |
+|---|---|
+| `test_corpus_hashes_match` | 34 |
+| `test_inventory_is_deterministic` | 34 |
+| `test_prepare_pages_and_markers` | 34 |
+| `test_entity_trap_flagged` | 2 |
+| `test_citations_anchor_in_real_filings` | 1 |
+| `test_primary_pack_traps` | 1 |
+| `test_primary_pack_portfolio_json` | 1 |
+| `test_expectations_anchor_in_their_sources` | 1 |
+| `test_step_1_on_the_primary_pack` | 1 |
+| `test_brief_citations_anchor_in_the_primary_pack` | 1 |
 
-Full suite with the corpus required: 329 passed, coverage 97.4%.
+`czr-2026q2-primary` expectations file: 38 values, 37 with a source and 1 with a rule.
 
-## Proxy run, steps 1 and 5, on `czr-2026q2-primary` (Full Credit Assessment, full)
+Full suite with the corpus required (`RBOT_REQUIRE_CORPUS=1 pytest`): 529 passed, total coverage 97.98%.
 
-- Step 1: `inventory.json: 30 file(s), 0 skipped`; `prepared/index.json: 30 file(s), 0 unreadable`; `portfolios: TEST_CLO_I`.
-- Prepared: 30 files; 0 unreadable; 1 image_read; 76 pages; portfolio notes: none.
+## Observed on `czr-2026q2-primary`
+
+- `TEST_CLO_I` portfolio JSON: strategy CLO, NAV 630.9, par 634.0, unit MILLIONS; 10 positions; 10 limits (`C-01`, `C-02`, `C-04`, `C-05`, `C-06`, `C-07`, `C-08`, `C-10`, `C-11`, `C-17`); 7 unparsed rows (lines 9, 15, 18, 19, 20, 21, 22); no portfolio notes.
+- VMO2 bond report PDF: 47 pages, entities `['VMED O2 UK HOLDINGS LIMITED']`.
+
+## Proxy run, steps 1 and 5 (Full Credit Assessment, full)
+
+- Step 1: `inventory.json: 30 file(s), 0 skipped`; `prepared/index.json: 30 file(s), 0 unreadable`; `portfolios: TEST_CLO_I`. From the run folder: 30 inventory files, 0 skipped; 30 index files, 0 unreadable, 1 `image_read`, 76 pages; `log/rbot.log` has `inventory` and `prepare`, each exit 0.
 - Step 5 prints: `python rbot/scripts/rbot.py approve --run <run> --pathway FULL_CREDIT_ASSESSMENT --depth full --primary yes --analyst proxy-run --deep-research yes --prior-case no`.
 
-`Not verified:` Copilot behaviour, GPT models and fetch (no module runs in Plan 02); proxy steps 2–4 and the scorecard (Plan 06); Image-Read of the screenshot by a model (Plan 05).
-
-Re-run 2026-10-11: identical results.
+`Not verified:` Copilot behaviour, GPT models and fetch (no module runs in Plan 02); proxy steps 2–4 and the scorecard (Plan 06); Image-Read of the screenshot by a model (Plan 05); what the entity-trap and citation tests assert beyond passing (this record shows their results, not their contents).
