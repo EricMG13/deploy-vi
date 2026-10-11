@@ -1,0 +1,22 @@
+SYNTHETIC: Test CLO I Ltd positions extract authored for Deploy VI tests; no figure is a real holding
+Portfolio ID,TEST_CLO_I
+Portfolio,Test CLO I Ltd
+Strategy,CLO
+As of,2026-05-29
+Currency,USD
+Unit,MILLIONS
+Total NAV,630.9
+Total Par,634.0
+Note,Extract of the ten largest issuers; the book holds 383 positions in 350 obligors. No Caesars Entertainment exposure.
+
+Issuer ID,Issuer,Instrument ID,Par,% NAV,Sector,Rating,Country,Currency,Seniority,Asset Type
+ASURION,Asurion,ASURION TL B,15.0,2.37%,Insurance,B3,US,USD,Senior secured,Loan
+TDG,TransDigm,TDG TL,12.1,1.91%,Aerospace & Defense,Ba3,US,USD,Senior secured,Loan
+TELEVISA,TelevisaUnivision,TELEVISA TL,9.0,1.42%,Entertainment Content,B2,US,USD,Senior secured,Loan
+DIRECTV,Directv,DIRECTV TL,6.1,0.96%,Cable & Satellite,B1,US,USD,Senior secured,Loan
+SIGNATURE,Signature Aviation,SIGNATURE TL,6.0,0.96%,Transportation & Logistics,B2,US,USD,Senior secured,Loan
+NOVOLEX,Novolex,NOVOLEX TL,5.8,0.91%,Containers & Packaging Manufacturing,B2,US,USD,Senior secured,Loan
+QUIKRETE,Quikrete,QUIKRETE TL,4.0,0.64%,Construction Materials Manufacturing,Ba3,US,USD,Senior secured,Loan
+FRONERI,Froneri,FRONERI TL,4.0,0.63%,Food Production,B1,GB,USD,Senior secured,Loan
+WHITECAP,White Cap Supply Holdings,WHITECAP TL,4.0,0.63%,Retail - Consumer Discretionary,B3,US,USD,Senior secured,Loan
+ZELIS,Zelis,ZELIS TL,4.0,0.63%,Software,B2,US,USD,Senior secured,Loan

@@ -57,7 +57,7 @@ def _sha(data: bytes) -> str:
 
 def test_the_registry_is_well_formed(rules: Rules) -> None:
     ids = [p.id for p in CORPUS.packs]
-    assert len(ids) == len(set(ids)) == 33
+    assert len(ids) == len(set(ids)) == 34
     for pack in CORPUS.packs:
         assert pack.root in CORPUS.roots
         assert {w["id"] for w in pack.data["pathways"]} <= PATHWAYS

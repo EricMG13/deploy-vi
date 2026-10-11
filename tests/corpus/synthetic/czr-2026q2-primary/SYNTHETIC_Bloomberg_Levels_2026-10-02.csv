@@ -1,0 +1,12 @@
+SYNTHETIC: Bloomberg levels export authored for Deploy VI tests; not market observations
+As of,2026-10-02
+Security,Bloomberg ID,ISIN,Ranking,Bid Price,Ask Price,Mid Price,Mid YTW,Mid 3Y DM (bp),Moody's,S&P,Fitch
+CZR TL B 2030,BL3912045,#N/A N/A,1L Term Loan,99.375,99.750,99.563,#N/A N/A,252,Ba3,BB,#N/A
+CZR TL B-1 2031,BL4120876,#N/A N/A,1L Term Loan,99.500,99.875,99.688,#N/A N/A,241,Ba3,BB,#N/A
+CZR 7.00 02/15/30,BO1185520,US12769GAA87,Senior Secured Notes,101.250,101.750,101.500,6.41,#N/A Field Not Applicable,B1,BB-,#N/A
+CZR 6.50 02/15/32,BO2201453,US12769GAC44,Senior Secured Notes,93.000,93.500,93.250,8.07,#N/A Field Not Applicable,B1,BB-,#N/A
+CZR 4.625 10/15/29,BO1203310,US12769GAB60,Senior Notes,94.250,94.875,94.563,6.52,#N/A Field Not Applicable,Caa1,B-,#N/A
+CZR 6.00 10/15/32,BO2219978,US12769GAD27,Senior Notes,84.500,85.250,84.875,9.33,#N/A Field Not Applicable,Caa1,B-,#N/A
+MGM 6.125 09/15/29,BO1199087,US552953CK52,Senior Notes,98.125,98.750,98.438,6.72,#N/A Field Not Applicable,B1,BB-,#N/A
+PENN 4.125 07/01/29,BO1164521,US707569AV19,Senior Notes,93.500,94.000,93.750,6.65,#N/A Field Not Applicable,B3,B,#N/A
+PENN TL B 2029,BL3301276,#N/A N/A,1L Term Loan,#N/A,#N/A,#N/A,#N/A N/A,#N/A,Ba3,BB-,#N/A
