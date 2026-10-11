@@ -17,6 +17,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
+from rbotlib.inventory import write_atomic
 from rbotlib.rules import Rules
 
 SCHEMA = "rbot-portfolio/1"
@@ -128,10 +129,21 @@ def _meta(rows: list[list[str]]) -> dict[str, str]:
     return found
 
 
-def _positions(source: str, rows: list[list[str]], start: int, p: Portfolio) -> None:
+def _uncached(source: str, n: int, bad: dict[int, str], p: Portfolio) -> bool:
+    """True (and the row recorded as unparsed) when the row holds a formula with no stored value."""
+    if n not in bad:
+        return False
+    reason = f"formula {bad[n]} has no stored value"
+    p.unparsed.append({"row": f"{source} row {n}", "reason": reason})
+    return True
+
+
+def _positions(
+    source: str, rows: list[list[str]], start: int, p: Portfolio, bad: dict[int, str]
+) -> None:
     columns = [POSITION_COLUMNS.get(_norm(c)) for c in rows[start]]
     for n, row in enumerate(rows[start + 1 :], start + 2):
-        if not any(row):
+        if not any(row) or _uncached(source, n, bad, p):
             continue
         item = {key: cell for key, cell in zip(columns, row, strict=False) if key}
         par, pct = number(item.get("par", "")), number(item.get("pct_nav", ""))
@@ -168,10 +180,12 @@ def _limit_row(source: str, n: int, item: dict[str, str]) -> dict[str, Any] | st
     }
 
 
-def _limits(source: str, rows: list[list[str]], start: int, p: Portfolio) -> None:
+def _limits(
+    source: str, rows: list[list[str]], start: int, p: Portfolio, bad: dict[int, str]
+) -> None:
     header = [_norm(c) for c in rows[start]]
     for n, row in enumerate(rows[start + 1 :], start + 2):
-        if not any(row):
+        if not any(row) or _uncached(source, n, bad, p):
             continue
         result = _limit_row(source, n, dict(zip(header, row, strict=False)))
         if isinstance(result, str):
@@ -180,8 +194,13 @@ def _limits(source: str, rows: list[list[str]], start: int, p: Portfolio) -> Non
             p.limits.append(result)
 
 
-def read_sheet(source: str, rows: list[list[str]], found: dict[str, Portfolio]) -> str | None:
-    """Add a positions or limits sheet to its portfolio; a note when it cannot be linked."""
+def read_sheet(
+    source: str, rows: list[list[str]], found: dict[str, Portfolio], bad: dict[int, str]
+) -> list[str]:
+    """Add a positions or limits sheet to its portfolio; notes when it cannot be linked.
+
+    `bad` maps a 1-based row number to a formula cell there that has no stored value.
+    """
     for kind, required in (("positions", POSITIONS), ("limits", LIMITS)):
         start = _header(rows, required)
         if start is None:
@@ -189,14 +208,14 @@ def read_sheet(source: str, rows: list[list[str]], found: dict[str, Portfolio]) 
         meta = _meta(rows[:start])
         portfolio_id = meta.get("portfolio_id")
         if not portfolio_id:
-            return f"{source}: {kind} table without a Portfolio ID row; not linked"
+            return [f"{source}: {kind} table without a Portfolio ID row; not linked"]
         if not _SAFE_ID.fullmatch(portfolio_id):
-            return f"{source}: {kind} table has unsafe Portfolio ID {portfolio_id!r}; not linked"
+            return [f"{source}: {kind} table has unsafe Portfolio ID {portfolio_id!r}; not linked"]
         p = found.setdefault(portfolio_id, Portfolio())
         p.meta.update(meta)
         p.files[kind] = source
-        (_positions if kind == "positions" else _limits)(source, rows, start, p)
-    return None
+        (_positions if kind == "positions" else _limits)(source, rows, start, p, bad)
+    return []
 
 
 def to_json(p: Portfolio, rules: Rules) -> dict[str, Any]:
@@ -227,6 +246,6 @@ def write_all(run: Path, found: dict[str, Portfolio], rules: Rules) -> list[dict
         data = to_json(found[portfolio_id], rules)
         name = f"prepared/portfolios/{portfolio_id}.json"
         text = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
-        (run / name).write_text(text, encoding="utf-8")
+        write_atomic(run / name, text)
         written.append({"portfolio_id": portfolio_id, "json": name})
     return written

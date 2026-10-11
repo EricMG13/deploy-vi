@@ -4,8 +4,9 @@ Each readable file becomes `prepared/<sha16>-<slug>.txt`, its pages opened by
 `<<< page N >>>` lines, so a citation's page locator and excerpt can be checked.
 `prepared/index.json` records per file the prepared path, page count, a 400-character
 first-page excerpt, the entity names and dates found on the first page, sheet names
-and the `image_read` flag. A file that cannot be read is listed with `unreadable`
-and the reason; the others are still prepared (exit 0).
+the `image_read` flag, the text encoding, each sheet's state and its uncached formulas. A
+file that cannot be read is listed with `unreadable` and the reason; the others are still
+prepared (exit 0).
 """
 
 from __future__ import annotations
@@ -14,28 +15,33 @@ import argparse
 import csv
 import io
 import json
+import math
 import re
 from collections.abc import Callable
+from contextlib import closing
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 from zipfile import BadZipFile
 
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
+from openpyxl.utils import get_column_letter
 from openpyxl.utils.exceptions import InvalidFileException
+from openpyxl.worksheet.worksheet import Worksheet
 from pypdf import PdfReader
-from pypdf.errors import PyPdfError
 
 from rbotlib import portfolio
-from rbotlib.inventory import RunError, pypdf_warnings
+from rbotlib.inventory import RunError, pypdf_warnings, write_atomic
 from rbotlib.rules import Rules, load_rules
 
 SCHEMA = "rbot-prepared/1"
 EXCERPT_CHARS = 400
 MAX_ENTITIES = 8
 MIN_PDF_TEXT = 20  # fewer extracted characters in the whole PDF: a scan, read as an image
+SCAN_CHARS = 5000  # entities and dates are looked for in the start of the first page only
 
 
 class UnreadableError(Exception):
@@ -50,6 +56,9 @@ class Prepared:
     pages: list[str]
     sheets: list[Sheet] = field(default_factory=list)
     image_read: bool = False
+    encoding: str | None = None
+    sheet_states: dict[str, str] = field(default_factory=dict)
+    uncached: dict[str, list[str]] = field(default_factory=dict)
 
 
 def page_marker(n: int) -> str:
@@ -59,10 +68,26 @@ def page_marker(n: int) -> str:
 # --- readers -----------------------------------------------------------------
 
 
+def _decode(path: Path, first: str = "utf-8") -> tuple[str, str]:
+    """(text, encoding): strict UTF-8, else cp1252 (recorded); never a silent replacement."""
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise UnreadableError(f"cannot read the file: {exc.strerror or exc}") from exc
+    try:
+        return raw.decode(first), "utf-8"
+    except UnicodeDecodeError:
+        pass
+    try:
+        return raw.decode("cp1252"), "cp1252"
+    except UnicodeDecodeError as exc:
+        raise UnreadableError(f"cannot decode as UTF-8 or cp1252: {exc}") from exc
+
+
 def read_text(path: Path) -> Prepared:
     """Plain text and Markdown: form feeds separate pages; without them, one page."""
-    text = path.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n")
-    return Prepared(text.split("\f"))
+    text, encoding = _decode(path)
+    return Prepared(text.replace("\r\n", "\n").split("\f"), encoding=encoding)
 
 
 class _HTMLText(HTMLParser):
@@ -83,7 +108,7 @@ class _HTMLText(HTMLParser):
 
     def handle_endtag(self, tag: str) -> None:
         if tag in ("script", "style"):
-            self.hidden -= 1
+            self.hidden = max(0, self.hidden - 1)
 
     def handle_data(self, data: str) -> None:
         if not self.hidden:
@@ -92,24 +117,35 @@ class _HTMLText(HTMLParser):
 
 def read_html(path: Path) -> Prepared:
     parser = _HTMLText()
-    parser.feed(path.read_text(encoding="utf-8", errors="replace"))
+    text, encoding = _decode(path)
+    parser.feed(text)
     lines = (" ".join(line.split()) for line in "".join(parser.parts).splitlines())
-    return Prepared(["\n".join(line for line in lines if line)])
+    return Prepared(["\n".join(line for line in lines if line)], encoding=encoding)
+
+
+def _pdf_pages(path: Path) -> list[str]:
+    try:
+        reader = PdfReader(path)
+        locked = reader.is_encrypted and not reader.decrypt("")
+        pages = None if locked else [(p.extract_text() or "") for p in reader.pages]
+    except Exception as exc:  # fail-open per file, listed as unreadable (decision record 0002)
+        raise UnreadableError(f"pypdf could not read the PDF: {type(exc).__name__}: {exc}") from exc
+    if pages is None:
+        raise UnreadableError("encrypted PDF: a password is needed")
+    return [text.replace("\r\n", "\n") for text in pages]
 
 
 def read_pdf(path: Path) -> Prepared:
     """PDF pages through pypdf; a PDF with (almost) no extractable text is a scan."""
-    try:
-        with pypdf_warnings():
-            reader = PdfReader(path)
-            if reader.is_encrypted and not reader.decrypt(""):
-                raise UnreadableError("encrypted PDF: a password is needed")
-            pages = [(page.extract_text() or "").replace("\r\n", "\n") for page in reader.pages]
-    except (PyPdfError, ValueError, KeyError, OSError) as exc:
-        raise UnreadableError(f"pypdf could not read the PDF: {type(exc).__name__}: {exc}") from exc
-    if sum(len(p.strip()) for p in pages) < MIN_PDF_TEXT:
-        return Prepared(["" for _ in pages], image_read=True)
-    return Prepared(pages)
+    with pypdf_warnings() as seen:
+        pages = _pdf_pages(path)
+    if not pages:
+        raise UnreadableError("PDF has no pages")
+    if sum(len(p.strip()) for p in pages) >= MIN_PDF_TEXT:
+        return Prepared(pages)
+    if seen:  # a damaged content stream is not a scan
+        raise UnreadableError("no text extracted; pypdf warned: " + "; ".join(dict.fromkeys(seen)))
+    return Prepared(pages, image_read=True)
 
 
 _ERRORS = frozenset({"#VALUE!", "#DIV/0!", "#NAME?", "#REF!", "#NUM!", "#NULL!", "—"})
@@ -125,8 +161,23 @@ def clean_cell(value: object) -> str:
         return (
             value.date().isoformat() if value.time() == datetime.min.time() else value.isoformat()
         )
+    if isinstance(value, float) and math.isfinite(value):
+        return format(Decimal(repr(value)), "f")
     text = str(value).strip()
     return "" if text in _ERRORS or text.startswith("#N/A") else text
+
+
+_QUOTED = re.compile(r'"[^"]*"|\\.')
+
+
+def cell_text(value: object, number_format: str | None) -> str:
+    """A cell as text; a `%`-formatted number shows as the percent it displays (value x 100)."""
+    percent = "%" in _QUOTED.sub("", number_format or "")
+    if percent and isinstance(value, int | float) and not isinstance(value, bool):
+        if not math.isfinite(value):
+            return clean_cell(value)
+        return format((Decimal(repr(value)) * 100).normalize(), "f") + "%"
+    return clean_cell(value)
 
 
 def _trimmed(rows: list[list[str]]) -> list[list[str]]:
@@ -150,28 +201,51 @@ def _sheet_pages(sheets: list[Sheet]) -> Prepared:
 
 
 def read_csv(path: Path) -> Prepared:
-    text = path.read_text(encoding="utf-8-sig", errors="replace")
-    rows = [[clean_cell(c) for c in row] for row in csv.reader(io.StringIO(text))]
-    return _sheet_pages([(path.stem, _trimmed(rows))])
+    text, encoding = _decode(path, "utf-8-sig")
+    try:
+        rows = [[clean_cell(c) for c in row] for row in csv.reader(io.StringIO(text))]
+    except csv.Error as exc:
+        raise UnreadableError(f"csv could not be parsed: {exc}") from exc
+    result = _sheet_pages([(path.stem, _trimmed(rows))])
+    result.encoding = encoding
+    return result
+
+
+def _sheet_rows(ws: Worksheet, wf: Worksheet) -> tuple[list[list[str]], list[str]]:
+    """(rows as text, cells whose formula has no stored value) of one sheet."""
+    rows, missing = [], []
+    for r, (values, forms) in enumerate(zip(ws.iter_rows(), wf.iter_rows(), strict=False), 1):
+        rows.append([cell_text(c.value, c.number_format) for c in values])
+        for col, (c, f) in enumerate(zip(values, forms, strict=False), 1):
+            if f.data_type == "f" and c.value is None:
+                missing.append(f"{get_column_letter(col)}{r}")
+    return _trimmed(rows), missing
+
+
+def _workbook(cached: Workbook, formulas: Workbook) -> Prepared:
+    """Stored values per sheet; a formula with no stored value is named, not read as blank."""
+    sheets: list[Sheet] = []
+    states: dict[str, str] = {}
+    uncached: dict[str, list[str]] = {}
+    for ws, wf in zip(cached.worksheets, formulas.worksheets, strict=True):
+        rows, missing = _sheet_rows(ws, wf)
+        sheets.append((ws.title, rows))
+        states[ws.title] = str(ws.sheet_state)
+        if missing:
+            uncached[ws.title] = missing
+    return Prepared(_sheet_pages(sheets).pages, sheets, sheet_states=states, uncached=uncached)
 
 
 def read_xlsx(path: Path) -> Prepared:
     """Every sheet's stored values (formula results as cached, never recalculated)."""
     try:
-        book = load_workbook(path, read_only=True, data_only=True)
+        with (
+            closing(load_workbook(path, read_only=True, data_only=True)) as cached,
+            closing(load_workbook(path, read_only=True, data_only=False)) as formulas,
+        ):
+            return _workbook(cached, formulas)
     except (InvalidFileException, BadZipFile, KeyError, ValueError, OSError) as exc:
         raise UnreadableError(f"openpyxl could not read the workbook: {exc}") from exc
-    try:
-        sheets = [
-            (
-                ws.title,
-                _trimmed([[clean_cell(c) for c in row] for row in ws.iter_rows(values_only=True)]),
-            )
-            for ws in book.worksheets
-        ]
-    finally:
-        book.close()
-    return _sheet_pages(sheets)
 
 
 def read_image(path: Path) -> Prepared:
@@ -265,9 +339,12 @@ def prepared_name(entry: dict[str, Any]) -> str:
     return f"prepared/{entry['sha256'][:16]}-{slug(Path(entry['path']).name)}.txt"
 
 
+_ANCHOR_LIKE = re.compile(r"^[ \t]*<<<[ \t]*page\b", re.I | re.M)
+
+
 def anchored_text(pages: list[str]) -> str:
-    """Each page under its `<<< page N >>>` line; a page without text is the line alone."""
-    bodies = (text.rstrip() for text in pages)
+    """Each page under its `<<< page N >>>` line; a source line that looks like one is escaped."""
+    bodies = (_ANCHOR_LIKE.sub(lambda m: "\\" + m[0], text.rstrip()) for text in pages)
     return "".join(f"{page_marker(n)}\n" + (f"{b}\n" if b else "") for n, b in enumerate(bodies, 1))
 
 
@@ -275,6 +352,7 @@ def prepare_file(run: Path, pack: Path, entry: dict[str, Any]) -> dict[str, Any]
     record: dict[str, Any] = {"path": entry["path"], "sha256": entry["sha256"]}
     record |= {"kind": entry["kind"], "prepared": None, "pages": 0, "excerpt": ""}
     record |= {"entities": [], "dates": [], "sheets": [], "image_read": False, "unreadable": None}
+    record |= {"encoding": None, "sheet_states": {}, "uncached_formulas": {}}
     try:
         result = read(pack / entry["path"], entry["kind"])
     except UnreadableError as exc:
@@ -283,27 +361,60 @@ def prepare_file(run: Path, pack: Path, entry: dict[str, Any]) -> dict[str, Any]
     name = prepared_name(entry)
     (run / name).write_text(anchored_text(result.pages), encoding="utf-8")
     first = result.pages[0] if result.pages else ""
-    sheets = [n for n, _ in result.sheets]
-    record |= {"prepared": name, "pages": len(result.pages), "sheets": sheets}
+    record |= {
+        "prepared": name,
+        "pages": len(result.pages),
+        "sheets": [n for n, _ in result.sheets],
+    }
     record |= {"excerpt": " ".join(first.split())[:EXCERPT_CHARS], "image_read": result.image_read}
-    record |= {"entities": entities(first), "dates": dates(first)}
-    return record
+    record |= {"entities": entities(first[:SCAN_CHARS]), "dates": dates(first[:SCAN_CHARS])}
+    record |= {"encoding": result.encoding, "sheet_states": result.sheet_states}
+    return record | {"uncached_formulas": result.uncached}
+
+
+def _sheet_portfolios(
+    entry: dict[str, Any], result: Prepared, found: dict[str, portfolio.Portfolio]
+) -> list[str]:
+    notes: list[str] = []
+    for name, rows in result.sheets:
+        label = entry["path"] if entry["kind"] == "csv" else f"{entry['path']} sheet {name}"
+        state = result.sheet_states.get(name, "visible")
+        if state != "visible":
+            notes.append(f"{label}: {state} sheet not read for portfolios")
+            continue
+        bad = {int(re.sub(r"\D", "", ref)): ref for ref in result.uncached.get(name, [])}
+        notes += portfolio.read_sheet(label, rows, found, bad)
+    return notes
 
 
 def _portfolios(run: Path, pack: Path, files: list[dict[str, Any]], rules: Rules) -> dict[str, Any]:
-    """Every portfolio found in the pack's sheets, written to prepared/portfolios/."""
+    """Every portfolio found in the pack's visible sheets, written to prepared/portfolios/."""
     found: dict[str, portfolio.Portfolio] = {}
-    notes = []
+    notes: list[str] = []
     for entry in (e for e in files if e["kind"] in ("csv", "xlsx")):
         try:
-            sheets = read(pack / entry["path"], entry["kind"]).sheets
+            result = read(pack / entry["path"], entry["kind"])
         except UnreadableError:
             continue  # already listed as unreadable in index.json
-        for name, rows in sheets:
-            label = entry["path"] if entry["kind"] == "csv" else f"{entry['path']} sheet {name}"
-            note = portfolio.read_sheet(label, rows, found)
-            notes += [note] if note else []
+        notes += _sheet_portfolios(entry, result, found)
     return {"portfolios": portfolio.write_all(run, found, rules), "portfolio_notes": notes}
+
+
+def _old_index(index_path: Path) -> dict[str, dict[str, Any]]:
+    try:
+        old = json.loads(index_path.read_text(encoding="utf-8"))
+        return {r["path"]: r for r in old["files"]}
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise RunError(f"error: {index_path}: {exc}") from exc
+
+
+def _drop_orphan(run: Path, old: dict[str, Any] | None, new: dict[str, Any]) -> None:
+    """Delete the prepared text a re-prepared file no longer points to."""
+    if not old or not old.get("prepared") or old["prepared"] == new["prepared"]:
+        return
+    path, folder = (run / old["prepared"]).resolve(), (run / "prepared").resolve()
+    if path.parent == folder:
+        path.unlink(missing_ok=True)
 
 
 def write(run: Path, rules: Rules, only: str | None = None) -> dict[str, Any]:
@@ -316,17 +427,16 @@ def write(run: Path, rules: Rules, only: str | None = None) -> dict[str, Any]:
         raise RunError(f"{only}: not in inventory.json")
     (run / "prepared").mkdir(exist_ok=True)
     index_path = run / "prepared" / "index.json"
-    kept = {}
-    if only is not None and index_path.is_file():
-        kept = {r["path"]: r for r in json.loads(index_path.read_text(encoding="utf-8"))["files"]}
+    kept = _old_index(index_path) if only is not None and index_path.is_file() else {}
     pack = Path(inventory["pack_root"])
     for entry in entries:
-        kept[entry["path"]] = prepare_file(run, pack, entry)
+        old, kept[entry["path"]] = kept.get(entry["path"]), prepare_file(run, pack, entry)
+        _drop_orphan(run, old, kept[entry["path"]])
     index: dict[str, Any] = {"schema": SCHEMA}
     index["generated_at"] = datetime.now(UTC).isoformat(timespec="seconds")
     index["files"] = [kept[p] for p in sorted(kept)]
     index |= _portfolios(run, pack, inventory["files"], rules)
-    index_path.write_text(json.dumps(index, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    write_atomic(index_path, json.dumps(index, indent=2, ensure_ascii=False) + "\n")
     return index
 
 
@@ -344,6 +454,9 @@ def run_command(args: argparse.Namespace) -> int:
     unreadable = [r for r in index["files"] if r["unreadable"]]
     for r in unreadable:
         print(f"unreadable: {r['path']}: {r['unreadable']}")
+    for r in index["files"]:
+        for sheet, refs in r["uncached_formulas"].items():
+            print(f"uncached formula: {r['path']} sheet {sheet}: {', '.join(refs)}")
     for note in index["portfolio_notes"]:
         print(f"portfolio: {note}")
     found = ", ".join(p["portfolio_id"] for p in index["portfolios"]) or "none"

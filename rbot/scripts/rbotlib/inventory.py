@@ -91,6 +91,17 @@ def pypdf_warnings() -> Iterator[list[str]]:
         log.propagate = propagate
 
 
+def write_atomic(path: Path, text: str) -> None:
+    """Write beside the target, then `os.replace`: a failed write never leaves half a file."""
+    temp = path.with_name(path.name + ".tmp")
+    try:
+        temp.write_text(text, encoding="utf-8")
+        os.replace(temp, path)
+    except OSError:
+        temp.unlink(missing_ok=True)
+        raise
+
+
 def _open_pdf(path: Path) -> tuple[int | None, str | None]:
     try:
         reader = PdfReader(path)
