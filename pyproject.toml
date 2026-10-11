@@ -38,6 +38,9 @@ exclude = ["^reference/"]
 testpaths = ["tests"]
 pythonpath = ["rbot/scripts", "scripts", "tests"]
 addopts = "-q --strict-markers --cov --cov-branch --cov-report=term-missing:skip-covered --cov-fail-under=80"
+markers = [
+    "corpus: reads the local issuer corpus (tests/corpus/corpus.json, interfaces spec section 12.3)",
+]
 
 [tool.coverage.run]
 branch = true

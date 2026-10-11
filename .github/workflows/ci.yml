@@ -32,6 +32,9 @@ jobs:
       - run: uv run mypy
       - run: uv run pytest
       - run: uv run python rbot/scripts/rbot.py check
+      # Corpus tests (interfaces spec section 12.3): in-repo synthetic files must be
+      # present; external packs live only on the owner's machine (make corpus).
+      - run: RBOT_REQUIRE_CORPUS=synthetic uv run pytest -m corpus --no-cov
       - run: uv run python scripts/check_suppressions.py
       - run: uv run complexipy rbot/scripts scripts --max-complexity-allowed 15
       - run: uv run bandit -r rbot/scripts scripts -f json -o bandit.json || true

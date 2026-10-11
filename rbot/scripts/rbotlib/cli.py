@@ -6,6 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from rbotlib import corpus
 from rbotlib.catalog import check_tree
 from rbotlib.contract import ContractError, load_contract
 from rbotlib.render import render_module
@@ -73,6 +74,7 @@ def main(argv: list[str] | None = None) -> int:
     r.set_defaults(run=_render)
     c = sub.add_parser("check", help="contracts, generated modules, Pathways, Front Pages, budget")
     c.set_defaults(run=_check)
+    corpus.add_command(sub)
     args = parser.parse_args(argv)
     result: int = args.run(args)
     return result
