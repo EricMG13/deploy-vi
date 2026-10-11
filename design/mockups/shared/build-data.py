@@ -21,6 +21,7 @@ Usage: python3 build-data.py [czr.json] [portfolio-dir]
 
 from __future__ import annotations
 
+import re
 import csv
 import json
 import sys
@@ -91,6 +92,7 @@ def cite(key: str, rec: dict, label: str | None = None) -> str:
 
 def gap(field: str, reason: str, origin: str = "czr.json") -> str:
     gid = f"G{len(GAPS) + 1}"
+    reason = re.sub(r"\s*\(recorded as [^)]*\)", "", reason)  # the extraction's own field names are not for the reader
     GAPS[gid] = {"id": gid, "field": field, "reason": reason, "origin": origin}
     GAP_BY_KEY[field] = gid
     return gid
@@ -186,7 +188,7 @@ def load_czr(path: Path) -> dict:
 def derive() -> None:
     # Gaps this build adds (the extraction carries no such figure).
     gap("total_debt_cash_fy2023_fy2024",
-        "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet "
+        "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet "
         "figures at 2025-12-31 and 2026-06-30 only)", "build-data.py")
     gap("liquidity_fy2023_fy2025",
         "total liquidity is stated only at 2026-06-30 (Q2 2026 earnings release liquidity table)", "build-data.py")
@@ -212,7 +214,7 @@ def derive() -> None:
     gap("morningstar_issuer_id", "Morningstar Issuer ID is not in the sources", "build-data.py")
     gap("issuer_ratings",
         "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE "
-        "pages (see rating_outlooks_moodys_sp)", "build-data.py")
+        "pages (see the rating outlooks gap)", "build-data.py")
     gap("cash_flow_detail_h1_2026",
         "investing (other than capex) and financing cash flows for H1 2026 were not extracted", "build-data.py")
     gap("equity_market_value",
@@ -355,11 +357,32 @@ def derive() -> None:
          "{trace_penn_707569av1_last_yield})",
          ["trace_czr_12769gac4_last_yield", "trace_czr_12769gad2_last_yield", "trace_mgm_552953ck5_last_yield",
           "trace_penn_707569av1_last_yield"])
+    # the other side of the H1 2026 cash bridge: closing cash built from the extracted lines (the residual is stated minus this)
+    calc("cash_bridge_closing_from_lines_h1_2026", "Closing cash built from the extracted lines, H1 2026", "H1 2026",
+         val("cash_2025_12_31") + val("cfo_h1_2026") + val("capex_h1_2026"), 0, "USD millions",
+         "{cash_2025_12_31} + {cfo_h1_2026} + {capex_h1_2026}", ["cash_2025_12_31", "cfo_h1_2026", "capex_h1_2026"],
+         note="Opening cash plus cash from operations less capex; financing and other investing flows were not extracted.")
 
 
 # ---------------------------------------------------------------- tables and charts
 def D(key: str) -> dict:
     return strip(FIG[key])
+
+
+REV_KEYS = ("net_revenues_fy2023", "net_revenues_fy2024", "net_revenues_fy2025", "ltm_net_revenues_q2_2026")
+
+
+def rev_extremes() -> tuple[str, str, str, str]:
+    """(low, high, low key, high key) over every net-revenue bar the Report draws, so the prose matches the chart."""
+    vals = {k: float(FIG[k]["v"].replace(",", "")) for k in REV_KEYS}
+    lo, hi = min(vals, key=vals.get), max(vals, key=vals.get)
+    return FIG[lo]["v"], FIG[hi]["v"], lo, hi
+
+
+def rate(text: str) -> str:
+    """A yield or coupon for prose: 3 decimals at most, trailing zeros trimmed to two (display only)."""
+    out = f"{float(text):.3f}"
+    return out[:-1] if out.endswith("0") else out
 
 
 def G(field: str) -> dict:
@@ -507,14 +530,14 @@ def tables() -> dict:
         },
     }
     ebitda_adj = {
-        "title": "EBITDA adjustments", "unit": "US$ m", "columns": ["Q2 2026", "LTM Q2 2026", "PF LTM"],
+        "title": "EBITDA adjustments", "unit": "US$ m", "columns": ["Q2 2026", "LTM Q2 2026", "PF-LTM"],
         "rows": [
             {"label": "Reported EBITDA", "kind": "total", "cells": [D("reported_ebitda_q2_2026"), G("reported_ebitda_ltm"), G("pf_ltm")]},
             {"label": "Transaction costs and other, net", "kind": "indent", "cells": [D("recon_transaction_costs_q2_2026"), G("reported_ebitda_ltm"), G("pf_ltm")]},
             {"label": "Stock-based compensation", "kind": "indent", "cells": [D("recon_sbc_q2_2026"), G("reported_ebitda_ltm"), G("pf_ltm")]},
             {"label": "Structuring EBITDA", "kind": "total", "cells": [D("structuring_ebitda_q2_2026"), D("ltm_adj_ebitda_q2_2026"), G("pf_ltm")]},
             {"label": "unrealized add-backs", "kind": "sub", "cells": [G("unrealized_addbacks"), G("unrealized_addbacks"), G("pf_ltm")]},
-            {"label": "State Street IM EBITDA", "kind": "total", "cells": [D("structuring_ebitda_q2_2026"), D("ltm_adj_ebitda_q2_2026"), G("pf_ltm")]},
+            {"label": "SSIM EBITDA", "kind": "total", "cells": [D("structuring_ebitda_q2_2026"), D("ltm_adj_ebitda_q2_2026"), G("pf_ltm")]},
         ],
         "note": "Owner's definitions: Reported = before any adjustments; Structuring = Reported + every issuer add-back; "
                 "SSIM = Structuring - unrealized add-backs. With none marketed, SSIM equals Structuring.",
@@ -560,7 +583,7 @@ def charts(portfolio: dict) -> dict:
     nf = G("total_debt_cash_fy2023_fy2024")
     lq = G("liquidity_fy2023_fy2025")
     cats = ["FY2023", "FY2024", "FY2025", "LTM Q2 2026"]
-    src_fin = "Caesars FY2025 10-K, Q2 2026 10-Q and earnings release; calculations by build-data.py"
+    src_fin = "Caesars FY2025 10-K, Q2 2026 10-Q and earnings release; calculations from the cited figures"
     leverage = {
         "id": "fig-leverage", "title": "Leverage", "unit": "x", "categories": cats, "categoryLabel": "Period",
         "summary": "Total leverage " + FIG["total_leverage_ltm"]["v"] + "x at LTM Q2 2026 against "
@@ -600,7 +623,7 @@ def charts(portfolio: dict) -> dict:
     rev_ebitda = {
         "id": "fig-rev-ebitda", "title": "Net revenues and Adjusted EBITDA", "unit": "US$ m", "categories": cats,
         "categoryLabel": "Period",
-        "summary": "Net revenues held between " + FIG["net_revenues_fy2024"]["v"] + " and " + FIG["net_revenues_fy2023"]["v"] + "; Adjusted EBITDA eased from " + FIG["adj_ebitda_fy2023"]["v"] + " in FY2023 to "
+        "summary": "Net revenues ranged from " + rev_extremes()[0] + " to " + rev_extremes()[1] + " across the four periods; Adjusted EBITDA eased from " + FIG["adj_ebitda_fy2023"]["v"] + " in FY2023 to "
                    + FIG["ltm_adj_ebitda_q2_2026"]["v"] + " at LTM Q2 2026.",
         "series": [
             {"key": "rev", "label": "Net revenues", "values": [D("net_revenues_fy2023"), D("net_revenues_fy2024"), D("net_revenues_fy2025"), D("ltm_net_revenues_q2_2026")]},
@@ -660,7 +683,7 @@ def charts(portfolio: dict) -> dict:
                   {"label": "Purchase of property and equipment", "kind": "delta", "d": D("capex_h1_2026")},
                   {"label": "Financing and other", "kind": "residual", "d": D("cash_bridge_residual_h1_2026")},
                   {"label": "Cash, 30 Jun 2026", "kind": "total", "d": D("cash_2026_06_30")}],
-        "source": "Caesars Q2 2026 10-Q cash flow statement and balance sheet; residual by build-data.py",
+        "source": "Caesars Q2 2026 10-Q cash flow statement and balance sheet; residual calculated from the cited lines",
     }
     pts = []
     for lab, short, t, grp in (("CZR 6.50% senior secured 2032", "CZR 6.50% SS 2032", "czr_12769gac4", "CZR"),
@@ -673,8 +696,8 @@ def charts(portfolio: dict) -> dict:
     scatter = {
         "id": "fig-yield-curve", "title": "Yield against maturity, CZR and peers", "unit": "%", "yLabel": "Last trade yield",
         "xLabel": "Maturity", "groupLabel": "Issuer", "asOf": "2026-10-02",
-        "summary": "CZR's unsecured 2032s yield " + FIG["trace_czr_12769gad2_last_yield"]["v"] + "%, above its secured 2032s at "
-                   + FIG["trace_czr_12769gac4_last_yield"]["v"] + "%; the MGM and PENN 2029s yield " + FIG["trace_mgm_552953ck5_last_yield"]["v"] + "% and " + FIG["trace_penn_707569av1_last_yield"]["v"] + "%.",
+        "summary": "CZR's unsecured 2032s yield " + rate(FIG["trace_czr_12769gad2_last_yield"]["v"]) + "%, above its secured 2032s at "
+                   + rate(FIG["trace_czr_12769gac4_last_yield"]["v"]) + "%; the MGM and PENN 2029s yield " + rate(FIG["trace_mgm_552953ck5_last_yield"]["v"]) + "% and " + rate(FIG["trace_penn_707569av1_last_yield"]["v"]) + "%.",
         "points": pts, "groupColors": {"CZR": 1, "MGM": 2, "PENN": 4},
         "curve": {"group": None, "label": "Fitted curve, all four bonds (calculated; positions only)", "prov": "calculated"},
         "gap": G("spread_to_treasury"),
@@ -928,8 +951,8 @@ def illustrative() -> dict:
             {"label": "Las Vegas softness", **r(f"Las Vegas Adjusted EBITDA fell to {F('seg_adj_ebitda_las_vegas_q2_2026')} from {F('seg_adj_ebitda_las_vegas_q2_2025')} in Q2 2026.", [C["seg_adj_ebitda_las_vegas_q2_2026"], C["seg_adj_ebitda_las_vegas_q2_2025"]])},
             {"label": "Thin GAAP earnings", **r(f"Net loss attributable to Caesars of {F('net_income_attrib_q2_2026')} in Q2 2026 and {F('net_income_attrib_fy2025')} in FY2025.", [C["net_income_attrib_q2_2026"], C["net_income_attrib_fy2025"]])},
         ],
-        "historicalPerformance": r(f"Net revenues have held between {FIG['net_revenues_fy2024']['v']} and {FIG['net_revenues_fy2023']['v']} since FY2023 while Adjusted EBITDA has eased each year, from {FIG['adj_ebitda_fy2023']['v']} to {FIG['adj_ebitda_fy2025']['v']} in FY2025.",
-                                   [C["net_revenues_fy2023"], C["adj_ebitda_fy2023"], C["adj_ebitda_fy2025"]]),
+        "historicalPerformance": r(f"Net revenues have ranged from {rev_extremes()[0]} to {rev_extremes()[1]} between FY2023 and LTM Q2 2026 while Adjusted EBITDA has eased each year, from {FIG['adj_ebitda_fy2023']['v']} to {FIG['adj_ebitda_fy2025']['v']} in FY2025.",
+                                   [C[rev_extremes()[2]], C[rev_extremes()[3]], C["adj_ebitda_fy2023"], C["adj_ebitda_fy2025"]]),
         "businessDescription": r("Caesars Entertainment reports four operating segments: Las Vegas, Regional, Caesars Digital, and Managed and Branded. "
                                  "It agreed on May 27, 2026 to be acquired by Fertitta Entertainment in an all-cash transaction valued at approximately $17.6 billion including assumed debt.",
                                  [C["seg_rev_las_vegas_q2_2026"], C["issuer.merger.agreement_date"], C["merger_transaction_value"]]),
@@ -1121,11 +1144,11 @@ def meta_block() -> dict:
 def modules() -> list[dict]:
     g = GAP_BY_KEY
     mods = [
-        {"id": "CP-0", "name": "Intake and readiness", "status": "Restricted",
+        {"id": "CP-0", "name": "Source readiness", "status": "Restricted",
          "reason": "Ratings outlooks, Fitch and the merger's debt commitment terms are missing from the Source Pack.",
          "refs": [g["rating_fitch"], g["rating_outlooks_moodys_sp"], g["merger_committed_debt_financing_amount"]]},
         {"id": "CP-1", "name": "Financial analysis and capital structure", "status": "Pass", "reason": "Historical financials, debt table and liquidity reconcile to the filings.", "refs": []},
-        {"id": "CP-1B", "name": "Earnings Delta", "status": "Restricted",
+        {"id": "CP-1B", "name": "Earnings delta", "status": "Restricted",
          "reason": "Q2 2026 against Q2 2025 revenue, Adjusted EBITDA, segments and the EBITDA reconciliation are cited; "
                    "quarterly cash flows, cash interest and cash taxes are disclosed for six months only, so the cash side of the delta is H1.",
          "refs": [g["cfo_q2_2026 / q2_2025"], g["cash_interest_paid_q2_2026 / q2_2025"], g["income_taxes_paid_q2_2026 / q2_2025"]]},

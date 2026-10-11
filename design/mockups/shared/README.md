@@ -23,7 +23,7 @@ Shared layer for the three Report mockups (A IC paper, B verdict rail, C period 
 <script> /* build the page */ RBOTUI.init(document); </script>
 ```
 
-The mockups load Inter and Inter Tight from Google Fonts. The shipping renderer embeds both fonts, because the Report needs no network when it is viewed. `charts.js` never writes `innerHTML`, so it works under a strict CSP.
+The mockups load Inter and Inter Tight from Google Fonts. **The Plan 07 renderer must embed both fonts** (base64 `@font-face` or files beside the Report): the Report needs no network when it is viewed (PRODUCT.md), and the mockup's `<link>` to Google Fonts would break that offline requirement if it were carried over. `charts.js` never writes `innerHTML`, so it works under a strict CSP.
 
 **Logo paths.** Mockups in `design/mockups/` reference `../../brand/ssim-logo-horizontal-white.png` on navy or electric-blue grounds, and `../../brand/ssim-logo-stacked-black-trim.png` on white or `#F0F2F5`. From `shared/` the path is `../../../brand/`. Never recolour or redraw the logo. Classes: `.logo.logo--on-dark` (22px high) and `.logo.logo--on-light` (40px).
 
@@ -105,8 +105,11 @@ Clicking any `button[data-ref]`, or pressing Enter on a chart mark, opens one po
 | Function | What it does |
 |---|---|
 | `RBOTUI.init(root)` | Wires the delegated popover and tabs. Call it once, after the DOM is built |
-| `RBOTUI.value(datum, unit?)` | Returns a fragment: the value plus its chip, or the n/a gap with its reason |
-| `RBOTUI.cell(td, datum, unit?)` | Fills a dense-table cell in the compact form (the figure is the button) |
+| `RBOTUI.value(datum, unit?, context?)` | Returns a fragment: the value plus its chip, or the n/a gap with its reason. Context `"prose"` or `"figure"` makes the figure itself the button, with a corner mark and no bracket chip |
+| `RBOTUI.cell(td, datum, unit?, kind?)` | Fills a dense-table cell in the compact form (the figure is the button). `kind` hints the display format (`"rate"`, `"price"`) |
+| `RBOTUI.setFormat(fn)` | Installs the display formatter `fn(datum, unit, context, kind)`, which returns the text to show or `null`. The popover still prints the string as served ("Served as"). Without a formatter, values print as served |
+| `RBOTUI.roving(root)` | One tab stop per block of provenance buttons (a table, list or paragraph); arrow keys, Home and End move within it. Chart marks are one tab stop per chart |
+| `RBOTUI.statusLabel(word)` | The reader-facing status word: `Restricted` reads "With limitations" (the data keeps `Restricted`); Pass and Blocked are unchanged |
 | `RBOTUI.chip(ref)` | Returns a `cite`, `calc` or `gapref` button |
 | `RBOTUI.scale({kind, pos, word?, label?, illustrative?, size?})` | Scale badge. `kind` is `"rec"` (1 Strong OW … 5 Strong UW, `pos: null` with `word: "Avoid"` or `"N/A"`), `"score"` (1 Strong, 2 Good, 3 Fair, 4 Weak, 5 Stressed) or `"val"` (V1 Very attractive … V5 Very unattractive). The position is printed and drawn, and the `aria-label` states the scale. Tone is a secondary cue only |
 | `RBOTUI.status(word)` | Pass, Restricted, Blocked, Fits, Watch, Breaches or N/A |
@@ -176,6 +179,7 @@ Every chart has:
 **Conventions.**
 - Money is in US$ m unless the unit says otherwise.
 - Multiples are given to 2 dp, and percentages to 1 dp as computed.
-- TRACE yields, prices and coupons print exactly as served (e.g. `8.063520`).
+- Display follows the unit (Mockup A's formatter): yields and coupons 2 to 3 dp with zeros trimmed (`8.064`, `6.50`, `4.125`); prices 2 dp; multiples 2 dp with `x`; percentages as computed; money as `US$11,486m` or `US$17.6bn`. Dates read `15 Feb 2032` in tables and `30 June 2026` in prose.
+- The data and the passport keep the string exactly as served (e.g. `8.063520`, shown as "Served as").
 - Leverage uses company Adjusted EBITDA and total debt at face value. The GLPI and VICI financing obligations (13,157) are shown separately, not added to debt.
 - EV is the merger's stated transaction value of approximately $17.6 billion, because no listed equity value is in the sources.

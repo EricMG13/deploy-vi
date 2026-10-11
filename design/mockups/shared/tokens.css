@@ -74,7 +74,7 @@
   --radius: 2px;                        /* square house; chips only */
   --focus: 2px solid var(--blue);
   --focus-offset: 2px;
-  --measure: 72ch;
+  --measure: 64ch;
   --hit: 24px;                          /* minimum target */
 }
 
@@ -137,7 +137,7 @@ input, button, select, textarea { font: inherit; color: inherit; caret-color: va
   font-size: var(--fs-table);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  line-height: 1.3;
+  line-height: 1.35;
 }
 .bar__meta { font-family: var(--font-body); font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--on-navy-2); font-size: var(--fs-xs); }
 .bar--sub {
@@ -236,18 +236,17 @@ details.xp--light > summary:focus-visible { outline-color: var(--blue); }
   min-height: 1.1rem; padding: 0 0.3rem; margin-left: 0.2em;
   border: 1px solid var(--blue); border-radius: var(--radius);
   color: var(--blue); background: var(--sheet);
-  font-size: 0.6875rem; font-weight: 600; line-height: 1.1; vertical-align: 0.1em;
+  font-size: var(--fs-xs); font-weight: 600; line-height: 1.1; vertical-align: 0.1em;
   font-feature-settings: var(--nums);
   position: relative;
 }
 .cite::before { content: "["; } .cite::after { content: "]"; }
-.cite::after, .calc::after { /* enlarge the hit area to 24px without changing layout */ }
 .cite:hover, .cite[aria-expanded="true"] { background: var(--blue); color: #fff; }
 /* Calculated: same chip form, navy, prefixed by an equals sign; popover shows the formula. */
 .calc {
   display: inline-flex; align-items: center; min-height: 1.1rem; padding: 0 0.3rem; margin-left: 0.2em;
   border: 1px solid var(--navy); border-radius: var(--radius); background: var(--soft-blue-50);
-  color: var(--navy); font-size: 0.6875rem; font-weight: 600; line-height: 1.1; vertical-align: 0.1em;
+  color: var(--navy); font-size: var(--fs-xs); font-weight: 600; line-height: 1.1; vertical-align: 0.1em;
   font-feature-settings: var(--nums);
 }
 .calc::before { content: "= "; font-weight: 700; }
@@ -255,7 +254,8 @@ details.xp--light > summary:focus-visible { outline-color: var(--blue); }
 .cite::before, .calc::before { pointer-events: none; }
 /* Hit area >= 24px on inline chips */
 .cite, .calc, .gap { position: relative; }
-.cite > .hit, .calc > .hit, .gap > .hit { position: absolute; inset: 50% auto auto 50%; width: var(--hit); height: var(--hit); transform: translate(-50%, -50%); }
+.gapref { position: relative; }
+.cite > .hit, .calc > .hit, .gap > .hit, .gapref > .hit { position: absolute; inset: 50% auto auto 50%; width: var(--hit); height: var(--hit); transform: translate(-50%, -50%); }
 /* Model-authored: fine dotted underline in slate plus a quiet "Model" tag. */
 .prov-model {
   text-decoration: underline dotted var(--grey-600) 1.5px;
@@ -264,14 +264,14 @@ details.xp--light > summary:focus-visible { outline-color: var(--blue); }
 .tag-model {
   display: inline-block; margin-left: 0.3em; padding: 0 0.3rem;
   border: 1px dashed var(--grey-600); border-radius: var(--radius);
-  font-size: 0.6875rem; font-weight: 600; color: var(--grey-600); line-height: 1.3; vertical-align: 0.1em;
+  font-size: var(--fs-xs); font-weight: 600; color: var(--grey-600); line-height: 1.4; vertical-align: 0.1em;
 }
 /* ILLUSTRATIVE: every score, recommendation, valuation and thesis line in the mockups. */
 .illus {
   display: inline-flex; align-items: center; gap: 0.3em;
   padding: 0.05rem 0.35rem; border: 1px dashed var(--navy); border-radius: var(--radius);
   background: var(--sheet);
-  color: var(--navy); font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--navy); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
   line-height: 1.4; white-space: nowrap; vertical-align: 0.15em;
 }
 .illus::before { content: ""; width: 0.55rem; height: 0.55rem; border: 1.5px dashed var(--navy); border-radius: 50%; }
@@ -283,7 +283,7 @@ details.xp--light > summary:focus-visible { outline-color: var(--blue); }
 }
 .synth { /* synthetic portfolio data (Test CLO I) */
   display: inline-block; padding: 0.05rem 0.35rem; border: 1px solid var(--grey-600); border-radius: var(--radius);
-  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grey-600);
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--grey-600);
   vertical-align: 0.15em;
 }
 /* The n/a gap: missing from the sources, shown with its reason, never 0. */
@@ -351,7 +351,7 @@ details.xp--light > summary:focus-visible { outline-color: var(--blue); }
 .scale {
   display: inline-flex; align-items: center; gap: 0.4em; white-space: nowrap;
   padding: 0.1rem 0.45rem 0.1rem 0.15rem; border: 1px solid var(--navy); border-radius: var(--radius);
-  background: var(--sheet); color: var(--navy); font-size: var(--fs-table); line-height: 1.3;
+  background: var(--sheet); color: var(--navy); font-size: var(--fs-table); line-height: 1.35;
 }
 .scale__pos {
   display: inline-grid; place-items: center; min-width: 1.35rem; height: 1.35rem; padding: 0 0.2rem;
@@ -374,6 +374,7 @@ details.xp--light > summary:focus-visible { outline-color: var(--blue); }
 .on-navy .scale__pos { background: #fff; color: var(--navy); }
 .on-navy .scale[data-tone="pos"] .scale__pos { background: var(--mint); color: var(--navy); }
 .on-navy .scale[data-tone="neg"] .scale__pos { background: #FFB4B0; color: var(--navy); }
+.on-navy .scale[data-tone="mid"] .scale__pos { background: #fff; color: var(--navy); }  /* navy on slate was 2.75:1 */
 .on-navy .scale__meter > i { border-color: var(--on-navy-2); background: transparent; }
 .on-navy .scale__meter > i.on { background: #fff; }
 .on-navy .illus { background: transparent; color: #fff; border-color: var(--on-navy-2); }
@@ -404,12 +405,12 @@ details.xp--light > summary:focus-visible { outline-color: var(--blue); }
 .chart__head { margin-bottom: var(--s-2); }
 .chart__num { font-family: var(--font-head); font-weight: 700; font-size: var(--fs-xs); color: var(--ink-2); margin-right: 0.4em; }
 .chart__title { display: inline; font-family: var(--font-head); font-weight: 700; font-size: var(--fs-base); color: var(--navy); letter-spacing: 0; }
-.chart__summary { margin: 0.15rem 0 0; font-size: var(--fs-table); color: var(--ink-2); max-width: none; }
+.chart__summary { margin: 0.15rem 0 0; font-size: var(--fs-table); color: var(--ink-2); max-width: 72ch; }
 .chart__plot { position: relative; width: 100%; }
 .chart__plot svg { display: block; width: 100%; height: auto; overflow: visible; font-family: var(--font-body); }
-.chart__plot svg text { fill: var(--ink); font-size: 11px; }
+.chart__plot svg text { fill: var(--ink); font-size: var(--fs-xs); }
 .chart__plot svg .ax text { fill: var(--chart-axis); }
-.chart__plot svg .lbl { font-size: 11px; font-weight: 600; fill: var(--navy); paint-order: stroke; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; }
+.chart__plot svg .lbl { font-size: var(--fs-xs); font-weight: 600; fill: var(--navy); paint-order: stroke; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; }
 .chart__plot svg .lbl--in { stroke: none; }
 .chart__plot svg .lbl--muted { fill: var(--ink-2); font-weight: 500; }
 .chart__plot svg .na { fill: var(--ink-2); font-style: italic; font-weight: 600; }
@@ -432,7 +433,7 @@ details.xp--light > summary:focus-visible { outline-color: var(--blue); }
 .chart__toggle { min-height: var(--hit); padding: 0.1rem 0.6rem; font-size: var(--fs-xs); }
 .chart__twin { margin-top: var(--s-2); }
 .chart__twin[hidden] { display: none; }
-.chart__source { margin: var(--s-2) 0 0; font-size: var(--fs-xs); color: var(--ink-2); max-width: none; }
+.chart__source { margin: var(--s-2) 0 0; font-size: var(--fs-xs); color: var(--ink-2); max-width: 80ch; }
 .chart-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-4); }
 @media (max-width: 1100px) { .chart-strip { grid-template-columns: 1fr; } }
 
@@ -452,6 +453,8 @@ details.xp--light > summary:focus-visible { outline-color: var(--blue); }
   appearance: none; border: 0; background: none; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer;
   min-height: 1.25rem; text-decoration: none; font-feature-settings: var(--nums);
 }
+.cellref { position: relative; }
+.cellref > .hit { position: absolute; inset: 50% auto auto 50%; width: max(100%, var(--hit)); height: var(--hit); transform: translate(-50%, -50%); }
 .cellref:hover, .cellref[aria-expanded="true"] { color: var(--blue); text-decoration: underline; text-underline-offset: 0.2em; }
 .dt td.prov--cited::after, .dt td.prov--calculated::after, .dt td.prov--synthetic::after {
   content: ""; position: absolute; top: 0; right: 0; width: 6px; height: 6px; pointer-events: none;
@@ -472,10 +475,22 @@ details.xp--light > summary:focus-visible { outline-color: var(--blue); }
 .gapref {
   appearance: none; display: inline-flex; align-items: center; min-height: 1.1rem; padding: 0 0.3rem; margin-left: 0.2em;
   border: 1px dashed var(--grey-600); border-radius: var(--radius); background: var(--sheet); cursor: pointer;
-  color: var(--grey-600); font: inherit; font-size: 0.6875rem; font-weight: 600; line-height: 1.1; vertical-align: 0.1em;
+  color: var(--grey-600); font: inherit; font-size: var(--fs-xs); font-weight: 600; line-height: 1.1; vertical-align: 0.1em;
   font-feature-settings: var(--nums);
 }
 .gapref::before { content: "n/a\00a0"; font-style: italic; }
 .gapref:hover, .gapref[aria-expanded="true"] { border-color: var(--navy); color: var(--navy); }
 .illus, .tag-model, .synth { margin-left: 0.4em; }
 .prov-key .illus, .prov-key .synth, .illus-band .illus { margin-left: 0; }
+
+/* ---------------------------------------------------------------- figure in prose
+   RBOTUI.value(datum, unit, "prose"): the figure itself is the button; a corner mark says its origin
+   (cited = blue triangle, calculated = navy square, synthetic = grey triangle), as in dense table cells. */
+.figref {
+  margin: 0; padding: 0; cursor: pointer; font-feature-settings: var(--nums); border-bottom: 1px solid var(--grey-200);
+}
+.figref::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 1px; vertical-align: 0.55em; pointer-events: none; }
+.figref.prov--cited::after { background: var(--blue); clip-path: polygon(0 0, 100% 0, 100% 100%); }
+.figref.prov--synthetic::after { background: var(--grey-600); clip-path: polygon(0 0, 100% 0, 100% 100%); }
+.figref.prov--calculated::after { width: 5px; height: 5px; background: var(--navy); }
+.figref:hover, .figref[aria-expanded="true"] { color: var(--blue); border-bottom-color: var(--blue); }

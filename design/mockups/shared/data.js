@@ -5635,6 +5635,22 @@ window.RBOT_DATA = {
   },
   "K76": {
    "id": "K76",
+   "key": "cash_bridge_closing_from_lines_h1_2026",
+   "label": "Closing cash built from the extracted lines, H1 2026",
+   "period": "H1 2026",
+   "value": "1,227",
+   "unit": "USD millions",
+   "formula": "Cash and cash equivalents [C105] + Net cash provided by operating activities [C49] + Purchase of property and equipment (parentheses in source) [C45]",
+   "formula_keys": "cash_2025_12_31 + cfo_h1_2026 + capex_h1_2026",
+   "inputs": [
+    "C105",
+    "C49",
+    "C45"
+   ],
+   "note": "Opening cash plus cash from operations less capex; financing and other investing flows were not extracted."
+  },
+  "K77": {
+   "id": "K77",
    "key": "opm_seg_share_las_vegas_fy2025",
    "label": "Las Vegas share of net revenues",
    "period": "FY2025",
@@ -5648,8 +5664,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K77": {
-   "id": "K77",
+  "K78": {
+   "id": "K78",
    "key": "opm_seg_margin_las_vegas_fy2025",
    "label": "Las Vegas Adjusted EBITDA margin",
    "period": "FY2025",
@@ -5663,8 +5679,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K78": {
-   "id": "K78",
+  "K79": {
+   "id": "K79",
    "key": "opm_seg_share_regional_fy2025",
    "label": "Regional share of net revenues",
    "period": "FY2025",
@@ -5678,8 +5694,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K79": {
-   "id": "K79",
+  "K80": {
+   "id": "K80",
    "key": "opm_seg_margin_regional_fy2025",
    "label": "Regional Adjusted EBITDA margin",
    "period": "FY2025",
@@ -5693,8 +5709,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K80": {
-   "id": "K80",
+  "K81": {
+   "id": "K81",
    "key": "opm_seg_share_caesars_digital_fy2025",
    "label": "Caesars Digital share of net revenues",
    "period": "FY2025",
@@ -5708,8 +5724,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K81": {
-   "id": "K81",
+  "K82": {
+   "id": "K82",
    "key": "opm_seg_margin_caesars_digital_fy2025",
    "label": "Caesars Digital Adjusted EBITDA margin",
    "period": "FY2025",
@@ -5723,8 +5739,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K82": {
-   "id": "K82",
+  "K83": {
+   "id": "K83",
    "key": "opm_seg_share_managed_branded_fy2025",
    "label": "Managed and Branded share of net revenues",
    "period": "FY2025",
@@ -5738,8 +5754,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K83": {
-   "id": "K83",
+  "K84": {
+   "id": "K84",
    "key": "opm_seg_margin_managed_branded_fy2025",
    "label": "Managed and Branded Adjusted EBITDA margin",
    "period": "FY2025",
@@ -5753,8 +5769,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K84": {
-   "id": "K84",
+  "K85": {
+   "id": "K85",
    "key": "cum_multiple_0",
    "label": "Cumulative multiple through CEI Revolving Credit Facility",
    "period": "LTM Q2 2026",
@@ -5768,8 +5784,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K85": {
-   "id": "K85",
+  "K86": {
+   "id": "K86",
    "key": "pct_ev_0",
    "label": "Cumulative debt through CEI Revolving Credit Facility as % of EV",
    "period": "2026-06-30",
@@ -5783,8 +5799,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K86": {
-   "id": "K86",
+  "K87": {
+   "id": "K87",
    "key": "cum_multiple_1",
    "label": "Cumulative multiple through CEI Term Loan A",
    "period": "LTM Q2 2026",
@@ -5799,8 +5815,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K87": {
-   "id": "K87",
+  "K88": {
+   "id": "K88",
    "key": "pct_ev_1",
    "label": "Cumulative debt through CEI Term Loan A as % of EV",
    "period": "2026-06-30",
@@ -5815,8 +5831,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K88": {
-   "id": "K88",
+  "K89": {
+   "id": "K89",
    "key": "cum_multiple_2",
    "label": "Cumulative multiple through CVA Delayed Draw Term Loan",
    "period": "LTM Q2 2026",
@@ -5832,8 +5848,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K89": {
-   "id": "K89",
+  "K90": {
+   "id": "K90",
    "key": "pct_ev_2",
    "label": "Cumulative debt through CVA Delayed Draw Term Loan as % of EV",
    "period": "2026-06-30",
@@ -5849,8 +5865,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K90": {
-   "id": "K90",
+  "K91": {
+   "id": "K91",
    "key": "cum_multiple_3",
    "label": "Cumulative multiple through CEI Term Loan B",
    "period": "LTM Q2 2026",
@@ -5867,8 +5883,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K91": {
-   "id": "K91",
+  "K92": {
+   "id": "K92",
    "key": "pct_ev_3",
    "label": "Cumulative debt through CEI Term Loan B as % of EV",
    "period": "2026-06-30",
@@ -5885,8 +5901,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K92": {
-   "id": "K92",
+  "K93": {
+   "id": "K93",
    "key": "cum_multiple_4",
    "label": "Cumulative multiple through CEI Term Loan B-1",
    "period": "LTM Q2 2026",
@@ -5904,8 +5920,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K93": {
-   "id": "K93",
+  "K94": {
+   "id": "K94",
    "key": "pct_ev_4",
    "label": "Cumulative debt through CEI Term Loan B-1 as % of EV",
    "period": "2026-06-30",
@@ -5923,8 +5939,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K94": {
-   "id": "K94",
+  "K95": {
+   "id": "K95",
    "key": "cum_multiple_5",
    "label": "Cumulative multiple through CEI 7.00% Senior Secured Notes 2030",
    "period": "LTM Q2 2026",
@@ -5943,8 +5959,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K95": {
-   "id": "K95",
+  "K96": {
+   "id": "K96",
    "key": "pct_ev_5",
    "label": "Cumulative debt through CEI 7.00% Senior Secured Notes 2030 as % of EV",
    "period": "2026-06-30",
@@ -5963,8 +5979,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K96": {
-   "id": "K96",
+  "K97": {
+   "id": "K97",
    "key": "cum_multiple_6",
    "label": "Cumulative multiple through CEI 6.50% Senior Secured Notes 2032",
    "period": "LTM Q2 2026",
@@ -5984,8 +6000,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K97": {
-   "id": "K97",
+  "K98": {
+   "id": "K98",
    "key": "pct_ev_6",
    "label": "Cumulative debt through CEI 6.50% Senior Secured Notes 2032 as % of EV",
    "period": "2026-06-30",
@@ -6005,8 +6021,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K98": {
-   "id": "K98",
+  "K99": {
+   "id": "K99",
    "key": "cum_multiple_7",
    "label": "Cumulative multiple through CEI 4.625% Senior Notes 2029",
    "period": "LTM Q2 2026",
@@ -6027,8 +6043,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K99": {
-   "id": "K99",
+  "K100": {
+   "id": "K100",
    "key": "pct_ev_7",
    "label": "Cumulative debt through CEI 4.625% Senior Notes 2029 as % of EV",
    "period": "2026-06-30",
@@ -6049,8 +6065,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K100": {
-   "id": "K100",
+  "K101": {
+   "id": "K101",
    "key": "cum_multiple_8",
    "label": "Cumulative multiple through CEI 6.00% Senior Notes 2032",
    "period": "LTM Q2 2026",
@@ -6072,8 +6088,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K101": {
-   "id": "K101",
+  "K102": {
+   "id": "K102",
    "key": "pct_ev_8",
    "label": "Cumulative debt through CEI 6.00% Senior Notes 2032 as % of EV",
    "period": "2026-06-30",
@@ -6095,8 +6111,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K102": {
-   "id": "K102",
+  "K103": {
+   "id": "K103",
    "key": "cum_multiple_9",
    "label": "Cumulative multiple through Special Improvement District Bonds 4.30%",
    "period": "LTM Q2 2026",
@@ -6119,8 +6135,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K103": {
-   "id": "K103",
+  "K104": {
+   "id": "K104",
    "key": "pct_ev_9",
    "label": "Cumulative debt through Special Improvement District Bonds 4.30% as % of EV",
    "period": "2026-06-30",
@@ -6143,8 +6159,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K104": {
-   "id": "K104",
+  "K105": {
+   "id": "K105",
    "key": "cum_multiple_10",
    "label": "Cumulative multiple through Long-term notes and other payables",
    "period": "LTM Q2 2026",
@@ -6168,8 +6184,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K105": {
-   "id": "K105",
+  "K106": {
+   "id": "K106",
    "key": "pct_ev_10",
    "label": "Cumulative debt through Long-term notes and other payables as % of EV",
    "period": "2026-06-30",
@@ -6193,8 +6209,8 @@ window.RBOT_DATA = {
    ],
    "note": null
   },
-  "K106": {
-   "id": "K106",
+  "K107": {
+   "id": "K107",
    "key": "clo_sector_q1",
    "label": "Test CLO I top-20 sector weight, q1",
    "period": "29-May-2026",
@@ -6208,8 +6224,8 @@ window.RBOT_DATA = {
    "note": "Synthetic portfolio data.",
    "synthetic": true
   },
-  "K107": {
-   "id": "K107",
+  "K108": {
+   "id": "K108",
    "key": "clo_sector_median",
    "label": "Test CLO I top-20 sector weight, median",
    "period": "29-May-2026",
@@ -6223,8 +6239,8 @@ window.RBOT_DATA = {
    "note": "Synthetic portfolio data.",
    "synthetic": true
   },
-  "K108": {
-   "id": "K108",
+  "K109": {
+   "id": "K109",
    "key": "clo_sector_q3",
    "label": "Test CLO I top-20 sector weight, q3",
    "period": "29-May-2026",
@@ -6261,7 +6277,7 @@ window.RBOT_DATA = {
   "G4": {
    "id": "G4",
    "field": "capex_q2 purchase of property and equipment (cash flow basis)",
-   "reason": "not found in these files; only 'Capital Expenditures, Net - By Segment' Q2 totals are stated (recorded as capex_net_segment_q2_*)",
+   "reason": "not found in these files; only 'Capital Expenditures, Net - By Segment' Q2 totals are stated",
    "origin": "czr.json"
   },
   "G5": {
@@ -6327,7 +6343,7 @@ window.RBOT_DATA = {
   "G15": {
    "id": "G15",
    "field": "total_debt_cash_fy2023_fy2024",
-   "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)",
+   "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)",
    "origin": "build-data.py"
   },
   "G16": {
@@ -6387,7 +6403,7 @@ window.RBOT_DATA = {
   "G25": {
    "id": "G25",
    "field": "issuer_ratings",
-   "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see rating_outlooks_moodys_sp)",
+   "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see the rating outlooks gap)",
    "origin": "build-data.py"
   },
   "G26": {
@@ -10103,6 +10119,15 @@ window.RBOT_DATA = {
    "prov": "calculated",
    "ref": "K75"
   },
+  "cash_bridge_closing_from_lines_h1_2026": {
+   "v": "1,227",
+   "raw": "1227",
+   "unit": "USD millions",
+   "label": "Closing cash built from the extracted lines, H1 2026",
+   "period": "H1 2026",
+   "prov": "calculated",
+   "ref": "K76"
+  },
   "opm_seg_share_las_vegas_fy2025": {
    "v": "35.3",
    "raw": "35.3",
@@ -10110,7 +10135,7 @@ window.RBOT_DATA = {
    "label": "Las Vegas share of net revenues",
    "period": "FY2025",
    "prov": "calculated",
-   "ref": "K76"
+   "ref": "K77"
   },
   "opm_seg_margin_las_vegas_fy2025": {
    "v": "42.7",
@@ -10119,7 +10144,7 @@ window.RBOT_DATA = {
    "label": "Las Vegas Adjusted EBITDA margin",
    "period": "FY2025",
    "prov": "calculated",
-   "ref": "K77"
+   "ref": "K78"
   },
   "opm_seg_share_regional_fy2025": {
    "v": "50.1",
@@ -10128,7 +10153,7 @@ window.RBOT_DATA = {
    "label": "Regional share of net revenues",
    "period": "FY2025",
    "prov": "calculated",
-   "ref": "K78"
+   "ref": "K79"
   },
   "opm_seg_margin_regional_fy2025": {
    "v": "31.1",
@@ -10137,7 +10162,7 @@ window.RBOT_DATA = {
    "label": "Regional Adjusted EBITDA margin",
    "period": "FY2025",
    "prov": "calculated",
-   "ref": "K79"
+   "ref": "K80"
   },
   "opm_seg_share_caesars_digital_fy2025": {
    "v": "12.3",
@@ -10146,7 +10171,7 @@ window.RBOT_DATA = {
    "label": "Caesars Digital share of net revenues",
    "period": "FY2025",
    "prov": "calculated",
-   "ref": "K80"
+   "ref": "K81"
   },
   "opm_seg_margin_caesars_digital_fy2025": {
    "v": "16.8",
@@ -10155,7 +10180,7 @@ window.RBOT_DATA = {
    "label": "Caesars Digital Adjusted EBITDA margin",
    "period": "FY2025",
    "prov": "calculated",
-   "ref": "K81"
+   "ref": "K82"
   },
   "opm_seg_share_managed_branded_fy2025": {
    "v": "2.4",
@@ -10164,7 +10189,7 @@ window.RBOT_DATA = {
    "label": "Managed and Branded share of net revenues",
    "period": "FY2025",
    "prov": "calculated",
-   "ref": "K82"
+   "ref": "K83"
   },
   "opm_seg_margin_managed_branded_fy2025": {
    "v": "24.0",
@@ -10173,7 +10198,7 @@ window.RBOT_DATA = {
    "label": "Managed and Branded Adjusted EBITDA margin",
    "period": "FY2025",
    "prov": "calculated",
-   "ref": "K83"
+   "ref": "K84"
   },
   "cum_multiple_0": {
    "v": "0.03",
@@ -10182,7 +10207,7 @@ window.RBOT_DATA = {
    "label": "Cumulative multiple through CEI Revolving Credit Facility",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K84"
+   "ref": "K85"
   },
   "pct_ev_0": {
    "v": "0.7",
@@ -10191,7 +10216,7 @@ window.RBOT_DATA = {
    "label": "Cumulative debt through CEI Revolving Credit Facility as % of EV",
    "period": "2026-06-30",
    "prov": "calculated",
-   "ref": "K85"
+   "ref": "K86"
   },
   "cum_multiple_1": {
    "v": "0.21",
@@ -10200,7 +10225,7 @@ window.RBOT_DATA = {
    "label": "Cumulative multiple through CEI Term Loan A",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K86"
+   "ref": "K87"
   },
   "pct_ev_1": {
    "v": "4.2",
@@ -10209,7 +10234,7 @@ window.RBOT_DATA = {
    "label": "Cumulative debt through CEI Term Loan A as % of EV",
    "period": "2026-06-30",
    "prov": "calculated",
-   "ref": "K87"
+   "ref": "K88"
   },
   "cum_multiple_2": {
    "v": "0.31",
@@ -10218,7 +10243,7 @@ window.RBOT_DATA = {
    "label": "Cumulative multiple through CVA Delayed Draw Term Loan",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K88"
+   "ref": "K89"
   },
   "pct_ev_2": {
    "v": "6.3",
@@ -10227,7 +10252,7 @@ window.RBOT_DATA = {
    "label": "Cumulative debt through CVA Delayed Draw Term Loan as % of EV",
    "period": "2026-06-30",
    "prov": "calculated",
-   "ref": "K89"
+   "ref": "K90"
   },
   "cum_multiple_3": {
    "v": "0.87",
@@ -10236,7 +10261,7 @@ window.RBOT_DATA = {
    "label": "Cumulative multiple through CEI Term Loan B",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K90"
+   "ref": "K91"
   },
   "pct_ev_3": {
    "v": "17.8",
@@ -10245,7 +10270,7 @@ window.RBOT_DATA = {
    "label": "Cumulative debt through CEI Term Loan B as % of EV",
    "period": "2026-06-30",
    "prov": "calculated",
-   "ref": "K91"
+   "ref": "K92"
   },
   "cum_multiple_4": {
    "v": "1.66",
@@ -10254,7 +10279,7 @@ window.RBOT_DATA = {
    "label": "Cumulative multiple through CEI Term Loan B-1",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K92"
+   "ref": "K93"
   },
   "pct_ev_4": {
    "v": "33.9",
@@ -10263,7 +10288,7 @@ window.RBOT_DATA = {
    "label": "Cumulative debt through CEI Term Loan B-1 as % of EV",
    "period": "2026-06-30",
    "prov": "calculated",
-   "ref": "K93"
+   "ref": "K94"
   },
   "cum_multiple_5": {
    "v": "2.22",
@@ -10272,7 +10297,7 @@ window.RBOT_DATA = {
    "label": "Cumulative multiple through CEI 7.00% Senior Secured Notes 2030",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K94"
+   "ref": "K95"
   },
   "pct_ev_5": {
    "v": "45.3",
@@ -10281,7 +10306,7 @@ window.RBOT_DATA = {
    "label": "Cumulative debt through CEI 7.00% Senior Secured Notes 2030 as % of EV",
    "period": "2026-06-30",
    "prov": "calculated",
-   "ref": "K95"
+   "ref": "K96"
   },
   "cum_multiple_6": {
    "v": "2.64",
@@ -10290,7 +10315,7 @@ window.RBOT_DATA = {
    "label": "Cumulative multiple through CEI 6.50% Senior Secured Notes 2032",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K96"
+   "ref": "K97"
   },
   "pct_ev_6": {
    "v": "53.8",
@@ -10299,7 +10324,7 @@ window.RBOT_DATA = {
    "label": "Cumulative debt through CEI 6.50% Senior Secured Notes 2032 as % of EV",
    "period": "2026-06-30",
    "prov": "calculated",
-   "ref": "K97"
+   "ref": "K98"
   },
   "cum_multiple_7": {
    "v": "2.97",
@@ -10308,7 +10333,7 @@ window.RBOT_DATA = {
    "label": "Cumulative multiple through CEI 4.625% Senior Notes 2029",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K98"
+   "ref": "K99"
   },
   "pct_ev_7": {
    "v": "60.6",
@@ -10317,7 +10342,7 @@ window.RBOT_DATA = {
    "label": "Cumulative debt through CEI 4.625% Senior Notes 2029 as % of EV",
    "period": "2026-06-30",
    "prov": "calculated",
-   "ref": "K99"
+   "ref": "K100"
   },
   "cum_multiple_8": {
    "v": "3.28",
@@ -10326,7 +10351,7 @@ window.RBOT_DATA = {
    "label": "Cumulative multiple through CEI 6.00% Senior Notes 2032",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K100"
+   "ref": "K101"
   },
   "pct_ev_8": {
    "v": "66.9",
@@ -10335,7 +10360,7 @@ window.RBOT_DATA = {
    "label": "Cumulative debt through CEI 6.00% Senior Notes 2032 as % of EV",
    "period": "2026-06-30",
    "prov": "calculated",
-   "ref": "K101"
+   "ref": "K102"
   },
   "cum_multiple_9": {
    "v": "3.29",
@@ -10344,7 +10369,7 @@ window.RBOT_DATA = {
    "label": "Cumulative multiple through Special Improvement District Bonds 4.30%",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K102"
+   "ref": "K103"
   },
   "pct_ev_9": {
    "v": "67.1",
@@ -10353,7 +10378,7 @@ window.RBOT_DATA = {
    "label": "Cumulative debt through Special Improvement District Bonds 4.30% as % of EV",
    "period": "2026-06-30",
    "prov": "calculated",
-   "ref": "K103"
+   "ref": "K104"
   },
   "cum_multiple_10": {
    "v": "3.29",
@@ -10362,7 +10387,7 @@ window.RBOT_DATA = {
    "label": "Cumulative multiple through Long-term notes and other payables",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K104"
+   "ref": "K105"
   },
   "pct_ev_10": {
    "v": "67.1",
@@ -10371,7 +10396,7 @@ window.RBOT_DATA = {
    "label": "Cumulative debt through Long-term notes and other payables as % of EV",
    "period": "2026-06-30",
    "prov": "calculated",
-   "ref": "K105"
+   "ref": "K106"
   }
  },
  "tables": {
@@ -10917,13 +10942,13 @@ window.RBOT_DATA = {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": "887",
@@ -10944,13 +10969,13 @@ window.RBOT_DATA = {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": null,
@@ -10972,13 +10997,13 @@ window.RBOT_DATA = {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": "11,905",
@@ -11000,13 +11025,13 @@ window.RBOT_DATA = {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": "11,018",
@@ -11027,13 +11052,13 @@ window.RBOT_DATA = {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": "13,096",
@@ -11066,13 +11091,13 @@ window.RBOT_DATA = {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": null,
@@ -11094,13 +11119,13 @@ window.RBOT_DATA = {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": "3.29",
@@ -11121,13 +11146,13 @@ window.RBOT_DATA = {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": "3.04",
@@ -11215,7 +11240,7 @@ window.RBOT_DATA = {
       "v": null,
       "prov": "gap",
       "ref": "G25",
-      "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see rating_outlooks_moodys_sp)"
+      "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see the rating outlooks gap)"
      },
      "coupon": {
       "v": null,
@@ -11262,17 +11287,17 @@ window.RBOT_DATA = {
      "structuring_multiple": {
       "v": "0.03",
       "prov": "calculated",
-      "ref": "K84"
+      "ref": "K85"
      },
      "ssim_multiple": {
       "v": "0.03",
       "prov": "calculated",
-      "ref": "K84"
+      "ref": "K85"
      },
      "pct_ev": {
       "v": "0.7",
       "prov": "calculated",
-      "ref": "K85"
+      "ref": "K86"
      }
     },
     {
@@ -11289,7 +11314,7 @@ window.RBOT_DATA = {
       "v": null,
       "prov": "gap",
       "ref": "G25",
-      "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see rating_outlooks_moodys_sp)"
+      "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see the rating outlooks gap)"
      },
      "coupon": {
       "v": null,
@@ -11336,17 +11361,17 @@ window.RBOT_DATA = {
      "structuring_multiple": {
       "v": "0.21",
       "prov": "calculated",
-      "ref": "K86"
+      "ref": "K87"
      },
      "ssim_multiple": {
       "v": "0.21",
       "prov": "calculated",
-      "ref": "K86"
+      "ref": "K87"
      },
      "pct_ev": {
       "v": "4.2",
       "prov": "calculated",
-      "ref": "K87"
+      "ref": "K88"
      }
     },
     {
@@ -11363,7 +11388,7 @@ window.RBOT_DATA = {
       "v": null,
       "prov": "gap",
       "ref": "G25",
-      "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see rating_outlooks_moodys_sp)"
+      "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see the rating outlooks gap)"
      },
      "coupon": {
       "v": null,
@@ -11410,17 +11435,17 @@ window.RBOT_DATA = {
      "structuring_multiple": {
       "v": "0.31",
       "prov": "calculated",
-      "ref": "K88"
+      "ref": "K89"
      },
      "ssim_multiple": {
       "v": "0.31",
       "prov": "calculated",
-      "ref": "K88"
+      "ref": "K89"
      },
      "pct_ev": {
       "v": "6.3",
       "prov": "calculated",
-      "ref": "K89"
+      "ref": "K90"
      }
     },
     {
@@ -11437,7 +11462,7 @@ window.RBOT_DATA = {
       "v": null,
       "prov": "gap",
       "ref": "G25",
-      "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see rating_outlooks_moodys_sp)"
+      "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see the rating outlooks gap)"
      },
      "coupon": {
       "v": null,
@@ -11484,17 +11509,17 @@ window.RBOT_DATA = {
      "structuring_multiple": {
       "v": "0.87",
       "prov": "calculated",
-      "ref": "K90"
+      "ref": "K91"
      },
      "ssim_multiple": {
       "v": "0.87",
       "prov": "calculated",
-      "ref": "K90"
+      "ref": "K91"
      },
      "pct_ev": {
       "v": "17.8",
       "prov": "calculated",
-      "ref": "K91"
+      "ref": "K92"
      }
     },
     {
@@ -11511,7 +11536,7 @@ window.RBOT_DATA = {
       "v": null,
       "prov": "gap",
       "ref": "G25",
-      "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see rating_outlooks_moodys_sp)"
+      "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see the rating outlooks gap)"
      },
      "coupon": {
       "v": null,
@@ -11558,17 +11583,17 @@ window.RBOT_DATA = {
      "structuring_multiple": {
       "v": "1.66",
       "prov": "calculated",
-      "ref": "K92"
+      "ref": "K93"
      },
      "ssim_multiple": {
       "v": "1.66",
       "prov": "calculated",
-      "ref": "K92"
+      "ref": "K93"
      },
      "pct_ev": {
       "v": "33.9",
       "prov": "calculated",
-      "ref": "K93"
+      "ref": "K94"
      }
     },
     {
@@ -11585,7 +11610,7 @@ window.RBOT_DATA = {
       "v": null,
       "prov": "gap",
       "ref": "G25",
-      "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see rating_outlooks_moodys_sp)"
+      "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see the rating outlooks gap)"
      },
      "coupon": {
       "v": "7.00",
@@ -11631,17 +11656,17 @@ window.RBOT_DATA = {
      "structuring_multiple": {
       "v": "2.22",
       "prov": "calculated",
-      "ref": "K94"
+      "ref": "K95"
      },
      "ssim_multiple": {
       "v": "2.22",
       "prov": "calculated",
-      "ref": "K94"
+      "ref": "K95"
      },
      "pct_ev": {
       "v": "45.3",
       "prov": "calculated",
-      "ref": "K95"
+      "ref": "K96"
      }
     },
     {
@@ -11704,17 +11729,17 @@ window.RBOT_DATA = {
      "structuring_multiple": {
       "v": "2.64",
       "prov": "calculated",
-      "ref": "K96"
+      "ref": "K97"
      },
      "ssim_multiple": {
       "v": "2.64",
       "prov": "calculated",
-      "ref": "K96"
+      "ref": "K97"
      },
      "pct_ev": {
       "v": "53.8",
       "prov": "calculated",
-      "ref": "K97"
+      "ref": "K98"
      }
     },
     {
@@ -11731,7 +11756,7 @@ window.RBOT_DATA = {
       "v": null,
       "prov": "gap",
       "ref": "G25",
-      "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see rating_outlooks_moodys_sp)"
+      "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see the rating outlooks gap)"
      },
      "coupon": {
       "v": "4.625",
@@ -11777,17 +11802,17 @@ window.RBOT_DATA = {
      "structuring_multiple": {
       "v": "2.97",
       "prov": "calculated",
-      "ref": "K98"
+      "ref": "K99"
      },
      "ssim_multiple": {
       "v": "2.97",
       "prov": "calculated",
-      "ref": "K98"
+      "ref": "K99"
      },
      "pct_ev": {
       "v": "60.6",
       "prov": "calculated",
-      "ref": "K99"
+      "ref": "K100"
      }
     },
     {
@@ -11850,17 +11875,17 @@ window.RBOT_DATA = {
      "structuring_multiple": {
       "v": "3.28",
       "prov": "calculated",
-      "ref": "K100"
+      "ref": "K101"
      },
      "ssim_multiple": {
       "v": "3.28",
       "prov": "calculated",
-      "ref": "K100"
+      "ref": "K101"
      },
      "pct_ev": {
       "v": "66.9",
       "prov": "calculated",
-      "ref": "K101"
+      "ref": "K102"
      }
     },
     {
@@ -11877,7 +11902,7 @@ window.RBOT_DATA = {
       "v": null,
       "prov": "gap",
       "ref": "G25",
-      "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see rating_outlooks_moodys_sp)"
+      "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see the rating outlooks gap)"
      },
      "coupon": {
       "v": "4.30",
@@ -11923,17 +11948,17 @@ window.RBOT_DATA = {
      "structuring_multiple": {
       "v": "3.29",
       "prov": "calculated",
-      "ref": "K102"
+      "ref": "K103"
      },
      "ssim_multiple": {
       "v": "3.29",
       "prov": "calculated",
-      "ref": "K102"
+      "ref": "K103"
      },
      "pct_ev": {
       "v": "67.1",
       "prov": "calculated",
-      "ref": "K103"
+      "ref": "K104"
      }
     },
     {
@@ -11950,7 +11975,7 @@ window.RBOT_DATA = {
       "v": null,
       "prov": "gap",
       "ref": "G25",
-      "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see rating_outlooks_moodys_sp)"
+      "reason": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see the rating outlooks gap)"
      },
      "coupon": {
       "v": null,
@@ -11996,17 +12021,17 @@ window.RBOT_DATA = {
      "structuring_multiple": {
       "v": "3.29",
       "prov": "calculated",
-      "ref": "K104"
+      "ref": "K105"
      },
      "ssim_multiple": {
       "v": "3.29",
       "prov": "calculated",
-      "ref": "K104"
+      "ref": "K105"
      },
      "pct_ev": {
       "v": "67.1",
       "prov": "calculated",
-      "ref": "K105"
+      "ref": "K106"
      }
     }
    ],
@@ -12081,7 +12106,7 @@ window.RBOT_DATA = {
    "columns": [
     "Q2 2026",
     "LTM Q2 2026",
-    "PF LTM"
+    "PF-LTM"
    ],
    "rows": [
     {
@@ -12200,7 +12225,7 @@ window.RBOT_DATA = {
      ]
     },
     {
-     "label": "State Street IM EBITDA",
+     "label": "SSIM EBITDA",
      "kind": "total",
      "cells": [
       {
@@ -12686,7 +12711,7 @@ window.RBOT_DATA = {
        {
         "v": "35.3",
         "prov": "calculated",
-        "ref": "K76"
+        "ref": "K77"
        },
        {
         "v": "1,728",
@@ -12696,7 +12721,7 @@ window.RBOT_DATA = {
        {
         "v": "42.7",
         "prov": "calculated",
-        "ref": "K77"
+        "ref": "K78"
        }
       ]
      },
@@ -12711,7 +12736,7 @@ window.RBOT_DATA = {
        {
         "v": "50.1",
         "prov": "calculated",
-        "ref": "K78"
+        "ref": "K79"
        },
        {
         "v": "1,789",
@@ -12721,7 +12746,7 @@ window.RBOT_DATA = {
        {
         "v": "31.1",
         "prov": "calculated",
-        "ref": "K79"
+        "ref": "K80"
        }
       ]
      },
@@ -12736,7 +12761,7 @@ window.RBOT_DATA = {
        {
         "v": "12.3",
         "prov": "calculated",
-        "ref": "K80"
+        "ref": "K81"
        },
        {
         "v": "236",
@@ -12746,7 +12771,7 @@ window.RBOT_DATA = {
        {
         "v": "16.8",
         "prov": "calculated",
-        "ref": "K81"
+        "ref": "K82"
        }
       ]
      },
@@ -12761,7 +12786,7 @@ window.RBOT_DATA = {
        {
         "v": "2.4",
         "prov": "calculated",
-        "ref": "K82"
+        "ref": "K83"
        },
        {
         "v": "67",
@@ -12771,7 +12796,7 @@ window.RBOT_DATA = {
        {
         "v": "24.0",
         "prov": "calculated",
-        "ref": "K83"
+        "ref": "K84"
        }
       ]
      }
@@ -12893,13 +12918,13 @@ window.RBOT_DATA = {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": "3.29",
@@ -12921,13 +12946,13 @@ window.RBOT_DATA = {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": "3.04",
@@ -12942,7 +12967,7 @@ window.RBOT_DATA = {
      ]
     }
    ],
-   "source": "Caesars FY2025 10-K, Q2 2026 10-Q and earnings release; calculations by build-data.py"
+   "source": "Caesars FY2025 10-K, Q2 2026 10-Q and earnings release; calculations from the cited figures"
   },
   "coverage": {
    "id": "fig-coverage",
@@ -13010,7 +13035,7 @@ window.RBOT_DATA = {
      ]
     }
    ],
-   "source": "Caesars FY2025 10-K, Q2 2026 10-Q and earnings release; calculations by build-data.py"
+   "source": "Caesars FY2025 10-K, Q2 2026 10-Q and earnings release; calculations from the cited figures"
   },
   "liquidity": {
    "id": "fig-liquidity",
@@ -13062,13 +13087,13 @@ window.RBOT_DATA = {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": null,
        "prov": "gap",
        "ref": "G15",
-       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
+       "reason": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)"
       },
       {
        "v": "887",
@@ -13146,7 +13171,7 @@ window.RBOT_DATA = {
     "LTM Q2 2026"
    ],
    "categoryLabel": "Period",
-   "summary": "Net revenues held between 11,245 and 11,528; Adjusted EBITDA eased from 3,938 in FY2023 to 3,592 at LTM Q2 2026.",
+   "summary": "Net revenues ranged from 11,245 to 11,648 across the four periods; Adjusted EBITDA eased from 3,938 in FY2023 to 3,592 at LTM Q2 2026.",
    "series": [
     {
      "key": "rev",
@@ -13201,7 +13226,7 @@ window.RBOT_DATA = {
      ]
     }
    ],
-   "source": "Caesars FY2025 10-K, Q2 2026 10-Q and earnings release; calculations by build-data.py"
+   "source": "Caesars FY2025 10-K, Q2 2026 10-Q and earnings release; calculations from the cited figures"
   },
   "segments": {
    "id": "fig-segments",
@@ -13562,7 +13587,7 @@ window.RBOT_DATA = {
      }
     }
    ],
-   "source": "Caesars Q2 2026 10-Q cash flow statement and balance sheet; residual by build-data.py"
+   "source": "Caesars Q2 2026 10-Q cash flow statement and balance sheet; residual calculated from the cited lines"
   },
   "yieldCurve": {
    "id": "fig-yield-curve",
@@ -13572,7 +13597,7 @@ window.RBOT_DATA = {
    "xLabel": "Maturity",
    "groupLabel": "Issuer",
    "asOf": "2026-10-02",
-   "summary": "CZR's unsecured 2032s yield 9.318398%, above its secured 2032s at 8.063520%; the MGM and PENN 2029s yield 6.722997% and 6.644415%.",
+   "summary": "CZR's unsecured 2032s yield 9.318%, above its secured 2032s at 8.064%; the MGM and PENN 2029s yield 6.723% and 6.644%.",
    "points": [
     {
      "key": "czr_12769gac4",
@@ -13926,17 +13951,17 @@ window.RBOT_DATA = {
      "q1": {
       "v": "2.66",
       "prov": "calculated",
-      "ref": "K106"
+      "ref": "K107"
      },
      "median": {
       "v": "3.61",
       "prov": "calculated",
-      "ref": "K107"
+      "ref": "K108"
      },
      "q3": {
       "v": "4.58",
       "prov": "calculated",
-      "ref": "K108"
+      "ref": "K109"
      },
      "max": {
       "v": "7.16",
@@ -14057,7 +14082,7 @@ window.RBOT_DATA = {
  "modules": [
   {
    "id": "CP-0",
-   "name": "Intake and readiness",
+   "name": "Source readiness",
    "status": "Restricted",
    "reason": "Ratings outlooks, Fitch and the merger's debt commitment terms are missing from the Source Pack.",
    "refs": [
@@ -14077,7 +14102,7 @@ window.RBOT_DATA = {
   },
   {
    "id": "CP-1B",
-   "name": "Earnings Delta",
+   "name": "Earnings delta",
    "status": "Restricted",
    "reason": "Q2 2026 against Q2 2025 revenue, Adjusted EBITDA, segments and the EBITDA reconciliation are cited; quarterly cash flows, cash interest and cash taxes are disclosed for six months only, so the cash side of the delta is H1.",
    "refs": [
@@ -14164,7 +14189,7 @@ window.RBOT_DATA = {
   {
    "ref": "G4",
    "field": "capex_q2 purchase of property and equipment (cash flow basis)",
-   "text": "not found in these files; only 'Capital Expenditures, Net - By Segment' Q2 totals are stated (recorded as capex_net_segment_q2_*)",
+   "text": "not found in these files; only 'Capital Expenditures, Net - By Segment' Q2 totals are stated",
    "origin": "czr.json",
    "scope": "Source Pack gap"
   },
@@ -14241,7 +14266,7 @@ window.RBOT_DATA = {
   {
    "ref": "G15",
    "field": "total_debt_cash_fy2023_fy2024",
-   "text": "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)",
+   "text": "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet figures at 2025-12-31 and 2026-06-30 only)",
    "origin": "build-data.py",
    "scope": "Source Pack gap"
   },
@@ -14311,7 +14336,7 @@ window.RBOT_DATA = {
   {
    "ref": "G25",
    "field": "issuer_ratings",
-   "text": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see rating_outlooks_moodys_sp)",
+   "text": "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE pages (see the rating outlooks gap)",
    "origin": "build-data.py",
    "scope": "Source Pack gap"
   },
@@ -14563,9 +14588,10 @@ window.RBOT_DATA = {
    }
   ],
   "historicalPerformance": {
-   "text": "Net revenues have held between 11,245 and 11,528 since FY2023 while Adjusted EBITDA has eased each year, from 3,938 to 3,624 in FY2025.",
+   "text": "Net revenues have ranged from 11,245 to 11,648 between FY2023 and LTM Q2 2026 while Adjusted EBITDA has eased each year, from 3,938 to 3,624 in FY2025.",
    "refs": [
-    "C73",
+    "C62",
+    "K1",
     "C74",
     "C52"
    ],
@@ -15628,7 +15654,7 @@ window.RBOT_DATA = {
  },
  "counts": {
   "cited": 337,
-  "calculated": 108,
+  "calculated": 109,
   "gaps": 28,
   "synthetic_sources": 45
  }
