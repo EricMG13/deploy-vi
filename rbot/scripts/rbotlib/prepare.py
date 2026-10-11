@@ -163,6 +163,8 @@ def clean_cell(value: object) -> str:
         )
     if isinstance(value, float) and math.isfinite(value):
         return format(Decimal(repr(value)), "f")
+    if isinstance(value, Decimal) and value.is_finite():
+        return format(value, "f")
     text = str(value).strip()
     return "" if text in _ERRORS or text.startswith("#N/A") else text
 

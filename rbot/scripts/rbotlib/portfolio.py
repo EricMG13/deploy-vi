@@ -115,7 +115,7 @@ def number(text: str) -> tuple[str, str] | None:
     if not match:
         return None
     try:
-        value = str(Decimal(match.group(1).replace(",", "")))
+        value = format(Decimal(match.group(1).replace(",", "")), "f")
     except InvalidOperation:
         return None
     suffix = (match.group(2) or "").lower()
@@ -155,7 +155,7 @@ def parse_limit(text: str, parameter: str = "") -> tuple[str, str] | str:
         if not _COUNT.search(parameter):
             return f"limit {text!r}: unit not recognised"
         kind = "count"
-    return str(Decimal(match["num"].replace(",", ""))), kind or "amount"
+    return format(Decimal(match["num"].replace(",", "")), "f"), kind or "amount"
 
 
 def _scope(category: str, parameter: str) -> tuple[str, str | None]:
