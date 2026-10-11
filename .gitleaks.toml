@@ -1,0 +1,14 @@
+# gitleaks' default rules. Two kinds of exemption are allowed: a path, only
+# where a file holds content digests and nothing that could be a credential;
+# and a rule-scoped regex for identifier-shaped fields (below).
+[extend]
+useDefault = true
+
+# Generated sample data in design/ has JSON fields like `"key": "adj_ebitda_h1_2026"` and `"formula_keys": "a + b"`
+# that trip generic-api-key. Only that rule, only that line shape; every other
+# rule still scans the file, and a token-shaped value does not match the regex.
+[[allowlists]]
+description = "identifier-shaped JSON key fields"
+targetRules = ["generic-api-key"]
+regexTarget = "line"
+regexes = ['''"[a-z_]*keys?":\s*"[a-z0-9_.]+( ([-+*/x]) [a-z0-9_.]+)*"''']
