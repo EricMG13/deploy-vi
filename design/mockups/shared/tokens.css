@@ -116,7 +116,7 @@ a:hover { color: var(--blue-deep); text-decoration-thickness: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--grey-400); }
 * { scrollbar-color: var(--grey-200) var(--ground); scrollbar-width: thin; }
 input, button, select, textarea { font: inherit; color: inherit; caret-color: var(--blue); }
-.num, .nums, table, svg text { font-feature-settings: var(--nums); font-variant-numeric: tabular-nums lining-nums; }
+.dt .num, .dt td.num, .dt th.num, svg text, .num, .nums { font-feature-settings: var(--nums); font-variant-numeric: tabular-nums lining-nums; }
 .vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* ---------------------------------------------------------------- sheet and logo */

@@ -19,7 +19,7 @@ Surface roll (impeccable concept-seed key 1943d727, mode read): ranked structure
 
 A — IC paper (THE ROLL)
 THESIS: the Report as a numbered committee paper whose page one is the Credit Snapshot; refuses the dashboard-of-cards default.
-OWN-WORLD: house navy bars as section rules, paper-white sheet on #F0F2F5, numbered sections, figures numbered and captioned, margin notes carry citations.
+OWN-WORLD: house navy bars as section rules, paper-white sheet on #F0F2F5, view codes (S, CP-1, M, PF, E) and numbered figures (Fig. S.1, Fig. CP-1.2) as the citable anchors in place of numbered sections, figures captioned, inline provenance marks with popovers carry citations in place of margin notes.
 STORY: read page one, see the call and five charts; open any numbered section for the analysis.
 FIRST VIEWPORT: title band with recommendation per Strategy; Credit Snapshot blocks in template order with the Model chart strip and capital-structure chart above the fold; sticky contents rail.
 FORM: IC paper, rank 6, seed 1943d727.
@@ -66,3 +66,7 @@ After the re-critique (26/40) the owner chose to fix every issue and ruled:
 2. **Navigation:** the pane holds only the Report's 11 destinations (Snapshot; the Analysis modules; Model, Portfolio Fit, Evidence, Limitations), always visible without scrolling at 1280x800. Each view's section list moves into the page as a contents line under the view H1. The Key moves out of the pane into a "How to read a figure" popover in the view header. "Collapse all / Expand all" moves to the view header.
 3. **Scale colour:** neutral everywhere. Every scale badge (Recommendation, Valuation, Credit Score, Credit Direction, Sector Outlook, in the Report and in the Key) is white on navy or navy on white, with the word carrying the meaning. Colour stays only for status (Pass, With limitations, Blocked) and Fit outcomes (Breach, Watch). Credit Direction is the sixth item of the call band.
 4. **Figure numbers by pane label:** Fig. S.1 (Snapshot), Fig. CP-1.1, Fig. CP-2.3, Fig. M.1 (Model), Fig. PF.1 (Portfolio Fit), Fig. E.1 (Evidence). A figure redrawn in another view keeps its first number.
+
+### Anchors and provenance (owner decision, 2026-10-11)
+
+In direction A, view codes plus figure numbers (Fig. S.1, Fig. CP-1.2) are the citable anchors and replace numbered sections. Inline provenance marks with popovers replace margin notes. The A contract's OWN-WORLD line is amended to say so. Recorded here; not a build item.

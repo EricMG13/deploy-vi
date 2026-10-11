@@ -474,18 +474,27 @@
       var right = W - Math.max(12, endW + 14);
       var step = (right - left) / n;
       var bLines = maxLinesFor(sp.categories, step, 2);
-      /* a category every series misses for the same reason gets one n/a mark, not one per series */
+      /* a category every series misses gets one n/a mark, not one per series; the reasons are kept together */
       var merged = sp.categories.map(function (c, i) {
-        if (sp.series.length < 2 || !sp.series.every(function (x) { return isGap(x.values[i]); })) return false;
-        var r0 = sp.series[0].values[i] && sp.series[0].values[i].reason;
-        return sp.series.every(function (x) { return (x.values[i] && x.values[i].reason) === r0; });
+        return sp.series.length >= 2 && sp.series.every(function (x) { return isGap(x.values[i]); });
       });
+      var mergedText = function (i) {
+        var seen = [];
+        sp.series.forEach(function (x) { var r = (x.values[i] && x.values[i].reason) || "not in the sources"; if (seen.indexOf(r) < 0) seen.push(r); });
+        return "n/a, " + seen.join("; ");
+      };
       var gapsPerCat = sp.categories.map(function (c, i) { return merged[i] ? 1 : sp.series.filter(function (x) { return isGap(x.values[i]); }).length; });
       var maxGaps = Math.max.apply(null, gapsPerCat);
       var top = 24 + Math.max(0, maxGaps - 1) * 15 + (maxGaps > 0 ? 6 : 0);   /* n/a labels sit on their own rows, clear of the unit label */
       var bottom = H - 10 - bLines * 14;
       var y = function (v) { return bottom - (v - sc.lo) / (sc.hi - sc.lo) * (bottom - top); };
       var x = function (i) { return left + step * (i + 0.5); };
+      /* a short plot keeps at most every other tick, so the labels never touch */
+      while (sc.ticks.length > 2 && (bottom - top) / (sc.ticks.length - 1) < 22) {
+        var keep = sc.ticks.filter(function (t, ti) { return ti % 2 === 0; });
+        if (keep.length === sc.ticks.length) break;
+        sc = { lo: sc.lo, hi: sc.hi, ticks: keep, step: sc.step };
+      }
       yAxis(ctx, sc, y, left, right, sp.unit, maxGaps > 0 ? 10 : undefined);
       catLabels(ctx, sp.categories, x, step, bottom + 15, 2);
       /* projected divider */
@@ -516,7 +525,7 @@
             var k = merged[j] ? 0 : sp.series.slice(0, si).filter(function (x2) { return isGap(x2.values[j]); }).length;
             var gy = top - 8 + k * 15;
             if (k === 0) ctx.svg.appendChild(s("line", { x1: x(j), x2: x(j), y1: gy + 4, y2: bottom, stroke: color("chart-neutral"), "stroke-dasharray": "1 3", "aria-hidden": "true" }));
-            gapMark(ctx, x(j), gy, (merged[j] ? sp.series.map(function (x2) { return x2.label; }).join(" and ") : ser.label) + ", " + cat + ": " + gapText(d), d && d.ref);
+            gapMark(ctx, x(j), gy, (merged[j] ? sp.series.map(function (x2) { return x2.label; }).join(" and ") : ser.label) + ", " + cat + ": " + (merged[j] ? mergedText(j) : gapText(d)), d && d.ref);
             return;
           }
           var vy = y(parseNum(d.v));
@@ -580,8 +589,14 @@
     name: "waterfall",
     datums: function (sp) { return sp.steps.map(function (x) { return x.d; }); },
     legend: function (sp) {
-      var out = [{ kind: "fill", color: "chart-3", label: sp.totalLabel || "Total" },
-        { kind: "fill", color: "chart-1", label: "Increase" }, { kind: "fill", color: "chart-2", label: "Decrease" }];
+      var out = [], steps = sp.steps.filter(function (x) { return x.kind !== "total" && x.kind !== "residual"; });
+      var neg = function (x) { return !isGap(x.d) && parseNum(x.d.v) < 0; };
+      if (sp.steps.some(function (x) { return x.kind === "total"; })) out.push({ kind: "fill", color: "chart-3", label: sp.totalLabel || "Total" });
+      if (sp.stepLabel && steps.length) out.push({ kind: "fill", color: "chart-1", label: sp.stepLabel });
+      else {
+        if (steps.some(function (x) { return !neg(x); })) out.push({ kind: "fill", color: "chart-1", label: "Increase" });
+        if (steps.some(neg)) out.push({ kind: "fill", color: "chart-2", label: "Decrease" });
+      }
       if (sp.steps.some(function (x) { return x.kind === "residual"; })) out.push({ kind: "fill", color: "chart-critical", label: "Unexplained residual" });
       return out;
     },
@@ -589,7 +604,7 @@
       return table(sp.title, [sp.categoryLabel || "Step", "Kind", "Amount | " + (sp.unit || "")],
         sp.steps.map(function (st) {
           var kind = st.kind === "total" ? "Total" : st.kind === "residual" ? "Unexplained residual" :
-            isGap(st.d) ? "Step" : parseNum(st.d.v) >= 0 ? "Increase" : "Decrease";
+            isGap(st.d) ? "Step" : sp.stepLabel ? sp.stepLabel : parseNum(st.d.v) >= 0 ? "Increase" : "Decrease";
           return h("tr", { class: st.kind === "total" ? "total" : null }, [rowHead(st.label), textCell(kind), valueCell(st.d, sp.unit)]);
         }));
     },

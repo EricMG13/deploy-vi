@@ -484,18 +484,26 @@
   function fitSummary() {
     var fit = P.fit, name = String(fit.portfolio).replace(/ Ltd$/, "");
     var breach = fit.byInstrument.filter(function (b) { return /^breach/i.test(b.fit); });
-    var parts = [];
-    breach.forEach(function (b) {
+    var breaches = breach.map(function (b) {
       var m = /(\d+(?:\.\d+)?%).*?(\d{4})$/.exec(b.instrument), lim = /(CCC bucket)/.exec(b.note || "");
-      parts.push((m ? m[1] + " " + m[2] + "s" : b.instrument) + " breach" + (lim ? " the " + lim[1] : " a limit"));
+      return (m ? m[1] + " " + m[2] + "s" : b.instrument) + " would breach " + (lim ? "the " + lim[1] : "a limit");
     });
+    var parts = [];
     fit.checks.filter(function (c) { return c.result === "Watch"; }).forEach(function (c) {
       var lim = c.constraint.replace(/^C-\d+\s*/, "").replace(/^Max /, "").toLowerCase();
-      if (parts.join(" ").toLowerCase().indexOf(lim) >= 0) return;
+      if (breaches.join(" ").toLowerCase().indexOf(lim) >= 0) return;
       parts.push(lim + " has " + c.headroom + " headroom");
     });
-    return { name: name, overall: fit.overall.v, text: parts.join("; ") };
+    return { name: name, overall: fit.overall.v, breaches: breaches, text: parts.join("; ") };
   }
+  function fitNodes(fs) {
+    var out = [el("b", { text: fs.name + ": " }), nw([UI.status(fs.overall)]), txt(" overall. ")];
+    fs.breaches.forEach(function (t) { out.push(nw([UI.status("Breaches"), txt(" " + t)]), txt(". ")); });
+    if (fs.text) out.push(txt(fs.text.charAt(0).toUpperCase() + fs.text.slice(1) + ". "));
+    out.push(el("a", { class: "call__more nowrap", href: "#portfolio-fit", text: "Details in Portfolio Fit" }), txt(" "), nw([el("span", { class: "synth", text: "Synthetic" })]));
+    return out;
+  }
+  function nw(nodes) { return el("span", { class: "nowrap" }, nodes); }
   /* the instrument preference names its Strategy and, where Portfolio Fit flags that instrument, says so */
   function instrumentLine(fs) {
     var pref = preferenceSentence();
@@ -504,10 +512,13 @@
     var flagged = P.fit.byInstrument.filter(function (b) {
       return /secured/i.test(b.instrument) && !/unsecured/i.test(b.instrument) && /2032/.test(b.instrument) && !/^fits/i.test(b.fit);
     })[0];
-    var nodes = [el("b", { text: strat + ": " }), txt(pref), UI.illus()];
+    var pw = pref.replace(/\s+$/, "").split(" "), last = pw.pop();
+    var nodes = [el("b", { text: strat + ": " }), txt(pw.join(" ") + " "), nw([txt(last + " "), UI.illus()])];
     if (flagged) {
       var elig = /eligible CLO asset/i.test(flagged.note || "") ? "CLO eligibility unknown" : String(flagged.note || "flagged").replace(/\.$/, "");
-      nodes.push(txt(" "), UI.status(flagged.fit), txt(" " + elig + ": "), el("a", { class: "call__more", href: "#portfolio-fit-instrument", text: "see Portfolio Fit" }), el("span", { class: "synth", text: "Synthetic" }));
+      var im = /(\d+(?:\.\d+)?%).*?(\d{4})$/.exec(flagged.instrument), iname = im ? im[1] + " secured " + im[2] + "s" : String(flagged.instrument);
+      nodes.push(txt(" "), nw([UI.status(flagged.fit), txt(" " + iname + ": " + elig)]), txt("; "),
+        el("a", { class: "call__more nowrap", href: "#portfolio-fit-instrument", text: "see Portfolio Fit" }), txt(" "), nw([el("span", { class: "synth", text: "Synthetic" })]));
     }
     return nodes;
   }
@@ -545,9 +556,7 @@
     var fs = fitSummary(), ins = instrumentLine(fs);
     var lines = el("div", { class: "call__lines" }, [
       el("p", { class: "call__line" }, [el("span", { class: "call__lk", text: "Portfolio Fit" }),
-        el("span", { class: "call__lv" }, [el("b", { text: fs.name + ": " }), UI.status(fs.overall), txt(" " + fs.text + " "),
-          el("a", { class: "call__more", href: "#portfolio-fit", text: "Details in Portfolio Fit" }),
-          el("span", { class: "synth", text: "Synthetic" })])]),
+        el("span", { class: "call__lv" }, fitNodes(fs))]),
       ins ? el("p", { class: "call__line" }, [el("span", { class: "call__lk", text: "Instrument" }), el("span", { class: "call__lv" }, ins)]) : null
     ]);
     call.appendChild(lines);
@@ -882,9 +891,9 @@
       lede: function (host) {
         var sub = T.capitalStructure.subtotals;
         draw("waterfall", host, {
-          id: "fig-debt-stack", title: "Debt stack by rank, 30 June 2026", unit: "US$ m", categoryLabel: "Rank",
+          id: "fig-debt-stack", title: "Debt stack by rank, 30 June 2026", unit: "US$ m", categoryLabel: "Rank", stepLabel: "Debt by rank",
           summary: "Senior secured " + sub.senior_secured.v + ", unsecured " + sub.unsecured.v + " and other " + sub.other.v + " make total debt of " + sub.total_debt.v + " at face value.",
-          steps: [{ label: "Senior secured debt", short: "Secured", kind: "total", d: sub.senior_secured },
+          steps: [{ label: "Senior secured debt", short: "Secured", kind: "delta", d: sub.senior_secured },
             { label: "Unsecured debt", short: "Unsecured", kind: "delta", d: sub.unsecured },
             { label: "Other debt", short: "Other", kind: "delta", d: sub.other },
             { label: "Total debt, face value", short: "Total debt", kind: "total", d: sub.total_debt }],
@@ -1118,12 +1127,12 @@
     }
     var facts = el("div", { class: "vfacts" });
     hd.appendChild(facts);
-    facts.appendChild(el("div", { class: "vfact" }, [el("span", { class: "vfact__k", text: "Reader question" }), el("p", { class: "vfact__v", text: m.question })]));
+    facts.appendChild(el("div", { class: "vfact" }, [el("p", { class: "vfact__v vfact__q" }, [el("span", { text: "Question: " }), txt(m.question)])]));
     var st = el("p", { class: "vfact__v" }, [txt(m.reason + " ")]);
     (m.refs || []).forEach(function (r) { st.appendChild(chipFor(r)); });
     facts.appendChild(el("div", { class: "vfact" }, [el("span", { class: "vfact__k" }, ["Status ", UI.status(m.status)]), st]));
     var hl = topic && !topic.noHeadline ? headlineNodes(topic, m) : null;
-    if (hl) hd.appendChild(el("div", { class: "headline" }, [el("div", { class: "headline__k" }, ["Headline finding", modelTag()]), el("p", { class: "headline__v" }, hl.nodes)]));
+    if (hl) hd.appendChild(el("div", { class: "headline" }, [el("p", { class: "headline__v" }, hl.nodes.concat([txt(" "), modelTag()]))]));
     else if (!topic) hd.appendChild(el("p", { class: "na-note", text: "No headline finding is written for this module." }));
     /* the headline's sources, one disclosure under it; gaps are stated once, under Gaps and limitations */
     var srcRefs = hl ? hl.refs.filter(function (r) { return !D.gaps[r]; }) : [];
