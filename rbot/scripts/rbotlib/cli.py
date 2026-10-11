@@ -35,7 +35,8 @@ def _validate(args: argparse.Namespace) -> int:
         text = Path(args.handoff).read_text(encoding="utf-8")
     except FileNotFoundError as exc:
         return _fail(Path(args.handoff), exc)
-    code, findings = check(text, contract, rules)
+    run = Path(args.run_dir) if args.run_dir else None
+    code, findings = check(text, contract, rules, run)
     for f in findings:
         print(f"{f.code}: {f.message}")
     print(f"exit {code}")
@@ -79,6 +80,7 @@ def main(argv: list[str] | None = None) -> int:
     v = sub.add_parser("validate", help="check a Handoff against its module contract")
     v.add_argument("handoff")
     v.add_argument("--module", required=True)
+    v.add_argument("--run", dest="run_dir", help="also check citations against this run folder")
     v.set_defaults(run=_validate)
     r = sub.add_parser("render-module", help="print or write a module's MODULE.md")
     r.add_argument("module")

@@ -3,12 +3,21 @@
 Exit codes follow Deploy V: 0 valid, 2 malformed, 3 blocked (valid but
 qa_status Blocked), 4 identity mismatch. A Handoff over the upstream cap
 (spec section 7, caos MAX_UPSTREAM_HANDOFF_BYTES) is malformed: `too_large`.
+With a run folder, a citation whose source is not in the run (`source_unknown`) or
+whose excerpt is not in that source's prepared text, on the cited page when the
+locator names one (`citation_unanchored`), is malformed too. A citation of an
+Image-Read source (a screenshot or scan) has no text to anchor and is not checked.
 """
 
 from __future__ import annotations
 
+import json
+import re
+import unicodedata
 from collections import Counter
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 from rbotlib.contract import Column, Contract, TableSpec
 from rbotlib.handoff import Handoff, HandoffError, Table, cells, markers, parse
@@ -141,12 +150,113 @@ def _citations(h: Handoff, rules: Rules) -> list[Finding]:
     return found
 
 
-def check(text: str, contract: Contract, rules: Rules) -> tuple[int, list[Finding]]:
+# --- `--run`: every citation names a pack file and its excerpt is in that file ---------
+
+_PAGE_LOCATOR = re.compile(r"\bpp?\.\s*(\d+)(?:\s*[-\u2013]\s*(\d+))?", re.I)
+_PAGE_LINE = re.compile(r"^<<< page (\d+) >>>$", re.M)
+_QUOTES = str.maketrans(
+    {
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u2013": "-",
+        "\u2014": "-",
+        "|": " ",
+    }
+)
+
+
+def normalise(text: str) -> str:
+    """Compare text as a reader would: NFKC, case-folded, plain quotes and dashes, one space."""
+    return " ".join(unicodedata.normalize("NFKC", text).translate(_QUOTES).casefold().split())
+
+
+def excerpt_found(text: str, excerpt: str) -> bool:
+    """Every part of the excerpt (split at an ellipsis) appears in the text, in order."""
+    haystack, at = normalise(text), 0
+    for part in re.split(r"\.\.\.|\u2026", excerpt):
+        needle = normalise(part)
+        if not needle:
+            continue
+        at = haystack.find(needle, at)
+        if at < 0:
+            return False
+        at += len(needle)
+    return True
+
+
+def pages(prepared_text: str) -> dict[int, str]:
+    """The text of each `<<< page N >>>` section of a prepared file."""
+    marks = list(_PAGE_LINE.finditer(prepared_text))
+    ends = [m.start() for m in marks[1:]] + [len(prepared_text)]
+    return {
+        int(m.group(1)): prepared_text[m.end() : end] for m, end in zip(marks, ends, strict=True)
+    }
+
+
+def _source_text(
+    run: Path, source: str, records: dict[str, dict[str, Any]]
+) -> str | Finding | None:
+    """The text a citation must anchor in; None for an Image-Read source (nothing to anchor)."""
+    if source.startswith("fetched/") and (run / source).is_file():
+        return "<<< page 1 >>>\n" + (run / source).read_text(encoding="utf-8")
+    record = records.get(source)
+    if record is None:
+        return Finding("source_unknown", f"{source!r} is not in inventory.json or fetched/")
+    if record["unreadable"]:
+        return Finding("citation_unanchored", f"{source!r} is unreadable: {record['unreadable']}")
+    if record["image_read"]:
+        return None
+    return (run / str(record["prepared"])).read_text(encoding="utf-8")
+
+
+def _anchor(row: list[str], text: str) -> Finding | None:
+    cid, source, locator, excerpt = row[:4]
+    by_page = pages(text)
+    wanted = _PAGE_LOCATOR.search(locator)
+    if wanted:
+        first = int(wanted.group(1))
+        last = int(wanted.group(2) or first)
+        scope = "\n".join(by_page.get(n, "") for n in range(first, last + 1))
+        where = f"{source} {locator}"
+    else:
+        scope, where = "\n".join(by_page.values()), source
+    if excerpt_found(scope, excerpt):
+        return None
+    return Finding("citation_unanchored", f"{cid}: excerpt not found in {where}: {excerpt!r}")
+
+
+def run_findings(h: Handoff, run: Path) -> list[Finding]:
+    """source_unknown and citation_unanchored for each citation row, against the run folder."""
+    table = h.tables.get("citations")
+    if table is None:
+        return []
+    index = json.loads((run / "prepared" / "index.json").read_text(encoding="utf-8"))
+    records = {r["path"]: r for r in index["files"]}
+    found: list[Finding] = []
+    for row in table.rows:
+        if len(row) < 4:
+            continue
+        text = _source_text(run, row[1], records)
+        if isinstance(text, Finding):
+            found.append(text)
+        elif text is not None:
+            found += [f for f in [_anchor(row, text)] if f]
+    return found
+
+
+def check(
+    text: str, contract: Contract, rules: Rules, run: Path | None = None
+) -> tuple[int, list[Finding]]:
+    """Validate a Handoff; with `run`, also check each citation against the run's sources."""
     try:
         h = parse(text)
     except HandoffError as exc:
         return EXIT_MALFORMED, [Finding("not_a_handoff", str(exc))]
     findings = _front_matter(h, contract, rules) + _sections(h, rules) + _tags(h, contract)
+    if run is not None:
+        findings += run_findings(h, run)
     size = len(text.encode("utf-8"))
     if size > MAX_HANDOFF_BYTES:
         findings.append(Finding("too_large", f"{size} bytes; the cap is {MAX_HANDOFF_BYTES}"))
