@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.complexipy_cache/
+.coverage
+coverage.xml
+bandit.json
+node_modules/
+.DS_Store
+# Analyst runs never enter the repo.
+rbot-runs/
