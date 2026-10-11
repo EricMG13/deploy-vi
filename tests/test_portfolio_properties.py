@@ -43,17 +43,22 @@ def test_percent_fraction_and_bps_are_never_mixed(
     item = {"breach type": "Hard", "limit": text, "parameter": parameter}
     item["current value"] = plain(d) + current[0]
     result = _limit_row(Table("t", [], 0, {}), 2, item, [])
-    if current[1] == expected:
+    if current[1] == expected and not (kind == "count" and d % 1):
         assert isinstance(result, dict) and result["unit"] == kind
         assert result["current_value"] == plain(d)
     else:
-        assert isinstance(result, str) and "not converted" in result
+        assert isinstance(result, str)
+        assert "not converted" in result or "whole number" in result
 
 
 @given(d=AMOUNTS)
 def test_a_bare_limit_number_is_never_guessed(d: Decimal) -> None:
     assert parse_limit(f"≤ {plain(d)}", "Max x") == f"limit '≤ {plain(d)}': unit not recognised"
-    assert parse_limit(f"≤ {plain(d)}", "Max number of names") == (plain(d), "count")
+    counted = parse_limit(f"≤ {plain(d)}", "Max number of names")
+    assert counted == (
+        (plain(d), "count") if d % 1 == 0 else f"count limit '≤ {plain(d)}' is not a whole number"
+    )
+    assert isinstance(parse_limit(f"≤ {plain(d)}", "Top 10 issuers"), str)
     assert parse_limit(f"≤ ${plain(d)}", "Max x") == (plain(d), "amount")
 
 

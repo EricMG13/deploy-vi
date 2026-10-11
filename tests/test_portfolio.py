@@ -231,12 +231,13 @@ def test_e2_a_current_value_unit_that_disagrees_with_the_limit_is_unparsed(
     assert why in p.unparsed[0]["reason"] and "not converted" in p.unparsed[0]["reason"]
 
 
-def test_e2_an_amount_limit_under_a_scaled_unit_is_never_scaled_silently() -> None:
+def test_e2_an_amount_limit_under_a_scaled_unit_is_never_scaled_silently(rules: Rules) -> None:
     row = _limit("≤ $25,000,000", "$1,000,000")
-    scaled, _ = _read(row, meta=[["Unit", "MILLIONS"]])
-    assert scaled.limits == [] and "MILLIONS" in scaled.unparsed[0]["reason"]
-    plain, _ = _read(row, meta=[["Unit", "USD"]])
-    assert plain.limits[0]["limit_value"] == "25000000" and plain.unparsed == []
+    scaled = to_json(_read(row, meta=[["Unit", "MILLIONS"]])[0], rules)
+    assert scaled["limits"] == [] and "MILLIONS" in scaled["unparsed"][0]["reason"].upper()
+    plain = to_json(_read(row, meta=[["Unit", "USD"]])[0], rules)
+    assert plain["limits"][0]["limit_value"] == "25000000"
+    assert not any("amount limit" in u["reason"] for u in plain["unparsed"])
 
 
 def test_e3_a_bare_limit_number_needs_a_count_parameter() -> None:

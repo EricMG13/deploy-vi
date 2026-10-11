@@ -4,17 +4,22 @@ A sheet (CSV or workbook tab) is a positions table when its header row names Iss
 Issuer, Par and % NAV, and a limits table when it names the compliance-monitor columns
 ID, Constraint Category, Parameter, Limit, Breach Type and Current Value. Key-value
 rows above the header give the portfolio: Portfolio ID (required to link the two),
-Portfolio, Strategy, As of, Currency, Unit, Total NAV and Total Par. Amounts keep the
-file's unit. Rows RBOT cannot use are kept under `unparsed` with the reason, never dropped.
+Portfolio, Strategy, As of, Currency, Unit, Total NAV and Total Par. A sheet may stack
+several tables; each header row starts a new one. Amounts keep the file's unit, so an
+amount limit is read only when every table's Unit is blank or an unscaled currency (USD,
+EUR, GBP, units); decided after all tables are linked, never by file order. Rows RBOT
+cannot use are kept under `unparsed` with the reason, never dropped. A `%` current value
+cannot tell pct_nav from pct_par; the limit's unit decides.
 """
 
 from __future__ import annotations
 
+import itertools
 import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -47,20 +52,19 @@ POSITION_COLUMNS = {
     "seniority": "seniority",
     "asset type": "asset_type",
 }
+_NUM = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"  # commas only as thousands groups
 _LIMIT = re.compile(
-    r"^(?P<op>≤|<=|<|≥|>=|>)?\s*(?P<cur>\$)?(?P<num>\d[\d,]*(?:\.\d+)?)\s*"
+    r"^(?P<op>≤|<=|<|≥|>=|>)?\s*(?P<cur>\$)?(?P<num>" + _NUM + r")\s*"
     r"(?P<unit>%\s*nav|%\s*par|years?|yrs?)?$",
     re.I,
 )
 
 
-_COUNT = re.compile(
-    r"\b(count|number of|no\. of|issuers|obligors|names|positions|holdings)\b", re.I
-)
-_SCALED = frozenset({"thousands", "millions", "billions", "000s", "k", "m", "mm", "bn"})
+_COUNT = re.compile(r"\b(count|number of|no\. of|maximum names)\b", re.I)
+_UNSCALED = frozenset({"usd", "eur", "gbp"})  # a Unit that leaves amounts as written
 _EXPECTED = {"pct_nav": "%", "pct_par": "%", "years": "years", "amount": "", "count": ""}
 _DATES = ("%Y-%m-%d", "%B %d, %Y", "%d %B %Y", "%b %d, %Y", "%d %b %Y")
-_NUMBER = re.compile(r"^\$?(-?\d[\d,]*(?:\.\d+)?)\s*(%|yrs?|years?|bps)?$", re.I)
+_NUMBER = re.compile(r"^\$?(-?" + _NUM + r")\s*(%|yrs?|years?|bps)?$", re.I)
 
 
 @dataclass
@@ -71,7 +75,7 @@ class Table:
     rows: list[list[str]]
     start: int
     bad: dict[int, str]  # 1-based row -> a formula cell there with no stored value
-    unit: str = ""
+    end: int | None = None  # one past this table's last row; None = the end of the sheet
 
 
 @dataclass
@@ -82,6 +86,7 @@ class Portfolio:
     unparsed: list[dict[str, str]] = field(default_factory=list)
     files: dict[str, str] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
+    units: set[str] = field(default_factory=set)  # every table's Unit, normalised, non-blank
 
 
 _SAFE_ID = re.compile(r"(?!\.)[A-Za-z0-9_.-]+")  # becomes a file name: no path parts
@@ -114,12 +119,22 @@ def number(text: str) -> tuple[str, str] | None:
     match = _NUMBER.match(text.strip())
     if not match:
         return None
-    try:
-        value = format(Decimal(match.group(1).replace(",", "")), "f")
-    except InvalidOperation:
-        return None
+    value = format(Decimal(match.group(1).replace(",", "")), "f")
     suffix = (match.group(2) or "").lower()
     return value, "years" if suffix.startswith("y") else suffix
+
+
+def _comma(*texts: str) -> str:
+    """A reason suffix when a text holds a comma that is not a thousands separator."""
+    return (
+        " (ambiguous decimal comma)"
+        if any(re.search(r"\d,\d{1,2}(?!\d)", t) for t in texts)
+        else ""
+    )
+
+
+def _not_a_number(label: str, text: str) -> str:
+    return f"{label} {text!r} is not a number{_comma(text)}"
 
 
 def _unit_problem(label: str, text: str, kind: str, suffix: str) -> str | None:
@@ -145,7 +160,7 @@ def parse_limit(text: str, parameter: str = "") -> tuple[str, str] | str:
     """(`limit_value`, `unit`) for a maximum limit, or the reason it cannot be sized against."""
     match = _LIMIT.match(text.strip())
     if not match:
-        return f"limit {text!r} is not a number with a unit"
+        return _not_a_number("limit", text) + " with a unit"
     if match["op"] in ("≥", ">=", ">"):
         return "minimum limit: Portfolio Fit sizes against maximum limits only"
     unit = _norm(match["unit"] or "").replace(" ", "")
@@ -155,7 +170,10 @@ def parse_limit(text: str, parameter: str = "") -> tuple[str, str] | str:
         if not _COUNT.search(parameter):
             return f"limit {text!r}: unit not recognised"
         kind = "count"
-    return format(Decimal(match["num"].replace(",", "")), "f"), kind or "amount"
+    value = Decimal(match["num"].replace(",", ""))
+    if kind == "count" and value != value.to_integral_value():
+        return f"count limit {text!r} is not a whole number"
+    return format(value, "f"), kind or "amount"
 
 
 def _scope(category: str, parameter: str) -> tuple[str, str | None]:
@@ -177,19 +195,38 @@ def _scope(category: str, parameter: str) -> tuple[str, str | None]:
     return "other", None
 
 
-def _header(rows: list[list[str]], required: tuple[str, ...]) -> int | None:
-    for i, row in enumerate(rows):
-        if set(required) <= {_norm(c) for c in row}:
-            return i
-    return None
+def _is_meta_line(row: list[str]) -> bool:
+    cells = [c for c in row if c]
+    return len(cells) <= 1 or _norm(cells[0]) in META
 
 
-def _meta(rows: list[list[str]]) -> dict[str, str]:
+def _tables(rows: list[list[str]]) -> list[tuple[str, int, int, int]]:
+    """(kind, header row, first meta row, end of data) of every table stacked in the sheet."""
+    heads: dict[int, str] = {}
+    for kind, required in (("limits", LIMITS), ("positions", POSITIONS)):
+        heads |= {i: kind for i, row in enumerate(rows) if set(required) <= {_norm(c) for c in row}}
+    if not heads:
+        return []
+    order, firsts = sorted(heads), [0]
+    for prev, i in itertools.pairwise(order):
+        first = i
+        while first > prev + 1 and _is_meta_line(rows[first - 1]):
+            first -= 1
+        firsts.append(first)
+    ends = [*firsts[1:], len(rows)]
+    return [(heads[i], i, f, e) for i, f, e in zip(order, firsts, ends, strict=True)]
+
+
+def _meta(rows: list[list[str]], notes: list[str], source: str) -> dict[str, str]:
     found = {}
     for row in rows:
         cells = [c for c in row if c]
-        if len(cells) == 2 and _norm(cells[0]) in META:
+        if len(cells) >= 2 and _norm(cells[0]) in META:
             found[META[_norm(cells[0])]] = cells[1]
+            if len(cells) > 2:
+                notes.append(
+                    f"{source}: {cells[0]} row has extra cells {cells[2:]}; read {cells[1]!r}"
+                )
     return found
 
 
@@ -206,7 +243,7 @@ def _position_values(item: dict[str, str]) -> tuple[str, str] | str:
     """(par, % NAV) as plain decimals, or why the row cannot be used."""
     par, pct = number(item.get("par", "")), number(item.get("pct_nav", ""))
     if par is None or pct is None:
-        return "par or % NAV is not a number"
+        return "par or % NAV is not a number" + _comma(item.get("par", ""), item.get("pct_nav", ""))
     if par[1] != "" or pct[1] != "%":
         return f"par {item['par']!r} must be a plain amount and % NAV {item['pct_nav']!r} a percent"
     return par[0], pct[0]
@@ -214,7 +251,7 @@ def _position_values(item: dict[str, str]) -> tuple[str, str] | str:
 
 def _positions(t: Table, p: Portfolio) -> None:
     columns = [POSITION_COLUMNS.get(_norm(c)) for c in t.rows[t.start]]
-    for n, row in enumerate(t.rows[t.start + 1 :], t.start + 2):
+    for n, row in enumerate(t.rows[t.start + 1 : t.end], t.start + 2):
         if not any(row) or _uncached(t, n, p):
             continue
         item = {key: cell for key, cell in zip(columns, row, strict=False) if key}
@@ -232,12 +269,12 @@ def _limit_row(t: Table, n: int, item: dict[str, str], notes: list[str]) -> dict
     parsed = parse_limit(item.get("limit", ""), item.get("parameter", ""))
     if isinstance(parsed, str):
         return parsed
-    if parsed[1] == "amount" and _norm(t.unit) in _SCALED:
-        return f"amount limit under Unit {t.unit}: the scale is not applied"
     text = item.get("current value", "")
     current = number(text)
     if current is None:
-        return f"current value {text!r} is not a number"
+        return _not_a_number("current value", text)
+    if parsed[1] == "count" and "." in current[0] and Decimal(current[0]) % 1:
+        return f"count current value {text!r} is not a whole number"
     if problem := _unit_problem("current value", text, parsed[1], current[1]):
         return problem
     category = item.get("constraint category", "")
@@ -260,7 +297,7 @@ def _limit_row(t: Table, n: int, item: dict[str, str], notes: list[str]) -> dict
 
 def _limits(t: Table, p: Portfolio) -> None:
     header = [_norm(c) for c in t.rows[t.start]]
-    for n, row in enumerate(t.rows[t.start + 1 :], t.start + 2):
+    for n, row in enumerate(t.rows[t.start + 1 : t.end], t.start + 2):
         if not any(row) or _uncached(t, n, p):
             continue
         result = _limit_row(t, n, dict(zip(header, row, strict=False)), p.notes)
@@ -283,6 +320,8 @@ def _link(source: str, kind: str, meta: dict[str, str], p: Portfolio) -> bool:
         return False
     for key, value in meta.items():
         p.meta.setdefault(key, value)
+    if meta.get("unit"):
+        p.units.add(_norm(meta["unit"]))
     p.files[kind] = source
     return True
 
@@ -290,16 +329,15 @@ def _link(source: str, kind: str, meta: dict[str, str], p: Portfolio) -> bool:
 def read_sheet(
     source: str, rows: list[list[str]], found: dict[str, Portfolio], bad: dict[int, str]
 ) -> list[str]:
-    """Add a positions or limits sheet to its portfolio; the notes for what cannot be linked.
+    """Add the positions and limits tables of a sheet to their portfolios; the notes for the rest.
 
     `bad` maps a 1-based row number to a formula cell there that has no stored value.
     """
     notes: list[str] = []
-    for kind, required in (("positions", POSITIONS), ("limits", LIMITS)):
-        start = _header(rows, required)
-        if start is None:
-            continue
-        meta = _meta(rows[:start])
+    meta: dict[str, str] = {}
+    for kind, start, first, end in _tables(rows):
+        own = _meta(rows[first:start], notes, source)
+        meta = own if "portfolio_id" in own or not meta else meta  # no id of its own: same as above
         portfolio_id = meta.get("portfolio_id")
         if not portfolio_id:
             notes.append(f"{source}: {kind} table without a Portfolio ID row; not linked")
@@ -310,25 +348,41 @@ def read_sheet(
             p = found.setdefault(portfolio_id, Portfolio())
             before = len(p.notes)
             if _link(source, kind, meta, p):
-                table = Table(source, rows, start, bad, meta.get("unit", p.meta.get("unit", "")))
+                table = Table(source, rows, start, bad, end)
                 (_positions if kind == "positions" else _limits)(table, p)
             notes += p.notes[before:]
     return notes
 
 
 def _total(meta: dict[str, str], key: str, unparsed: list[dict[str, str]]) -> str:
-    """Total NAV or Total Par: a plain amount only (no %, years or bps)."""
+    """Total NAV or Total Par: a plain amount above zero only (no %, years or bps)."""
     text = meta.get(key, "")
     parsed = number(text)
-    if parsed is not None and parsed[1] == "":
+    if parsed is not None and parsed[1] == "" and Decimal(parsed[0]) > 0:
         return parsed[0]
-    reason = "missing or not a number" if parsed is None else f"{text!r} is not a plain amount"
+    if parsed is None:
+        reason = "missing or not a number" + _comma(text)
+    else:
+        reason = f"{text!r} is not a plain amount above zero"
     unparsed.append({"row": f"Total {key.upper()}", "reason": reason})
     return ""
 
 
+def _amount_limits(p: Portfolio) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    """Amount limits read only when every table's Unit leaves amounts as written (any order)."""
+    units = p.units - {"units"}  # "units" says nothing about a scale
+    if units <= _UNSCALED and len(units) <= 1:
+        return p.limits, []
+    shown = ", ".join(sorted(units))
+    reason = f"amount limit under Unit {shown!r}: the scale is not applied"
+    kept = [x for x in p.limits if x["unit"] != "amount"]
+    return kept, [{"row": x["source"], "reason": reason} for x in p.limits if x["unit"] == "amount"]
+
+
 def to_json(p: Portfolio, rules: Rules) -> dict[str, Any]:
     meta, unparsed = dict(p.meta), list(p.unparsed)
+    limits, scaled = _amount_limits(p)
+    unparsed += scaled
     for key in ("nav", "par"):
         meta[key] = _total(meta, key, unparsed)
     as_of = iso_date(meta.get("as_of", ""))
@@ -346,7 +400,12 @@ def to_json(p: Portfolio, rules: Rules) -> dict[str, Any]:
     data |= {"currency": meta.get("currency", ""), "unit": meta.get("unit", "")}
     data["positions_file"] = p.files.get("positions", "")
     data["limits_file"] = p.files.get("limits", "")
-    return data | {"positions": p.positions, "limits": p.limits, "unparsed": unparsed}
+    return data | {
+        "positions": p.positions,
+        "limits": limits,
+        "unparsed": unparsed,
+        "notes": p.notes,
+    }
 
 
 def write_all(run: Path, found: dict[str, Portfolio], rules: Rules) -> list[dict[str, str]]:

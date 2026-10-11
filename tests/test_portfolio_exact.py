@@ -173,16 +173,18 @@ def test_mixed_units_in_a_position_are_unparsed() -> None:
         ]
 
 
-def test_the_limits_sheet_own_unit_wins_and_the_portfolio_unit_is_the_fallback() -> None:
+def test_a_scaled_unit_in_either_table_refuses_the_amount_limit(rules: Rules) -> None:
     row = ["C1", "Single Name", "x", "≤ $5", "Hard", "$1"]
     found: dict[str, Portfolio] = {}
-    read_sheet("p.csv", _table("positions", unit="UNITS"), found, {})
+    read_sheet("p.csv", _table("positions", unit="USD"), found, {})
     read_sheet("l.csv", _table("limits", row, unit="MILLIONS"), found, {})
-    assert found["P1"].limits == [] and "MILLIONS" in found["P1"].unparsed[0]["reason"]
+    data = to_json(found["P1"], rules)
+    assert data["limits"] == [] and "MILLIONS" in data["unparsed"][0]["reason"].upper()
     other: dict[str, Portfolio] = {}
     read_sheet("p.csv", _table("positions", unit="MILLIONS"), other, {})
     read_sheet("l.csv", _table("limits", row), other, {})
-    assert other["P1"].limits == [] and "MILLIONS" in other["P1"].unparsed[0]["reason"]
+    data = to_json(other["P1"], rules)
+    assert data["limits"] == [] and "MILLIONS" in data["unparsed"][0]["reason"].upper()
 
 
 def test_notes_come_back_once_per_sheet_and_all_of_them() -> None:
@@ -220,6 +222,7 @@ def test_the_json_of_a_bare_portfolio_has_exact_defaults(rules: Rules) -> None:
             {"row": "As of", "reason": "'' is not a date I can read as yyyy-mm-dd"},
             {"row": "Strategy", "reason": "None is not a Strategy"},
         ],
+        "notes": [],
     }
 
 
