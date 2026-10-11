@@ -11,6 +11,8 @@ Image-Read source (a screenshot or scan) has no text to anchor and is not checke
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import re
 import unicodedata
@@ -23,7 +25,7 @@ from rbotlib.contract import Column, Contract, TableSpec
 from rbotlib.handoff import Handoff, HandoffError, Table, cells, markers, parse
 from rbotlib.rules import Rules
 
-EXIT_VALID, EXIT_MALFORMED, EXIT_BLOCKED, EXIT_IDENTITY = 0, 2, 3, 4
+EXIT_VALID, EXIT_USAGE, EXIT_MALFORMED, EXIT_BLOCKED, EXIT_IDENTITY = 0, 1, 2, 3, 4
 MAX_HANDOFF_BYTES = 98_304
 
 
@@ -152,90 +154,154 @@ def _citations(h: Handoff, rules: Rules) -> list[Finding]:
 
 # --- `--run`: every citation names a pack file and its excerpt is in that file ---------
 
-_PAGE_LOCATOR = re.compile(r"\bpp?\.\s*(\d+)(?:\s*[-\u2013]\s*(\d+))?", re.I)
+_PAGE_WORD = r"\b(?:pp?|pgs?|pages?)\b\.?"
+_PAGE_LOCATOR = re.compile(_PAGE_WORD + r"\s*(\d+)(?:\s*[-\u2013]\s*(\d+))?", re.I)
+_PAGE_LIKE = re.compile(_PAGE_WORD, re.I)
 _PAGE_LINE = re.compile(r"^<<< page (\d+) >>>$", re.M)
+_FRONT_MATTER = re.compile(r"\A---\n.*?\n---\n", re.S)
 _QUOTES = str.maketrans(
     {
         "\u2018": "'",
         "\u2019": "'",
+        "\u02bc": "'",
+        "\u2032": "'",
         "\u201c": '"',
         "\u201d": '"',
+        "\u2010": "-",
+        "\u2011": "-",
+        "\u2012": "-",
         "\u2013": "-",
         "\u2014": "-",
+        "\u2212": "-",
+        "\u00ad": None,
         "|": " ",
     }
 )
+MIN_EXCERPT_TOKENS, MIN_EXCERPT_CHARS = 3, 10
+
+
+class _RunProblem(Exception):
+    """The run folder cannot be read; the message is `<path>: <reason>`."""
 
 
 def normalise(text: str) -> str:
-    """Compare text as a reader would: NFKC, case-folded, plain quotes and dashes, one space."""
-    return " ".join(unicodedata.normalize("NFKC", text).translate(_QUOTES).casefold().split())
+    """Compare text as a reader would: NFKC, case-folded, plain quotes and dashes, one space.
+
+    A hyphen at a line break is joined (`inter-\\nnational`); the soft hyphen is dropped.
+    """
+    plain = unicodedata.normalize("NFKC", text).translate(_QUOTES)
+    return " ".join(re.sub(r"(\w)-\s*\n\s*(\w)", r"\1\2", plain).casefold().split())
+
+
+def _parts(excerpt: str) -> list[str]:
+    return [n for n in (normalise(p) for p in re.split(r"\.\.\.|\u2026", excerpt)) if n]
 
 
 def excerpt_found(text: str, excerpt: str) -> bool:
     """Every part of the excerpt (split at an ellipsis) appears in the text, in order."""
     haystack, at = normalise(text), 0
-    for part in re.split(r"\.\.\.|\u2026", excerpt):
-        needle = normalise(part)
-        if not needle:
-            continue
-        at = haystack.find(needle, at)
-        if at < 0:
+    for needle in _parts(excerpt):
+        hit = re.compile(rf"(?<!\w){re.escape(needle)}(?!\w)").search(haystack, at)
+        if hit is None:
             return False
-        at += len(needle)
+        at = hit.end()
     return True
 
 
+def too_short(excerpt: str) -> bool:
+    """An excerpt of fewer than 3 words or 10 characters (ellipsis parts joined) anchors nothing."""
+    joined = " ".join(_parts(excerpt))
+    return len(joined.split()) < MIN_EXCERPT_TOKENS or len(joined) < MIN_EXCERPT_CHARS
+
+
 def pages(prepared_text: str) -> dict[int, str]:
-    """The text of each `<<< page N >>>` section of a prepared file."""
-    marks = list(_PAGE_LINE.finditer(prepared_text))
-    ends = [m.start() for m in marks[1:]] + [len(prepared_text)]
-    return {
-        int(m.group(1)): prepared_text[m.end() : end] for m, end in zip(marks, ends, strict=True)
-    }
+    """The text of each `<<< page N >>>` section; only the next number opens a page."""
+    found: dict[int, list[str]] = {}
+    at = 0
+    for line in prepared_text.splitlines(keepends=True):
+        m = _PAGE_LINE.match(line.rstrip("\n"))
+        if m and int(m.group(1)) == len(found) + 1:
+            at = int(m.group(1))
+            found[at] = ["\n"]
+        elif at:
+            found[at].append(line)
+    return {n: "".join(parts) for n, parts in found.items()}
+
+
+def _read(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise _RunProblem(f"{path}: {getattr(exc, 'strerror', None) or exc}") from exc
+
+
+def _sheet_rows(text: str) -> str:
+    """A prepared sheet row by row: each CSV line's cells joined with spaces."""
+    out = []
+    for n, body in pages(text).items():
+        rows = (" ".join(r) for r in csv.reader(io.StringIO(body.lstrip("\n"))))
+        out.append(f"<<< page {n} >>>\n" + "\n".join(rows) + "\n")
+    return "".join(out)
+
+
+def _fetched(run: Path, source: str) -> str | None:
+    """The body of a flat file directly in fetched/ (front matter stripped), else None."""
+    folder = (run / "fetched").resolve()
+    path = (run / source).resolve()
+    if not source.startswith("fetched/") or path.parent != folder or not path.is_file():
+        return None
+    return "<<< page 1 >>>\n" + _FRONT_MATTER.sub("", _read(path), count=1)
 
 
 def _source_text(
     run: Path, source: str, records: dict[str, dict[str, Any]]
 ) -> str | Finding | None:
     """The text a citation must anchor in; None for an Image-Read source (nothing to anchor)."""
-    if source.startswith("fetched/") and (run / source).is_file():
-        return "<<< page 1 >>>\n" + (run / source).read_text(encoding="utf-8")
+    if (fetched := _fetched(run, source)) is not None:
+        return fetched
     record = records.get(source)
     if record is None:
-        return Finding("source_unknown", f"{source!r} is not in inventory.json or fetched/")
+        return Finding("source_unknown", f"{source!r} is not in prepared/index.json or fetched/")
     if record["unreadable"]:
         return Finding("citation_unanchored", f"{source!r} is unreadable: {record['unreadable']}")
     if record["image_read"]:
         return None
-    return (run / str(record["prepared"])).read_text(encoding="utf-8")
+    text = _read(run / str(record["prepared"]))
+    return _sheet_rows(text) if record["kind"] in ("csv", "xlsx") else text
+
+
+def _scope(by_page: dict[int, str], locator: str) -> list[str] | None:
+    """The pages a locator names (all pages when it names none); None when unreadable."""
+    wanted = _PAGE_LOCATOR.search(locator)
+    if wanted:
+        first = int(wanted.group(1))
+        return [by_page.get(n, "") for n in range(first, int(wanted.group(2) or first) + 1)]
+    return None if _PAGE_LIKE.search(locator) else list(by_page.values())
 
 
 def _anchor(row: list[str], text: str) -> Finding | None:
     cid, source, locator, excerpt = row[:4]
-    by_page = pages(text)
-    wanted = _PAGE_LOCATOR.search(locator)
-    if wanted:
-        first = int(wanted.group(1))
-        last = int(wanted.group(2) or first)
-        scope = "\n".join(by_page.get(n, "") for n in range(first, last + 1))
-        where = f"{source} {locator}"
-    else:
-        scope, where = "\n".join(by_page.values()), source
-    if excerpt_found(scope, excerpt):
+    if too_short(excerpt):
+        need = f"{MIN_EXCERPT_TOKENS} words and {MIN_EXCERPT_CHARS} characters"
+        return Finding("citation_unanchored", f"{cid}: excerpt needs {need}: {excerpt!r}")
+    scope = _scope(pages(text), locator)
+    if scope is None:
+        return Finding("citation_unanchored", f"{cid}: page locator {locator!r} not understood")
+    if any(excerpt_found(page, excerpt) for page in scope):
         return None
+    where = f"{source} {locator}" if _PAGE_LOCATOR.search(locator) else source
     return Finding("citation_unanchored", f"{cid}: excerpt not found in {where}: {excerpt!r}")
 
 
-def run_findings(h: Handoff, run: Path) -> list[Finding]:
-    """source_unknown and citation_unanchored for each citation row, against the run folder."""
+def _run_findings(h: Handoff, run: Path) -> list[Finding]:
+    index_path = run / "prepared" / "index.json"
+    try:
+        records = {r["path"]: r for r in json.loads(_read(index_path))["files"]}
+    except (ValueError, KeyError, TypeError) as exc:
+        raise _RunProblem(f"{index_path}: not a prepared index ({exc})") from exc
     table = h.tables.get("citations")
-    if table is None:
-        return []
-    index = json.loads((run / "prepared" / "index.json").read_text(encoding="utf-8"))
-    records = {r["path"]: r for r in index["files"]}
     found: list[Finding] = []
-    for row in table.rows:
+    for row in table.rows if table else []:
         if len(row) < 4:
             continue
         text = _source_text(run, row[1], records)
@@ -244,6 +310,14 @@ def run_findings(h: Handoff, run: Path) -> list[Finding]:
         elif text is not None:
             found += [f for f in [_anchor(row, text)] if f]
     return found
+
+
+def run_findings(h: Handoff, run: Path) -> list[Finding]:
+    """source_unknown and citation_unanchored per row, or one run_error."""
+    try:
+        return _run_findings(h, run)
+    except _RunProblem as exc:
+        return [Finding("run_error", str(exc))]
 
 
 def check(
@@ -256,7 +330,10 @@ def check(
         return EXIT_MALFORMED, [Finding("not_a_handoff", str(exc))]
     findings = _front_matter(h, contract, rules) + _sections(h, rules) + _tags(h, contract)
     if run is not None:
-        findings += run_findings(h, run)
+        cited = run_findings(h, run)
+        if [f.code for f in cited] == ["run_error"]:
+            return EXIT_USAGE, cited
+        findings += cited
     size = len(text.encode("utf-8"))
     if size > MAX_HANDOFF_BYTES:
         findings.append(Finding("too_large", f"{size} bytes; the cap is {MAX_HANDOFF_BYTES}"))

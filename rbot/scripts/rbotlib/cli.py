@@ -38,6 +38,9 @@ def _validate(args: argparse.Namespace) -> int:
     run = Path(args.run_dir) if args.run_dir else None
     code, findings = check(text, contract, rules, run)
     for f in findings:
+        if f.code == "run_error":
+            print(f"error: {f.message}", file=sys.stderr)
+            return code
         print(f"{f.code}: {f.message}")
     print(f"exit {code}")
     return code
