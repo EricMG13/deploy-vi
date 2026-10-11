@@ -21,4 +21,4 @@ Dated 2026-09-29. Marketing stage: initial talk.
 | Commitment date | 2026-10-08 |
 | Ranking | Pari passu with the existing CEI senior secured credit facilities and senior secured notes |
 
-Bloomberg ID and CUSIP are not yet assigned. No Covenant Review score has been published for this facility.
+An S&P downgrade of the existing first-lien to BB- is expected at closing. Bloomberg ID and CUSIP are not yet assigned. No Covenant Review score has been published for this facility.

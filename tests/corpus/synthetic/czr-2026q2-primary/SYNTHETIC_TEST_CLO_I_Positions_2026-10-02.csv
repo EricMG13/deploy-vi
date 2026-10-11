@@ -7,7 +7,7 @@ Currency,USD
 Unit,MILLIONS
 Total NAV,630.9
 Total Par,634.0
-Note,Extract of the ten largest issuers; the book holds 383 positions in 350 obligors. No Caesars Entertainment exposure.
+Note,Extract of the ten largest issuers; the book holds 383 positions in 350 obligors. No Caesars Entertainment exposure. Positions are as of 2026-05-29.
 
 Issuer ID,Issuer,Instrument ID,Par,% NAV,Sector,Rating,Country,Currency,Seniority,Asset Type
 ASURION,Asurion,ASURION TL B,15.0,2.37%,Insurance,B3,US,USD,Senior secured,Loan

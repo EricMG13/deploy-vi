@@ -1,6 +1,7 @@
 SYNTHETIC: Test CLO I Ltd compliance monitor authored for Deploy VI tests from the packaged sample constraints
 Portfolio ID,TEST_CLO_I
 As of,2026-05-29
+Note,Limits and current values are as of 2026-05-29.
 
 ID,Constraint Category,Parameter,Limit,Breach Type,Source Document,Current Value,Headroom,Status
 C-01,Single Name,Max single issuer exposure (largest: Asurion),≤ 2.5% NAV,Hard,Indenture §7.11,2.37%,0.13%,Watch

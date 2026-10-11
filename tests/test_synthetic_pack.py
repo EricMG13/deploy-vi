@@ -82,7 +82,7 @@ def test_primary_pack_portfolio_json(prepared_run: Callable[[str], Path]) -> Non
         "C-01", "C-02", "C-04", "C-05", "C-06", "C-07", "C-08", "C-10", "C-11", "C-17",
     ]  # fmt: skip
     unparsed = [u["row"].rsplit(" ", 1)[-1] for u in data["unparsed"]]
-    assert unparsed == ["8", "14", "17", "18", "19", "20", "21"]  # C-03, C-09, C-12 to C-16
+    assert unparsed == ["9", "15", "18", "19", "20", "21", "22"]  # C-03, C-09, C-12 to C-16
 
 
 @pytest.mark.corpus
@@ -94,12 +94,23 @@ def test_expectations_anchor_in_their_sources(
         (CORPUS.location.parent / CORPUS.pack(pack_id).data["expectations"]).read_text()
     )
     assert expected["pack"] == pack_id
-    records = _records(prepared_run(pack_id))
     run = prepared_run(pack_id)
+    records = _records(run)
     for item in expected["values"]:
         assert {"module", "table", "where", "value"} <= set(item), item
         if "source" in item:
+            assert item.get("locator"), item
             text = (run / records[item["source"]]["prepared"]).read_text(encoding="utf-8")
             assert excerpt_found(text, item["excerpt"]), item
         else:
             assert "rule" in item, item
+
+
+def test_the_synthetic_notes_state_their_dates_and_the_expected_downgrade() -> None:
+    folder = SYNTHETIC / PRIMARY
+    for name in ("Positions", "Limits"):
+        text = (folder / f"SYNTHETIC_TEST_CLO_I_{name}_2026-10-02.csv").read_text(encoding="utf-8")
+        note = next(line for line in text.splitlines() if line.startswith("Note,"))
+        assert "as of 2026-05-29" in note
+    terms = (folder / "SYNTHETIC_CZR_2026_TLB_Term_Sheet.md").read_text(encoding="utf-8")
+    assert "An S&P downgrade of the existing first-lien to BB- is expected at closing." in terms
