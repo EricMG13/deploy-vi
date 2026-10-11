@@ -54,7 +54,7 @@ def _split_front_matter(text: str) -> tuple[dict[str, str], str]:
     return front_matter, "\n".join(lines[end + 1 :])
 
 
-def _cells(line: str) -> list[str]:
+def cells(line: str) -> list[str]:
     # ponytail: an escaped pipe (\|) inside a cell splits it; no module needs one.
     return [cell.strip() for cell in line.strip().strip("|").split("|")]
 
@@ -72,8 +72,8 @@ def _read_table(lines: list[str], start: int) -> Table | None:
     for line in lines[i + 2 :]:
         if not line.lstrip().startswith("|"):
             break
-        rows.append(_cells(line))
-    return Table(_cells(lines[i]), rows)
+        rows.append(cells(line))
+    return Table(cells(lines[i]), rows)
 
 
 def parse(text: str) -> Handoff:

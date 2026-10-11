@@ -31,12 +31,11 @@ def _table_block(spec: TableSpec, rules: Rules) -> list[str]:
         "| " + " | ".join(names) + " |",
         "|" + "---|" * len(names),
     ]
-    scales = [c for c in spec.columns if c.scale]
+    scales = [(c.name, c.scale) for c in spec.columns if c.scale]
     if scales:
         lines.append("")
-    for c in scales:
-        if c.scale:
-            lines.append(f"- `{c.name}` takes exactly one of: " + "; ".join(rules.scales[c.scale]))
+    for name, scale in scales:
+        lines.append(f"- `{name}` takes exactly one of: " + "; ".join(rules.scales[scale]))
     return [*lines, ""]
 
 

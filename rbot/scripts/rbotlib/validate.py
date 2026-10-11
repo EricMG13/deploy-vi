@@ -10,7 +10,7 @@ from collections import Counter
 from dataclasses import dataclass
 
 from rbotlib.contract import Column, Contract, TableSpec
-from rbotlib.handoff import Handoff, HandoffError, Table, markers, parse
+from rbotlib.handoff import Handoff, HandoffError, Table, cells, markers, parse
 from rbotlib.rules import Rules
 
 EXIT_VALID, EXIT_MALFORMED, EXIT_BLOCKED, EXIT_IDENTITY = 0, 2, 3, 4
@@ -103,11 +103,7 @@ def _tags(h: Handoff, contract: Contract) -> list[Finding]:
 def _outside_citation_rows(body: str, table: Table) -> str:
     """The body without the citations table's own rows, so a row cannot cite itself."""
     rows = {tuple(row) for row in table.rows}
-    kept = [
-        line
-        for line in body.splitlines()
-        if tuple(c.strip() for c in line.strip().strip("|").split("|")) not in rows
-    ]
+    kept = [line for line in body.splitlines() if tuple(cells(line)) not in rows]
     return "\n".join(kept)
 
 
