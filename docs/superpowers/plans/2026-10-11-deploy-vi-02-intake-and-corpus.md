@@ -8,7 +8,13 @@
 
 **Tech Stack:** Python ≥ 3.11 standard library plus `pypdf==6.19.0` and `openpyxl==3.1.5` at runtime (decision records 0002, 0003); `types-openpyxl` for mypy; the Plan 01 toolchain (uv, pytest + pytest-cov + hypothesis, mypy strict, ruff, complexipy, bandit, pip-audit, jscpd, gitleaks).
 
-**Spec:** [`docs/superpowers/specs/2026-10-11-deploy-vi-interfaces.md`](../specs/2026-10-11-deploy-vi-interfaces.md) — §13 row **02** (scope, files, interfaces, PRs), §8.1 (run folder), §7 (portfolio JSON), §9 (`inventory`, `prepare`, `brief`, `validate --run`, `corpus`), §12 (corpus), §14.1 amendments A1, A3, A4, A5. Read with the design [`2026-10-11-deploy-vi-rbot-design.md`](../specs/2026-10-11-deploy-vi-rbot-design.md) (D6, D8, D14, D15, D28), the glossary [`CONTEXT.md`](../../../CONTEXT.md) and Plan 01 ([`2026-10-11-deploy-vi-01-foundation.md`](2026-10-11-deploy-vi-01-foundation.md)), whose tree this plan starts from.
+**Spec:** [`docs/superpowers/specs/2026-10-11-deploy-vi-interfaces.md`](../specs/2026-10-11-deploy-vi-interfaces.md) — §13 row **02** (scope, files, interfaces, PRs), §8.1 (run folder), §7 (portfolio JSON), §9 (`inventory`, `prepare`, `brief`, `validate --run`, `corpus`), §12 (corpus), §14.1 amendments A1, A3, A4, A5. Read with the design [`2026-10-11-deploy-vi-rbot-design.md`](../specs/2026-10-11-deploy-vi-rbot-design.md) (D6, D8, D14, D15, D28), the glossary [`CONTEXT.md`](../../../CONTEXT.md) and Plan 01 ([`2026-10-11-deploy-vi-01-foundation.md`](2026-10-11-deploy-vi-01-foundation.md)), whose executed tip (commit `813aa02`) this plan starts from.
+
+**Rebase note (2026-10-11).** Base: Plan 01's executed tip, commit `813aa02` (116 tests), not Plan 01's plan text. Plan 01's review rounds changed the code this plan patches, so each task was replayed onto `813aa02`, every gate and the corpus gate re-run at each task boundary, and every code block, patch, base64 block, test count and PR size below regenerated from the replayed tree.
+
+- Already in the base, built on here rather than added: public `rbotlib.handoff.cells` (was `_cells`; A8 makes it escaped-pipe aware); the validator's `duplicate_citation` and its exclusion of citation-table rows from marker counting, matched by parsed cells (Task 6 adds the test with `\|` in an excerpt); `_rules_block(rules, module_id)` with its new lines, the `## Conventions (not checked)` section and the `*` note; strict list and type checks in `contract.py`; `load_contracts` over module folders; the CLI's `error: <path>: <reason>` path (Task 7 keeps it); the gitleaks path allowlist, `bandit … || true` in CI and `.hypothesis/` ignored.
+- Plan 01 final-review deferrals applied: **M4** the rules block says `inputs: <Handoff ids comma-separated, or none>` (Task 1, with A4); **M10** a non-string table `id` or `title`, or a non-list `document_types`, is a `ContractError`, never coerced with `str()` (Task 1); **M5** a table whose header or separator is indented four or more spaces is a code block, so its tag is reported as an orphan (Task 6, with A9).
+- Moved for the 800-line cap: amendment A5 (PR-size exclusion of `tests/corpus/synthetic/**`, `corpus-runs/` ignored) from Task 1 to Task 8, where the first synthetic pack lands; nothing reads it earlier.
 
 ## Global Constraints
 
@@ -41,7 +47,7 @@ RBOT_REQUIRE_CORPUS=1 uv run pytest -m corpus --no-cov
 uv run python rbot/scripts/rbot.py corpus verify
 ```
 
-- PR ≤ 800 changed lines, excluding lock files, `reference/**`, `tests/golden/**/documents/**` and `tests/corpus/synthetic/**` (amendment A5 adds the last). Plan 02 ships as **five** stacked PRs, measured with `scripts/check_pr_size.sh`: **02A** = Tasks 1–2 (794 lines), **02B** = Tasks 3–4 (785), **02C** = Tasks 5–6 (776), **02D** = Tasks 7–9 (711), **02E** = Tasks 10–11 (612). The interfaces spec §13 groups the same work as three PRs; measured, it does not fit three PRs under the 800-line cap, so: §13's 02A stays 02A, except that `validate --run` (which needs prepared text) moves after `prepare` into 02D; §13's 02B (inventory + prepare) becomes 02B + 02C, and 02C also carries the controller's amendments A8 and A9 (02A has no room under the cap); §13's 02C (brief + synthetic pack + proxy skeleton) becomes 02D + 02E. Order and scope are unchanged.
+- PR ≤ 800 changed lines, excluding lock files, `reference/**`, `tests/golden/**/documents/**` and `tests/corpus/synthetic/**` (amendment A5 adds the last). Plan 02 ships as **five** stacked PRs, measured with `scripts/check_pr_size.sh`: **02A** = Tasks 1–2 (784 lines), **02B** = Tasks 3–4 (785), **02C** = Tasks 5–6 (799), **02D** = Tasks 7–9 (744), **02E** = Tasks 10–11 (612). The interfaces spec §13 groups the same work as three PRs; measured, it does not fit three PRs under the 800-line cap, so: §13's 02A stays 02A, except that `validate --run` (which needs prepared text) moves after `prepare` into 02D; §13's 02B (inventory + prepare) becomes 02B + 02C, and 02C also carries the controller's amendments A8 and A9 with deferral M5 (02A has no room under the cap; 02C is one line under it, so transcribe exactly); §13's 02C (brief + synthetic pack + proxy skeleton) becomes 02D + 02E. Order and scope are unchanged.
 - `reference/deploy-v-r14/` is never edited and never installed (ADR 0003).
 - No stub or fake value standing in for real behaviour; no catch-all that hides a failure. Every task report ends with a `Not verified:` line (each task says what to list).
 - Glossary words exactly as in `CONTEXT.md` (Source Pack, Handoff, Run Brief, Primary, Price Talk, Image-Read Value, Portfolio Context …); names, ids, columns, schemas and commands exactly as in the interfaces spec.
@@ -54,10 +60,10 @@ uv run python rbot/scripts/rbot.py corpus verify
 | Path | Responsibility | Task |
 |---|---|---|
 | `rbot/rules.json` | A1: host producers and the 70 new scales | 1 |
-| `rbot/scripts/rbotlib/contract.py`, `rbot/scripts/rbotlib/render.py` | A4: `document_types` on a sources input, printed in MODULE.md; A8: the escaped-pipe rule in MODULE.md | 1, 6 |
-| `rbot/scripts/rbotlib/handoff.py` | A8 escaped pipes; A9 short separators, invalid tags, fenced blocks, front-matter keys | 6 |
+| `rbot/scripts/rbotlib/contract.py`, `rbot/scripts/rbotlib/render.py` | A4: `document_types` on a sources input, printed in MODULE.md; M4: the `inputs` line; M10: string-only table id and title; A8: the escaped-pipe rule in MODULE.md | 1, 6 |
+| `rbot/scripts/rbotlib/handoff.py` | A8 escaped pipes in `cells`; A9 short separators, invalid tags, fenced blocks, front-matter keys; M5 indented tables are code | 6 |
 | `rbot/scripts/rbotlib/validate.py` | A3 `too_large`; A9 `invalid_tag`; `--run`: `source_unknown`, `citation_unanchored` | 1, 6, 7 |
-| `scripts/check_pr_size.sh`, `.gitignore`, `docs/decisions/0001-toolchain.md` | A5: synthetic packs outside the PR count; `corpus-runs/` ignored | 1 |
+| `scripts/check_pr_size.sh`, `.gitignore`, `docs/decisions/0001-toolchain.md` | A5: synthetic packs outside the PR count; `corpus-runs/` ignored | 8 |
 | `rbot/scripts/rbotlib/corpus.py`, `tests/corpus/corpus.json`, `tests/corpus/README.md`, `Makefile` | the corpus registry, `rbot corpus verify/list`, `make corpus` | 2, 8 |
 | `rbot/scripts/rbotlib/inventory.py` | `rbot inventory`, `inventory.json`, the run's pack root | 3 |
 | `rbot/scripts/rbotlib/prepare.py` | `rbot prepare`: page-anchored text, first-page entities and dates, `prepared/index.json` | 4, 5 |
@@ -74,32 +80,32 @@ uv run python rbot/scripts/rbot.py corpus verify
 
 ---
 
-### Task 1: Plan 01 amendments A1, A3, A4, A5
+### Task 1: Plan 01 amendments A1, A3, A4 and review deferrals M4, M10
 
 **Files:**
-- Modify: `rbot/rules.json` (replace with the full version below), `rbot/scripts/rbotlib/contract.py`, `rbot/scripts/rbotlib/render.py`, `rbot/scripts/rbotlib/validate.py`, `scripts/check_pr_size.sh`, `.gitignore`, `docs/decisions/0001-toolchain.md`
-- Test: `tests/test_rules.py`, `tests/test_contract.py`, `tests/test_render.py`, `tests/test_validate.py`, `tests/test_gate_scripts.py`
+- Modify: `rbot/rules.json` (replace with the full version below), `rbot/scripts/rbotlib/contract.py`, `rbot/scripts/rbotlib/render.py`, `rbot/scripts/rbotlib/validate.py`
+- Test: `tests/test_rules.py`, `tests/test_contract.py`, `tests/test_render.py`, `tests/test_validate.py`
 
 **Interfaces:**
-- Consumes: Plan 01's `Rules`, `contract_from_dict`, `render_module`, `validate.check`, `scripts/check_pr_size.sh`.
+- Consumes: Plan 01's `Rules`, `contract_from_dict` (with its `_str_list` helper), `render_module` and `_rules_block(rules, module_id)`, `validate.check` (all as at commit `813aa02`).
 - Produces:
   - `rbot/rules.json`: `host_producers` = `["MODEL", "RUN_BRIEF", "PROJECTION", "FIT"]`; 76 scales (Plan 01's six plus the 70 of interfaces spec §14.1, values exactly as there, in that order).
-  - `rbotlib.contract.Input.document_types: tuple[str, ...]` (default `()`); a `sources` input may carry `"document_types": [...]`, each a `document_type` scale value; `ContractError` names `unknown document type '<x>'` or `only a sources input takes document_types`. Plan 04's `rbot grade` reads them.
-  - `rbotlib.render`: the Inputs row prints `Sources: issuer (Credit agreement, Indenture)`.
+  - `rbotlib.contract.Input.document_types: tuple[str, ...]` (default `()`); a `sources` input may carry `"document_types": [...]`, a list of `document_type` scale values; `ContractError` names `unknown document type '<x>'`, `only a sources input takes document_types` or `input sources document_types must be a list of non-empty strings`. Plan 04's `rbot grade` reads them.
+  - **M10:** a table's `id` and `title` must be strings; anything else is a `ContractError` (`table id 7 must be a string`, `table title ['Facts'] must be a string`), never coerced with `str()`.
+  - `rbotlib.render`: the Inputs row prints `Sources: issuer (Credit agreement, Indenture)`; **M4:** the rules block gains the line `` - `inputs: <Handoff ids comma-separated, or none>`. `` under the front-matter line.
   - `rbotlib.validate.MAX_HANDOFF_BYTES = 98_304`; a larger Handoff gets finding `too_large` (exit 2).
-  - `scripts/check_pr_size.sh` also excludes `tests/corpus/synthetic/**`; `.gitignore` ignores `corpus-runs/`.
+  - Amendment A5 (the PR-size exclusion for `tests/corpus/synthetic/**` and `corpus-runs/` ignored) lands in Task 8, with the first synthetic pack: here it would push PR 02A over the 800-line cap.
 
 - [ ] **Step 1: Branch from the Plan 01 end state**
 
 ```bash
 cd "/Users/ericguei/Documents/Deploy VI"
-git switch build/01d-catalog   # or main, once Plan 01's PR D is merged
-git switch -c build/02a-registry
+git switch -c build/02a-registry 813aa02   # Plan 01's executed tip (or main, once it is merged there)
 uv sync
 uv run pytest
 ```
 
-Expected: `81 passed` (Plan 01's suite).
+Expected: `116 passed` (Plan 01's suite at `813aa02`).
 
 - [ ] **Step 2: Write the failing tests**
 
@@ -133,28 +139,34 @@ Expected: `81 passed` (Plan 01's suite).
 ```diff
 --- a/tests/test_contract.py
 +++ b/tests/test_contract.py
-@@ -41,6 +41,8 @@ _BREAKS: dict[str, Callable[[dict[str, Any]], None]] = {
+@@ -41,6 +41,11 @@ _BREAKS: dict[str, Callable[[dict[str, Any]], None]] = {
      "no_why": lambda d: d["inputs"][0].pop("why"),
      "negative_rows": lambda d: d["tables"][0].update(min_rows=-1),
      "no_process": lambda d: d.update(process=[]),
 +    "bad_document_type": lambda d: d["inputs"][0].update(document_types=["Napkin"]),
 +    "document_types_off_sources": lambda d: d["inputs"][1].update(document_types=["Other"]),
++    "document_types_string": lambda d: d["inputs"][0].update(document_types="Indenture"),
++    "table_id_int": lambda d: d["tables"][0].update(id=7),
++    "table_title_list": lambda d: d["tables"][0].update(title=["Facts"]),
  }
  
  
-@@ -64,6 +66,8 @@ def _broken(change: str) -> dict[str, Any]:
+@@ -64,6 +69,11 @@ def _broken(change: str) -> dict[str, Any]:
          ("no_why", "has no 'why'"),
          ("negative_rows", "negative min_rows"),
          ("no_process", "process has no steps"),
 +        ("bad_document_type", "unknown document type 'Napkin'"),
 +        ("document_types_off_sources", "only a sources input takes document_types"),
++        ("document_types_string", "document_types must be a list of non-empty strings"),
++        ("table_id_int", "table id 7 must be a string"),
++        ("table_title_list", r"table title \['Facts'\] must be a string"),
      ],
  )
  def test_broken_contracts_name_the_problem(rules: Rules, change: str, message: str) -> None:
-@@ -75,3 +79,11 @@ def test_load_contract_reads_a_file(tmp_path: Path, rules: Rules) -> None:
-     path = tmp_path / "contract.json"
-     path.write_text(json.dumps(fixture_json("contract_cp_y.json")), encoding="utf-8")
-     assert load_contract(path, rules).handoff_inputs() == ["CP-X"]
+@@ -115,3 +125,11 @@ def test_load_contract_names_the_path_on_invalid_json(tmp_path: Path, rules: Rul
+     path.write_text("{not json", encoding="utf-8")
+     with pytest.raises(ContractError, match=r"contract\.json"):
+         load_contract(path, rules)
 +
 +
 +def test_a_sources_input_may_name_document_types(rules: Rules) -> None:
@@ -170,10 +182,21 @@ Expected: `81 passed` (Plan 01's suite).
 ```diff
 --- a/tests/test_render.py
 +++ b/tests/test_render.py
-@@ -36,3 +36,10 @@ def test_handoff_inputs_render_with_their_requirement(rules: Rules) -> None:
- def test_rendering_is_deterministic(rules: Rules) -> None:
-     contract = contract_from_dict(fixture_json("contract_cp_x.json"), rules)
-     assert render_module(contract, rules) == render_module(contract, rules)
+@@ -82,6 +82,10 @@ def test_front_matter_rule_names_non_empty_values_and_the_module_id(rules: Rules
+     assert "`module_id` is `CP-X`" in text
+ 
+ 
++def test_the_inputs_key_lists_handoff_ids_or_none(rules: Rules) -> None:
++    assert "- `inputs: <Handoff ids comma-separated, or none>`." in _cp_x_text(rules)
++
++
+ def test_tags_are_one_per_table_directly_above_it(rules: Rules) -> None:
+     assert (
+         "Tag each table exactly once, with its `<!-- table: <id> -->` line "
+@@ -121,3 +125,10 @@ def test_the_printed_headers_pass_the_checker_once_the_asterisk_is_stripped(
+         text = text[: old.start()] + block + text[old.end() :]
+     _, findings = check(text, contract, rules)
+     assert [f for f in findings if f.code == "column_missing"] == []
 +
 +
 +def test_document_types_print_beside_their_source_class(rules: Rules) -> None:
@@ -215,49 +238,10 @@ Expected: `81 passed` (Plan 01's suite).
  
 ```
 
-`tests/test_gate_scripts.py` — patch:
-
-```diff
---- a/tests/test_gate_scripts.py
-+++ b/tests/test_gate_scripts.py
-@@ -1,5 +1,7 @@
- from __future__ import annotations
- 
-+import os
-+import subprocess
- from pathlib import Path
- 
- import check_bandit_floor
-@@ -53,3 +55,23 @@ def test_bandit_main_reads_a_report(tmp_path: Path) -> None:
-     report = tmp_path / "bandit.json"
-     report.write_text('{"errors": [], "results": [], "metrics": {"_totals": {"loc": 400}}}')
-     assert check_bandit_floor.main([str(report)]) == 0
-+
-+
-+def _git(repo: Path, *args: str) -> None:
-+    ident = ["-c", "user.name=t", "-c", "user.email=t@t"]
-+    subprocess.run(["git", "-C", str(repo), *ident, *args], check=True, capture_output=True)
-+
-+
-+def test_pr_size_ignores_the_corpus_synthetic_packs(tmp_path: Path) -> None:
-+    _git(tmp_path, "init", "-q", "-b", "main")
-+    _git(tmp_path, "commit", "-q", "--allow-empty", "-m", "base")
-+    pack = tmp_path / "tests" / "corpus" / "synthetic" / "pack"
-+    pack.mkdir(parents=True)
-+    (pack / "big.md").write_text("line\n" * 900, encoding="utf-8")
-+    (tmp_path / "small.py").write_text("x = 1\n" * 10, encoding="utf-8")
-+    _git(tmp_path, "add", "-A")
-+    _git(tmp_path, "commit", "-q", "-m", "work")
-+    script = Path(__file__).parents[1] / "scripts" / "check_pr_size.sh"
-+    env = {**os.environ, "BASE_REF": "HEAD~1"}
-+    result = subprocess.run(["bash", str(script)], cwd=tmp_path, env=env, capture_output=True)
-+    assert (result.returncode, result.stdout) == (0, b"10 changed lines (limit 800)\n")
-```
-
 - [ ] **Step 3: Run them to see them fail**
 
 Run: `uv run pytest --no-cov`
-Expected: FAIL — `ImportError: cannot import name 'MAX_HANDOFF_BYTES' from 'rbotlib.validate'` while collecting `tests/test_validate.py`.
+Expected: FAIL — `10 failed, 116 passed`: the A1 scales and host producers (`assert ('MODEL', 'RUN_BRIEF') == ('MODEL', 'RU...CTION', 'FIT')`), `document_types` in the contract and in MODULE.md, the M10 non-string table id and title, the M4 `inputs` line, and `too_large` (`AttributeError: module 'rbotlib.validate' has no attribute 'MAX_HANDOFF_BYTES'`).
 
 - [ ] **Step 4: Write the amendments**
 
@@ -379,38 +363,66 @@ Expected: FAIL — `ImportError: cannot import name 'MAX_HANDOFF_BYTES' from 'rb
  
  
  @dataclass(frozen=True)
-@@ -65,6 +66,21 @@ class Contract:
- _INPUT_KINDS = ("handoff", "sources", "run_brief")
+@@ -94,6 +95,20 @@ def _input_values(kind: str, raw: dict[str, Any], problems: list[str]) -> tuple[
+     return (value,)
  
  
 +def _document_types(
 +    raw: dict[str, Any], kind: str, rules: Rules, problems: list[str]
 +) -> tuple[str, ...]:
 +    """The document types a sources input names (amendment A4); `rbot grade` reads them."""
-+    document_types = tuple(raw.get("document_types", ()))
-+    if document_types and kind != "sources":
++    if "document_types" not in raw:
++        return ()
++    if kind != "sources":
 +        problems.append(f"only a sources input takes document_types: {raw}")
-+    problems += [
-+        f"unknown document type {d!r}"
-+        for d in document_types
-+        if d not in rules.scales["document_type"]
-+    ]
-+    return document_types
++    found = _str_list(raw["document_types"], f"input {kind} document_types", problems)
++    scale = rules.scales["document_type"]
++    problems += [f"unknown document type {d!r}" for d in found if d not in scale]
++    return found
 +
 +
  def _input(raw: dict[str, Any], rules: Rules, problems: list[str]) -> Input:
      kinds = [k for k in _INPUT_KINDS if k in raw]
      if len(kinds) != 1:
-@@ -80,7 +96,8 @@ def _input(raw: dict[str, Any], rules: Rules, problems: list[str]) -> Input:
-     if not raw.get("why"):
-         problems.append(f"input {kind}={list(values)} has no 'why'")
-     required = bool(raw.get("required", kind == "handoff"))
--    return Input(kind, values, required, str(raw.get("why", "")))
+@@ -112,7 +127,8 @@ def _input(raw: dict[str, Any], rules: Rules, problems: list[str]) -> Input:
+     if not isinstance(required, bool):
+         problems.append(f"input {kind}={list(values)} 'required' must be true or false")
+         required = False
+-    return Input(kind, values, required, why if isinstance(why, str) else "")
 +    document_types = _document_types(raw, kind, rules, problems)
-+    return Input(kind, values, required, str(raw.get("why", "")), document_types)
++    return Input(kind, values, required, why if isinstance(why, str) else "", document_types)
  
  
  def _column(raw: dict[str, Any], rules: Rules, problems: list[str]) -> Column:
+@@ -140,8 +156,17 @@ def _min_rows(raw: dict[str, Any], table_id: str, problems: list[str]) -> int:
+     return value
+ 
+ 
++def _text(raw: dict[str, Any], key: str, default: str, problems: list[str]) -> str:
++    """A string field; any other type is a problem, never coerced with str()."""
++    value = raw.get(key, default)
++    if not isinstance(value, str):
++        problems.append(f"table {key} {value!r} must be a string")
++        return ""
++    return value
++
++
+ def _table(raw: dict[str, Any], rules: Rules, problems: list[str]) -> TableSpec:
+-    table_id = str(raw.get("id", ""))
++    table_id = _text(raw, "id", "", problems)
+     if not table_id or table_id in RESERVED_TABLES:
+         problems.append(f"table id {table_id!r} is empty or reserved")
+     columns = tuple(
+@@ -155,7 +180,8 @@ def _table(raw: dict[str, Any], rules: Rules, problems: list[str]) -> TableSpec:
+     if not consumers:
+         problems.append(f"table {table_id!r} has no consumers; nothing reads it")
+     min_rows = _min_rows(raw, table_id, problems)
+-    return TableSpec(table_id, str(raw.get("title", table_id)), min_rows, columns, consumers)
++    title = _text(raw, "title", table_id, problems)
++    return TableSpec(table_id, title, min_rows, columns, consumers)
+ 
+ 
+ def contract_from_dict(data: dict[str, Any], rules: Rules) -> Contract:
 ```
 
 `rbot/scripts/rbotlib/render.py` — patch:
@@ -427,6 +439,14 @@ Expected: FAIL — `ImportError: cannot import name 'MAX_HANDOFF_BYTES' from 'rb
      else:
          label = "Run Brief: " + ", ".join(i.values)
      return f"| {label} | {i.why} |"
+@@ -46,6 +48,7 @@ def _rules_block(rules: Rules, module_id: str) -> list[str]:
+         "",
+         "- Front matter keys, one non-empty `key: value` per line: "
+         f"{', '.join(rules.front_matter)}; `module_id` is `{module_id}`.",
++        "- `inputs: <Handoff ids comma-separated, or none>`.",
+         f"- `qa_status` is one of: {', '.join(rules.qa_status)}.",
+         f"- H2 sections, exactly and in order: {', '.join(rules.sections)}.",
+         "- Tag each table exactly once, with its `<!-- table: <id> -->` line "
 ```
 
 `rbot/scripts/rbotlib/validate.py` — patch:
@@ -444,7 +464,7 @@ Expected: FAIL — `ImportError: cannot import name 'MAX_HANDOFF_BYTES' from 'rb
  """
  
  from __future__ import annotations
-@@ -13,6 +14,7 @@ from rbotlib.handoff import Handoff, HandoffError, Table, markers, parse
+@@ -14,6 +15,7 @@ from rbotlib.handoff import Handoff, HandoffError, Table, cells, markers, parse
  from rbotlib.rules import Rules
  
  EXIT_VALID, EXIT_MALFORMED, EXIT_BLOCKED, EXIT_IDENTITY = 0, 2, 3, 4
@@ -452,7 +472,7 @@ Expected: FAIL — `ImportError: cannot import name 'MAX_HANDOFF_BYTES' from 'rb
  
  
  @dataclass(frozen=True)
-@@ -127,6 +129,9 @@ def check(text: str, contract: Contract, rules: Rules) -> tuple[int, list[Findin
+@@ -141,6 +143,9 @@ def check(text: str, contract: Contract, rules: Rules) -> tuple[int, list[Findin
      except HandoffError as exc:
          return EXIT_MALFORMED, [Finding("not_a_handoff", str(exc))]
      findings = _front_matter(h, contract, rules) + _sections(h, rules) + _tags(h, contract)
@@ -464,68 +484,18 @@ Expected: FAIL — `ImportError: cannot import name 'MAX_HANDOFF_BYTES' from 'rb
      findings += _citations(h, rules)
 ```
 
-`scripts/check_pr_size.sh` — patch:
-
-```diff
---- a/scripts/check_pr_size.sh
-+++ b/scripts/check_pr_size.sh
-@@ -1,8 +1,10 @@
- #!/usr/bin/env bash
- # PR size gate (global rule): at most 800 changed lines against the base.
--# Lock files, the read-only reference copy and the public golden-pack
--# documents are data, not authored code (docs/decisions/0001-toolchain.md).
-+# Lock files, the read-only reference copy, the public golden-pack documents
-+# and the corpus's synthetic packs are data, not authored code
-+# (docs/decisions/0001-toolchain.md).
- set -euo pipefail
- base="${BASE_REF:-origin/main}"
--n=$(git diff --numstat "$base...HEAD" -- . ':!*.lock' ':!reference/**' ':!tests/golden/**/documents/**')
-+n=$(git diff --numstat "$base...HEAD" -- . ':!*.lock' ':!reference/**' ':!tests/golden/**/documents/**' \
-+  ':!tests/corpus/synthetic/**')
- echo "$n" | awk '{s+=$1+$2} END{print s+0 " changed lines (limit 800)"; exit s>800}'
-```
-
-`.gitignore` — patch:
-
-```diff
---- a/.gitignore
-+++ b/.gitignore
-@@ -12,3 +12,5 @@ node_modules/
- .DS_Store
- # Analyst runs never enter the repo.
- rbot-runs/
-+# Proxy runs on the corpus (interfaces spec section 12.4); scorecards go to docs/corpus-runs/.
-+/corpus-runs/
-```
-
-`docs/decisions/0001-toolchain.md` — patch:
-
-```diff
---- a/docs/decisions/0001-toolchain.md
-+++ b/docs/decisions/0001-toolchain.md
-@@ -8,7 +8,7 @@
- 
- **Exclusions, all data rather than authored code:**
- - `reference/deploy-v-r14/` (read-only Deploy V fork, ADR 0003) is outside ruff, mypy, coverage, bandit, jscpd, the suppression count and the PR-size count; gitleaks scans it in full (it reports no leaks at r14).
--- `tests/golden/**/documents/**` (public filings and labelled synthetic test documents, Plan 02) is outside the PR-size count.
-+- `tests/golden/**/documents/**` and `tests/corpus/synthetic/**` (public filings and labelled synthetic test documents, Plan 02) are outside the PR-size count.
- - Lock files are outside the PR-size count (the global rule's own exclusion).
- 
- **Bandit floor:** `scripts/check_bandit_floor.py` fails below 40 scanned lines, so a scan that read nothing never passes; raise it as the code grows, never lower it.
-```
-
 - [ ] **Step 5: Run the tests**
 
 Run: `uv run pytest`
-Expected: `88 passed`, coverage ≥ 80%.
+Expected: `126 passed`, coverage ≥ 80%.
 
 - [ ] **Step 6: Run the gate run** (Global Constraints). Expected: every command exits 0; `rbot check` prints `0 problem(s)`.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add rbot scripts tests .gitignore docs/decisions/0001-toolchain.md
-git commit -m "rbot: Plan 01 amendments A1, A3, A4, A5 (scales, too_large, document_types, PR-size exclusion)
+git add rbot tests
+git commit -m "rbot: Plan 01 amendments A1, A3, A4 and deferrals M4, M10 (scales, too_large, document_types, inputs line, string-only table ids)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
@@ -1240,9 +1210,9 @@ def add_command(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
  
 +from rbotlib import corpus
  from rbotlib.catalog import check_tree
- from rbotlib.contract import load_contract
+ from rbotlib.contract import ContractError, load_contract
  from rbotlib.render import render_module
-@@ -56,6 +57,7 @@ def main(argv: list[str] | None = None) -> int:
+@@ -73,6 +74,7 @@ def main(argv: list[str] | None = None) -> int:
      r.set_defaults(run=_render)
      c = sub.add_parser("check", help="contracts, generated modules, Pathways, Front Pages, budget")
      c.set_defaults(run=_check)
@@ -1270,25 +1240,25 @@ corpus:
 ```diff
 --- a/.github/workflows/ci.yml
 +++ b/.github/workflows/ci.yml
-@@ -31,6 +31,9 @@ jobs:
-       - run: uv run ruff format --check .
+@@ -32,6 +32,9 @@ jobs:
        - run: uv run mypy
        - run: uv run pytest
+       - run: uv run python rbot/scripts/rbot.py check
 +      # Corpus tests (interfaces spec section 12.3): in-repo synthetic files must be
 +      # present; external packs live only on the owner's machine (make corpus).
 +      - run: RBOT_REQUIRE_CORPUS=synthetic uv run pytest -m corpus --no-cov
        - run: uv run python scripts/check_suppressions.py
        - run: uv run complexipy rbot/scripts scripts --max-complexity-allowed 15
-       - run: uv run bandit -r rbot/scripts scripts -f json -o bandit.json
+       - run: uv run bandit -r rbot/scripts scripts -f json -o bandit.json || true
 ```
 
 - [ ] **Step 6: Run the tests, the gate run and the corpus gate**
 
 Run: `uv run pytest`
-Expected without `RBOT_CORPUS_ROOTS`: `98 passed, 33 skipped` (the 33 `test_corpus_hashes_match` cases skip, naming the unresolved root).
+Expected without `RBOT_CORPUS_ROOTS`: `136 passed, 33 skipped` (the 33 `test_corpus_hashes_match` cases skip, naming the unresolved root).
 
 Run the gate run, then the corpus gate (Global Constraints).
-Expected: every command exits 0; `RBOT_REQUIRE_CORPUS=1 uv run pytest -m corpus --no-cov` reports `33 passed, 98 deselected`; `rbot corpus verify` prints `ok <pack> (<n> files)` for all 33 packs and `exit 0`.
+Expected: every command exits 0; `RBOT_REQUIRE_CORPUS=1 uv run pytest -m corpus --no-cov` reports `33 passed, 136 deselected`; `rbot corpus verify` prints `ok <pack> (<n> files)` for all 33 packs and `exit 0`.
 
 - [ ] **Step 7: Prove the require rule fails rather than skips**
 
@@ -1305,10 +1275,10 @@ git add rbot tests Makefile pyproject.toml .github/workflows/ci.yml
 git commit -m "corpus: registry of 33 packs with sha256, rbot corpus, corpus marker and require rule
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
-BASE_REF=build/01d-catalog bash scripts/check_pr_size.sh
+BASE_REF=813aa02 bash scripts/check_pr_size.sh
 ```
 
-Expected: `794 changed lines (limit 800)`.
+Expected: `784 changed lines (limit 800)`.
 
 Report: test counts with and without the corpus roots, the gate and corpus-gate exit codes, the PR size. `Not verified:` CI on GitHub (no remote yet); that the caos checkout stays at `5ca9118e` (a moved checkout fails `rbot corpus verify` loudly, by design).
 
@@ -1824,9 +1794,9 @@ def add_command(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 -from rbotlib import corpus
 +from rbotlib import corpus, inventory
  from rbotlib.catalog import check_tree
- from rbotlib.contract import load_contract
+ from rbotlib.contract import ContractError, load_contract
  from rbotlib.render import render_module
-@@ -43,6 +47,14 @@ def _check(args: argparse.Namespace) -> int:
+@@ -60,6 +64,14 @@ def _check(args: argparse.Namespace) -> int:
      return 1 if problems else 0
  
  
@@ -1841,7 +1811,7 @@ def add_command(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
  def main(argv: list[str] | None = None) -> int:
      parser = argparse.ArgumentParser(prog="rbot")
      parser.add_argument("--root", type=Path, default=RBOT_ROOT, help="the RBOT folder")
-@@ -58,6 +70,10 @@ def main(argv: list[str] | None = None) -> int:
+@@ -75,6 +87,10 @@ def main(argv: list[str] | None = None) -> int:
      c = sub.add_parser("check", help="contracts, generated modules, Pathways, Front Pages, budget")
      c.set_defaults(run=_check)
      corpus.add_command(sub)
@@ -1857,7 +1827,7 @@ def add_command(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 - [ ] **Step 5: Run the tests, the gate run and the corpus gate**
 
 Run: `uv run pytest`
-Expected without corpus roots: `103 passed, 66 skipped`. With the corpus gate: `66 passed, 103 deselected` — `test_inventory_is_deterministic[<pack>]` runs `rbot inventory` twice on every pack and finds identical files, sha256 and PDF page counts equal to the registry.
+Expected without corpus roots: `141 passed, 66 skipped`. With the corpus gate: `66 passed, 141 deselected` — `test_inventory_is_deterministic[<pack>]` runs `rbot inventory` twice on every pack and finds identical files, sha256 and PDF page counts equal to the registry.
 
 Run the gate run and the corpus gate. Expected: every command exits 0.
 
@@ -2320,9 +2290,9 @@ def add_command(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 -from rbotlib import corpus, inventory
 +from rbotlib import corpus, inventory, prepare
  from rbotlib.catalog import check_tree
- from rbotlib.contract import load_contract
+ from rbotlib.contract import ContractError, load_contract
  from rbotlib.render import render_module
-@@ -71,6 +71,7 @@ def main(argv: list[str] | None = None) -> int:
+@@ -88,6 +88,7 @@ def main(argv: list[str] | None = None) -> int:
      c.set_defaults(run=_check)
      corpus.add_command(sub)
      inventory.add_command(sub)
@@ -2335,7 +2305,7 @@ def add_command(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 - [ ] **Step 4: Run the tests, the gate run and the corpus gate**
 
 Run: `uv run pytest`
-Expected without corpus roots: `113 passed, 101 skipped`. With the corpus gate: `101 passed, 113 deselected`, about 80 seconds (the three 170–181-page TEST-Issuer Data PDFs dominate). `test_prepare_pages_and_markers[<pack>]` finds every corpus file readable, every PDF's page count equal to the registry and page markers `1..N`; `test_entity_trap_flagged` finds `SIX FLAGS` named on the mis-filed 10-K in `tid-ford` and `Ford` on the mis-filed 10-K in `tid-six-flags`, and the pack's own issuer named on neither.
+Expected without corpus roots: `151 passed, 101 skipped`. With the corpus gate: `101 passed, 151 deselected`, about 80 seconds (the three 170–181-page TEST-Issuer Data PDFs dominate). `test_prepare_pages_and_markers[<pack>]` finds every corpus file readable, every PDF's page count equal to the registry and page markers `1..N`; `test_entity_trap_flagged` finds `SIX FLAGS` named on the mis-filed 10-K in `tid-ford` and `Ford` on the mis-filed 10-K in `tid-six-flags`, and the pack's own issuer named on neither.
 
 Run the gate run and the corpus gate. Expected: every command exits 0.
 
@@ -3242,7 +3212,7 @@ def write_all(run: Path, found: dict[str, Portfolio], rules: Rules) -> list[dict
 - [ ] **Step 5: Run the tests, the gate run and the corpus gate**
 
 Run: `uv run pytest`
-Expected without corpus roots: `132 passed, 101 skipped`. With the corpus gate: `101 passed, 132 deselected`; `test_prepare_pages_and_markers` now also asserts that no prepared sheet holds a spreadsheet error marker and that only images are `image_read` (the corpus gains sheets and an image in Task 8).
+Expected without corpus roots: `170 passed, 101 skipped`. With the corpus gate: `101 passed, 170 deselected`; `test_prepare_pages_and_markers` now also asserts that no prepared sheet holds a spreadsheet error marker and that only images are `image_read` (the corpus gains sheets and an image in Task 8).
 
 Run the gate run and the corpus gate. Expected: every command exits 0.
 
@@ -3259,7 +3229,7 @@ Report: test counts, gate and corpus-gate exit codes. `Not verified:` a real ana
 
 ---
 
-### Task 6: Plan 01 amendments A8 and A9: the Handoff parser
+### Task 6: Plan 01 amendments A8 and A9 and review deferral M5: the Handoff parser
 
 The controller added these to Plan 02 (planning ledger, 2026-10-11): citation excerpts quoted from the caos `.txt` filings are pipe-delimited tables, and the parser must not lose a table or a key a model writes slightly differently.
 
@@ -3268,10 +3238,11 @@ The controller added these to Plan 02 (planning ledger, 2026-10-11): citation ex
 - Test: `tests/test_handoff.py`, `tests/test_validate.py`, `tests/test_render.py`
 
 **Interfaces:**
-- Consumes: Plan 01's `rbotlib.handoff.parse`, `validate.check`, `render_module`.
+- Consumes: Plan 01's `rbotlib.handoff.parse` and public `cells(line)`, `validate.check` (its `_outside_citation_rows` matches citation rows by `cells`), `render_module`.
 - Produces:
-  - **A8:** a table cell may hold a literal pipe written `\|`; `parse` splits rows only on unescaped pipes and returns the cell with `|` (a backslash not before a pipe stays as written). Every generated MODULE.md tells modules: "Write a literal pipe inside any cell, excerpts included, as `\|`." Task 10's Run Brief writes cells the same way.
+  - **A8:** a table cell may hold a literal pipe written `\|`; `cells` (and so `parse`) splits rows only on unescaped pipes and returns the cell with `|` (a backslash not before a pipe stays as written). The validator's exclusion of citation-table rows from marker counting compares lines as `cells`, so a citation row whose excerpt holds `\|` still cannot cite itself (ledger note for A8; a test proves it). Every generated MODULE.md tells modules: "Write a literal pipe inside any cell, excerpts included, as `\|`." Task 10's Run Brief writes cells the same way.
   - **A9:** the separator row accepts GitHub's short cells (`|-|`, `| :- | -: |`); a `<!-- table: … -->` tag whose id is not `[A-Za-z0-9_.-]+` is kept in `Handoff.invalid_tags: list[str]` (new field, default empty) and the validator reports it as `invalid_tag` (exit 2), never drops it; lines inside fenced code blocks (``` or ~~~) are neither H2 sections nor tags; a duplicate or empty front-matter key raises `HandoffError` naming it.
+  - **M5:** a table whose header or separator line is indented four or more spaces (a tab counts as four) is an indented code block, not a table: its tag is reported as `orphan_tag`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -3280,7 +3251,7 @@ The controller added these to Plan 02 (planning ledger, 2026-10-11): citation ex
 `````diff
 --- a/tests/test_handoff.py
 +++ b/tests/test_handoff.py
-@@ -48,3 +48,58 @@ def test_a_header_without_separator_is_not_a_table() -> None:
+@@ -48,3 +48,64 @@ def test_a_header_without_separator_is_not_a_table() -> None:
  
  def test_markers_finds_every_citation_id() -> None:
      assert markers("a [C1] b [C12] c [C1] [X3]") == {"C1", "C12"}
@@ -3339,6 +3310,12 @@ The controller added these to Plan 02 (planning ledger, 2026-10-11): citation ex
 +def test_duplicate_or_empty_front_matter_keys_are_refused(front: str, message: str) -> None:
 +    with pytest.raises(HandoffError, match=message):
 +        parse(f"---\n{front}\n---\nbody\n")
++
++
++@pytest.mark.parametrize(("indent", "orphans"), [("   ", []), ("    ", ["t"]), ("  \t", ["t"])])
++def test_a_table_indented_four_spaces_is_a_code_block(indent: str, orphans: list[str]) -> None:
++    h = parse(f"---\nk: v\n---\n<!-- table: t -->\n{indent}| x |\n{indent}|---|\n| 1 |\n")
++    assert (h.orphan_tags, set(h.tables)) == (orphans, set() if orphans else {"t"})
 `````
 
 `tests/test_validate.py` — patch:
@@ -3354,6 +3331,22 @@ The controller added these to Plan 02 (planning ledger, 2026-10-11): citation ex
      ],
  )
  def test_each_defect_is_named(
+@@ -159,6 +160,15 @@ def test_a_citation_that_cites_itself_is_unused(
+     assert "unused_citation" in found
+ 
+ 
++def test_a_citation_row_with_an_escaped_pipe_still_cannot_cite_itself(
++    handoff_text: str, contract: Contract, rules: Rules
++) -> None:
++    piped = handoff_text.replace("revenue was 100 |", r"Net revenues \| 100 |")
++    assert check(piped, contract, rules) == (EXIT_VALID, [])
++    text = piped.replace("period [C1].", "period.").replace(r"\| 100 |", r"\| 100 [C1] |")
++    assert codes(text, contract, rules) == (EXIT_MALFORMED, {"unused_citation"})
++
++
+ def test_a_marker_inside_another_table_still_counts(
+     handoff_text: str, contract: Contract, rules: Rules
+ ) -> None:
 ```
 
 `tests/test_render.py` — patch:
@@ -3361,9 +3354,9 @@ The controller added these to Plan 02 (planning ledger, 2026-10-11): citation ex
 ```diff
 --- a/tests/test_render.py
 +++ b/tests/test_render.py
-@@ -19,6 +19,7 @@ def test_module_md_carries_the_contract_and_the_checked_rules(rules: Rules) -> N
-     assert "read by CP-Y." in text
+@@ -23,6 +23,7 @@ def test_module_md_carries_the_contract_and_the_checked_rules(rules: Rules) -> N
      assert "<!-- table: citations -->\n| id | source | locator | excerpt |" in text
+     assert "Each citation id appears on exactly one row." in text
      assert "- No investment opinion." in text
 +    assert "- Write a literal pipe inside any cell, excerpts included, as `\\|`." in text
      assert "rbot.py validate handoffs/CP-X.md --module CP-X" in text
@@ -3374,7 +3367,7 @@ The controller added these to Plan 02 (planning ledger, 2026-10-11): citation ex
 - [ ] **Step 2: Run them to see them fail**
 
 Run: `uv run pytest tests/test_handoff.py tests/test_validate.py tests/test_render.py --no-cov`
-Expected: FAIL — `16 failed, 40 passed`: the escaped-pipe, short-separator, invalid-tag, fenced-block and front-matter cases, the `invalid_tag` finding and the MODULE.md pipe rule.
+Expected: FAIL — `19 failed, 55 passed`: the escaped-pipe, short-separator, invalid-tag, fenced-block, front-matter and indented-table (M5) cases, the `invalid_tag` finding, the escaped-pipe citation row that cites itself, and the MODULE.md pipe rule.
 
 - [ ] **Step 3: Amend the parser, the validator and the generator**
 
@@ -3383,14 +3376,14 @@ Expected: FAIL — `16 failed, 40 passed`: the escaped-pipe, short-separator, in
 ```diff
 --- a/rbot/scripts/rbotlib/handoff.py
 +++ b/rbot/scripts/rbotlib/handoff.py
-@@ -2,18 +2,23 @@
+@@ -2,18 +2,24 @@
  
  A Handoff is Markdown: flat `key: value` front matter between `---` lines,
  H2 sections, tagged tables (`<!-- table: <id> -->` then a GitHub table, blank
 -lines allowed between) and citation markers `[C<n>]`.
 +lines allowed between) and citation markers `[C<n>]`. A literal pipe inside
-+a cell is written as a backslash and a pipe (amendment A8). Lines inside fenced
-+code blocks are neither sections nor tags (A9).
++a cell is written as a backslash and a pipe (amendment A8). Fenced code blocks
++hold no sections or tags (A9); a table indented 4+ spaces is code, not a table.
  """
  
  from __future__ import annotations
@@ -3408,10 +3401,11 @@ Expected: FAIL — `16 failed, 40 passed`: the escaped-pipe, short-separator, in
 -_SEPARATOR = re.compile(r"^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?$")
 +_SEPARATOR = re.compile(r"^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?$")
 +_PIPE = re.compile(r"(?<!\\)\|")
++_CODE_INDENT = re.compile(r"^(?: {4}| {0,3}\t)")  # an indented code line, never a table (M5)
  
  
  class HandoffError(ValueError):
-@@ -34,6 +39,7 @@ class Handoff:
+@@ -34,6 +40,7 @@ class Handoff:
      duplicate_tags: list[str]
      orphan_tags: list[str]
      body: str
@@ -3419,7 +3413,7 @@ Expected: FAIL — `16 failed, 40 passed`: the escaped-pipe, short-separator, in
  
  
  def _split_front_matter(text: str) -> tuple[dict[str, str], str]:
-@@ -48,15 +54,36 @@ def _split_front_matter(text: str) -> tuple[dict[str, str], str]:
+@@ -48,15 +55,36 @@ def _split_front_matter(text: str) -> tuple[dict[str, str], str]:
          if not line.strip():
              continue
          key, sep, value = line.partition(":")
@@ -3432,7 +3426,7 @@ Expected: FAIL — `16 failed, 40 passed`: the escaped-pipe, short-separator, in
      return front_matter, "\n".join(lines[end + 1 :])
  
  
- def _cells(line: str) -> list[str]:
+ def cells(line: str) -> list[str]:
 -    # ponytail: an escaped pipe (\|) inside a cell splits it; no module needs one.
 -    return [cell.strip() for cell in line.strip().strip("|").split("|")]
 +    """The cells of a table row; `\\|` is a literal pipe inside a cell (A8)."""
@@ -3459,7 +3453,16 @@ Expected: FAIL — `16 failed, 40 passed`: the escaped-pipe, short-separator, in
  
  
  def _read_table(lines: list[str], start: int) -> Table | None:
-@@ -78,24 +105,27 @@ def _read_table(lines: list[str], start: int) -> Table | None:
+@@ -66,6 +94,8 @@ def _read_table(lines: list[str], start: int) -> Table | None:
+         i += 1
+     if i + 1 >= len(lines) or not lines[i].lstrip().startswith("|"):
+         return None
++    if any(_CODE_INDENT.match(line) for line in lines[i : i + 2]):
++        return None
+     if not _SEPARATOR.match(lines[i + 1].strip()):
+         return None
+     rows = []
+@@ -78,24 +108,27 @@ def _read_table(lines: list[str], start: int) -> Table | None:
  
  def parse(text: str) -> Handoff:
      front_matter, body = _split_front_matter(text)
@@ -3497,7 +3500,7 @@ Expected: FAIL — `16 failed, 40 passed`: the escaped-pipe, short-separator, in
 ```diff
 --- a/rbot/scripts/rbotlib/validate.py
 +++ b/rbot/scripts/rbotlib/validate.py
-@@ -93,6 +93,7 @@ def _tags(h: Handoff, contract: Contract) -> list[Finding]:
+@@ -94,6 +94,7 @@ def _tags(h: Handoff, contract: Contract) -> list[Finding]:
      declared = {t.id for t in contract.tables} | {"citations"}
      found = [Finding("duplicate_table", f"table {t} is tagged twice") for t in h.duplicate_tags]
      found += [Finding("orphan_tag", f"tag {t} has no table under it") for t in h.orphan_tags]
@@ -3505,6 +3508,18 @@ Expected: FAIL — `16 failed, 40 passed`: the escaped-pipe, short-separator, in
      found += [
          Finding("undeclared_table", f"table {t} is not in the contract")
          for t in h.tables
+@@ -103,7 +104,10 @@ def _tags(h: Handoff, contract: Contract) -> list[Finding]:
+ 
+ 
+ def _outside_citation_rows(body: str, table: Table) -> str:
+-    """The body without the citations table's own rows, so a row cannot cite itself."""
++    """The body without the citations table's own rows, so a row cannot cite itself.
++
++    Lines are compared as parsed cells, so an excerpt with an escaped pipe (A8) still matches.
++    """
+     rows = {tuple(row) for row in table.rows}
+     kept = [line for line in body.splitlines() if tuple(cells(line)) not in rows]
+     return "\n".join(kept)
 ```
 
 `rbot/scripts/rbotlib/render.py` — patch:
@@ -3512,20 +3527,20 @@ Expected: FAIL — `16 failed, 40 passed`: the escaped-pipe, short-separator, in
 ```diff
 --- a/rbot/scripts/rbotlib/render.py
 +++ b/rbot/scripts/rbotlib/render.py
-@@ -48,6 +48,7 @@ def _rules_block(rules: Rules) -> list[str]:
-         f"- `qa_status` is one of: {', '.join(rules.qa_status)}.",
+@@ -53,6 +53,7 @@ def _rules_block(rules: Rules, module_id: str) -> list[str]:
          f"- H2 sections, exactly and in order: {', '.join(rules.sections)}.",
-         "- Tag each table with its `<!-- table: <id> -->` line.",
+         "- Tag each table exactly once, with its `<!-- table: <id> -->` line "
+         "directly above the table.",
 +        "- Write a literal pipe inside any cell, excerpts included, as `\\|`.",
          "- Emit no table the contract does not list.",
+         "- Column names exactly as printed, without the `*` that marks a critical column.",
          f"- A critical cell (column marked *) is never empty or `{rules.gap_marker}`,",
-         f"  nor any of: {placeholders}.",
 ```
 
 - [ ] **Step 4: Run the tests, the gate run and the corpus gate**
 
 Run: `uv run pytest`
-Expected without corpus roots: `149 passed, 101 skipped`. With the corpus gate: `101 passed, 149 deselected` (unchanged from Task 5; the parser change is covered by the unit tests and, from Task 7 on, by a corpus citation whose excerpt keeps the 10-K's pipes).
+Expected without corpus roots: `191 passed, 101 skipped`. With the corpus gate: `101 passed, 191 deselected` (unchanged from Task 5; the parser change is covered by the unit tests and, from Task 7 on, by a corpus citation whose excerpt keeps the 10-K's pipes).
 
 Run the gate run and the corpus gate. Expected: every command exits 0; `rbot check` still `0 problem(s)` (the shipped tree has no MODULE.md yet to regenerate).
 
@@ -3533,15 +3548,15 @@ Run the gate run and the corpus gate. Expected: every command exits 0; `rbot che
 
 ```bash
 git add rbot tests
-git commit -m "handoff: amendments A8 (escaped pipes) and A9 (short separators, invalid tags, fenced blocks, front-matter keys)
+git commit -m "handoff: amendments A8 (escaped pipes) and A9 (short separators, invalid tags, fenced blocks, front-matter keys), deferral M5 (indented tables are code)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 BASE_REF=build/02b-intake bash scripts/check_pr_size.sh
 ```
 
-Expected: `776 changed lines (limit 800)`.
+Expected: `799 changed lines (limit 800)`.
 
-Report: test counts, gate and corpus-gate exit codes, PR size. `Not verified:` that GPT and Claude models escape pipes as MODULE.md asks (Plan 05's proxy runs and A/B measure it; an unescaped pipe shows as `row_shape` or `citation_incomplete`).
+Report: test counts, gate and corpus-gate exit codes, PR size. `Not verified:` that GPT and Claude models escape pipes as MODULE.md asks (Plan 05's proxy runs and A/B measure it; an unescaped pipe shows as `row_shape` or `citation_incomplete`); a table nested inside a list item (M5 counts indent from the line start, not from the list marker as GitHub does).
 
 ---
 
@@ -3556,7 +3571,7 @@ Report: test counts, gate and corpus-gate exit codes, PR size. `Not verified:` t
 - Produces:
   - `rbotlib.validate.check(text, contract, rules, run: Path | None = None) -> tuple[int, list[Finding]]`; with `run`, each `citations` row is checked: a `source` that is neither an inventoried path nor an existing `fetched/<file>` gives `source_unknown`; an unreadable source, or an excerpt not found in the source's prepared text (only on the cited pages when the locator holds `p.<n>` or `pp.<a>-<b>`), gives `citation_unanchored`; both exit 2. A source flagged `image_read` (a screenshot or scan) has no text and is not anchored; its figures are Image-Read Values by canon rule 7.
   - `rbotlib.validate.normalise(text) -> str` (NFKC, case-folded, curly quotes and en/em dashes made plain, `|` table separators dropped, whitespace collapsed); `excerpt_found(text, excerpt) -> bool` (an excerpt split at `...` or `…` matches in order); `pages(prepared_text) -> dict[int, str]`; `run_findings(h, run) -> list[Finding]`. Plan 06's scorecard counts citation validity with `run_findings`; Task 8's expectations test reuses `excerpt_found`.
-  - `rbot validate <handoff> --module <ID> --run <RUN>` (interfaces spec §9).
+  - `rbot validate <handoff> --module <ID> --run <RUN>` (interfaces spec §9); Plan 01's `error: <path>: <reason>` exit 1 for a missing contract or Handoff file is kept unchanged.
 
 - [ ] **Step 1: Branch for PR 02D and write the failing tests**
 
@@ -3716,7 +3731,7 @@ Expected: FAIL — `ImportError: cannot import name 'excerpt_found' from 'rbotli
 ```diff
 --- a/rbot/scripts/rbotlib/validate.py
 +++ b/rbot/scripts/rbotlib/validate.py
-@@ -3,11 +3,20 @@
+@@ -3,12 +3,21 @@
  Exit codes follow Deploy V: 0 valid, 2 malformed, 3 blocked (valid but
  qa_status Blocked), 4 identity mismatch. A Handoff over the upstream cap
  (spec section 7, caos MAX_UPSTREAM_HANDOFF_BYTES) is malformed: `too_large`.
@@ -3731,13 +3746,14 @@ Expected: FAIL — `ImportError: cannot import name 'excerpt_found' from 'rbotli
 +import json
 +import re
 +import unicodedata
+ from collections import Counter
  from dataclasses import dataclass
 +from pathlib import Path
 +from typing import Any
  
  from rbotlib.contract import Column, Contract, TableSpec
- from rbotlib.handoff import Handoff, HandoffError, Table, markers, parse
-@@ -124,12 +133,113 @@ def _citations(h: Handoff, rules: Rules) -> list[Finding]:
+ from rbotlib.handoff import Handoff, HandoffError, Table, cells, markers, parse
+@@ -141,12 +150,113 @@ def _citations(h: Handoff, rules: Rules) -> list[Finding]:
      return found
  
  
@@ -3859,18 +3875,17 @@ Expected: FAIL — `ImportError: cannot import name 'excerpt_found' from 'rbotli
 ```diff
 --- a/rbot/scripts/rbotlib/cli.py
 +++ b/rbot/scripts/rbotlib/cli.py
-@@ -21,7 +21,9 @@ from rbotlib.validate import check
- def _validate(args: argparse.Namespace) -> int:
-     rules = load_rules(args.root)
-     contract = load_contract(args.root / "modules" / args.module / "contract.json", rules)
--    code, findings = check(Path(args.handoff).read_text(encoding="utf-8"), contract, rules)
-+    text = Path(args.handoff).read_text(encoding="utf-8")
+@@ -35,7 +35,8 @@ def _validate(args: argparse.Namespace) -> int:
+         text = Path(args.handoff).read_text(encoding="utf-8")
+     except FileNotFoundError as exc:
+         return _fail(Path(args.handoff), exc)
+-    code, findings = check(text, contract, rules)
 +    run = Path(args.run_dir) if args.run_dir else None
 +    code, findings = check(text, contract, rules, run)
      for f in findings:
          print(f"{f.code}: {f.message}")
      print(f"exit {code}")
-@@ -62,6 +64,7 @@ def main(argv: list[str] | None = None) -> int:
+@@ -79,6 +80,7 @@ def main(argv: list[str] | None = None) -> int:
      v = sub.add_parser("validate", help="check a Handoff against its module contract")
      v.add_argument("handoff")
      v.add_argument("--module", required=True)
@@ -3883,7 +3898,7 @@ Expected: FAIL — `ImportError: cannot import name 'excerpt_found' from 'rbotli
 - [ ] **Step 4: Run the tests, the gate run and the corpus gate**
 
 Run: `uv run pytest`
-Expected without corpus roots: `160 passed, 102 skipped`. With the corpus gate: `102 passed, 160 deselected`; `test_citations_anchor_in_real_filings` anchors a CZR 10-K income-statement line quoted with its pipes escaped (A8), refuses the same line with one digit changed, anchors the Six Flags registrant on page 1 of the mis-filed PDF and refuses it on page 2.
+Expected without corpus roots: `202 passed, 102 skipped`. With the corpus gate: `102 passed, 202 deselected`; `test_citations_anchor_in_real_filings` anchors a CZR 10-K income-statement line quoted with its pipes escaped (A8), refuses the same line with one digit changed, anchors the Six Flags registrant on page 1 of the mis-filed PDF and refuses it on page 2.
 
 Run the gate run and the corpus gate. Expected: every command exits 0.
 
@@ -3900,16 +3915,17 @@ Report: test counts, gate and corpus-gate exit codes. `Not verified:` excerpts a
 
 ---
 
-### Task 8: The synthetic CZR Primary pack and its expectations
+### Task 8: The synthetic CZR Primary pack, its expectations and amendment A5
 
 **Files:**
 - Create: `tests/corpus/synthetic/czr-2026q2-primary/` (seven SYNTHETIC files below), `tests/corpus/expectations/czr-2026q2-primary.json`
-- Modify: `tests/corpus/corpus.json` (adds the pack, 34 in all)
-- Test: `tests/test_synthetic_pack.py`, `tests/test_corpus.py`
+- Modify: `tests/corpus/corpus.json` (adds the pack, 34 in all), `scripts/check_pr_size.sh`, `.gitignore`, `docs/decisions/0001-toolchain.md`
+- Test: `tests/test_synthetic_pack.py`, `tests/test_corpus.py`, `tests/test_gate_scripts.py`
 
 **Interfaces:**
-- Consumes: the registry format (Task 2), `prepared_run` (Task 4), the sheet and portfolio readers (Task 5), `excerpt_found` (Task 7).
+- Consumes: the registry format (Task 2), `prepared_run` (Task 4), the sheet and portfolio readers (Task 5), `excerpt_found` (Task 7), Plan 01's `scripts/check_pr_size.sh`.
 - Produces:
+  - Amendment A5: `scripts/check_pr_size.sh` also excludes `tests/corpus/synthetic/**` (the authored pack below is data, like `tests/golden/**/documents/**`), recorded in `docs/decisions/0001-toolchain.md`; `.gitignore` ignores `/corpus-runs/` (Task 9's proxy runs write there).
   - Pack `czr-2026q2-primary` (root `synthetic`, `primary: true`, portfolios `TEST_CLO_I`): the 21 files of caos `czr-2026q2-full-credit-assessment` by `external` reference; the same FINRA TRACE observation a second time as `TRACE_12769GAC4_last_trade.txt` (trap `duplicate_source`); the VMO2 Q1 2026 bond report PDF from TEST-Issuer Data as the pack's real PDF (no CZR rating PDF is public in the corpus; it is a PDF-path exercise, trap `entity_mismatch`); and seven authored files, each labelled SYNTHETIC in its name and first line: the new Term Loan B term sheet (Price Talk SOFR + 300–325, OID 99.0–99.5, USD 3,000 million, maturity 2033-12-15, use of proceeds Acquisition, commitment date 2026-10-08; trap `price_talk_not_market_level`), the pro forma capitalisation with sourced PF interest (989) and one unrealized add-back (run-rate cost synergies, 150), the Sector RV Workbook (`Gaming` sheet: loan rows, Index Statistics, Sector Ratings Average, `#N/A N/A` cells), a Bloomberg levels export with `#N/A` cells, a levels screenshot (trap `image_read_only`) and the Test CLO I positions and compliance-monitor CSVs. Pathways: Full Credit Assessment full `primary`; Portfolio Decision full and Relative Value full `exercises`.
   - The scenario is the real one in the caos documents — Fertitta Entertainment's agreed acquisition of Caesars Entertainment, Inc. (merger agreement of May 27, 2026) — financed by a synthetic new Term Loan B. Actual figures in the authored files are copied from the Form 10-K and 10-Q (each sum checked); pro forma figures are labelled arranger estimates. The positions file holds no Caesars exposure, consistent with the caos Test CLO I adaptation in the same pack.
   - `tests/corpus/expectations/czr-2026q2-primary.json` (`"schema": "rbot-expectations/1"`): 38 hand-checked values in the §12.1 shape (`module`, `table`, `where`, `value`, `tolerance`) plus `source`, `locator` and a verbatim `excerpt` that a test anchors in the prepared text (or a `rule` where the value follows from a spec rule, such as `level_basis` Talk for NEW-1); figures are plain decimals in USD millions (the §0 column convention); and, for `credit_snapshot`, the tables whose critical cells the pack supports (the completeness denominator of §12.6). Plan 03's `test_model_from_cp1_handoff_fixture` takes its CZR figures from here.
@@ -4044,12 +4060,106 @@ def test_expectations_anchor_in_their_sources(
          assert {w["id"] for w in pack.data["pathways"]} <= PATHWAYS
 ```
 
+`tests/test_gate_scripts.py` — patch:
+
+```diff
+--- a/tests/test_gate_scripts.py
++++ b/tests/test_gate_scripts.py
+@@ -1,5 +1,7 @@
+ from __future__ import annotations
+ 
++import os
++import subprocess
+ from pathlib import Path
+ 
+ import check_bandit_floor
+@@ -54,3 +56,23 @@ def test_bandit_main_reads_a_report(tmp_path: Path) -> None:
+     report = tmp_path / "bandit.json"
+     report.write_text('{"errors": [], "results": [], "metrics": {"_totals": {"loc": 400}}}')
+     assert check_bandit_floor.main([str(report)]) == 0
++
++
++def _git(repo: Path, *args: str) -> None:
++    ident = ["-c", "user.name=t", "-c", "user.email=t@t"]
++    subprocess.run(["git", "-C", str(repo), *ident, *args], check=True, capture_output=True)
++
++
++def test_pr_size_ignores_the_corpus_synthetic_packs(tmp_path: Path) -> None:
++    _git(tmp_path, "init", "-q", "-b", "main")
++    _git(tmp_path, "commit", "-q", "--allow-empty", "-m", "base")
++    pack = tmp_path / "tests" / "corpus" / "synthetic" / "pack"
++    pack.mkdir(parents=True)
++    (pack / "big.md").write_text("line\n" * 900, encoding="utf-8")
++    (tmp_path / "small.py").write_text("x = 1\n" * 10, encoding="utf-8")
++    _git(tmp_path, "add", "-A")
++    _git(tmp_path, "commit", "-q", "-m", "work")
++    script = Path(__file__).parents[1] / "scripts" / "check_pr_size.sh"
++    env = {**os.environ, "BASE_REF": "HEAD~1"}
++    result = subprocess.run(["bash", str(script)], cwd=tmp_path, env=env, capture_output=True)
++    assert (result.returncode, result.stdout) == (0, b"10 changed lines (limit 800)\n")
+```
+
 - [ ] **Step 2: Run them to see them fail**
 
-Run: `uv run pytest tests/test_synthetic_pack.py tests/test_corpus.py --no-cov`
-Expected: FAIL — `3 failed`: `test_the_registry_is_well_formed` (`assert 33 == 34`), `test_primary_pack_traps` and `test_primary_pack_portfolio_json` (`CorpusError: no pack 'czr-2026q2-primary'`).
+Run: `uv run pytest tests/test_synthetic_pack.py tests/test_corpus.py tests/test_gate_scripts.py --no-cov`
+Expected: FAIL — `4 failed`: `test_the_registry_is_well_formed` (`assert 33 == 34`), `test_primary_pack_traps` and `test_primary_pack_portfolio_json` (`CorpusError: no pack 'czr-2026q2-primary'`), and `test_pr_size_ignores_the_corpus_synthetic_packs` (`910 changed lines (limit 800)`, exit 1).
 
-- [ ] **Step 3: Write the authored text files**
+- [ ] **Step 3: Amendment A5: keep the synthetic packs out of the PR count**
+
+`scripts/check_pr_size.sh` — patch:
+
+```diff
+--- a/scripts/check_pr_size.sh
++++ b/scripts/check_pr_size.sh
+@@ -1,8 +1,10 @@
+ #!/usr/bin/env bash
+ # PR size gate (global rule): at most 800 changed lines against the base.
+-# Lock files, the read-only reference copy and the public golden-pack
+-# documents are data, not authored code (docs/decisions/0001-toolchain.md).
++# Lock files, the read-only reference copy, the public golden-pack documents
++# and the corpus's synthetic packs are data, not authored code
++# (docs/decisions/0001-toolchain.md).
+ set -euo pipefail
+ base="${BASE_REF:-origin/main}"
+-n=$(git diff --numstat "$base...HEAD" -- . ':!*.lock' ':!reference/**' ':!tests/golden/**/documents/**')
++n=$(git diff --numstat "$base...HEAD" -- . ':!*.lock' ':!reference/**' ':!tests/golden/**/documents/**' \
++  ':!tests/corpus/synthetic/**')
+ echo "$n" | awk '{s+=$1+$2} END{print s+0 " changed lines (limit 800)"; exit s>800}'
+```
+
+`.gitignore` — patch:
+
+```diff
+--- a/.gitignore
++++ b/.gitignore
+@@ -13,3 +13,5 @@ node_modules/
+ .DS_Store
+ # Analyst runs never enter the repo.
+ rbot-runs/
++# Proxy runs on the corpus (interfaces spec section 12.4); scorecards go to docs/corpus-runs/.
++/corpus-runs/
+```
+
+`docs/decisions/0001-toolchain.md` — patch:
+
+```diff
+--- a/docs/decisions/0001-toolchain.md
++++ b/docs/decisions/0001-toolchain.md
+@@ -8,7 +8,7 @@
+ 
+ **Exclusions, all data rather than authored code:**
+ - `reference/deploy-v-r14/` (read-only Deploy V fork, ADR 0003) is outside ruff, mypy, coverage, bandit, jscpd, the suppression count and the PR-size count; gitleaks scans it in full (it reports no leaks at r14).
+-- `tests/golden/**/documents/**` (public filings and labelled synthetic test documents, Plan 02) is outside the PR-size count.
++- `tests/golden/**/documents/**` and `tests/corpus/synthetic/**` (public filings and labelled synthetic test documents, Plan 02) are outside the PR-size count.
+ - Lock files are outside the PR-size count (the global rule's own exclusion).
+ - `design/` (design prototypes: report mockups and the script that builds their sample data) is outside ruff, mypy, coverage, bandit, jscpd and the suppression count; the shipping renderer lives under `rbot/` (Plan 07) and is gated. gitleaks scans it in full.
+ 
+```
+
+Run: `uv run pytest tests/test_gate_scripts.py --no-cov`
+Expected: PASS.
+
+- [ ] **Step 4: Write the authored text files**
 
 `tests/corpus/synthetic/czr-2026q2-primary/SYNTHETIC_CZR_2026_TLB_Term_Sheet.md` — create:
 
@@ -4202,7 +4312,7 @@ C-16,Covenant,Covenant-Lite % (est.),Info only,—,—,~100%,—,Pass
 C-17,ESG / Exclusion,"Excluded sectors (Tobacco, Contr. Weapons, Thermal Coal)",0% NAV,Hard,Indenture §7.11,0%,0%,Pass
 ```
 
-- [ ] **Step 4: Write the two binary files from base64**
+- [ ] **Step 5: Write the two binary files from base64**
 
 Save each block below to a file, then decode it to its path from the repo root (the decoder is the standard library, so it behaves the same on macOS and Linux):
 
@@ -4360,7 +4470,7 @@ W55QtVtj+3c1q0Lh3Smcfwr7E1KhEmtfzaQdAAAAAElFTkSuQmCC
 
 The screenshot is a 430 × 64 one-bit PNG reading, line by line: "SYNTHETIC screenshot for Deploy VI tests - not a market observation", "Gaming loans, levels at 2026-10-02 (read from image only)", "CZR TL B-1 2031 bid 99.500 ask 99.875 3Y DM 241", "PENN TL B 2029 bid 98.750 ask 99.250 3Y DM 331". Open it to confirm.
 
-- [ ] **Step 5: Register the pack and write its expectations**
+- [ ] **Step 6: Register the pack and write its expectations**
 
 `tests/corpus/corpus.json` — patch:
 
@@ -4487,18 +4597,18 @@ uv run python rbot/scripts/rbot.py corpus verify --pack czr-2026q2-primary
 
 Expected (corpus roots exported): `ok czr-2026q2-primary (30 files)` and `exit 0`. A `sha256 differs` line names an authored file that was not written byte for byte.
 
-- [ ] **Step 6: Run the tests, the gate run and the corpus gate**
+- [ ] **Step 7: Run the tests, the gate run and the corpus gate**
 
 Run: `uv run pytest`
-Expected without corpus roots: `161 passed, 108 skipped`. With the corpus gate: `108 passed, 161 deselected`. The primary pack now runs through every corpus check: inventory determinism (30 files), prepare markers (the workbook, both CSVs and the screenshot included: no `#N/A` survives, only the image is `image_read`), the traps, the Test CLO I portfolio JSON (NAV 630.9, ten positions, ten maximum limits, seven rows unparsed with reasons) and all 38 expectations anchored in their sources.
+Expected without corpus roots: `204 passed, 108 skipped`. With the corpus gate: `108 passed, 204 deselected`. The primary pack now runs through every corpus check: inventory determinism (30 files), prepare markers (the workbook, both CSVs and the screenshot included: no `#N/A` survives, only the image is `image_read`), the traps, the Test CLO I portfolio JSON (NAV 630.9, ten positions, ten maximum limits, seven rows unparsed with reasons) and all 38 expectations anchored in their sources.
 
 Run the gate run and the corpus gate. Expected: every command exits 0.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add tests
-git commit -m "corpus: synthetic CZR Primary pack (term sheet, PF capitalisation, Sector RV, levels, screenshot, Test CLO I) and expectations
+git add tests scripts/check_pr_size.sh .gitignore docs/decisions/0001-toolchain.md
+git commit -m "corpus: synthetic CZR Primary pack (term sheet, PF capitalisation, Sector RV, levels, screenshot, Test CLO I), expectations and amendment A5
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ```
@@ -4811,7 +4921,7 @@ if __name__ == "__main__":
 - [ ] **Step 4: Run the tests, the gate run and the corpus gate**
 
 Run: `uv run pytest`
-Expected without corpus roots: `164 passed, 109 skipped`. With the corpus gate: `109 passed, 164 deselected`; `test_step_1_on_the_primary_pack` prepares all 30 files of `czr-2026q2-primary` with none unreadable and finds the `TEST_CLO_I` portfolio.
+Expected without corpus roots: `207 passed, 109 skipped`. With the corpus gate: `109 passed, 207 deselected`; `test_step_1_on_the_primary_pack` prepares all 30 files of `czr-2026q2-primary` with none unreadable and finds the `TEST_CLO_I` portfolio.
 
 Run the gate run and the corpus gate. Expected: every command exits 0.
 
@@ -4825,7 +4935,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 BASE_REF=build/02c-sheets bash scripts/check_pr_size.sh
 ```
 
-Expected: `711 changed lines (limit 800)` (the pack's own files are outside the count, amendment A5).
+Expected: `744 changed lines (limit 800)` (the pack's own files are outside the count, amendment A5).
 
 Report: test counts, gate and corpus-gate exit codes, PR size. `Not verified:` steps 2–4 of §12.6 (Plan 06); that Plan 06's `rbot new-run` accepts the seed's fields unchanged (it should write the same §8.2 keys).
 
@@ -5462,9 +5572,9 @@ def add_command(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 -from rbotlib import corpus, inventory, prepare
 +from rbotlib import brief, corpus, inventory, prepare
  from rbotlib.catalog import check_tree
- from rbotlib.contract import load_contract
+ from rbotlib.contract import ContractError, load_contract
  from rbotlib.render import render_module
-@@ -75,6 +75,7 @@ def main(argv: list[str] | None = None) -> int:
+@@ -91,6 +91,7 @@ def main(argv: list[str] | None = None) -> int:
      corpus.add_command(sub)
      inventory.add_command(sub)
      prepare.add_command(sub)
@@ -5477,7 +5587,7 @@ def add_command(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
 - [ ] **Step 4: Run the tests, the gate run and the corpus gate**
 
 Run: `uv run pytest`
-Expected without corpus roots: `176 passed, 110 skipped`. With the corpus gate: `110 passed, 176 deselected`; `test_brief_citations_anchor_in_the_primary_pack` finds every citation of the CP-0 fixture and of the written Run Brief anchored in the primary pack's prepared text (`run_findings` empty).
+Expected without corpus roots: `219 passed, 110 skipped`. With the corpus gate: `110 passed, 219 deselected`; `test_brief_citations_anchor_in_the_primary_pack` finds every citation of the CP-0 fixture and of the written Run Brief anchored in the primary pack's prepared text (`run_findings` empty).
 
 Run the gate run and the corpus gate. Expected: every command exits 0.
 
@@ -5512,7 +5622,7 @@ RBOT_REQUIRE_CORPUS=1 uv run pytest -m corpus --no-cov | tail -1
 RBOT_REQUIRE_CORPUS=1 uv run pytest | tail -2
 ```
 
-Expected: `exit 0` (34 packs ok); `110 passed, 176 deselected`; `286 passed` with coverage ≥ 80%.
+Expected: `exit 0` (34 packs ok); `110 passed, 219 deselected`; `329 passed` with coverage ≥ 80%.
 
 - [ ] **Step 2: Run proxy step 1 and step 5 on the Primary pack**
 
@@ -5560,7 +5670,7 @@ Run during Plan 02's verification on the full corpus (`RBOT_CORPUS_ROOTS` set to
 | `test_step_1_on_the_primary_pack` | 1 | proxy step 1 prepares all 30 files, none unreadable, portfolio `TEST_CLO_I` |
 | `test_brief_citations_anchor_in_the_primary_pack` | 1 | every citation of the CP-0 fixture and of the written Run Brief anchored |
 
-Full suite with the corpus required: 286 passed, coverage 97.5%.
+Full suite with the corpus required: 329 passed, coverage 97.4%.
 
 ## Proxy run, steps 1 and 5, on `czr-2026q2-primary` (Full Credit Assessment, full)
 
@@ -5593,8 +5703,11 @@ Report: the record's figures and every exit code. `Not verified:` Copilot behavi
 
 | Requirement (interfaces spec) | Where |
 |---|---|
-| §14.1 A1 scales and host producers; A3 `too_large`; A4 `document_types`; A5 PR-size exclusion and `corpus-runs/` | Task 1 |
+| §14.1 A1 scales and host producers; A3 `too_large`; A4 `document_types` | Task 1 |
+| §14.1 A5 PR-size exclusion and `corpus-runs/` | Task 8 |
 | Controller amendments A8 (escaped pipes in cells) and A9 (short separators, invalid tags reported, fenced blocks skipped, duplicate or empty front-matter keys refused) | Task 6 |
+| Plan 01 final-review deferrals M4 (`inputs` line in the rules block) and M10 (string-only table id and title) | Task 1 |
+| Deferral M5 (an indented table is a code block); A8 note (citation-row exclusion by parsed cells, tested with `\|` in an excerpt) | Task 6 |
 | §12.1 `corpus.json`, `RBOT_CORPUS_ROOTS`, external and synthetic roots; §12.2 every pack (34) | Tasks 2, 8 |
 | §12.3 `corpus` marker, require rule, `make corpus`, CI with in-repo packs required; `rbot corpus verify/list` (§9) | Task 2 |
 | §12.5 row 02: `test_corpus_hashes_match`, `test_inventory_is_deterministic[pack]`, `test_prepare_pages_and_markers[pack]`, `test_entity_trap_flagged` | Tasks 2, 3, 4, 5 |
