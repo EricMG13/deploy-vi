@@ -44,6 +44,10 @@ _BREAKS: dict[str, Callable[[dict[str, Any]], None]] = {
     "bad_document_type": lambda d: d["inputs"][0].update(document_types=["Napkin"]),
     "document_types_off_sources": lambda d: d["inputs"][1].update(document_types=["Other"]),
     "document_types_string": lambda d: d["inputs"][0].update(document_types="Indenture"),
+    "empty_document_types": lambda d: d["inputs"][0].update(document_types=[]),
+    "duplicate_document_types": lambda d: d["inputs"][0].update(
+        document_types=["Indenture", "Indenture"]
+    ),
     "table_id_int": lambda d: d["tables"][0].update(id=7),
     "table_title_list": lambda d: d["tables"][0].update(title=["Facts"]),
 }
@@ -72,6 +76,8 @@ def _broken(change: str) -> dict[str, Any]:
         ("bad_document_type", "unknown document type 'Napkin'"),
         ("document_types_off_sources", "only a sources input takes document_types"),
         ("document_types_string", "document_types must be a list of non-empty strings"),
+        ("empty_document_types", "document_types must not be empty"),
+        ("duplicate_document_types", "document_types repeats 'Indenture'"),
         ("table_id_int", "table id 7 must be a string"),
         ("table_title_list", r"table title \['Facts'\] must be a string"),
     ],

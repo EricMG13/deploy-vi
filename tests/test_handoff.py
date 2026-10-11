@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from rbotlib.handoff import HandoffError, markers, parse
+from rbotlib.handoff import HandoffError, markers, parse, unfenced
 
 
 def test_parse_reads_front_matter_sections_and_tables(handoff_text: str) -> None:
@@ -80,7 +80,7 @@ def test_a_tag_with_an_invalid_id_is_reported(tag: str) -> None:
     assert h.tables == {}
 
 
-@pytest.mark.parametrize("fence", ["```", "````markdown", "~~~"])
+@pytest.mark.parametrize("fence", ["```", "````markdown", "~~~", "   ```"])
 def test_fenced_blocks_hold_no_sections_or_tags(fence: str) -> None:
     close = fence.rstrip("markdown")
     text = (
@@ -109,3 +109,18 @@ def test_duplicate_or_empty_front_matter_keys_are_refused(front: str, message: s
 def test_a_table_indented_four_spaces_is_a_code_block(indent: str, orphans: list[str]) -> None:
     h = parse(f"---\nk: v\n---\n<!-- table: t -->\n{indent}| x |\n{indent}|---|\n| 1 |\n")
     assert (h.orphan_tags, set(h.tables)) == (orphans, set() if orphans else {"t"})
+
+
+@pytest.mark.parametrize("fence", ["    ```", "    ~~~", "\t```"])
+def test_a_fence_indented_four_spaces_is_code_not_a_fence(fence: str) -> None:
+    h = parse(f"---\nk: v\n---\n## Analysis\n{fence}\n## Tables\n")
+    assert h.sections == ["Analysis", "Tables"]
+
+
+def test_a_tag_line_indented_four_spaces_is_code() -> None:
+    h = parse("---\nk: v\n---\n    <!-- table: t -->\n| x |\n|---|\n| 1 |\n")
+    assert h.tables == {} and h.orphan_tags == []
+
+
+def test_unfenced_text_hides_fenced_markers() -> None:
+    assert markers(unfenced("a [C1]\n```\n[C2]\n```\n[C3]\n")) == {"C1", "C3"}

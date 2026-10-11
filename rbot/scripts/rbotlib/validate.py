@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, NamedTuple
 
 from rbotlib.contract import Column, Contract, TableSpec
-from rbotlib.handoff import Handoff, HandoffError, Table, cells, markers, parse
+from rbotlib.handoff import Handoff, HandoffError, Table, cells, markers, parse, unfenced
 from rbotlib.rules import Rules
 
 EXIT_VALID, EXIT_USAGE, EXIT_MALFORMED, EXIT_BLOCKED, EXIT_IDENTITY = 0, 1, 2, 3, 4
@@ -47,7 +47,24 @@ def _front_matter(h: Handoff, contract: Contract, rules: Rules) -> list[Finding]
     status = h.front_matter.get("qa_status")
     if status and status not in rules.qa_status:
         found.append(Finding("qa_status", f"qa_status {status!r} not in {rules.qa_status}"))
-    return found
+    return found + _inputs(h.front_matter.get("inputs"), contract)
+
+
+def _inputs(value: str | None, contract: Contract) -> list[Finding]:
+    """`inputs:` is `none` or Handoff ids: a subset of the contract's, every required one in."""
+    if not value:
+        return []
+    allowed, required = contract.handoff_inputs(), set(contract.handoff_inputs(required_only=True))
+    named = [] if value == "none" else [v.strip() for v in value.split(",")]
+    unknown = [n for n in named if n not in allowed]
+    missing = sorted(required - set(named))
+    if unknown:
+        return [
+            Finding("inputs", f"inputs names {unknown}; this module's Handoff inputs: {allowed}")
+        ]
+    if missing:
+        return [Finding("inputs", f"inputs omits the required Handoff input(s) {missing}")]
+    return []
 
 
 def _sections(h: Handoff, rules: Rules) -> list[Finding]:
@@ -144,7 +161,7 @@ def _citations(h: Handoff, rules: Rules) -> list[Finding]:
         for c, n in seen.items()
         if n > 1
     ]
-    used = markers(_outside_citation_rows(h.body, table))
+    used = markers(unfenced(_outside_citation_rows(h.body, table)))
     found += [
         Finding("unresolved_citation", f"[{c}] has no citation row") for c in sorted(used - ids)
     ]

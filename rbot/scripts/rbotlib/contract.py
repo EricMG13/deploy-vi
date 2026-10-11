@@ -104,6 +104,13 @@ def _document_types(
     if kind != "sources":
         problems.append(f"only a sources input takes document_types: {raw}")
     found = _str_list(raw["document_types"], f"input {kind} document_types", problems)
+    if not found and isinstance(raw["document_types"], list):
+        problems.append(f"input {kind} document_types must not be empty")
+    problems += [
+        f"input {kind} document_types repeats {d!r}"
+        for d in sorted(set(found))
+        if found.count(d) > 1
+    ]
     scale = rules.scales["document_type"]
     problems += [f"unknown document type {d!r}" for d in found if d not in scale]
     return found

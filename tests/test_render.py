@@ -87,6 +87,10 @@ def test_the_inputs_key_lists_handoff_ids_or_none(rules: Rules) -> None:
     assert "- `inputs: <Handoff ids comma-separated, or none>`." in _cp_x_text(rules)
 
 
+def test_the_rules_block_says_not_to_indent_a_table(rules: Rules) -> None:
+    assert "- Do not indent a table or put it in a code block." in _cp_x_text(rules)
+
+
 def test_tags_are_one_per_table_directly_above_it(rules: Rules) -> None:
     assert (
         "Tag each table exactly once, with its `<!-- table: <id> -->` line "

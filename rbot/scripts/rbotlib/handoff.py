@@ -64,7 +64,11 @@ def _split_front_matter(text: str) -> tuple[dict[str, str], str]:
 
 
 def cells(line: str) -> list[str]:
-    """The cells of a table row; `\\|` is a literal pipe inside a cell (A8)."""
+    """The cells of a table row; `\\|` is a literal pipe inside a cell (A8).
+
+    Unlike GFM, `\\|` is an escaped pipe even outside a code span, and a cell
+    that ends in `\\|` keeps it as a literal pipe, not a closing delimiter.
+    """
     text = line.strip()
     text = text[1:] if text.startswith("|") else text
     text = text[:-1] if text.endswith("|") and not text.endswith("\\|") else text
@@ -72,10 +76,13 @@ def cells(line: str) -> list[str]:
 
 
 def _unfenced(lines: list[str]) -> list[str]:
-    """The lines with every fenced code block blanked, so it holds no section or tag."""
+    """The lines with every fenced code block blanked, so it holds no section or tag.
+
+    A fence indented 4 or more spaces is indented code, not a fence (A4).
+    """
     out, fence = [], ""
     for line in lines:
-        opener = _FENCE.match(line.strip())
+        opener = None if _CODE_INDENT.match(line) else _FENCE.match(line.lstrip())
         if fence:
             fence = "" if opener and opener.group(1).startswith(fence) else fence
             out.append("")
@@ -85,6 +92,11 @@ def _unfenced(lines: list[str]) -> list[str]:
         else:
             out.append(line)
     return out
+
+
+def unfenced(text: str) -> str:
+    """The text with every fenced code block blanked (A5)."""
+    return "\n".join(_unfenced(text.splitlines()))
 
 
 def _read_table(lines: list[str], start: int) -> Table | None:
@@ -115,7 +127,7 @@ def parse(text: str) -> Handoff:
     orphans: list[str] = []
     invalid: list[str] = []
     for i, line in enumerate(lines):
-        tag = _TABLE_TAG.match(line.strip())
+        tag = None if _CODE_INDENT.match(line) else _TABLE_TAG.match(line.strip())
         if not tag:
             continue
         table_id = tag.group(1)
