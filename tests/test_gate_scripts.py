@@ -76,3 +76,10 @@ def test_pr_size_ignores_the_corpus_synthetic_packs(tmp_path: Path) -> None:
     env = {**os.environ, "BASE_REF": "HEAD~1"}
     result = subprocess.run(["bash", str(script)], cwd=tmp_path, env=env, capture_output=True)
     assert (result.returncode, result.stdout) == (0, b"10 changed lines (limit 800)\n")
+
+
+def test_the_mutation_script_refuses_to_delete_outside_a_temp_directory() -> None:
+    script = Path(__file__).parents[1] / "scripts" / "mutation_portfolio.sh"
+    for target in ("/", str(Path.home() / "x"), str(script.parents[1]), "/tmp/../etc/x"):
+        done = subprocess.run(["bash", str(script), target], capture_output=True)
+        assert done.returncode == 2 and b"refusing" in done.stderr

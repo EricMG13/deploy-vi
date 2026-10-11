@@ -19,7 +19,7 @@ from openpyxl import Workbook
 from builders import FONT, make_pdf, make_run
 from rbotlib.cli import main
 from rbotlib.inventory import write_atomic
-from rbotlib.prepare import anchored_text, cell_text, load_index
+from rbotlib.prepare import anchored_text, cell_text, clean_cell, load_index
 from rbotlib.validate import pages
 
 
@@ -294,3 +294,76 @@ def test_i7_a_no_text_pdf_whose_page_warns_is_unreadable_with_the_warning(tmp_pa
         "no text extracted; pypdf warned: Page resources are not a dictionary: 7"
     )
     assert record["image_read"] is False
+
+
+@pytest.mark.parametrize(
+    ("value", "fmt", "shown"),
+    [
+        (6250000, "#,##0.0,,", "6.3"),
+        (1234567, "0;0,", "1234567"),
+        (1234567, "0.0,;0", "1234.6"),
+        (-1234567, "#,##0,", "-1235"),
+        (1.2345678901234567e300, "0.0,,", "1234567890123456700" + "0" * 276),
+    ],
+)
+def test_i7_scaling_edge_cases(value: float, fmt: str, shown: str) -> None:
+    assert cell_text(value, fmt) == shown
+
+
+def test_i7_a_false_cell_reads_false() -> None:
+    assert clean_cell(False) == "FALSE" and clean_cell(True) == "TRUE"
+
+
+def test_i7_anchored_text_is_exact() -> None:
+    assert anchored_text(["a\rb\n<<< page 2 >>>", "", "c  \n"]) == (
+        "<<< page 1 >>>\na\nb\n\\<<< page 2 >>>\n<<< page 2 >>>\n<<< page 3 >>>\nc\n"
+    )
+
+
+def test_i7_dropped_surrogates_leave_nothing_behind(tmp_path: Path) -> None:
+    run, index, _ = _prep(tmp_path, {"a.pdf": _surrogate_pdf()})
+    text = (run / index["a.pdf"]["prepared"]).read_text(encoding="utf-8")
+    assert text == "<<< page 1 >>>\nRevenue grew strongly in the year\n"
+
+
+def test_i7_a_hidden_first_sheet_is_noted_and_the_visible_one_still_read(tmp_path: Path) -> None:
+    book = Workbook()
+    hidden = book.active
+    assert hidden is not None
+    hidden.title = "Old"
+    hidden.append(["Portfolio ID", "OLD"])
+    hidden.sheet_state = "hidden"
+    ws = book.create_sheet("Pos")
+    for row in [
+        ["Portfolio ID", "P1"],
+        ["Strategy", "CLO"],
+        [],
+        ["Issuer ID", "Issuer", "Par", "% NAV"],
+        ["A", "B", 1, "2%"],
+    ]:
+        ws.append(row)
+    out = io.BytesIO()
+    book.save(out)
+    run, _, _ = _prep(tmp_path, {"w.xlsx": out.getvalue()})
+    index = load_index(run)
+    assert [p["portfolio_id"] for p in index["portfolios"]] == ["P1"]
+    assert index["portfolio_notes"] == ["w.xlsx sheet Old: hidden sheet not read for portfolios"]
+
+
+@pytest.mark.parametrize(("chars", "scan"), [(19, True), (20, False)])
+def test_i7_a_pdf_with_exactly_twenty_characters_has_text(
+    tmp_path: Path, chars: int, scan: bool
+) -> None:
+    _, index, _ = _prep(tmp_path, {"t.pdf": make_pdf(["x" * chars])})
+    assert index["t.pdf"]["image_read"] is scan
+
+
+def test_i7_every_distinct_damage_warning_is_listed(tmp_path: Path) -> None:
+    font = FONT.encode()
+    raw = make_pdf(["", ""]).replace(font, b"7".ljust(len(font)), 1)
+    raw = raw.replace(font, b"8".ljust(len(font)), 1)
+    _, index, _ = _prep(tmp_path, {"w.pdf": raw})
+    assert index["w.pdf"]["unreadable"] == (
+        "no text extracted; pypdf warned: Page resources are not a dictionary: 7; "
+        "Page resources are not a dictionary: 8"
+    )

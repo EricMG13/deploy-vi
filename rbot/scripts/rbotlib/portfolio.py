@@ -336,7 +336,9 @@ def read_sheet(
     notes: list[str] = []
     meta: dict[str, str] = {}
     for kind, start, first, end in _tables(rows):
-        own = _meta(rows[first:start], notes, source)
+        found_notes: list[str] = []
+        own = _meta(rows[first:start], found_notes, source)
+        notes += found_notes
         meta = own if "portfolio_id" in own or not meta else meta  # no id of its own: same as above
         portfolio_id = meta.get("portfolio_id")
         if not portfolio_id:
@@ -351,6 +353,7 @@ def read_sheet(
                 table = Table(source, rows, start, bad, end)
                 (_positions if kind == "positions" else _limits)(table, p)
             notes += p.notes[before:]
+            p.notes += found_notes
     return notes
 
 

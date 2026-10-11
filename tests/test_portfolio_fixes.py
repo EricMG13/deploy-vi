@@ -13,7 +13,7 @@ from hypothesis import strategies as st
 
 from builders import make_run
 from rbotlib.cli import main
-from rbotlib.portfolio import Table, _limit_row, number, parse_limit
+from rbotlib.portfolio import Table, _limit_row, _position_values, number, parse_limit
 from rbotlib.prepare import load_index
 
 POS = (
@@ -97,7 +97,7 @@ def test_c1_a_unit_row_with_three_cells_is_read_and_noted(tmp_path: Path) -> Non
     pos = POS.format(unit="Unit,MILLIONS,USD\n")
     data, notes = _json(tmp_path, {"a_pos.csv": pos, "b_lim.csv": LIM.format(unit="") + AMOUNT})
     assert data["P1"]["unit"] == "MILLIONS" and data["P1"]["limits"] == []
-    assert any("Unit row has extra cells" in n for n in data["P1"]["notes"] + notes)
+    assert any("Unit row has extra cells" in n for n in data["P1"]["notes"]) and notes
 
 
 STACK_POS = "Portfolio ID,{}\nStrategy,CLO\nAs of,2026-05-29\nTotal NAV,100\nTotal Par,100\n\n"
@@ -192,7 +192,80 @@ def test_m5_the_portfolio_notes_are_in_the_json(tmp_path: Path) -> None:
     pct=st.sampled_from(["0.95", "0.0095", "95 bps", "0.95 yrs", "$0.95", "0.95%", "95%"]),
 )
 def test_i7_positions_accept_only_a_plain_par_and_a_percent_nav(par: str, pct: str) -> None:
-    from rbotlib.portfolio import _position_values
-
     result = _position_values({"par": par, "pct_nav": pct})
     assert (not isinstance(result, str)) is (pct.endswith("%") and par[-1].isdigit())
+
+
+def test_i7_every_reason_and_note_is_worded_exactly(tmp_path: Path) -> None:
+    comma = " (ambiguous decimal comma)"
+    for par, pct, why in [("6,0", "1%", comma), ("6", "1,5%", comma), ("x", "1%", "")]:
+        item = {"par": par, "pct_nav": pct}
+        assert _position_values(item) == f"par or % NAV is not a number{why}"
+    pos = POS.format(unit="Unit,MILLIONS,USD,GBP\n")
+    data, notes = _json(tmp_path, {"a.csv": pos})
+    expected = "a.csv: Unit row has extra cells ['USD', 'GBP']; read 'MILLIONS'"
+    assert data["P1"]["notes"] == notes == [expected]
+    assert _limit_row(Table("t", [], 0, {}), 5, _item("≤ 2,5% NAV", "1%"), []) == (
+        "limit '≤ 2,5% NAV' is not a number" + comma + " with a unit"
+    )
+    assert _limit_row(Table("t", [], 0, {}), 5, _item("≤ 2.5% NAV", "1,5%"), []) == (
+        "current value '1,5%' is not a number" + comma
+    )
+
+
+def _item(limit: str, current: str, param: str = "Max x") -> dict[str, str]:
+    return {"breach type": "Hard", "limit": limit, "parameter": param, "current value": current}
+
+
+@pytest.mark.parametrize(
+    ("limit", "current", "param", "kept"),
+    [("≤ 25", "13.0", "Max number of issuers", True), ("≤ 25", "13.5", "Count of names", False)],
+)
+def test_i7_a_whole_count_written_with_a_decimal_point_is_kept(
+    limit: str, current: str, param: str, kept: bool
+) -> None:
+    result = _limit_row(Table("t", [], 0, {}), 5, _item(limit, current, param), [])
+    assert isinstance(result, dict) is kept
+
+
+def test_i7_totals_of_one_and_less_than_one_are_read_and_reasons_are_exact(tmp_path: Path) -> None:
+    for total in ("1", "0.5"):
+        assert (
+            _json(tmp_path / total, {"p.csv": POS.format(unit="").replace("630.9", total)})[0][
+                "P1"
+            ]["nav"]
+            == total
+        )
+    text = POS.format(unit="").replace("630.9", "0")
+    unparsed = _json(tmp_path / "z", {"p.csv": text})[0]["P1"]["unparsed"]
+    assert unparsed == [{"row": "Total NAV", "reason": "'0' is not a plain amount above zero"}]
+
+
+def test_i7_conflicting_units_are_named_in_the_reason(tmp_path: Path) -> None:
+    files = {
+        "a.csv": POS.format(unit="Unit,MILLIONS\n"),
+        "b.csv": LIM.format(unit="Unit,USD\n") + AMOUNT,
+    }
+    reason = _json(tmp_path, files)[0]["P1"]["unparsed"][-1]["reason"]
+    assert reason == "amount limit under Unit 'millions, usd': the scale is not applied"
+
+
+def test_i7_title_and_note_rows_between_stacked_tables(tmp_path: Path) -> None:
+    text = (
+        STACK_POS.format("P1") + STACK_HEAD + "CZR,Caesars,6.0,6%\nNote,two cells\n"
+        "Second table below\n"
+        + STACK_POS.format("P2").replace("\n\n", "\n")
+        + STACK_HEAD
+        + "ASU,Asurion,3.0,3%\n"
+    )
+    data, _ = _json(tmp_path, {"two.csv": text})
+    assert [u["row"] for u in data["P1"]["unparsed"]] == ["two.csv row 9"]
+    assert [p["par"] for p in data["P2"]["positions"]] == ["3.0"]
+
+
+def test_i7_a_table_with_no_rows_still_hands_its_meta_lines_to_the_next(tmp_path: Path) -> None:
+    head = "Portfolio ID,{}\nStrategy,CLO\n" + STACK_HEAD
+    text = head.format("P1") + head.format("P2") + "ASU,Asurion,3.0,3%\n"
+    data, _ = _json(tmp_path, {"two.csv": text})
+    assert data["P1"]["positions"] == [] and data["P2"]["strategy"] == "CLO"
+    assert [p["par"] for p in data["P2"]["positions"]] == ["3.0"]
