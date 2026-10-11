@@ -93,10 +93,10 @@ def test_c1_the_synthetic_pack_with_an_amount_limit_is_refused_in_either_order(
         assert any("millions" in u["reason"] for u in d["unparsed"])
 
 
-def test_c1_a_unit_row_with_three_cells_is_read_and_noted(tmp_path: Path) -> None:
+def test_c1_a_unit_row_with_three_cells_keeps_every_value_and_is_noted(tmp_path: Path) -> None:
     pos = POS.format(unit="Unit,MILLIONS,USD\n")
     data, notes = _json(tmp_path, {"a_pos.csv": pos, "b_lim.csv": LIM.format(unit="") + AMOUNT})
-    assert data["P1"]["unit"] == "MILLIONS" and data["P1"]["limits"] == []
+    assert data["P1"]["unit"] == "MILLIONS, USD" and data["P1"]["limits"] == []
     assert any("Unit row has extra cells" in n for n in data["P1"]["notes"]) and notes
 
 
@@ -104,27 +104,13 @@ STACK_POS = "Portfolio ID,{}\nStrategy,CLO\nAs of,2026-05-29\nTotal NAV,100\nTot
 STACK_HEAD = "Issuer ID,Issuer,Par,% NAV\n"
 
 
-def test_i1_a_second_stacked_positions_table_gets_its_own_json(tmp_path: Path) -> None:
-    text = (
-        STACK_POS.format("P1")
-        + STACK_HEAD
-        + "CZR,Caesars,6.0,6%\n\n"
-        + STACK_POS.format("P2")
-        + STACK_HEAD
-        + "CZR,Caesars,9.0,9%\nASU,Asurion,3.0,3%\n"
-    )
-    data, _ = _json(tmp_path, {"two.csv": text})
-    assert [p["par"] for p in data["P1"]["positions"]] == ["6.0"]
-    assert [p["par"] for p in data["P2"]["positions"]] == ["9.0", "3.0"]
-    assert data["P1"]["unparsed"] == [] and data["P2"]["unparsed"] == []
-
-
-def test_i1_stacked_limit_tables_split_by_portfolio(tmp_path: Path) -> None:
+def test_i1_separate_files_give_each_portfolio_its_own_json(tmp_path: Path) -> None:
     def lim(pid: str, value: str) -> str:
         return f"Portfolio ID,{pid}\n\n{LIM_HEAD}C-01,Single Name,Max x,≤ {value} NAV,Hard,0.4%\n"
 
     pos = STACK_POS.format("P1") + STACK_HEAD + "CZR,Caesars,1,1%\n"
-    data, _ = _json(tmp_path, {"a.csv": pos, "b.csv": lim("P1", "2.5%") + "\n" + lim("P2", "0.5%")})
+    files = {"a.csv": pos, "b.csv": lim("P1", "2.5%"), "c.csv": lim("P2", "0.5%")}
+    data, _ = _json(tmp_path, files)
     assert [x["limit_value"] for x in data["P1"]["limits"]] == ["2.5"]
     assert [x["limit_value"] for x in data["P2"]["limits"]] == ["0.5"]
 
@@ -250,22 +236,8 @@ def test_i7_conflicting_units_are_named_in_the_reason(tmp_path: Path) -> None:
     assert reason == "amount limit under Unit 'millions, usd': the scale is not applied"
 
 
-def test_i7_title_and_note_rows_between_stacked_tables(tmp_path: Path) -> None:
-    text = (
-        STACK_POS.format("P1") + STACK_HEAD + "CZR,Caesars,6.0,6%\nNote,two cells\n"
-        "Second table below\n"
-        + STACK_POS.format("P2").replace("\n\n", "\n")
-        + STACK_HEAD
-        + "ASU,Asurion,3.0,3%\n"
-    )
+def test_i7_a_note_row_below_the_table_is_an_unparsed_row(tmp_path: Path) -> None:
+    text = STACK_POS.format("P1") + STACK_HEAD + "CZR,Caesars,6.0,6%\nNote,two cells\n"
     data, _ = _json(tmp_path, {"two.csv": text})
     assert [u["row"] for u in data["P1"]["unparsed"]] == ["two.csv row 9"]
-    assert [p["par"] for p in data["P2"]["positions"]] == ["3.0"]
-
-
-def test_i7_a_table_with_no_rows_still_hands_its_meta_lines_to_the_next(tmp_path: Path) -> None:
-    head = "Portfolio ID,{}\nStrategy,CLO\n" + STACK_HEAD
-    text = head.format("P1") + head.format("P2") + "ASU,Asurion,3.0,3%\n"
-    data, _ = _json(tmp_path, {"two.csv": text})
-    assert data["P1"]["positions"] == [] and data["P2"]["strategy"] == "CLO"
-    assert [p["par"] for p in data["P2"]["positions"]] == ["3.0"]
+    assert [p["par"] for p in data["P1"]["positions"]] == ["6.0"]

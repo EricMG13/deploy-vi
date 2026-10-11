@@ -190,12 +190,15 @@ def test_a_scaled_unit_in_either_table_refuses_the_amount_limit(rules: Rules) ->
 def test_notes_come_back_once_per_sheet_and_all_of_them() -> None:
     found: dict[str, Portfolio] = {}
     rating = ["C1", "Rating", "x", "≤ 2% NAV", "Hard", "1%"]
-    both = [*_table("positions"), *_table("limits", rating)[1:]]
-    first = read_sheet("a.csv", both, found, {})
+    sheets = [_table("positions"), _table("limits", rating)]
+    assert read_sheet("a.csv", sheets[0], found, {}) == []
+    first = read_sheet("a.csv", sheets[1], found, {})
     assert len(first) == 1 and "Rating limit 'Rating' names no bucket" in first[0]
-    assert read_sheet("b.csv", both, found, {}) == [
-        "b.csv: second positions table for 'P1' not merged (a.csv kept)",
-        "b.csv: second limits table for 'P1' not merged (a.csv kept)",
+    assert read_sheet("b.csv", sheets[0], found, {}) == [
+        "b.csv: second positions table for 'P1' not merged (a.csv kept)"
+    ]
+    assert read_sheet("b.csv", sheets[1], found, {}) == [
+        "b.csv: second limits table for 'P1' not merged (a.csv kept)"
     ]
 
 

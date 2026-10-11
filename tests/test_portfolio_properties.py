@@ -32,7 +32,8 @@ def test_a_unit_round_trips_and_nothing_is_scaled(
     d: Decimal, suffix: tuple[str, str], dollar: str
 ) -> None:
     assert number(f"{dollar}{plain(d)}{suffix[0]}") == (plain(d), suffix[1])
-    assert number(f"{d:,f}{suffix[0]}") == (plain(d), suffix[1])
+    grouped = number(f"{d:,f}{suffix[0]}")  # a percent with a thousands group is ambiguous
+    assert grouped == (None if suffix[1] == "%" and d >= 1000 else (plain(d), suffix[1]))
 
 
 @given(d=AMOUNTS, current=st.sampled_from(SUFFIXES), limit=st.sampled_from(LIMITS))

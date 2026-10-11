@@ -289,10 +289,11 @@ def test_e8_dates_are_normalised_to_iso(rules: Rules, text: str) -> None:
     assert to_json(found["P1"], rules)["as_of"] == "2026-05-29"
 
 
-def test_e7_a_positions_header_without_an_id_still_finds_the_limits_header() -> None:
-    rows = [["Issuer ID", "Issuer", "Par", "% NAV"], [], HEADER, _limit("≤ 2.5% NAV", "1%")]
-    notes = read_sheet("both.csv", rows, {}, {})
-    assert len(notes) == 2 and "limits table without a Portfolio ID" in notes[1]
+def test_e7_a_positions_header_without_an_id_is_not_linked() -> None:
+    found: dict[str, Portfolio] = {}
+    notes = read_sheet("p.csv", [["Issuer ID", "Issuer", "Par", "% NAV"]], found, {})
+    assert notes == ["p.csv: positions table without a Portfolio ID row; not linked"]
+    assert found == {}
 
 
 @pytest.mark.parametrize("bad", ["CON", "nul", "Com1", "LPT9", "aux", "PRN", "con.v2", "A" * 101])

@@ -451,7 +451,7 @@ def _sheet_portfolios(
             notes.append(f"{label}: {state} sheet not read for portfolios")
             continue
         bad = {int(re.sub(r"\D", "", ref)): ref for ref in result.uncached.get(name, [])}
-        notes += portfolio.read_sheet(label, rows, found, bad)
+        notes += portfolio.read_sheet(label, rows, found, bad, result.scaled.get(name, []))
     return notes
 
 
