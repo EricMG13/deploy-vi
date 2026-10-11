@@ -31,12 +31,11 @@ def _table_block(spec: TableSpec, rules: Rules) -> list[str]:
         "| " + " | ".join(names) + " |",
         "|" + "---|" * len(names),
     ]
-    scales = [c for c in spec.columns if c.scale]
+    scales = [(c.name, c.scale) for c in spec.columns if c.scale]
     if scales:
         lines.append("")
-    for c in scales:
-        if c.scale:
-            lines.append(f"- `{c.name}` takes exactly one of: " + "; ".join(rules.scales[c.scale]))
+    for name, scale in scales:
+        lines.append(f"- `{name}` takes exactly one of: " + "; ".join(rules.scales[scale]))
     return [*lines, ""]
 
 
@@ -52,6 +51,7 @@ def _rules_block(rules: Rules, module_id: str) -> list[str]:
         "- Tag each table exactly once, with its `<!-- table: <id> -->` line "
         "directly above the table.",
         "- Emit no table the contract does not list.",
+        "- Column names exactly as printed, without the `*` that marks a critical column.",
         f"- A critical cell (column marked *) is never empty or `{rules.gap_marker}`,",
         f"  nor any of: {placeholders}.",
         "  A listed scale value is always allowed, even one that reads like a placeholder "

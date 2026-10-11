@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import re
+
 from conftest import fixture_json
 from rbotlib.contract import contract_from_dict
 from rbotlib.render import GENERATED, render_module
 from rbotlib.rules import Rules
+from rbotlib.validate import check
 
 
 def test_module_md_carries_the_contract_and_the_checked_rules(rules: Rules) -> None:
@@ -88,3 +91,33 @@ def test_tags_are_one_per_table_directly_above_it(rules: Rules) -> None:
 
 def test_scale_bullets_are_separated_from_the_table(rules: Rules) -> None:
     assert "|---|---|\n\n- `credit_score` takes exactly one of" in _cp_x_text(rules)
+
+
+def test_the_rules_say_the_asterisk_is_not_part_of_the_column_name(rules: Rules) -> None:
+    contract = contract_from_dict(fixture_json("contract_cp_x.json"), rules)
+    assert (
+        "- Column names exactly as printed, without the `*` that marks a critical column."
+        in render_module(contract, rules)
+    )
+
+
+def test_the_printed_headers_pass_the_checker_once_the_asterisk_is_stripped(
+    rules: Rules, handoff_text: str
+) -> None:
+    """Seam: the generator's header rows and the validator's column check must agree."""
+    contract = contract_from_dict(fixture_json("contract_cp_x.json"), rules)
+    printed = re.findall(r"<!-- table: (\S+) -->\n\| (.*) \|\n", render_module(contract, rules))
+    headers = {tid: [c.strip().removesuffix("*") for c in row.split("|")] for tid, row in printed}
+    assert {"cpx.facts", "snapshot.view"} <= headers.keys()
+    scales = {c.name: c.scale for t in contract.tables for c in t.columns if c.scale}
+    text = handoff_text
+    for table in contract.tables:
+        cols = headers[table.id]
+        row = [rules.scales[scales[c]][0] if c in scales else "x" for c in cols]
+        block = f"<!-- table: {table.id} -->\n| " + " | ".join(cols) + " |\n"
+        block += "|" + "---|" * len(cols) + "\n| " + " | ".join(row) + " |\n"
+        old = re.search(rf"<!-- table: {re.escape(table.id)} -->\n+(?:\|.*\n?)+", text)
+        assert old
+        text = text[: old.start()] + block + text[old.end() :]
+    _, findings = check(text, contract, rules)
+    assert [f for f in findings if f.code == "column_missing"] == []

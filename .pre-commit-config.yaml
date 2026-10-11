@@ -38,3 +38,8 @@ repos:
         entry: uv run complexipy rbot/scripts scripts --max-complexity-allowed 15
         language: system
         pass_filenames: false
+      - id: rbot-check
+        name: rbot check (contracts, generated modules, Front Pages, size budget)
+        entry: uv run python rbot/scripts/rbot.py check
+        language: system
+        pass_filenames: false

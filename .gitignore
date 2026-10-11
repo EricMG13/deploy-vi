@@ -8,6 +8,7 @@ __pycache__/
 .coverage
 coverage.xml
 bandit.json
+.hypothesis/
 node_modules/
 .DS_Store
 # Analyst runs never enter the repo.
