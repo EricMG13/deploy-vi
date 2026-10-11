@@ -53,6 +53,7 @@ def _rules_block(rules: Rules, module_id: str) -> list[str]:
         f"- H2 sections, exactly and in order: {', '.join(rules.sections)}.",
         "- Tag each table exactly once, with its `<!-- table: <id> -->` line "
         "directly above the table.",
+        "- Write a literal pipe inside any cell, excerpts included, as `\\|`.",
         "- Emit no table the contract does not list.",
         "- Column names exactly as printed, without the `*` that marks a critical column.",
         f"- A critical cell (column marked *) is never empty or `{rules.gap_marker}`,",

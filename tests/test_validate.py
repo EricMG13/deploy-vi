@@ -66,6 +66,7 @@ def test_another_modules_handoff_exits_4(
         ),
         ("<!-- table: citations -->", "<!-- table: cites -->", "table_missing"),
         ("## Gaps", "<!-- table: nothing -->\n\n## Gaps", "orphan_tag"),
+        ("## Gaps", "<!-- table: bad id -->\n\n## Gaps", "invalid_tag"),
     ],
 )
 def test_each_defect_is_named(
@@ -157,6 +158,15 @@ def test_a_citation_that_cites_itself_is_unused(
     exit_code, found = codes(text, contract, rules)
     assert exit_code == EXIT_MALFORMED
     assert "unused_citation" in found
+
+
+def test_a_citation_row_with_an_escaped_pipe_still_cannot_cite_itself(
+    handoff_text: str, contract: Contract, rules: Rules
+) -> None:
+    piped = handoff_text.replace("revenue was 100 |", r"Net revenues \| 100 |")
+    assert check(piped, contract, rules) == (EXIT_VALID, [])
+    text = piped.replace("period [C1].", "period.").replace(r"\| 100 |", r"\| 100 [C1] |")
+    assert codes(text, contract, rules) == (EXIT_MALFORMED, {"unused_citation"})
 
 
 def test_a_marker_inside_another_table_still_counts(

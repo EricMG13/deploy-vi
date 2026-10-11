@@ -94,6 +94,7 @@ def _tags(h: Handoff, contract: Contract) -> list[Finding]:
     declared = {t.id for t in contract.tables} | {"citations"}
     found = [Finding("duplicate_table", f"table {t} is tagged twice") for t in h.duplicate_tags]
     found += [Finding("orphan_tag", f"tag {t} has no table under it") for t in h.orphan_tags]
+    found += [Finding("invalid_tag", f"tag {t!r} is not a table id") for t in h.invalid_tags]
     found += [
         Finding("undeclared_table", f"table {t} is not in the contract")
         for t in h.tables
@@ -103,7 +104,10 @@ def _tags(h: Handoff, contract: Contract) -> list[Finding]:
 
 
 def _outside_citation_rows(body: str, table: Table) -> str:
-    """The body without the citations table's own rows, so a row cannot cite itself."""
+    """The body without the citations table's own rows, so a row cannot cite itself.
+
+    Lines are compared as parsed cells, so an excerpt with an escaped pipe (A8) still matches.
+    """
     rows = {tuple(row) for row in table.rows}
     kept = [line for line in body.splitlines() if tuple(cells(line)) not in rows]
     return "\n".join(kept)
