@@ -17,6 +17,8 @@ def _input_row(i: Input) -> str:
         label = f"Handoff `{i.values[0]}` ({'required' if i.required else 'optional'})"
     elif i.kind == "sources":
         label = "Sources: " + ", ".join(i.values)
+        if i.document_types:
+            label += " (" + ", ".join(i.document_types) + ")"
     else:
         label = "Run Brief: " + ", ".join(i.values)
     return f"| {label} | {i.why} |"
@@ -46,6 +48,7 @@ def _rules_block(rules: Rules, module_id: str) -> list[str]:
         "",
         "- Front matter keys, one non-empty `key: value` per line: "
         f"{', '.join(rules.front_matter)}; `module_id` is `{module_id}`.",
+        "- `inputs: <Handoff ids comma-separated, or none>`.",
         f"- `qa_status` is one of: {', '.join(rules.qa_status)}.",
         f"- H2 sections, exactly and in order: {', '.join(rules.sections)}.",
         "- Tag each table exactly once, with its `<!-- table: <id> -->` line "

@@ -41,6 +41,11 @@ _BREAKS: dict[str, Callable[[dict[str, Any]], None]] = {
     "no_why": lambda d: d["inputs"][0].pop("why"),
     "negative_rows": lambda d: d["tables"][0].update(min_rows=-1),
     "no_process": lambda d: d.update(process=[]),
+    "bad_document_type": lambda d: d["inputs"][0].update(document_types=["Napkin"]),
+    "document_types_off_sources": lambda d: d["inputs"][1].update(document_types=["Other"]),
+    "document_types_string": lambda d: d["inputs"][0].update(document_types="Indenture"),
+    "table_id_int": lambda d: d["tables"][0].update(id=7),
+    "table_title_list": lambda d: d["tables"][0].update(title=["Facts"]),
 }
 
 
@@ -64,6 +69,11 @@ def _broken(change: str) -> dict[str, Any]:
         ("no_why", "has no 'why'"),
         ("negative_rows", "negative min_rows"),
         ("no_process", "process has no steps"),
+        ("bad_document_type", "unknown document type 'Napkin'"),
+        ("document_types_off_sources", "only a sources input takes document_types"),
+        ("document_types_string", "document_types must be a list of non-empty strings"),
+        ("table_id_int", "table id 7 must be a string"),
+        ("table_title_list", r"table title \['Facts'\] must be a string"),
     ],
 )
 def test_broken_contracts_name_the_problem(rules: Rules, change: str, message: str) -> None:
@@ -115,3 +125,11 @@ def test_load_contract_names_the_path_on_invalid_json(tmp_path: Path, rules: Rul
     path.write_text("{not json", encoding="utf-8")
     with pytest.raises(ContractError, match=r"contract\.json"):
         load_contract(path, rules)
+
+
+def test_a_sources_input_may_name_document_types(rules: Rules) -> None:
+    data = fixture_json("contract_cp_x.json")
+    data["inputs"][0]["document_types"] = ["Credit agreement", "Indenture"]
+    c = contract_from_dict(data, rules)
+    assert c.inputs[0].document_types == ("Credit agreement", "Indenture")
+    assert c.inputs[1].document_types == ()

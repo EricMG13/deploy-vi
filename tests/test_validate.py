@@ -5,6 +5,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from conftest import FIXTURES, fixture_json
+from rbotlib import validate
 from rbotlib.contract import Contract, contract_from_dict
 from rbotlib.rules import Rules, load_rules
 from rbotlib.validate import EXIT_BLOCKED, EXIT_IDENTITY, EXIT_MALFORMED, EXIT_VALID, check
@@ -101,6 +102,16 @@ def test_a_scale_value_that_reads_like_a_placeholder_is_valid(
     contract = contract_from_dict(data, rules)
     text = handoff_text.replace("| 3 - Fair | Stable |", "| N/A | Stable |")
     assert check(text, contract, rules) == (EXIT_VALID, [])
+
+
+def test_a_handoff_over_the_upstream_cap_is_too_large(
+    handoff_text: str, contract: Contract, rules: Rules
+) -> None:
+    padding = "x" * (validate.MAX_HANDOFF_BYTES - len(handoff_text.encode("utf-8")) + 1)
+    text = handoff_text.replace("None.", "None. " + padding)
+    assert codes(text, contract, rules) == (EXIT_MALFORMED, {"too_large"})
+    at_cap = handoff_text.replace("None.", "None." + padding[:-2])
+    assert check(at_cap, contract, rules) == (EXIT_VALID, [])
 
 
 def test_text_without_front_matter_is_malformed(contract: Contract, rules: Rules) -> None:

@@ -42,6 +42,7 @@ class Input:
     values: tuple[str, ...]
     required: bool
     why: str
+    document_types: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -94,6 +95,20 @@ def _input_values(kind: str, raw: dict[str, Any], problems: list[str]) -> tuple[
     return (value,)
 
 
+def _document_types(
+    raw: dict[str, Any], kind: str, rules: Rules, problems: list[str]
+) -> tuple[str, ...]:
+    """The document types a sources input names (amendment A4); `rbot grade` reads them."""
+    if "document_types" not in raw:
+        return ()
+    if kind != "sources":
+        problems.append(f"only a sources input takes document_types: {raw}")
+    found = _str_list(raw["document_types"], f"input {kind} document_types", problems)
+    scale = rules.scales["document_type"]
+    problems += [f"unknown document type {d!r}" for d in found if d not in scale]
+    return found
+
+
 def _input(raw: dict[str, Any], rules: Rules, problems: list[str]) -> Input:
     kinds = [k for k in _INPUT_KINDS if k in raw]
     if len(kinds) != 1:
@@ -112,7 +127,8 @@ def _input(raw: dict[str, Any], rules: Rules, problems: list[str]) -> Input:
     if not isinstance(required, bool):
         problems.append(f"input {kind}={list(values)} 'required' must be true or false")
         required = False
-    return Input(kind, values, required, why if isinstance(why, str) else "")
+    document_types = _document_types(raw, kind, rules, problems)
+    return Input(kind, values, required, why if isinstance(why, str) else "", document_types)
 
 
 def _column(raw: dict[str, Any], rules: Rules, problems: list[str]) -> Column:
@@ -140,8 +156,17 @@ def _min_rows(raw: dict[str, Any], table_id: str, problems: list[str]) -> int:
     return value
 
 
+def _text(raw: dict[str, Any], key: str, default: str, problems: list[str]) -> str:
+    """A string field; any other type is a problem, never coerced with str()."""
+    value = raw.get(key, default)
+    if not isinstance(value, str):
+        problems.append(f"table {key} {value!r} must be a string")
+        return ""
+    return value
+
+
 def _table(raw: dict[str, Any], rules: Rules, problems: list[str]) -> TableSpec:
-    table_id = str(raw.get("id", ""))
+    table_id = _text(raw, "id", "", problems)
     if not table_id or table_id in RESERVED_TABLES:
         problems.append(f"table id {table_id!r} is empty or reserved")
     columns = tuple(
@@ -155,7 +180,8 @@ def _table(raw: dict[str, Any], rules: Rules, problems: list[str]) -> TableSpec:
     if not consumers:
         problems.append(f"table {table_id!r} has no consumers; nothing reads it")
     min_rows = _min_rows(raw, table_id, problems)
-    return TableSpec(table_id, str(raw.get("title", table_id)), min_rows, columns, consumers)
+    title = _text(raw, "title", table_id, problems)
+    return TableSpec(table_id, title, min_rows, columns, consumers)
 
 
 def contract_from_dict(data: dict[str, Any], rules: Rules) -> Contract:

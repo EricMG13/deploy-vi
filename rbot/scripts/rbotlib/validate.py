@@ -1,7 +1,8 @@
 """Check a Handoff against its module's contract and the shared rules.
 
 Exit codes follow Deploy V: 0 valid, 2 malformed, 3 blocked (valid but
-qa_status Blocked), 4 identity mismatch.
+qa_status Blocked), 4 identity mismatch. A Handoff over the upstream cap
+(spec section 7, caos MAX_UPSTREAM_HANDOFF_BYTES) is malformed: `too_large`.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from rbotlib.handoff import Handoff, HandoffError, Table, cells, markers, parse
 from rbotlib.rules import Rules
 
 EXIT_VALID, EXIT_MALFORMED, EXIT_BLOCKED, EXIT_IDENTITY = 0, 2, 3, 4
+MAX_HANDOFF_BYTES = 98_304
 
 
 @dataclass(frozen=True)
@@ -141,6 +143,9 @@ def check(text: str, contract: Contract, rules: Rules) -> tuple[int, list[Findin
     except HandoffError as exc:
         return EXIT_MALFORMED, [Finding("not_a_handoff", str(exc))]
     findings = _front_matter(h, contract, rules) + _sections(h, rules) + _tags(h, contract)
+    size = len(text.encode("utf-8"))
+    if size > MAX_HANDOFF_BYTES:
+        findings.append(Finding("too_large", f"{size} bytes; the cap is {MAX_HANDOFF_BYTES}"))
     for spec in contract.tables:
         findings += _table(spec, h, rules)
     findings += _citations(h, rules)
