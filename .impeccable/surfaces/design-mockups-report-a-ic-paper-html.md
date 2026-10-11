@@ -47,6 +47,6 @@ Chosen: **A — IC paper**, amended:
 1. A persistent left navigation pane through which the reader reaches every part of the Report without scrolling the whole document: the Report becomes an app shell of views (hash-routed), not one long page.
 2. The Credit Snapshot is a summary screen only; each module's output is its own view with its full analysis (reader question, headline, status and limitations, charts, detailed tables, findings with citations, gaps).
 3. Sections are collapsible; the company description moves near the top of the Snapshot and gains the issuer's operating model (segments, revenue mix, property footprint, owned versus leased real estate, digital), every fact cited.
-4. Clarity and polish: impeccable critique at max effort by one model (Fable), implementation by another (Opus).
+4. Clarity and polish: impeccable critique by Opus at max effort; implementation by a different model (Sonnet).
 
 Amended FIRST VIEWPORT (A): left pane (logo, issuer, run line, navigation: Snapshot, each module with status, Model, Portfolio Fit, Evidence, Limitations); main: title band with the call per Strategy and Valuation, key findings, company description with operating model, then the Model chart strip and capital structure; every block collapsible and linked to its module view.
