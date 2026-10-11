@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shlex
 import sys
 import tomllib
@@ -33,6 +34,7 @@ from rbotlib.corpus import (
     materialise,
     repo_root,
     resolve_roots,
+    sha256_file,
 )
 
 
@@ -47,8 +49,31 @@ def run_id(base: Path, issuer_id: str, day: str) -> str:
 
 
 def _version(repo: Path) -> str:
-    data = tomllib.loads((repo / "pyproject.toml").read_text(encoding="utf-8"))
-    return str(data["project"]["version"])
+    path = repo / "pyproject.toml"
+    try:
+        return str(tomllib.loads(path.read_text(encoding="utf-8"))["project"]["version"])
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError, KeyError) as exc:
+        raise CorpusError(f"{path}: {exc}") from exc
+
+
+def _load(path: Path) -> Registry:
+    try:
+        return load_registry(path)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, KeyError) as exc:
+        raise CorpusError(f"{path}: {exc}") from exc
+
+
+def _date(value: str) -> str:
+    """A `YYYYMMDD` day; anything else would put the run folder outside corpus-runs/."""
+    try:
+        valid = re.fullmatch(r"\d{8}", value) is not None and bool(
+            datetime.strptime(value, "%Y%m%d")
+        )
+    except ValueError:
+        valid = False
+    if not valid:
+        raise argparse.ArgumentTypeError(f"{value!r} is not a YYYYMMDD date")
+    return value
 
 
 def seed_state(run: Path, pack: Path, entry: Pack, args: argparse.Namespace, version: str) -> None:
@@ -81,11 +106,63 @@ def _check_pathway(entry: Pack, pathway: str, depth: str) -> None:
         raise CorpusError(f"pack {entry.id} lists {listed}, not ({pathway!r}, {depth!r})")
 
 
+def _state(run: Path) -> dict[str, Any] | None:
+    try:
+        data = json.loads((run / "run-state.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _age(run: Path) -> tuple[str, str, int]:
+    """Sort key for a run: creation time, then the day and suffix in its name."""
+    state = _state(run) or {}
+    day, _, rest = run.name.partition("-")
+    suffix = rest.rpartition("-")[2]
+    return str(state.get("created_at", "")), day, int(suffix) if suffix.isdigit() else 1
+
+
 def _latest_run(base: Path) -> Path:
-    runs = sorted(p for p in base.glob("*-pending*") if (p / "run-state.json").is_file())
+    runs = []
+    for p in base.glob("*-pending*"):
+        state = _state(p)
+        failed = state and any(
+            isinstance(s, dict) and s.get("status") == "failed"
+            for s in (state.get("steps") or {}).values()
+        )
+        if state is not None and not failed:
+            runs.append(p)
     if not runs:
         raise CorpusError(f"{base}: no pending proxy run; run step 1 first")
-    return max(runs, key=lambda p: p.stat().st_mtime)
+    return max(runs, key=_age)
+
+
+def _verify_copy(entry: Pack, pack: Path) -> None:
+    """Every registered file of the copy is present and is the registered bytes."""
+    bad = [
+        f.path
+        for f in entry.files
+        if not (pack / f.path).is_file() or sha256_file(pack / f.path) != f.sha256
+    ]
+    if bad:
+        raise CorpusError(f"{pack}: not the registered files: {', '.join(bad)}")
+
+
+def _claim(base: Path, issuer_id: str, day: str) -> Path:
+    """Create the next free run folder; losing a race for a name takes the next suffix."""
+    while True:
+        run = base / run_id(base, issuer_id, day)
+        try:
+            run.mkdir(parents=True)
+        except FileExistsError:
+            continue
+        return run
+
+
+def _record_failure(run: Path, step: str, reason: str) -> None:
+    state = _state(run) or {}
+    state.setdefault("steps", {})[step] = {"kind": "host", "status": "failed", "reason": reason}
+    (run / "run-state.json").write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
 
 
 def start(registry: Registry, entry: Pack, args: argparse.Namespace, out: Path) -> Path:
@@ -94,11 +171,14 @@ def start(registry: Registry, entry: Pack, args: argparse.Namespace, out: Path) 
     pack = base / "pack"
     if not pack.is_dir():
         materialise(registry, entry, resolve_roots(registry), pack)
-    run = base / run_id(base, entry.data["issuer"]["id"], args.date)
-    run.mkdir(parents=True)
-    seed_state(run, pack, entry, args, _version(repo_root(registry)))
+    _verify_copy(entry, pack)
+    version = _version(repo_root(registry))
+    run = _claim(base, entry.data["issuer"]["id"], args.date)
+    seed_state(run, pack, entry, args, version)
     for command in ("inventory", "prepare"):
         if rbot([command, "--run", str(run)]) != 0:
+            reason = f"rbot {command} exited 1"
+            _record_failure(run, command.upper(), reason)
             raise CorpusError(f"rbot {command} failed for {run}")
     return run
 
@@ -112,10 +192,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--approve", action="store_true", help="step 5: print the approval")
     parser.add_argument("--registry", default=str(REGISTRY))
     parser.add_argument("--out", help="the corpus-runs folder (default: <repo>/corpus-runs)")
-    parser.add_argument("--date", default=datetime.now(UTC).strftime("%Y%m%d"))
+    parser.add_argument("--date", type=_date, default=datetime.now(UTC).strftime("%Y%m%d"))
     args = parser.parse_args(argv)
     try:
-        registry = load_registry(Path(args.registry))
+        registry = _load(Path(args.registry))
         entry = registry.pack(args.pack)
         _check_pathway(entry, args.pathway, args.depth)
         out = Path(args.out) if args.out else repo_root(registry) / "corpus-runs"
