@@ -1,0 +1,30 @@
+{
+  "handoff": {
+    "front_matter": ["module_id", "run_id", "issuer_id", "analysis_date", "qa_status", "inputs"],
+    "sections": ["Analysis", "Tables", "Gaps", "Citations"],
+    "qa_status": ["Pass", "Restricted", "Blocked"]
+  },
+  "gap_marker": "—",
+  "placeholders": [
+    "tbd",
+    "n/a",
+    "na",
+    "unknown",
+    "insufficient information",
+    "[insufficient information]",
+    "not assessable",
+    "unavailable",
+    "not calculable from provided materials"
+  ],
+  "citation_columns": ["id", "source", "locator", "excerpt"],
+  "source_classes": ["issuer", "market", "portfolio"],
+  "host_producers": ["MODEL", "RUN_BRIEF"],
+  "scales": {
+    "credit_score": ["1 - Strong", "2 - Good", "3 - Fair", "4 - Weak", "5 - Stressed"],
+    "valuation": ["V1 - Very attractive", "V2 - Attractive", "V3 - Fair", "V4 - Unattractive", "V5 - Very unattractive"],
+    "recommendation": ["1 - Strong OW", "2 - Modest OW", "3 - MW", "4 - Modest UW", "5 - Strong UW", "Avoid", "N/A"],
+    "credit_direction": ["Improving", "Stable", "Deteriorating"],
+    "sector_outlook": ["Positive", "Neutral", "Negative"],
+    "portfolio_fit": ["Fits", "Watch", "Breaches"]
+  }
+}
