@@ -245,6 +245,36 @@ def test_a_raising_command_is_still_logged(tmp_path: Path, monkeypatch: pytest.M
     assert (run / "log" / "rbot.log").read_text(encoding="utf-8").endswith("\t1\n")
 
 
+def test_other_runs_are_listed_safely(tmp_path: Path) -> None:
+    pack = _pack(tmp_path)
+    linked = pack / "rbot-runs" / "20260801-linked"
+    linked.mkdir()
+    (linked / "report.html").symlink_to(pack / "CZR_10Q.txt")
+    locked = pack / "rbot-runs" / "20260802-locked"
+    locked.mkdir()
+    locked.chmod(0)
+    try:
+        run = make_run(pack)
+        assert main(["inventory", "--run", str(run)]) == 0
+    finally:
+        locked.chmod(0o700)
+    skipped = {s["path"]: s["reason"] for s in _inventory(run)["skipped"]}
+    assert skipped["rbot-runs/20260801-linked/report.html"] == "symbolic link"
+    assert skipped["rbot-runs/20260802-locked"].startswith("unreadable: ")
+
+
+def test_a_pack_root_that_is_the_run_or_a_bad_run_state_is_named(tmp_path: Path) -> None:
+    run = tmp_path / "run"
+    run.mkdir()
+    state = run / "run-state.json"
+    state.write_text(json.dumps({"pack_root": str(run)}), encoding="utf-8")
+    with pytest.raises(RunError, match="pack_root is the run folder"):
+        pack_root(run)
+    state.write_bytes(b"\xff\xfe{}")
+    with pytest.raises(RunError, match=r"no readable pack_root"):
+        pack_root(run)
+
+
 @pytest.mark.corpus
 @pytest.mark.parametrize("pack_id", [p.id for p in CORPUS.packs])
 def test_inventory_is_deterministic(pack_id: str, corpus_pack: Callable[[str], Path]) -> None:

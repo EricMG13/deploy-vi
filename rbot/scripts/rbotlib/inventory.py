@@ -53,10 +53,12 @@ def pack_root(run: Path) -> Path:
     if state.is_file():
         try:
             root = Path(json.loads(state.read_text(encoding="utf-8"))["pack_root"])
-        except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        except (OSError, ValueError, KeyError, TypeError) as exc:
             raise RunError(f"{state}: no readable pack_root ({exc})") from exc
         if not root.is_absolute():
             raise RunError(f"{state}: pack_root must be an absolute path, not {str(root)!r}")
+        if root.resolve() == run.resolve():
+            raise RunError(f"{state}: pack_root is the run folder itself")
         return root.resolve()
     if run.parent.name == RUNS:
         return run.parent.parent.resolve()
@@ -129,19 +131,38 @@ def _skip_reason(path: Path) -> str | None:
     return None
 
 
+def _rel(pack: Path, path: Path, reason: str) -> dict[str, str]:
+    return {"path": path.relative_to(pack).as_posix(), "reason": reason}
+
+
+def _reports_in(pack: Path, folder: Path, skipped: list[dict[str, str]]) -> list[Path]:
+    """The report files of one other run folder; links and unreadable folders are skipped."""
+    if folder.is_symlink():
+        skipped.append(_rel(pack, folder, "symbolic link"))
+    elif not os.access(folder, os.R_OK | os.X_OK):
+        skipped.append(_rel(pack, folder, "unreadable: Permission denied"))
+    else:
+        named = [folder / n for n in REPORT_NAMES]
+        skipped += [_rel(pack, p, "symbolic link") for p in named if p.is_symlink()]
+        return [p for p in named if p.is_file() and not p.is_symlink()]
+    return []
+
+
 def _earlier_reports(pack: Path, run: Path, skipped: list[dict[str, str]]) -> list[Path]:
     """Report files of other runs in the pack's rbot-runs/ folder (never through a symlink)."""
     runs = pack / RUNS
     if runs.is_symlink() or not runs.is_dir():
         return []
+    try:
+        names = sorted(os.listdir(runs))
+    except OSError as exc:
+        skipped.append(_rel(pack, runs, f"unreadable: {exc.strerror or exc}"))
+        return []
     found: list[Path] = []
-    for d in sorted(os.listdir(runs)):
-        folder = runs / d
-        if folder.is_symlink():
-            skipped.append({"path": folder.relative_to(pack).as_posix(), "reason": "symbolic link"})
-        elif folder.resolve() != run:
-            found += [folder / name for name in REPORT_NAMES]
-    return [p for p in found if p.is_file() and not p.is_symlink()]
+    for d in names:
+        if (runs / d).resolve() != run:
+            found += _reports_in(pack, runs / d, skipped)
+    return found
 
 
 def _walk(pack: Path, run: Path) -> tuple[list[Path], list[dict[str, str]]]:
