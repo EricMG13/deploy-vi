@@ -75,3 +75,43 @@ def test_load_contract_reads_a_file(tmp_path: Path, rules: Rules) -> None:
     path = tmp_path / "contract.json"
     path.write_text(json.dumps(fixture_json("contract_cp_y.json")), encoding="utf-8")
     assert load_contract(path, rules).handoff_inputs() == ["CP-X"]
+
+
+_SHAPES: dict[str, Callable[[dict[str, Any]], Any]] = {
+    "root_list": lambda d: [d],
+    "inputs_not_list": lambda d: d.update(inputs="x"),
+    "tables_not_list": lambda d: d.update(tables={"a": 1}),
+    "columns_not_list": lambda d: d["tables"][0].update(columns="fact"),
+    "input_string": lambda d: d["inputs"].append("handoff"),
+    "table_string": lambda d: d["tables"].append("t"),
+    "column_string": lambda d: d["tables"][0]["columns"].append("note"),
+    "consumers_string": lambda d: d["tables"][0].update(consumers="CP-Y"),
+    "process_string": lambda d: d.update(process="Read."),
+    "prohibited_string": lambda d: d.update(prohibited="No."),
+    "rows_abc": lambda d: d["tables"][0].update(min_rows="abc"),
+    "rows_float": lambda d: d["tables"][0].update(min_rows=1.9),
+    "rows_bool": lambda d: d["tables"][0].update(min_rows=True),
+    "rows_numeric_string": lambda d: d["tables"][0].update(min_rows="3"),
+    "required_string": lambda d: d["inputs"].append(
+        {"handoff": "CP-0", "required": "false", "why": "w"}
+    ),
+    "handoff_list": lambda d: d["inputs"].append({"handoff": ["CP-0"], "why": "w"}),
+    "module_id_int": lambda d: d.update(module_id=7),
+}
+
+
+@pytest.mark.parametrize("change", sorted(_SHAPES))
+def test_malformed_shapes_raise_contract_error(rules: Rules, change: str) -> None:
+    data: Any = copy.deepcopy(fixture_json("contract_cp_x.json"))
+    replaced = _SHAPES[change](data)
+    if change == "root_list":
+        data = replaced
+    with pytest.raises(ContractError):
+        contract_from_dict(data, rules)
+
+
+def test_load_contract_names_the_path_on_invalid_json(tmp_path: Path, rules: Rules) -> None:
+    path = tmp_path / "contract.json"
+    path.write_text("{not json", encoding="utf-8")
+    with pytest.raises(ContractError, match=r"contract\.json"):
+        load_contract(path, rules)
