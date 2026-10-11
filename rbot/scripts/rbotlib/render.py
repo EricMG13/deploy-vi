@@ -31,33 +31,44 @@ def _table_block(spec: TableSpec, rules: Rules) -> list[str]:
         "| " + " | ".join(names) + " |",
         "|" + "---|" * len(names),
     ]
-    for c in spec.columns:
+    scales = [c for c in spec.columns if c.scale]
+    if scales:
+        lines.append("")
+    for c in scales:
         if c.scale:
             lines.append(f"- `{c.name}` takes exactly one of: " + "; ".join(rules.scales[c.scale]))
     return [*lines, ""]
 
 
-def _rules_block(rules: Rules) -> list[str]:
+def _rules_block(rules: Rules, module_id: str) -> list[str]:
     placeholders = ", ".join(sorted(rules.placeholders))
     return [
         "## Rules the checker enforces",
         "",
-        f"- Front matter keys, one `key: value` per line: {', '.join(rules.front_matter)}.",
+        "- Front matter keys, one non-empty `key: value` per line: "
+        f"{', '.join(rules.front_matter)}; `module_id` is `{module_id}`.",
         f"- `qa_status` is one of: {', '.join(rules.qa_status)}.",
         f"- H2 sections, exactly and in order: {', '.join(rules.sections)}.",
-        "- Tag each table with its `<!-- table: <id> -->` line.",
+        "- Tag each table exactly once, with its `<!-- table: <id> -->` line "
+        "directly above the table.",
         "- Emit no table the contract does not list.",
         f"- A critical cell (column marked *) is never empty or `{rules.gap_marker}`,",
         f"  nor any of: {placeholders}.",
-        f"- A missing non-critical value is `{rules.gap_marker}` and is explained under `## Gaps`.",
+        "  A listed scale value is always allowed, even one that reads like a placeholder "
+        "(e.g. `N/A`).",
         "- Every `[C<n>]` marker has a row in the citations table, and every row is cited:",
         "",
         "<!-- table: citations -->",
         "| " + " | ".join(rules.citation_columns) + " |",
         "|" + "---|" * len(rules.citation_columns),
         "",
-        "Each citation id appears on exactly one row. "
+        "Every cell of a citation row is filled. Each citation id appears on exactly one row. "
         "A marker inside the citations table does not count as citing it.",
+        "",
+        "## Conventions (not checked)",
+        "",
+        f"- Write `{rules.gap_marker}` for a missing non-critical value "
+        "and explain it under `## Gaps`.",
         "",
     ]
 
@@ -89,7 +100,7 @@ def render_module(contract: Contract, rules: Rules) -> str:
     ]
     for spec in contract.tables:
         lines += _table_block(spec, rules)
-    lines += _rules_block(rules)
+    lines += _rules_block(rules, contract.module_id)
     if contract.prohibited:
         lines += ["## Prohibited", "", *(f"- {p}" for p in contract.prohibited), ""]
     lines += [

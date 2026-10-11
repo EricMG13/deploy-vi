@@ -37,3 +37,54 @@ def test_handoff_inputs_render_with_their_requirement(rules: Rules) -> None:
 def test_rendering_is_deterministic(rules: Rules) -> None:
     contract = contract_from_dict(fixture_json("contract_cp_x.json"), rules)
     assert render_module(contract, rules) == render_module(contract, rules)
+
+
+def _cp_x_text(rules: Rules) -> str:
+    return render_module(contract_from_dict(fixture_json("contract_cp_x.json"), rules), rules)
+
+
+def test_a_scale_value_is_allowed_even_when_it_reads_like_a_placeholder(rules: Rules) -> None:
+    data = fixture_json("contract_cp_x.json")
+    data["tables"][1]["columns"][0] = {"name": "rec", "critical": True, "scale": "recommendation"}
+    text = render_module(contract_from_dict(data, rules), rules)
+    assert (
+        "A listed scale value is always allowed, even one that reads like a placeholder "
+        "(e.g. `N/A`)." in text
+    )
+    assert "`rec` takes exactly one of: 1 - Strong OW" in text
+
+
+def test_the_gap_convention_is_not_listed_as_a_checked_rule(rules: Rules) -> None:
+    text = _cp_x_text(rules)
+    checked, _, rest = text.partition("## Rules the checker enforces")[2].partition(
+        "## Conventions (not checked)"
+    )
+    assert rest.startswith("\n")
+    gap = (
+        f"Write `{rules.gap_marker}` for a missing non-critical value "
+        "and explain it under `## Gaps`."
+    )
+    assert gap not in checked
+    assert gap in rest.split("## Prohibited")[0]
+    assert "## Conventions (not checked)" in text
+
+
+def test_every_citation_cell_must_be_filled(rules: Rules) -> None:
+    assert "Every cell of a citation row is filled." in _cp_x_text(rules)
+
+
+def test_front_matter_rule_names_non_empty_values_and_the_module_id(rules: Rules) -> None:
+    text = _cp_x_text(rules)
+    assert "one non-empty `key: value` per line" in text
+    assert "`module_id` is `CP-X`" in text
+
+
+def test_tags_are_one_per_table_directly_above_it(rules: Rules) -> None:
+    assert (
+        "Tag each table exactly once, with its `<!-- table: <id> -->` line "
+        "directly above the table." in _cp_x_text(rules)
+    )
+
+
+def test_scale_bullets_are_separated_from_the_table(rules: Rules) -> None:
+    assert "|---|---|\n\n- `credit_score` takes exactly one of" in _cp_x_text(rules)
