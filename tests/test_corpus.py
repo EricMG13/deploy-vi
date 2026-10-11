@@ -172,9 +172,9 @@ def test_a_bad_require_value_is_refused(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setenv(REQUIRE_ENV, "yes")
     expected = r"RBOT_REQUIRE_CORPUS is 'yes'; expected '', '1' or 'synthetic'"
     with pytest.raises(pytest.fail.Exception, match=expected):
-        corpus_gate([Problem(MISSING, True, "p1: a.txt: missing")])
-    with pytest.raises(pytest.fail.Exception, match="'yes'"):
         corpus_gate([])
+    with pytest.raises(pytest.fail.Exception, match=expected):
+        corpus_gate([Problem(MISSING, True, "p1: a.txt: missing")])
 
 
 def test_a_root_that_is_not_a_folder_is_named(tmp_path: Path) -> None:
@@ -259,3 +259,49 @@ def test_the_require_rule(
 def test_corpus_hashes_match(pack_id: str) -> None:
     pack = CORPUS.pack(pack_id)
     corpus_gate(verify(CORPUS, pack, resolve_roots(CORPUS)))
+
+
+def test_an_external_file_in_an_in_repo_pack_is_not_in_repo(tmp_path: Path) -> None:
+    path = _registry(tmp_path, {}, {"a.txt": _sha(b"x")})
+    body = json.loads(path.read_text(encoding="utf-8"))
+    body["packs"][0].update(root="synthetic", path="pack")
+    body["packs"][0]["files"][0]["external"] = "ext/pack/a.txt"
+    path.write_text(json.dumps(body), encoding="utf-8")
+    (tmp_path / "repo" / "tests" / "corpus" / "synthetic").mkdir()
+    registry = load_registry(path)
+    problems = verify(registry, registry.pack("p1"), resolve_roots(registry, {}))
+    assert [(p.code, p.in_repo) for p in problems] == [(UNRESOLVED, False)]
+
+
+def test_a_root_value_or_external_path_cannot_leave_the_repo_or_be_absolute(
+    tmp_path: Path,
+) -> None:
+    path = _registry(tmp_path, {}, {"a.txt": _sha(b"x")})
+    body = json.loads(path.read_text(encoding="utf-8"))
+    body["roots"]["synthetic"] = "../../../outside"
+    path.write_text(json.dumps(body), encoding="utf-8")
+    with pytest.raises(CorpusError, match=r"root 'synthetic'.*escapes the repo"):
+        resolve_roots(load_registry(path), {})
+    path = _registry(tmp_path / "b", {}, {"a.txt": _sha(b"x")})
+    body = json.loads(path.read_text(encoding="utf-8"))
+    body["packs"][0]["files"][0]["external"] = "ext//etc/hosts"
+    path.write_text(json.dumps(body), encoding="utf-8")
+    registry = load_registry(path)
+    (problem,) = verify(
+        registry, registry.pack("p1"), resolve_roots(registry, _roots_env(tmp_path / "b"))
+    )
+    assert "absolute path not allowed" in problem.message
+
+
+def test_a_registry_that_is_an_array_or_lacks_pack_keys_is_named(tmp_path: Path) -> None:
+    path = tmp_path / "corpus.json"
+    path.write_text("[]", encoding="utf-8")
+    with pytest.raises(CorpusError, match="not a JSON object"):
+        load_registry(path)
+    for key in ("pathways", "issuer", "period"):
+        good = _registry(tmp_path / key, {}, {})
+        body = json.loads(good.read_text(encoding="utf-8"))
+        del body["packs"][0][key]
+        good.write_text(json.dumps(body), encoding="utf-8")
+        with pytest.raises(CorpusError, match=f"pack 0: missing {key}"):
+            load_registry(good)

@@ -83,7 +83,8 @@ def _file(raw: dict[str, Any], where: str) -> CorpusFile:
 
 
 def _pack(raw: dict[str, Any], where: str) -> Pack:
-    pack_id, root, path, files = _need(raw, ("id", "root", "path", "files"), where)
+    keys = ("id", "root", "path", "files", "pathways", "issuer", "period")
+    pack_id, root, path, files = _need(raw, keys, where)[:4]
     parsed = tuple(_file(f, f"{where}: file {i}") for i, f in enumerate(files))
     return Pack(pack_id, root, path, parsed, raw)
 
@@ -93,6 +94,8 @@ def load_registry(path: Path = REGISTRY) -> Registry:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         raise CorpusError(f"{path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise CorpusError(f"{path}: not a JSON object")
     if data.get("schema") != "rbot-corpus/1":
         raise CorpusError(f"{path}: schema is {data.get('schema')!r}, expected 'rbot-corpus/1'")
     top = _need(data, ("roots", "packs"), str(path))
@@ -113,8 +116,7 @@ class Roots(dict[str, Path]):
         self.invalid: dict[str, Path] = {}
 
 
-def resolve_roots(registry: Registry, env: Mapping[str, str] = os.environ) -> Roots:
-    """Every root that resolves to a folder; an unresolved root is simply absent."""
+def _external_roots(env: Mapping[str, str]) -> dict[str, str]:
     raw = env.get(ROOTS_ENV, "")
     try:
         external = json.loads(raw) if raw.strip() else {}
@@ -125,13 +127,26 @@ def resolve_roots(registry: Registry, env: Mapping[str, str] = os.environ) -> Ro
     for name, value in external.items():
         if not isinstance(value, str):
             raise CorpusError(f"{ROOTS_ENV}: root {name!r} must be a string path")
+    return external
+
+
+def _root_folder(registry: Registry, name: str, external: dict[str, str]) -> Path | None:
+    value = registry.roots[name]
+    if value == EXTERNAL:
+        return Path(external[name]) if name in external else None
+    folder = repo_root(registry) / value
+    if not folder.resolve().is_relative_to(repo_root(registry).resolve()):
+        raise CorpusError(f"root {name!r}: {value!r} escapes the repo")
+    return folder
+
+
+def resolve_roots(registry: Registry, env: Mapping[str, str] = os.environ) -> Roots:
+    """Every root that resolves to a folder; an unresolved root is simply absent."""
+    external = _external_roots(env)
     roots = Roots()
-    for name, value in registry.roots.items():
-        if value != EXTERNAL:
-            folder = repo_root(registry) / value
-        elif name in external:
-            folder = Path(external[name])
-        else:
+    for name in registry.roots:
+        folder = _root_folder(registry, name, external)
+        if folder is None:
             continue
         if folder.is_dir():
             roots[name] = folder
@@ -158,7 +173,7 @@ def sha256_file(path: Path) -> str:
 
 
 def _unresolved(
-    pack: Pack, roots: Mapping[str, Path], local: bool, lost: dict[str, list[CorpusFile]]
+    registry: Registry, pack: Pack, roots: Mapping[str, Path], lost: dict[str, list[CorpusFile]]
 ) -> list[Problem]:
     """One problem per root, with its file count (a root is unset or is not a folder)."""
     invalid: Mapping[str, Path] = getattr(roots, "invalid", {})
@@ -168,7 +183,8 @@ def _unresolved(
             why = f"root {root!r} -> {invalid[root]} is not a folder"
         else:
             why = f"root {root!r} is unresolved for {len(files)} file(s); set {ROOTS_ENV}"
-        problems.append(Problem(UNRESOLVED, local, f"{pack.id}: {why}"))
+        in_repo = registry.roots.get(root) != EXTERNAL
+        problems.append(Problem(UNRESOLVED, in_repo, f"{pack.id}: {why}"))
     return problems
 
 
@@ -195,14 +211,16 @@ def _check(
     for f in pack.files:
         local = f.external is None and registry.roots.get(pack.root) != EXTERNAL
         where = locate(pack, f, roots)
-        if where is None:
+        if f.external and (f.external.startswith("/") or "//" in f.external):
+            text = f"{pack.id}: {f.path}: absolute path not allowed in {f.external!r}"
+            problems.append(Problem(MISSING, local, text))
+        elif where is None:
             lost.setdefault(_root_name(pack, f), []).append(f)
         elif message := _check_file(pack, f, where, roots[_root_name(pack, f)]):
             problems.append(Problem(MISSING, local, message))
         else:
             found[f.path] = where
-    local_pack = registry.roots.get(pack.root) != EXTERNAL
-    return problems + _unresolved(pack, roots, local_pack, lost), found
+    return problems + _unresolved(registry, pack, roots, lost), found
 
 
 def verify(registry: Registry, pack: Pack, roots: Mapping[str, Path]) -> list[Problem]:
