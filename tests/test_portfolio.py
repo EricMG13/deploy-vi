@@ -165,3 +165,13 @@ def test_an_unlinked_table_is_a_note_and_bad_totals_are_unparsed(
     assert data["nav"] == "" and data["limits"] == []
     assert {"row": "Total NAV", "reason": "missing or not a number"} in data["unparsed"]
     assert {"row": "Strategy", "reason": "'Hedge' is not a Strategy"} in data["unparsed"]
+
+
+@pytest.mark.parametrize("unsafe", ["../x", "a/b", ".hidden", ".."])
+def test_an_unsafe_portfolio_id_is_a_note_and_writes_no_file(tmp_path: Path, unsafe: str) -> None:
+    run, notes = _prepare(tmp_path, {"positions.csv": POSITIONS.replace("TEST_CLO_I", unsafe)})
+    assert len(notes) == 1 and f"unsafe Portfolio ID {unsafe!r}" in notes[0]
+    assert not (run / "prepared" / "portfolios").exists() or not any(
+        (run / "prepared" / "portfolios").iterdir()
+    )
+    assert not (run / "prepared" / "x.json").exists()

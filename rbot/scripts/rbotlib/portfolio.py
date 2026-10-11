@@ -61,6 +61,9 @@ class Portfolio:
     files: dict[str, str] = field(default_factory=dict)
 
 
+_SAFE_ID = re.compile(r"(?!\.)[A-Za-z0-9_.-]+")  # becomes a file name: no path parts
+
+
 def _norm(cell: str) -> str:
     return " ".join(cell.casefold().split())
 
@@ -187,6 +190,8 @@ def read_sheet(source: str, rows: list[list[str]], found: dict[str, Portfolio]) 
         portfolio_id = meta.get("portfolio_id")
         if not portfolio_id:
             return f"{source}: {kind} table without a Portfolio ID row; not linked"
+        if not _SAFE_ID.fullmatch(portfolio_id):
+            return f"{source}: {kind} table has unsafe Portfolio ID {portfolio_id!r}; not linked"
         p = found.setdefault(portfolio_id, Portfolio())
         p.meta.update(meta)
         p.files[kind] = source
