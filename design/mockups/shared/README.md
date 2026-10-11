@@ -108,6 +108,8 @@ Clicking any `button[data-ref]`, or pressing Enter on a chart mark, opens one po
 | `RBOTUI.value(datum, unit?, context?)` | Returns a fragment: the value plus its chip, or the n/a gap with its reason. Context `"prose"` or `"figure"` makes the figure itself the button, with a corner mark and no bracket chip |
 | `RBOTUI.cell(td, datum, unit?, kind?)` | Fills a dense-table cell in the compact form (the figure is the button). `kind` hints the display format (`"rate"`, `"price"`) |
 | `RBOTUI.setFormat(fn)` | Installs the display formatter `fn(datum, unit, context, kind)`, which returns the text to show or `null`. The popover still prints the string as served ("Served as"). Without a formatter, values print as served |
+| `RBOTUI.setTextHook(fn)` / `RBOTUI.tidy(text)` | Installs a text tidier (a page uses it for dates); chart tooltips and marks read through `tidy`, so a tooltip shows the same date as the page |
+| `RBOTUI.setFieldLabel(fn)` | Installs a function that turns a gap's raw extraction key into plain words for the gap popover ("Missing item") |
 | `RBOTUI.roving(root)` | One tab stop per block of provenance buttons (a table, list or paragraph); arrow keys, Home and End move within it. Chart marks are one tab stop per chart |
 | `RBOTUI.statusLabel(word)` | The reader-facing status word: `Restricted` reads "With limitations" (the data keeps `Restricted`); Pass and Blocked are unchanged |
 | `RBOTUI.chip(ref)` | Returns a `cite`, `calc` or `gapref` button |
@@ -134,6 +136,7 @@ Clicking any `button[data-ref]`, or pressing Enter on a chart mark, opens one po
 | `unit` | `"x"`, `"%"` or `"pp"` print attached; `"US$ m"` and `"% NAV"` print spaced |
 | `source` | Caption line, printed after "Source:" |
 | `number` | Optional, e.g. `"Figure 3"` |
+| `minWidth` | Narrowest drawing width in px (default 280). A page whose cells are narrower than 280 sets this lower so the SVG draws at 1:1 and chart text keeps its 12px size |
 | `headingLevel` | Heading level, 2–6; default 4 |
 | `id` | Element id |
 | `height` | Plot height in px |

@@ -6,7 +6,7 @@
   "use strict";
 
   var SVGNS = "http://www.w3.org/2000/svg";
-  var fmtHook = null;
+  var fmtHook = null, textHook = null, fieldHook = null;
   var uid = 0;
 
   /* ------------------------------------------------------------ DOM helpers */
@@ -216,8 +216,9 @@
     var ctx = { id: id, spec: spec, plot: plot, tip: tip, defs: null, patterns: {} };
     function draw() {
       while (plot.firstChild) plot.removeChild(plot.firstChild);
-      var W = Math.max(280, Math.round(plot.clientWidth || el.clientWidth || 640));
-      var svg = s("svg", { role: "group", "aria-label": (spec.title || kind.name) + ", chart; each mark is focusable" });
+      /* one px under the box, so the SVG is never scaled down by a fractional width and its 12px text stays 12px */
+      var W = Math.max(spec.minWidth || 280, Math.round(plot.clientWidth || el.clientWidth || 640) - 1);
+      var svg = s("svg", { role: "group", tabindex: "-1", "aria-label": (spec.title || kind.name) + ", chart; each mark is focusable" });
       ctx.svg = svg; ctx.W = W; ctx.patterns = {};
       svg.addEventListener("keydown", markArrows);
       svg.addEventListener("focusin", markFocus);
@@ -277,6 +278,7 @@
 
   /* a focusable mark: shape(s) plus a >= 24px hit rect */
   function mark(ctx, box, label, ref, kids) {
+    if (window.RBOTUI && window.RBOTUI.tidy) label = window.RBOTUI.tidy(label);
     var g = s("g", { class: "mark", tabindex: 0, role: "img", "aria-label": label, "data-ref": ref || null });
     add(g, kids);
     var w = Math.max(24, box.w), hh = Math.max(24, box.h);
@@ -747,7 +749,7 @@
       var y = function (v) { return bottom - (v - sc.lo) / (sc.hi - sc.lo) * (bottom - top); };
       yAxis(ctx, sc, y, left, right, sp.unit);
       catLabels(ctx, sp.categories, function (i) { return left + band * (i + 0.5); }, band, bottom + 15, 2);
-      var bw = Math.min(64, band * 0.66);
+      var bw = Math.min(64, band * 0.66), placed = [];
       sp.categories.forEach(function (cat, i) {
         var cx = left + band * (i + 0.5), bx = cx - bw / 2, acc = 0, gaps = [];
         sp.series.forEach(function (ser, si) {
@@ -767,7 +769,14 @@
         });
         var topY = y(acc);
         if (sp.totals !== false && acc > 0) {
-          ctx.svg.appendChild(s("text", { class: "lbl", x: cx, y: topY - 4, "text-anchor": "middle", "aria-hidden": "true", text: totalOf(sp, i) }));
+          /* neighbouring totals that would touch are staggered upwards, so none overprints another */
+          var tt = totalOf(sp, i), ty = topY - 4, tw2 = tw(tt, 12, 600) / 2 + 2;
+          for (var pi = 0; pi < placed.length; pi++) {
+            var pl = placed[pi];
+            if (Math.abs(pl.y - ty) < 14 && Math.abs(pl.x - cx) < pl.w + tw2) { ty = pl.y - 14; pi = -1; }
+          }
+          placed.push({ x: cx, y: ty, w: tw2 });
+          ctx.svg.appendChild(s("text", { class: "lbl", x: cx, y: Math.max(11, ty), "text-anchor": "middle", "aria-hidden": "true", text: tt }));
         }
         gaps.forEach(function (gp, k) {
           gapMark(ctx, cx, topY - 18 - k * 14, gp.ser.label + ", " + cat + ": " + gapText(gp.d), gp.d.ref);
@@ -1104,7 +1113,7 @@
       if (c.note) pop.appendChild(h("p", { class: "gap__reason", text: c.note }));
     } else {
       var g = found.item;
-      pop.appendChild(h("dl", {}, [h("dt", { text: "Field" }), h("dd", { text: g.field || g.label || "" }), h("dt", { text: "Reason" }), h("dd", { text: g.reason || "" })]));
+      pop.appendChild(h("dl", {}, [h("dt", { text: "Missing item" }), h("dd", { text: fieldHook ? fieldHook(g.field || g.label || "") : (g.field || g.label || "") }), h("dt", { text: "Reason" }), h("dd", { text: g.reason || "" })]));
     }
     pop.hidden = false;
     var r = anchor.getBoundingClientRect();
@@ -1120,6 +1129,10 @@
   /* Display formatting is the page's business: a hook turns a datum into the text a reader sees, while the
      passport (popover) keeps the string exactly as served. hook(datum, unit, context, kind) returns text or null. */
   function setFormat(fn) { fmtHook = typeof fn === "function" ? fn : null; }
+  /* the page may also tidy free text (dates) and name a gap's missing item in plain words; the passport keeps the served strings */
+  function setTextHook(fn) { textHook = typeof fn === "function" ? fn : null; }
+  function setFieldLabel(fn) { fieldHook = typeof fn === "function" ? fn : null; }
+  function tidy(t) { return textHook ? textHook(String(t)) : String(t); }
   function digitsOf(t) { return String(t).replace(/[^0-9.]/g, ""); }
   function shown(d, unit, ctx, kind) {
     var served = String(d.v), t = fmtHook ? fmtHook(d, unit, ctx, kind) : null;
@@ -1143,7 +1156,7 @@
     var sh = shown(d, unit, ctx || "table", "value");
     if (ctx === "prose" || ctx === "figure") {
       /* a span, not a button: a figure inside a sentence must wrap with the text around it */
-      if (d.ref) f.appendChild(h("span", { class: "figref prov--" + (d.prov || "cited"), role: "button", tabindex: 0, "data-ref": d.ref, "data-served": sh.served,
+      if (d.ref) f.appendChild(h("span", { class: "figref prov--" + (d.prov || "cited") + (sh.text.length > 26 ? " figref--long" : ""), role: "button", tabindex: 0, "data-ref": d.ref, "data-served": sh.served,
         "aria-label": sh.text + ", " + provWord(d) }, [sh.text]));
       else f.appendChild(h("span", { class: "num", text: sh.text }));
       return f;
@@ -1291,5 +1304,5 @@
     var g = groupOf(b);
     Array.prototype.forEach.call(g.querySelectorAll("[data-rv]"), function (x) { if (groupOf(x) === g) x.tabIndex = x === b ? 0 : -1; });
   }
-  window.RBOTUI = { cell: cell, init: init, open: open, close: close, chip: chip, value: value, tabs: tabs, el: h, scale: scale, status: status, statusLabel: statusLabel, illus: illus, setFormat: setFormat, roving: roving };
+  window.RBOTUI = { cell: cell, init: init, open: open, close: close, chip: chip, value: value, tabs: tabs, el: h, scale: scale, status: status, statusLabel: statusLabel, illus: illus, setFormat: setFormat, setTextHook: setTextHook, setFieldLabel: setFieldLabel, tidy: tidy, roving: roving };
 })();

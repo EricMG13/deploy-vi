@@ -14490,7 +14490,7 @@ window.RBOT_DATA = {
     "illustrative": true
    },
    {
-    "text": "Merger End Date May 27, 2027, extendable to August 27 and November 27, 2027.",
+    "text": "Merger End Date May 27, 2027, extendable to August 27, 2027 and November 27, 2027.",
     "refs": [
      "C220",
      "C221",
@@ -14543,7 +14543,7 @@ window.RBOT_DATA = {
    },
    {
     "label": "Committed bid",
-    "text": "An all-cash offer at 31.00 per share, not subject to a financing condition.",
+    "text": "An all-cash offer at 31.00, not subject to a financing condition.",
     "refs": [
      "C210",
      "C13"
@@ -14607,7 +14607,7 @@ window.RBOT_DATA = {
    "illustrative": true
   },
   "transactionSummary": {
-   "text": "Fertitta Entertainment will acquire Caesars for 31.00 per share in cash, funded by Fertitta equity, assumed Caesars debt and new committed debt financing from a group of 10 banks. The amount, tranches and pricing of the new debt are not in the sources.",
+   "text": "Fertitta Entertainment will acquire Caesars for 31.00 in cash, funded by Fertitta equity, assumed Caesars debt and new committed debt financing from a group of 10 banks. The amount, tranches and pricing of the new debt are not in the sources.",
    "refs": [
     "C210",
     "C12",
@@ -14632,7 +14632,7 @@ window.RBOT_DATA = {
     "illustrative": true
    },
    {
-    "text": "No debt maturity before January 31, 2028; 2030 carries 3,962 of maturities.",
+    "text": "No final maturity before January 31, 2028; 3,962 is scheduled for 2030 in the 10-Q table, amortisation included.",
     "refs": [
      "C162",
      "C182"

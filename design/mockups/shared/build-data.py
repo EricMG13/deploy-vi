@@ -934,7 +934,7 @@ def illustrative() -> dict:
                     [C["ltm_adj_ebitda_q2_2026"], C["trace_czr_12769gac4_last_price"], GAP_BY_KEY["merger_committed_debt_financing_amount"]]),
         "catalysts": [
             r("Go-shop period ended July 11, 2026.", [C["merger_go_shop_end"]]),
-            r("Merger End Date May 27, 2027, extendable to August 27 and November 27, 2027.",
+            r("Merger End Date May 27, 2027, extendable to August 27, 2027 and November 27, 2027.",
               [C["merger_initial_end_date"], C["merger_first_extended_end_date"], C["merger_second_extended_end_date"]]),
             r("Ticking fee accrues from June 26, 2027.", [C["merger_ticking_fee_date"]]),
             r("Disclosure of the committed debt financing (amount and tranches) for the merger.", [GAP_BY_KEY["merger_committed_debt_financing_amount"]]),
@@ -943,7 +943,7 @@ def illustrative() -> dict:
             {"label": "Scale and cash generation", **r(f"LTM Adjusted EBITDA of {F('ltm_adj_ebitda_q2_2026')} on net revenues of {F('ltm_net_revenues_q2_2026')}.", [C["ltm_adj_ebitda_q2_2026"], C["ltm_net_revenues_q2_2026"]])},
             {"label": "Liquidity", **r(f"Cash and revolver capacity of {F('liq_total')} at 30 June 2026 against {F('debt_maturity_remaining_2026')} of debt due in the rest of 2026.", [C["liq_total"], C["debt_maturity_remaining_2026"]])},
             {"label": "Regional growth", **r(f"Regional Adjusted EBITDA rose to {F('seg_adj_ebitda_regional_q2_2026')} from {F('seg_adj_ebitda_regional_q2_2025')} in Q2 2026.", [C["seg_adj_ebitda_regional_q2_2026"], C["seg_adj_ebitda_regional_q2_2025"]])},
-            {"label": "Committed bid", **r(f"An all-cash offer at {F('merger_price_per_share_pr')} per share, not subject to a financing condition.", [C["merger_price_per_share_pr"], C["issuer.merger.financing_condition"]])},
+            {"label": "Committed bid", **r(f"An all-cash offer at {F('merger_price_per_share_pr')}, not subject to a financing condition.", [C["merger_price_per_share_pr"], C["issuer.merger.financing_condition"]])},
         ],
         "weaknesses": [
             {"label": "Merger debt unknown", **r("The committed debt financing has no stated amount; leverage after closing cannot be computed.", [GAP_BY_KEY["merger_committed_debt_financing_amount"]])},
@@ -956,14 +956,14 @@ def illustrative() -> dict:
         "businessDescription": r("Caesars Entertainment reports four operating segments: Las Vegas, Regional, Caesars Digital, and Managed and Branded. "
                                  "It agreed on May 27, 2026 to be acquired by Fertitta Entertainment in an all-cash transaction valued at approximately $17.6 billion including assumed debt.",
                                  [C["seg_rev_las_vegas_q2_2026"], C["issuer.merger.agreement_date"], C["merger_transaction_value"]]),
-        "transactionSummary": r("Fertitta Entertainment will acquire Caesars for 31.00 per share in cash, funded by Fertitta equity, assumed Caesars debt "
+        "transactionSummary": r("Fertitta Entertainment will acquire Caesars for 31.00 in cash, funded by Fertitta equity, assumed Caesars debt "
                                 "and new committed debt financing from a group of 10 banks. The amount, tranches and pricing of the new debt are not in the sources.",
                                 [C["merger_price_per_share_pr"], C["issuer.merger.financing"], GAP_BY_KEY["merger_committed_debt_financing_amount"]]),
         "keyFindings": [
             r(f"Total leverage {F('total_leverage_ltm')}x on LTM Adjusted EBITDA, before any merger debt.", [C["total_leverage_ltm"]]),
             r(f"Interest cover {F('interest_cover_ltm')}x including lease financing obligations; {F('cash_interest_cover_ltm')}x on debt cash interest alone.",
               [C["interest_cover_ltm"], C["cash_interest_cover_ltm"]]),
-            r(f"No debt maturity before {F('cei_rcf_maturity')}; 2030 carries {F('debt_maturity_2030')} of maturities.", [C["cei_rcf_maturity"], C["debt_maturity_2030"]]),
+            r(f"No final maturity before {F('cei_rcf_maturity')}; {F('debt_maturity_2030')} is scheduled for 2030 in the 10-Q table, amortisation included.", [C["cei_rcf_maturity"], C["debt_maturity_2030"]]),
             r(f"Unsecured 2032s at {F('trace_czr_12769gad2_last_price')} ({F('trace_czr_12769gad2_moodys')}) against secured 2032s at {F('trace_czr_12769gac4_last_price')} ({F('trace_czr_12769gac4_moodys')}).",
               [C["trace_czr_12769gad2_last_price"], C["trace_czr_12769gac4_last_price"]]),
         ],
