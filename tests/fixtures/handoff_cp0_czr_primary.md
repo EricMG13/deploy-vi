@@ -73,11 +73,11 @@ Hand-written test fixture: the CP-0 tables `rbot brief` reads, for the synthetic
 | C7 | SYNTHETIC_CZR_2026_TLB_Term_Sheet.md | p.1 | Size USD 3,000 million |
 | C8 | SYNTHETIC_CZR_2026_TLB_Term_Sheet.md | p.1 | Price Talk SOFR + 300–325 bps (initial talk) |
 | C9 | SYNTHETIC_CZR_2026_TLB_Term_Sheet.md | p.1 | Marketing stage: initial talk |
-| C10 | SYNTHETIC_CZR_2026_TLB_Term_Sheet.md | p.1 | OID 99.0–99.5 Maturity 2033-12-15 |
-| C11 | SYNTHETIC_CZR_2026_TLB_Term_Sheet.md | p.1 | Maturity 2033-12-15 (seven years from expected closing) |
+| C10 | SYNTHETIC_CZR_2026_TLB_Term_Sheet.md | p.1 | OID 99.0–99.5 |
+| C11 | SYNTHETIC_CZR_2026_TLB_Term_Sheet.md | p.1 | Maturity 2033-12-15 |
 | C12 | SYNTHETIC_CZR_2026_TLB_Term_Sheet.md | p.1 | Expected facility ratings Ba3 (Moody's) / BB- (S&P) |
 | C13 | SYNTHETIC_CZR_2026_TLB_Term_Sheet.md | p.1 | Commitment date 2026-10-08 |
 | C14 | SYNTHETIC_CZR_2026_TLB_Term_Sheet.md | p.1 | Bloomberg ID and CUSIP are not yet assigned |
 | C15 | SYNTHETIC_CZR_2026_TLB_Term_Sheet.md | p.1 | No Covenant Review score has been published |
-| C16 | SYNTHETIC_TEST_CLO_I_Positions_2026-10-02.csv | p.1 | Portfolio ID TEST_CLO_I Portfolio Test CLO I Ltd |
-| C17 | SYNTHETIC_TEST_CLO_I_Limits_2026-10-02.csv | p.1 | Portfolio ID TEST_CLO_I As of 2026-05-29 |
+| C16 | SYNTHETIC_TEST_CLO_I_Positions_2026-10-02.csv | p.1 | Portfolio ID TEST_CLO_I |
+| C17 | SYNTHETIC_TEST_CLO_I_Limits_2026-10-02.csv | p.1 | Portfolio ID TEST_CLO_I |

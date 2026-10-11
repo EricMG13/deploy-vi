@@ -19,7 +19,7 @@ import unicodedata
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from rbotlib.contract import Column, Contract, TableSpec
 from rbotlib.handoff import Handoff, HandoffError, Table, cells, markers, parse
@@ -154,11 +154,11 @@ def _citations(h: Handoff, rules: Rules) -> list[Finding]:
 
 # --- `--run`: every citation names a pack file and its excerpt is in that file ---------
 
-_PAGE_WORD = r"\b(?:pp?|pgs?|pages?)\b\.?"
+_PAGE_WORD = r"\b(?:pp?|pgs?|pages?)(?![A-Za-z_&])\.?"
 _PAGE_LOCATOR = re.compile(_PAGE_WORD + r"\s*(\d+)(?:\s*[-\u2013]\s*(\d+))?", re.I)
 _PAGE_LIKE = re.compile(_PAGE_WORD, re.I)
 _PAGE_LINE = re.compile(r"^<<< page (\d+) >>>$", re.M)
-_FRONT_MATTER = re.compile(r"\A---\n.*?\n---\n", re.S)
+_FRONT_MATTER = re.compile(r"\A---\n.*?\n---(?:\n|\Z)", re.S)
 _QUOTES = str.maketrans(
     {
         "\u2018": "'",
@@ -177,31 +177,43 @@ _QUOTES = str.maketrans(
         "|": " ",
     }
 )
-MIN_EXCERPT_TOKENS, MIN_EXCERPT_CHARS = 3, 10
+MIN_EXCERPT_TOKENS, MIN_EXCERPT_CHARS, MIN_PART_TOKENS = 2, 8, 2
+INDEX_KEYS = ("unreadable", "image_read", "prepared", "kind")
 
 
 class _RunProblem(Exception):
     """The run folder cannot be read; the message is `<path>: <reason>`."""
 
 
+_LETTER = r"[^\W\d_]"
+_BREAK = re.compile(rf"({_LETTER})[-\u00ad\u2010-\u2012\u2212]\s*\n\s*({_LETTER})")
+
+
 def normalise(text: str) -> str:
     """Compare text as a reader would: NFKC, case-folded, plain quotes and dashes, one space.
 
-    A hyphen at a line break is joined (`inter-\\nnational`); the soft hyphen is dropped.
+    A hyphen (or soft hyphen) at a line break between two letters is joined
+    (`inter-\\nnational`); the soft hyphen is dropped elsewhere.
     """
-    plain = unicodedata.normalize("NFKC", text).translate(_QUOTES)
-    return " ".join(re.sub(r"(\w)-\s*\n\s*(\w)", r"\1\2", plain).casefold().split())
+    joined = _BREAK.sub(r"\1\2", unicodedata.normalize("NFKC", text))
+    return " ".join(joined.translate(_QUOTES).casefold().split())
 
 
 def _parts(excerpt: str) -> list[str]:
     return [n for n in (normalise(p) for p in re.split(r"\.\.\.|\u2026", excerpt)) if n]
 
 
+def _needle(text: str) -> re.Pattern[str]:
+    """The text as a whole-token match that never starts or ends inside a number or drops a sign."""
+    before = r"(?<!\w)(?<!\d[.,])" + (r"(?<!-)" if text[0].isdigit() else "")
+    return re.compile(before + re.escape(text) + r"(?!\w)(?![.,]\d)")
+
+
 def excerpt_found(text: str, excerpt: str) -> bool:
     """Every part of the excerpt (split at an ellipsis) appears in the text, in order."""
     haystack, at = normalise(text), 0
     for needle in _parts(excerpt):
-        hit = re.compile(rf"(?<!\w){re.escape(needle)}(?!\w)").search(haystack, at)
+        hit = _needle(needle).search(haystack, at)
         if hit is None:
             return False
         at = hit.end()
@@ -209,9 +221,11 @@ def excerpt_found(text: str, excerpt: str) -> bool:
 
 
 def too_short(excerpt: str) -> bool:
-    """An excerpt of fewer than 3 words or 10 characters (ellipsis parts joined) anchors nothing."""
-    joined = " ".join(_parts(excerpt))
-    return len(joined.split()) < MIN_EXCERPT_TOKENS or len(joined) < MIN_EXCERPT_CHARS
+    """Under 2 words or 8 characters overall, or an ellipsis part under 2 words, anchors nothing."""
+    parts = _parts(excerpt)
+    joined = " ".join(parts)
+    thin = any(len(p.split()) < MIN_PART_TOKENS for p in parts)
+    return thin or len(joined.split()) < MIN_EXCERPT_TOKENS or len(joined) < MIN_EXCERPT_CHARS
 
 
 def pages(prepared_text: str) -> dict[int, str]:
@@ -246,19 +260,27 @@ def _sheet_rows(text: str) -> str:
 
 def _fetched(run: Path, source: str) -> str | None:
     """The body of a flat file directly in fetched/ (front matter stripped), else None."""
-    folder = (run / "fetched").resolve()
+    if not source.startswith("fetched/") or any(ord(c) < 32 for c in source):
+        return None
+    if (run / "fetched").is_symlink():
+        return None
     path = (run / source).resolve()
-    if not source.startswith("fetched/") or path.parent != folder or not path.is_file():
+    if path.parent != (run / "fetched").resolve() or not path.is_file():
         return None
     return "<<< page 1 >>>\n" + _FRONT_MATTER.sub("", _read(path), count=1)
 
 
+class Source(NamedTuple):
+    text: str
+    rows: bool  # a sheet: an excerpt must anchor within one row
+
+
 def _source_text(
     run: Path, source: str, records: dict[str, dict[str, Any]]
-) -> str | Finding | None:
+) -> Source | Finding | None:
     """The text a citation must anchor in; None for an Image-Read source (nothing to anchor)."""
     if (fetched := _fetched(run, source)) is not None:
-        return fetched
+        return Source(fetched, False)
     record = records.get(source)
     if record is None:
         return Finding("source_unknown", f"{source!r} is not in prepared/index.json or fetched/")
@@ -267,7 +289,9 @@ def _source_text(
     if record["image_read"]:
         return None
     text = _read(run / str(record["prepared"]))
-    return _sheet_rows(text) if record["kind"] in ("csv", "xlsx") else text
+    if record["kind"] in ("csv", "xlsx"):
+        return Source(_sheet_rows(text), True)
+    return Source(text, False)
 
 
 def _scope(by_page: dict[int, str], locator: str) -> list[str] | None:
@@ -275,40 +299,51 @@ def _scope(by_page: dict[int, str], locator: str) -> list[str] | None:
     wanted = _PAGE_LOCATOR.search(locator)
     if wanted:
         first = int(wanted.group(1))
-        return [by_page.get(n, "") for n in range(first, int(wanted.group(2) or first) + 1)]
+        last = min(int(wanted.group(2) or first), len(by_page))
+        return [by_page.get(n, "") for n in range(first, last + 1)]
     return None if _PAGE_LIKE.search(locator) else list(by_page.values())
 
 
-def _anchor(row: list[str], text: str) -> Finding | None:
+def _anchor(row: list[str], source_text: Source) -> Finding | None:
     cid, source, locator, excerpt = row[:4]
     if too_short(excerpt):
         need = f"{MIN_EXCERPT_TOKENS} words and {MIN_EXCERPT_CHARS} characters"
         return Finding("citation_unanchored", f"{cid}: excerpt needs {need}: {excerpt!r}")
-    scope = _scope(pages(text), locator)
+    scope = _scope(pages(source_text.text), locator)
     if scope is None:
         return Finding("citation_unanchored", f"{cid}: page locator {locator!r} not understood")
-    if any(excerpt_found(page, excerpt) for page in scope):
+    if source_text.rows:
+        scope = [line for page in scope for line in page.splitlines()]
+    if any(excerpt_found(unit, excerpt) for unit in scope):
         return None
     where = f"{source} {locator}" if _PAGE_LOCATOR.search(locator) else source
     return Finding("citation_unanchored", f"{cid}: excerpt not found in {where}: {excerpt!r}")
 
 
-def _run_findings(h: Handoff, run: Path) -> list[Finding]:
-    index_path = run / "prepared" / "index.json"
+def _records(index_path: Path) -> dict[str, dict[str, Any]]:
+    """The prepared index by path; a record without a key a citation needs is a run error."""
     try:
         records = {r["path"]: r for r in json.loads(_read(index_path))["files"]}
+        bad = [(p, k) for p, r in records.items() for k in INDEX_KEYS if k not in r]
     except (ValueError, KeyError, TypeError) as exc:
         raise _RunProblem(f"{index_path}: not a prepared index ({exc})") from exc
+    if bad:
+        raise _RunProblem(f"{index_path}: record {bad[0][0]!r} lacks {bad[0][1]!r}")
+    return records
+
+
+def _run_findings(h: Handoff, run: Path) -> list[Finding]:
+    records = _records(run / "prepared" / "index.json")
     table = h.tables.get("citations")
     found: list[Finding] = []
     for row in table.rows if table else []:
         if len(row) < 4:
             continue
-        text = _source_text(run, row[1], records)
-        if isinstance(text, Finding):
-            found.append(text)
-        elif text is not None:
-            found += [f for f in [_anchor(row, text)] if f]
+        source = _source_text(run, row[1], records)
+        if isinstance(source, Finding):
+            found.append(source)
+        elif source is not None:
+            found += [f for f in [_anchor(row, source)] if f]
     return found
 
 

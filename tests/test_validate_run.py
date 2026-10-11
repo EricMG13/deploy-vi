@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import time
 from collections.abc import Callable
 from pathlib import Path
 
@@ -27,7 +29,10 @@ def run(tmp_path: Path) -> Path:
     pack.mkdir()
     text = "Cover page\fNotes\fIn the quarter, Revenue  was 100 (“reported”).\n"
     (pack / "TEST_10Q.txt").write_text(text, encoding="utf-8")
-    (pack / "ratios.txt").write_text("Total leverage was 4.55x at quarter end.\n", encoding="utf-8")
+    ratios = "Total leverage was 4.55x at quarter end.\nNet revenues were 11,486 in the quarter.\n"
+    ratios += "Change was \u22125 million for the quarter.\n"
+    (pack / "ratios.txt").write_text(ratios, encoding="utf-8")
+    (pack / "terms.md").write_text("| OID | 99.0\u201399.5 |\n", encoding="utf-8")
     (pack / "fin.csv").write_text('Metric,2025\nNet revenues,"11,486"\n', encoding="utf-8")
     (pack / "levels.png").write_bytes(b"\x89PNG\r\n\x1a\n")
     (pack / "broken.pdf").write_bytes(b"%PDF-1.4 not really")
@@ -38,6 +43,8 @@ def run(tmp_path: Path) -> Path:
     (run / "fetched" / "01-example.com.md").write_text(
         "---\ntitle: Example note\n---\nGaming revenue grew 4%.\n", encoding="utf-8"
     )
+    (run.parent / "other").mkdir()
+    (run.parent / "other" / "x.md").write_text("revenue was 100 here\n", encoding="utf-8")
     (run / "handoffs").mkdir()
     (run / "handoffs" / "CP-1.md").write_text("revenue was 100 here\n", encoding="utf-8")
     return run
@@ -139,6 +146,13 @@ def _row(source: str, locator: str, excerpt: str) -> str:
         (_row("TEST_10Q.txt", "p.3", "the"), "citation_unanchored"),
         (_row("TEST_10Q.txt", "p.3", "4"), "citation_unanchored"),
         (_row("TEST_10Q.txt", "p.3", "a b c"), "citation_unanchored"),
+        (_row("TEST_10Q.txt", "p.3", "the ... and ... of"), "citation_unanchored"),
+        (_row("ratios.txt", "p.1", "leverage was 4"), "citation_unanchored"),
+        (_row("ratios.txt", "p.1", "Net revenues were 11"), "citation_unanchored"),
+        (_row("ratios.txt", "p.1", "5 million for the quarter"), "citation_unanchored"),
+        (_row("fin.csv", "p.1", r"Net revenues \| 11"), "citation_unanchored"),
+        (_row("fin.csv", "p.1", "2025 Net revenues 11,486"), "citation_unanchored"),
+        (_row("fetched/a\x00b.md", "p.1", "revenue was 100 here"), "source_unknown"),
         (_row("TEST_10Q.txt", "s.1", "Cover page ... Notes"), "citation_unanchored"),
         (_row("fetched/01-example.com.md", "s.1", "title: Example note"), "citation_unanchored"),
     ],
@@ -157,6 +171,13 @@ def test_weak_forged_and_out_of_place_citations_are_findings(
         _row("TEST_10Q.txt", "Page 3", "revenue was 100"),
         _row("TEST_10Q.txt", "PG. 3", "revenue was 100"),
         _row("TEST_10Q.txt", "pages 2-3", "revenue was 100"),
+        _row("TEST_10Q.txt", "p3", "revenue was 100"),
+        _row("TEST_10Q.txt", "page3", "revenue was 100"),
+        _row("TEST_10Q.txt", "pg3", "revenue was 100"),
+        _row("TEST_10Q.txt", "pp3-4", "revenue was 100"),
+        _row("TEST_10Q.txt", "Consolidated P&L", "revenue was 100"),
+        _row("TEST_10Q.txt", "Note 6 PP&E", "revenue was 100"),
+        _row("terms.md", "p.1", "OID \\| 99.0\u201399.5"),
         _row("fin.csv", "p.1", r"Net revenues \| 11,486"),
         _row("fetched/01-example.com.md", "s.1", "gaming revenue grew 4%"),
     ],
@@ -165,6 +186,44 @@ def test_page_forms_sheet_rows_and_fetched_bodies_anchor(
     handoff_text: str, contract: Contract, rules: Rules, run: Path, row: str
 ) -> None:
     assert check(handoff_text.replace(CITATION, row), contract, rules, run) == (0, [])
+
+
+def test_a_huge_page_range_is_clamped(
+    handoff_text: str, contract: Contract, rules: Rules, run: Path
+) -> None:
+    row = _row("TEST_10Q.txt", "pp. 1-10000000", "revenue was 100")
+    started = time.monotonic()
+    assert check(handoff_text.replace(CITATION, row), contract, rules, run) == (0, [])
+    assert time.monotonic() - started < 1
+
+
+def test_a_symlinked_fetched_folder_and_bare_front_matter(
+    handoff_text: str, contract: Contract, rules: Rules, run: Path, tmp_path: Path
+) -> None:
+    bare = run / "fetched" / "02-bare.md"
+    bare.write_text("---\ntitle: Front matter only\n---", encoding="utf-8")
+    row = _row("fetched/02-bare.md", "s.1", "title: Front matter only")
+    code, findings = _codes(handoff_text.replace(CITATION, row), contract, rules, run)
+    assert code == EXIT_MALFORMED and findings[0].startswith("citation_unanchored")
+    (run / "fetched").rename(tmp_path / "real-fetched")
+    (run / "fetched").symlink_to(tmp_path / "real-fetched", target_is_directory=True)
+    row = _row("fetched/01-example.com.md", "s.1", "gaming revenue grew 4%")
+    code, findings = _codes(handoff_text.replace(CITATION, row), contract, rules, run)
+    assert code == EXIT_MALFORMED and findings[0].startswith("source_unknown")
+
+
+def test_a_corrupt_index_record_is_a_run_error(handoff_text: str, run: Path) -> None:
+    path = run / "prepared" / "index.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    del data["files"][-1]["kind"]
+    path.write_text(json.dumps(data), encoding="utf-8")
+    found = run_findings(parse(handoff_text), run)
+    assert [f.code for f in found] == ["run_error"] and str(path) in found[0].message
+
+
+def test_a_hyphen_joins_letters_only() -> None:
+    assert normalise("$10-\n15") == "$10- 15"
+    assert normalise("inter\u00ad\nnational") == "international"
 
 
 def test_a_broken_run_folder_is_an_error_not_a_traceback(
