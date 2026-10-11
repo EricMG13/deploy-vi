@@ -6,6 +6,7 @@ qa_status Blocked), 4 identity mismatch.
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 
 from rbotlib.contract import Column, Contract, TableSpec
@@ -99,6 +100,17 @@ def _tags(h: Handoff, contract: Contract) -> list[Finding]:
     return found
 
 
+def _outside_citation_rows(body: str, table: Table) -> str:
+    """The body without the citations table's own rows, so a row cannot cite itself."""
+    rows = {tuple(row) for row in table.rows}
+    kept = [
+        line
+        for line in body.splitlines()
+        if tuple(c.strip() for c in line.strip().strip("|").split("|")) not in rows
+    ]
+    return "\n".join(kept)
+
+
 def _citations(h: Handoff, rules: Rules) -> list[Finding]:
     table = h.tables.get("citations")
     if table is None:
@@ -107,13 +119,19 @@ def _citations(h: Handoff, rules: Rules) -> list[Finding]:
         expected = list(rules.citation_columns)
         return [Finding("column_missing", f"citations columns must be {expected}")]
     found: list[Finding] = []
-    ids = set()
+    seen: Counter[str] = Counter()
     for row in table.rows:
         if len(row) != len(table.columns) or any(not cell.strip() for cell in row):
             found.append(Finding("citation_incomplete", f"citation row {row} has an empty cell"))
             continue
-        ids.add(row[0])
-    used = markers(h.body)
+        seen[row[0]] += 1
+    ids = set(seen)
+    found += [
+        Finding("duplicate_citation", f"citation id {c} appears on {n} rows")
+        for c, n in seen.items()
+        if n > 1
+    ]
+    used = markers(_outside_citation_rows(h.body, table))
     found += [
         Finding("unresolved_citation", f"[{c}] has no citation row") for c in sorted(used - ids)
     ]

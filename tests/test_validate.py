@@ -125,3 +125,51 @@ def test_any_real_critical_values_validate(fact: str, value: str) -> None:
     contract = contract_from_dict(fixture_json("contract_cp_x.json"), _RULES)
     text = _HANDOFF.replace("| revenue | 100 |", f"| {fact} | {value} |")
     assert check(text, contract, _RULES) == (EXIT_VALID, [])
+
+
+def test_a_repeated_citation_id_is_named(
+    handoff_text: str, contract: Contract, rules: Rules
+) -> None:
+    row = "| C1 | TEST_10Q.txt | p.3 | revenue was 100 |"
+    text = handoff_text.replace(row, row + "\n| C1 | OTHER.txt | p.9 | other |")
+    exit_code, found = codes(text, contract, rules)
+    assert exit_code == EXIT_MALFORMED
+    assert "duplicate_citation" in found
+
+
+def test_a_citation_that_cites_itself_is_unused(
+    handoff_text: str, contract: Contract, rules: Rules
+) -> None:
+    text = handoff_text.replace("period [C1].", "period.").replace(
+        "revenue was 100 |", "revenue was 100 [C1] |"
+    )
+    exit_code, found = codes(text, contract, rules)
+    assert exit_code == EXIT_MALFORMED
+    assert "unused_citation" in found
+
+
+def test_a_marker_inside_another_table_still_counts(
+    handoff_text: str, contract: Contract, rules: Rules
+) -> None:
+    text = handoff_text.replace("period [C1].", "period.").replace(
+        "| revenue | 100 | — |", "| revenue | 100 | see [C1] |"
+    )
+    assert check(text, contract, rules) == (EXIT_VALID, [])
+
+
+def test_blocked_with_a_structural_defect_is_malformed(
+    handoff_text: str, contract: Contract, rules: Rules
+) -> None:
+    text = handoff_text.replace("qa_status: Pass", "qa_status: Blocked").replace(
+        "<!-- table: snapshot.view -->", "<!-- table: snapshot.other -->"
+    )
+    assert codes(text, contract, rules)[0] == EXIT_MALFORMED
+
+
+def test_identity_mismatch_wins_over_other_findings(
+    handoff_text: str, contract: Contract, rules: Rules
+) -> None:
+    text = handoff_text.replace("module_id: CP-X", "module_id: CP-Y").replace("## Gaps", "## Holes")
+    exit_code, found = codes(text, contract, rules)
+    assert exit_code == EXIT_IDENTITY
+    assert {"identity", "sections"} <= found
