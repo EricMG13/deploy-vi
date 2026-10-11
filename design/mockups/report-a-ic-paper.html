@@ -26,15 +26,11 @@
         <span class="pane__meta" id="pane-meta"></span>
       </div>
       <div class="pane__search" role="search">
-        <label class="pane__search-l" for="pane-search">Search the Report</label>
-        <input class="pane__search-i" id="pane-search" type="search" autocomplete="off" placeholder="Figures, findings, sources" aria-controls="pane-results">
-        <p class="vh" id="pane-search-status" role="status" aria-live="polite"></p>
+        <label class="pane__search-l" for="pane-search">Search the Report <kbd>/</kbd></label>
+        <input class="pane__search-i" id="pane-search" type="search" autocomplete="off" placeholder="Search (press /)" aria-controls="pane-results">
+        <p class="pane__count" id="pane-search-status" role="status" aria-live="polite" hidden></p>
         <ul class="pane__results" id="pane-results" hidden></ul>
       </div>
-      <details class="pane__key" id="pane-key">
-        <summary>Key</summary>
-        <div class="pane__keybody" id="pane-keybody"></div>
-      </details>
       <nav class="nav" id="nav" aria-label="Report views"></nav>
     </div>
   </aside>

@@ -58,3 +58,11 @@ After the dual-assessment critique (23/40) the owner chose to fix every issue an
 2. **Snapshot company description:** one sentence plus a five-row cited operating-model fact table (segments, revenue mix, footprint, owned versus leased real estate, digital), set beside Key findings. The full prose stays in the Financial analysis module behind "Full analysis". The KPI tile strip is removed. Acceptance: at 1440x900 all four Model-strip plots and the capital-structure bar are inside the first viewport.
 3. **Status label:** the reader-facing word for `qa_status` Restricted is "With limitations". Pass stays Pass and Blocked stays Blocked. The internal data keeps Restricted and is mapped only at display.
 4. **Call band:** neutral. Every position box is white on navy and the word ("Modest OW") carries the meaning, with no tone colours in the band. This also fixes the 2.75:1 contrast failure. The meter stays visible at laptop widths. The H1 is the issuer. "Collapse all" moves out of the band.
+
+### Critique 2 fixes (owner answers, 2026-10-11, second round)
+
+After the re-critique (26/40) the owner chose to fix every issue and ruled:
+1. **Scope:** all issues above, apart from the phone items (outside the stated platform; do not regress).
+2. **Navigation:** the pane holds only the Report's 11 destinations (Snapshot; the Analysis modules; Model, Portfolio Fit, Evidence, Limitations), always visible without scrolling at 1280x800. Each view's section list moves into the page as a contents line under the view H1. The Key moves out of the pane into a "How to read a figure" popover in the view header. "Collapse all / Expand all" moves to the view header.
+3. **Scale colour:** neutral everywhere. Every scale badge (Recommendation, Valuation, Credit Score, Credit Direction, Sector Outlook, in the Report and in the Key) is white on navy or navy on white, with the word carrying the meaning. Colour stays only for status (Pass, With limitations, Blocked) and Fit outcomes (Breach, Watch). Credit Direction is the sixth item of the call band.
+4. **Figure numbers by pane label:** Fig. S.1 (Snapshot), Fig. CP-1.1, Fig. CP-2.3, Fig. M.1 (Model), Fig. PF.1 (Portfolio Fit), Fig. E.1 (Evidence). A figure redrawn in another view keeps its first number.

@@ -9,9 +9,9 @@
   "use strict";
   var D = window.RBOT_DATA, UI = window.RBOTUI, C = window.RBOTCharts, el = UI.el;
   var I = D.illustrative, F = D.figures, T = D.tables, K = D.charts, P = D.portfolio, M = D.meta, OM = T.operatingModel;
-  var charts = [], FIGS = {}, figCount = {}, curView = "snapshot", curNum = 1, subLevel = 3;
+  var charts = [], FIGS = {}, figCount = {}, curView = "snapshot", curPre = "S", subLevel = 3, gapHref = null;
   var main = document.getElementById("main");
-  var VIEWS = {}, ORDER = [], VNUM = {};
+  var VIEWS = {}, ORDER = [], PRE = {};
 
   /* ------------------------------------------------------------ display formatting (the passport keeps the served string) */
   var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -78,6 +78,7 @@
     return null;
   }
   UI.setFormat(displayFormat);
+  UI.setTextHook(function (s) { return textDates(s, "table"); });
   /* every date in the built page reads the same way; the evidence register and the passport keep the served strings */
   function tidyDates(root) {
     var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), n, todo = [];
@@ -89,6 +90,14 @@
     todo.forEach(function (node) {
       var t = node.nodeValue, r = textDates(t, node.parentElement.closest("table, .chart, .kv__when") ? "table" : "prose");
       if (r !== t) node.nodeValue = r;
+    });
+    /* names and tooltips read the same dates as the page */
+    Array.prototype.forEach.call(root.querySelectorAll("[aria-label], [title]"), function (n) {
+      if (n.closest(".evid, .pop")) return;
+      ["aria-label", "title"].forEach(function (a) {
+        var t = n.getAttribute(a);
+        if (t) { var r = textDates(t, "table"); if (r !== t) n.setAttribute(a, r); }
+      });
     });
   }
 
@@ -114,6 +123,8 @@
     var t = String(field).replace(/_/g, " ");
     return t.charAt(0).toUpperCase() + t.slice(1);
   }
+  function cap(s) { s = String(s || ""); return s.charAt(0).toUpperCase() + s.slice(1); }
+  UI.setFieldLabel(function (f) { return human(f); });
   function originText(o) { return /czr\.json/i.test(o) ? "Source extraction" : /build-data/i.test(o) ? "Model build" : o; }
   function gapD(ref, reason) {
     return { v: null, prov: "gap", ref: ref || undefined, reason: reason || (ref && D.gaps[ref] ? D.gaps[ref].reason : "not in the sources") };
@@ -150,12 +161,17 @@
     while ((m = TOKEN.exec(str))) {
       if (m.index > last) out.push(txt(str.slice(last, m.index)));
       if (m[1]) out.push(UI.value(refDatum(m[1]), m[2] || undefined, "prose"));
-      else { refDatum(m[3]); out.push(UI.chip(m[3])); }
+      else { refDatum(m[3]); out.push(chipFor(m[3])); }
       last = TOKEN.lastIndex;
     }
     if (last < str.length) out.push(txt(str.slice(last)));
     return glue(out);
   }
+  /* inside a module view a gap chip is a link to that module's "Gaps and limitations", where the gap is stated once */
+  function gapLink(ref) {
+    return el("a", { class: "gapref", href: gapHref, "data-ref-link": ref, "aria-label": "Gap " + ref + ", listed under Gaps and limitations" }, [ref]);
+  }
+  function chipFor(ref) { return gapHref && ref.charAt(0) === "G" ? gapLink(ref) : UI.chip(ref); }
   /* a full stop or comma after a figure button must not wrap onto a line of its own */
   function glue(nodes) {
     for (var i = 1; i < nodes.length; i++) {
@@ -202,14 +218,18 @@
     var out = [], pos = 0;
     taken.forEach(function (t) {
       if (t.start > pos) out.push(txt(text.slice(pos, t.start)));
-      var node = UI.value(t.datum, "bare", "prose"), suffix = text.charAt(t.end);
+      /* money, multiples and percentages print by unit ("US,962m", "3.29x"); a trailing x or % in the sentence belongs to the figure */
+      var node = UI.value(t.datum, undefined, "prose"), suffix = text.charAt(t.end);
       var btn = node.querySelector ? node.querySelector(".figref") : null;
-      if (btn && (suffix === "x" || suffix === "%")) { btn.insertBefore(txt(suffix), btn.querySelector(".hit")); t.end += 1; }
+      if (btn && (suffix === "x" || suffix === "%")) {
+        if (btn.textContent.slice(-1) !== suffix) btn.insertBefore(txt(suffix), btn.querySelector(".hit"));
+        t.end += 1;
+      }
       out.push(node);
       pos = t.end;
     });
     if (pos < text.length) out.push(txt(text.slice(pos)));
-    gaps.forEach(function (g) { out.push(UI.chip(g)); });
+    gaps.forEach(function (g) { out.push(chipFor(g)); });
     return glue(out);
   }
   /* margin notes: the citations a prose block rests on, as an IC paper's side notes */
@@ -246,6 +266,13 @@
     var cls = /improving|positive/.test(w) ? "up" : /deteriorating|negative/.test(w) ? "down" : "flat";
     return el("span", { class: "dir dir--" + cls, text: word });
   }
+  /* Credit Direction as a call-band item: the same box as the scales (neutral), an arrow for the position */
+  function dirBadge(word, label) {
+    var w = String(word).toLowerCase();
+    var cls = /improving|positive/.test(w) ? "up" : /deteriorating|negative/.test(w) ? "down" : "flat";
+    return el("span", { class: "scale scale--lg scale--dir", role: "img", "aria-label": label + ": " + word + ", illustrative" }, [
+      el("span", { class: "scale__pos scale__pos--dir dirico--" + cls, "aria-hidden": "true" }), el("span", { class: "scale__word", "aria-hidden": "true", text: word })]);
+  }
   function scaleRec(r, label, size) { return UI.scale({ kind: "rec", pos: r.pos, word: r.word, illustrative: true, label: label, size: size }); }
   function modelTag() { return el("span", { class: "tag-model", text: "Model" }); }
 
@@ -273,7 +300,7 @@
   /* align: the column labels of a sibling table; a period this table lacks leaves a blank cell so the columns line up */
   function periodTable(t, filter, caption, cls, align) {
     var order = align || t.columns;
-    var cols = [th(t.unit || "")].concat(order.map(function (c) {
+    var cols = [th(t.unit === "x" ? "Multiple (x)" : t.unit || "")].concat(order.map(function (c) {
       return t.columns.indexOf(c) < 0 ? el("th", { class: "blank", "aria-hidden": "true" }) : th(c, null, true);
     }));
     var rows = t.rows.filter(filter || function () { return true; }).map(function (r) {
@@ -296,12 +323,14 @@
   function subh(text, extra) { return el("h" + subLevel, { class: "subh" }, [text].concat(extra || [])); }
 
   /* ------------------------------------------------------------ figures (numbered once across the whole Report) */
+  /* "Fig. CP-1.2": numbered by the label the pane shows (S Snapshot, CP-n a module, M Model, PF Portfolio Fit, E Evidence);
+     a figure drawn again in another view keeps its first number */
   function figLabel(base) {
-    if (!FIGS[base]) { figCount[curNum] = (figCount[curNum] || 0) + 1; FIGS[base] = "Fig. " + curNum + "." + figCount[curNum]; }
+    if (!FIGS[base]) { figCount[curPre] = (figCount[curPre] || 0) + 1; FIGS[base] = "Fig. " + curPre + "." + figCount[curPre]; }
     return FIGS[base];
   }
   function draw(kind, host, spec, over) {
-    var base = (over && over.id) || spec.id || ("fig-" + (figCount[curNum] || 0));
+    var base = (over && over.id) || spec.id || ("fig-" + (figCount[curPre] || 0));
     var sp = Object.assign({}, spec, { number: figLabel(base), headingLevel: subLevel }, over || {});
     sp.id = curView + "--" + base;
     charts.push(C[kind](host, sp));
@@ -341,6 +370,7 @@
     if (o.keep) d.setAttribute("data-keep", "1");
     if (o.nav === false) d.setAttribute("data-nav", "skip");
     if (o.search === false) d.setAttribute("data-search", "skip");
+    if (o.short) d.setAttribute("data-short", o.short);
     parent.appendChild(d);
     if (o.full || o.foot) {
       d.appendChild(el("div", { class: "cb__foot" }, [
@@ -351,10 +381,10 @@
     return body;
   }
   function viewTools(v) {
-    var b = el("button", { type: "button", class: "btn btn--quiet vtools", text: "Collapse all sections" });
+    var b = el("button", { type: "button", class: "btn btn--quiet vtools", text: "Collapse all" });
     function boxes() { return Array.prototype.filter.call(v.el.querySelectorAll("details.cb"), function (d) { return !d.hasAttribute("data-keep"); }); }
     function sync() {
-      b.textContent = boxes().some(function (d) { return d.open; }) ? "Collapse all sections" : "Expand all sections";
+      b.textContent = boxes().some(function (d) { return d.open; }) ? "Collapse all" : "Expand all";
     }
     b.addEventListener("click", function () {
       var all = boxes(), any = all.some(function (d) { return d.open; });
@@ -367,19 +397,20 @@
 
   /* ------------------------------------------------------------ views */
   function newView(id, o) {
-    curView = id; curNum = VNUM[id]; subLevel = 3;
+    curView = id; curPre = o.pre; PRE[id] = o.pre; subLevel = 3;
     var h1 = el("h1", { class: "vtitle", tabindex: "-1" }, o.h1 || o.title);
-    var v = { id: id, title: o.title, group: o.group || null, el: null, h1: h1, nav: null };
+    var v = { id: id, title: o.title, group: o.group || null, el: null, h1: h1, nav: null, toc: [] };
     v.el = el("article", { class: "view" + (o.cls ? " " + o.cls : ""), id: "view-" + id, "data-view": id, "aria-labelledby": "view-" + id + "-h" });
     h1.id = "view-" + id + "-h";
     v.el.hidden = true;
     VIEWS[id] = v; ORDER.push(id);
     main.appendChild(v.el);
     v.tools = viewTools(v);
+    v.bar = el("div", { class: "vbar" }, [keyButton(), v.tools]);
     return v;
   }
   function plainHead(v, lede, code) {
-    var top = el("div", { class: "vhead__top" }, [v.h1, code ? el("span", { class: "vhead__code", title: "RBOT module code", text: code }) : null]);
+    var top = el("div", { class: "vhead__top" }, [v.h1, code ? el("span", { class: "vhead__code", title: "RBOT module code", text: code }) : null, v.bar]);
     var hd = el("header", { class: "vhead" }, [top, lede ? el("p", { class: "vhead__lede" }, lede) : null]);
     v.el.appendChild(hd);
     return hd;
@@ -410,7 +441,7 @@
     return m ? "#" + (part ? slug(m.id) + "-" + part : modId(m)) : null;
   }
   /* reader-facing names: plain words, glossary terms; the pipeline code stays a small secondary label */
-  var PLAIN_NAME = { intake: "Source readiness", qa: "Evidence checks", fit: "Sector weights and module status" };
+  var PLAIN_NAME = { intake: "Source readiness", qa: "Evidence checks", fit: "Sector weights and fit summary" };
   function plainName(m) { var t = topicOf(m); return (t && PLAIN_NAME[t]) || m.name.replace(/\s*\(Test CLO I\)$/, ""); }
 
   /* the operating model at summary size: one sentence and five cited facts */
@@ -444,8 +475,7 @@
         ". The VICI and GLPI leases are financing obligations of " + tk("opm_vici_obligation") + " and " + tk("opm_glpi_obligation") + " at 31 December 2025, and " +
         tk("lt_financing_obligations_2026_06_30", "US$ m") + " at 30 June 2026, shown apart from reported debt.",
       "Caesars Digital operates sports wagering across " + tk("opm_sports_jurisdictions") + " jurisdictions, " + tk("opm_online_sports_jurisdictions") + " of them online, and iGaming in " +
-        tk("opm_igaming_jurisdictions") + ". On " + tk("issuer.merger.agreement_date") + " Fertitta Entertainment agreed to acquire Caesars for " + tk("merger_price_per_share_pr", "US$/sh") +
-        " in cash, a transaction valued at " + tk("merger_transaction_value", "US$ bn") + " including assumed debt of " + tk("merger_assumed_debt", "US$ bn") + "."
+        tk("opm_igaming_jurisdictions") + "."
     ];
     return p.map(function (s) { return el("p", { class: "desc__p" }, rich(s)); });
   }
@@ -466,13 +496,28 @@
     });
     return { name: name, overall: fit.overall.v, text: parts.join("; ") };
   }
+  /* the instrument preference names its Strategy and, where Portfolio Fit flags that instrument, says so */
+  function instrumentLine(fs) {
+    var pref = preferenceSentence();
+    if (!pref) return null;
+    var strat = M.strategies.filter(function (x) { return /HY|bond/i.test(x); })[0] || M.strategies[M.strategies.length - 1];
+    var flagged = P.fit.byInstrument.filter(function (b) {
+      return /secured/i.test(b.instrument) && !/unsecured/i.test(b.instrument) && /2032/.test(b.instrument) && !/^fits/i.test(b.fit);
+    })[0];
+    var nodes = [el("b", { text: strat + ": " }), txt(pref), UI.illus()];
+    if (flagged) {
+      var elig = /eligible CLO asset/i.test(flagged.note || "") ? "CLO eligibility unknown" : String(flagged.note || "flagged").replace(/\.$/, "");
+      nodes.push(txt(" "), UI.status(flagged.fit), txt(" " + elig + ": "), el("a", { class: "call__more", href: "#portfolio-fit-instrument", text: "see Portfolio Fit" }), el("span", { class: "synth", text: "Synthetic" }));
+    }
+    return nodes;
+  }
   function preferenceSentence() {
     var s = String(I.thesis.text).split(/(?<=\.)\s+/).filter(function (x) { return /^Prefer\b/.test(x); })[0];
     return s || null;
   }
 
   function buildSnapshot() {
-    var v = newView("snapshot", { title: "Snapshot", h1: M.issuer.replace(/, Inc\.$/, "") + " (" + M.ticker + ")", cls: "view--snapshot" });
+    var v = newView("snapshot", { title: "Snapshot", h1: M.issuer.replace(/, Inc\.$/, "") + " (" + M.ticker + ")", cls: "view--snapshot", pre: "S" });
     var s = v.el;
 
     /* title band: the issuer, then the call */
@@ -485,7 +530,7 @@
     ]);
     var call = el("div", { class: "call on-navy", role: "group", "aria-label": "Analyst recommendation, illustrative" }, [
       el("div", { class: "call__label" }, [el("span", { class: "call__title" }, ["Analyst recommendation", UI.illus()]),
-        el("span", { class: "call__who" }, [txt("Analyst " + M.analyst.v + " · "), el("span", { class: "num", text: M.analysisDate })])])
+        el("span", { class: "call__who" }, [txt("By " + String(M.analyst.v).replace(/ \(illustrative\)/i, "") + " · "), el("span", { class: "num", text: M.analysisDate })])])
     ]);
     var cells = el("div", { class: "call__cells" });
     call.appendChild(cells);
@@ -496,16 +541,19 @@
       UI.scale({ kind: "val", pos: I.valuation.pos, illustrative: true, label: "Valuation", size: "lg" })]));
     cells.appendChild(el("span", { class: "call__item" }, [el("span", { class: "call__k", text: "Credit Score" }),
       UI.scale({ kind: "score", pos: I.creditScore.pos, word: I.creditScore.word, illustrative: true, label: "Credit Score", size: "lg" })]));
-    var fs = fitSummary(), pref = preferenceSentence();
+    cells.appendChild(el("span", { class: "call__item" }, [el("span", { class: "call__k", text: "Credit Direction" }), dirBadge(I.creditDirection.word, "Credit Direction")]));
+    var fs = fitSummary(), ins = instrumentLine(fs);
     var lines = el("div", { class: "call__lines" }, [
       el("p", { class: "call__line" }, [el("span", { class: "call__lk", text: "Portfolio Fit" }),
         el("span", { class: "call__lv" }, [el("b", { text: fs.name + ": " }), UI.status(fs.overall), txt(" " + fs.text + " "),
-          el("a", { class: "call__more", href: "#portfolio-fit", "aria-label": "Portfolio Fit view", text: "Details" }),
+          el("a", { class: "call__more", href: "#portfolio-fit", text: "Details in Portfolio Fit" }),
           el("span", { class: "synth", text: "Synthetic" })])]),
-      pref ? el("p", { class: "call__line" }, [el("span", { class: "call__lk", text: "Instrument" }), el("span", { class: "call__lv" }, [txt(pref), UI.illus()])]) : null
+      ins ? el("p", { class: "call__line" }, [el("span", { class: "call__lk", text: "Instrument" }), el("span", { class: "call__lv" }, ins)]) : null
     ]);
     call.appendChild(lines);
-    s.appendChild(el("header", { class: "titleband" }, [v.h1, meta, call]));
+    var toc = el("div", { class: "toc-slot" });
+    v.tocSlot = toc;
+    s.appendChild(el("header", { class: "titleband" }, [el("div", { class: "titleband__top" }, [v.h1, v.bar]), meta, toc, call]));
 
     var fp = el("div", { class: "fp" });
     s.appendChild(fp);
@@ -519,22 +567,24 @@
     var kfn = sourceNote(sink);
     if (kfn) kf.appendChild(el("details", { class: "srcs" }, [el("summary", { text: "Sources for these findings (" + sink.length + ")" }), kfn]));
 
-    var co = cb(fp, { title: "Company and operating model", id: "company", cls: "span-7 p-co", flush: true, full: fullLink("business", "business"),
+    var co = cb(fp, { title: "Company and operating model", short: "Company", id: "company", cls: "span-7 p-co", flush: true, full: fullLink("business", "business"),
       foot: ["Sources: FY2025 10-K and Q2 2026 10-Q."] });
     co.appendChild(el("p", { class: "co__lede" }, opmSentence()));
     co.appendChild(el("table", { class: "dt dt--kv opm" }, [el("caption", { class: "vh", text: "Operating model" }),
       el("tbody", {}, opmFacts().map(function (r) { return el("tr", {}, [rowTh(r[0]), el("td", {}, r[1])]); }))]));
 
     /* Figures: the Model chart strip */
-    var fb = cb(fp, { title: "Model chart strip", id: "figures", cls: "span-12 p-figs", flush: true, full: "#model",
+    var fb = cb(fp, { title: "Model chart strip", short: "Charts", id: "figures", cls: "span-12 p-figs", flush: true, full: "#model-credit-metrics",
       meta: ["Select any mark for its source"],
-      foot: ["Sources: Caesars FY2025 10-K and Q2 2026 10-Q; leverage, coverage and liquidity calculated from cited figures. n/a: not in the sources; select it for the reason."] });
+      foot: [txt("Sources: Caesars FY2025 10-K and Q2 2026 10-Q; leverage, coverage and liquidity calculated from cited figures. Maturity wall: face value at final maturity, by instrument; the 10-Q annual maturities table, which includes amortisation, shows ")]
+        .concat(rich("{C182|US$ m}"), [txt(" for 2030. n/a: not in the sources; select it for the reason.")]) });
     var row = el("div", { class: "figrow" });
     fb.appendChild(row);
     [["lineStrip", K.leverage, 126], ["lineStrip", K.coverage, 126], ["lineStrip", K.liquidity, 126], ["stackedColumns", K.maturityWall, 108]].forEach(function (p) {
       var cell = el("div", { class: "figcell" });
       row.appendChild(cell);
-      draw(p[0], cell, p[1], { height: p[2], ticks: 3 });
+      /* the strip cells are narrow: short year labels keep the axis clear at 12px */
+      draw(p[0], cell, p[1], { height: p[2], ticks: 3, minWidth: 120, categories: p[1].categories.map(function (c) { return String(c).replace(/^FY20(\d\d)$/, "FY$1"); }) });
     });
 
     /* Capital structure summary | EBITDA adjustments summary */
@@ -562,7 +612,7 @@
 
     /* Strengths and weaknesses */
     var sink2 = [];
-    var sw = cb(fp, { title: "Strengths and weaknesses", id: "credit-summary", cls: "span-12 p-sw", illus: true, model: true, flush: true, full: fullLink("rv", "credit-view") });
+    var sw = cb(fp, { title: "Strengths and weaknesses", short: "Strengths and weaknesses", id: "credit-summary", cls: "span-12 p-sw", illus: true, model: true, flush: true, full: fullLink("rv", "credit-view") });
     sw.appendChild(el("p", { class: "sw__thesis" }, [el("span", { class: "sw__t" }, [el("b", { text: "Thesis. " })].concat(itemNodes(I.thesis, sink2)))]));
     sw.appendChild(el("div", { class: "swgrid" }, [
       el("div", {}, [el("div", { class: "bar bar--sub", text: "Strengths" }), swRows(I.strengths, sink2)]),
@@ -584,13 +634,17 @@
     /* Transaction summary (Primary runs only) */
     if (M.primary) {
       var sink3 = [];
-      var tx = cb(fp, { title: "Transaction summary and new debt issues", id: "transaction", cls: "span-12 p-tx", model: true, flush: true, open: false, full: fullLink("business", "business"),
+      var tx = cb(fp, { title: "Transaction summary and new debt issues", short: "Transaction", id: "transaction", cls: "span-12 p-tx", model: true, flush: true, open: false, full: fullLink("business", "business"),
         meta: [M.primaryLabel] });
       tx.appendChild(el("div", { class: "tx__text" }, [el("p", {}, itemNodes(I.transactionSummary, sink3))]));
       tx.appendChild(newDebtTable());
       var txn = sourceNote(sink3);
       if (txn) tx.appendChild(txn);
     }
+
+    /* the questions this paper expects at committee, last: they point at the module that works them through */
+    var ccb = cb(fp, { title: "Committee challenge", id: "committee-challenge", cls: "span-12 p-cc", illus: true, model: true, flush: true, full: fullLink("challenge", "challenge") });
+    ccb.appendChild(el("ol", { class: "kf kf--one cq" }, QUESTIONS.map(function (q) { return el("li", {}, [el("span", {}, rich(q))]); })));
   }
 
   function swRows(list, sink) {
@@ -642,7 +696,7 @@
     }
     ["secured", "unsecured", "other"].forEach(function (rank) {
       var rs = cs.rows.filter(function (r) { return r.rank === rank; });
-      if (rs.length) line(rankLabel(rank) + " (" + rs.length + (rs.length === 1 ? " facility" : " facilities") + ")", rankAmount(rank, sub), rs[rs.length - 1], "total");
+      if (rs.length) line(rankLabel(rank) + " (" + rs.length + (rs.length === 1 ? " facility" : " facilities") + ")", rankAmount(rank, sub), rs[rs.length - 1], "sub");
     });
     line("Total debt", sub.total_debt, cs.rows[cs.rows.length - 1], "total");
     line("Cash", sub.cash, null, "sub");
@@ -695,12 +749,12 @@
     return capBy;
   }
   function rvSummary() {
-    var g19 = gapD("G19"), capBy = capByFacility();
+    var capBy = capByFacility();
     return table("Comparable bonds, summary", [th("Company"), th("CUSIP"), th("Seniority"), th("Coupon", "%", true), th("Maturity"), th("Size", "US$ m", true),
-      th("Last price", null, true), th("Last yield", "%", true), th("OAS", "bp", true)], T.trace.rows.map(function (r) {
+      th("Last price", null, true), th("Last yield", "%", true)], T.trace.rows.map(function (r) {
       var capRow = capBy[BOND_SIZES[r.cusip]];
       return el("tr", {}, [rowTh(r.issuer), el("td", { class: "num", text: r.cusip }), nowrap(el("td", { text: r.seniority })), tdD(r.coupon, { kind: "rate" }), nowrap(tdD(r.maturity, { text: true })),
-        tdD(capRow ? capRow.outstanding : gapD(null, "peer issue size is not among the extracted figures")), tdD(r.price, { kind: "price" }), tdD(r.yield, { kind: "rate" }), tdD(g19)]);
+        tdD(capRow ? capRow.outstanding : gapD(null, "peer issue size is not among the extracted figures")), tdD(r.price, { kind: "price" }), tdD(r.yield, { kind: "rate" })]);
     }), "wraphead");
   }
   function loanRv() {
@@ -711,12 +765,12 @@
     ]));
     var g18 = gapD("G18");
     var loans = T.capitalStructure.rows.filter(function (r) { return /Term Loan/.test(r.debtType); });
-    wrap.appendChild(table("Comparable loans", [th("Company"), th("Facility"), th("FIGI"), th("Ratings"), th("Size", "US$ m", true), th("Margin", "bp", true),
-      th("Maturity"), th("Seniority"), th("Mid", null, true), th("Δ 1M", null, true), th("Δ YTD", null, true), th("Mid YTM", "%", true), th("Mid 3Y DM", "bp", true)],
+    wrap.appendChild(table("Comparable loans", [th("Company"), th("Facility"), th("FIGI"), th("Ratings"), th("Size", "US$ m", true), th("Maturity"), th("Seniority")],
       loans.map(function (r) {
-        return el("tr", {}, [rowTh(M.ticker), el("td", { text: r.facility }), tdD(r.figi, { text: true }), tdD(r.ratings, { text: true }), tdD(r.outstanding), tdD(g18),
-          nowrap(tdD(r.maturity, { text: true })), el("td", { text: r.debtType }), tdD(g18), tdD(g18), tdD(g18), tdD(g18), tdD(g18)]);
-      }).concat([el("tr", { class: "sub" }, [el("th", { scope: "row", colspan: "13" }, [txt("Peer loans: "), UI.value(gapD("G18"))])])]), "wraphead"));
+        return el("tr", {}, [rowTh(M.ticker), el("td", { text: r.facility }), tdD(r.figi, { text: true }), tdD(r.ratings, { text: true }), tdD(r.outstanding),
+          nowrap(tdD(r.maturity, { text: true })), el("td", { text: r.debtType })]);
+      }).concat([el("tr", { class: "sub" }, [el("th", { scope: "row", colspan: "7" }, [txt("Peer loans: "), UI.value(gapD("G18"))])])]), "wraphead"));
+    wrap.appendChild(el("p", { class: "na-note pad" }, [txt("Margin, mid price, 1M and YTD change, mid YTM and mid 3Y DM are n/a for every loan: "), UI.value(g18)]));
     return wrap;
   }
   function hyRv() {
@@ -726,16 +780,16 @@
       el("tr", {}, [rowTh("Ba · Ba/B · B · Caa"), el("td", { colspan: "8" }, [UI.value(gapD(null, INDEX_GAP))])])
     ]));
     var capBy = capByFacility();
-    var g19 = gapD("G19"), noHist = gapD(null, "price history is not in the sources; TRACE pages give the last trade only");
-    wrap.appendChild(table("Comparable bonds", [th("Company"), th("CUSIP"), th("FIGI"), th("Moody's"), th("S&P"), th("Size", "US$ m", true), th("Coupon", "%", true),
-      th("Maturity"), th("Next call"), th("Seniority"), th("Last price", null, true), th("Δ 1M", null, true), th("Δ YTD", null, true), th("Last yield", "%", true), th("OAS", "bp", true)],
+    wrap.appendChild(table("Comparable bonds", [th("Company"), th("CUSIP"), th("Moody's"), th("S&P"), th("Size", "US$ m", true), th("Coupon", "%", true),
+      th("Maturity"), th("Next call"), th("Seniority"), th("Last price", null, true), th("Last yield", "%", true)],
       T.trace.rows.map(function (r) {
         var capRow = capBy[BOND_SIZES[r.cusip]];
-        return el("tr", {}, [rowTh(r.issuer), el("td", { class: "num", text: r.cusip }), tdD(gapD("G28"), { text: true }),
+        return el("tr", {}, [rowTh(r.issuer), el("td", { class: "num", text: r.cusip }),
           tdD(r.moodys, { text: true }), tdD(r.sp, { text: true }), tdD(capRow ? capRow.outstanding : gapD(null, "peer issue size is not among the extracted figures")),
-          tdD(r.coupon, { kind: "rate" }), nowrap(tdD(r.maturity, { text: true })), nowrap(tdD(r.next_call, { text: true })), nowrap(el("td", { text: r.seniority })), tdD(r.price, { kind: "price" }), tdD(noHist), tdD(noHist),
-          tdD(r.yield, { kind: "rate" }), tdD(g19)]);
+          tdD(r.coupon, { kind: "rate" }), nowrap(tdD(r.maturity, { text: true })), nowrap(tdD(r.next_call, { text: true })), nowrap(el("td", { text: r.seniority })), tdD(r.price, { kind: "price" }),
+          tdD(r.yield, { kind: "rate" })]);
       }), "wraphead"));
+    wrap.appendChild(el("p", { class: "na-note pad" }, [txt("FIGI, 1M and YTD price change and OAS are n/a for every bond: "), UI.value(gapD("G28")), txt(" "), UI.value(gapD(null, "price history is not in the sources; TRACE pages give the last trade only")), txt(" "), UI.value(gapD("G19"))]));
     return wrap;
   }
 
@@ -748,7 +802,7 @@
   function gapTable(refs, caption) {
     return table(caption, [th("Gap"), th("Missing item"), th("Reason")], refs.map(function (r) {
       var g = D.gaps[r];
-      return el("tr", {}, [el("th", { scope: "row" }, [UI.chip(r)]), el("td", { text: human(g.field) }), el("td", { text: g.reason })]);
+      return el("tr", {}, [el("th", { scope: "row" }, [UI.chip(r)]), el("td", { text: human(g.field) }), el("td", { text: cap(g.reason) })]);
     }));
   }
   /* label / value / as-at rows, every value a cited or calculated figure shown by its unit */
@@ -807,14 +861,19 @@
 
   /* Topics carry the content; modules from RBOT_DATA decide which topics get their own view.
      A topic whose module is not in this run's module list joins its host module's view. */
+  var QUESTIONS = [
+    "Would the secured 2032s hold value if the merger adds debt of unknown size [G8]?",
+    "Is the fall in Las Vegas Adjusted EBITDA to {C94|US$ m} from {C95|US$ m} cyclical or structural?",
+    "Do the financing obligations to GLPI and VICI of {C184|US$ m}, which sit outside reported debt, belong in leverage?"
+  ];
   var TOPICS = {
     intake: {
       title: "Source readiness", ledeTitle: "Gaps raised before the run", detailTitle: "Documents admitted",
       headline: function () {
         var n = docs().filter(function (d) { return !d.synthetic; }).length;
-        return n + " issuer, market and peer documents are admitted; the merger's debt commitment terms [G8], a Fitch rating [G10] and rating outlooks [G11] are not in the Source Pack.";
+        return n + " issuer, market and peer documents are admitted into the Source Pack, and every figure drawn from them carries a file and line; what is missing is listed under Gaps and limitations.";
       },
-      lede: function (host, m) { host.appendChild(gapTable(m && m.refs && m.refs.length ? m.refs : ["G8", "G10", "G11"], "Gaps raised before the run")); },
+      lede: null,
       detail: function (body) { body.appendChild(docTable()); }
     },
     financials: {
@@ -937,7 +996,6 @@
       detail: function (body) {
         body.appendChild(figKv("Merger agreement protections", ["issuer.merger.financing_condition", "merger_termination_fee", "merger_termination_fee_reduced",
           "merger_reverse_termination_fee", "merger_initial_end_date", "merger_first_extended_end_date", "merger_second_extended_end_date", "merger_ticking_fee_date", "merger_ticking_fee_per_day"]));
-        body.appendChild(gapTable(["G17", "G8"], "Legal documents not in the sources"));
       }
     },
     qa: {
@@ -969,13 +1027,18 @@
     fit: {
       title: "Portfolio fit", ledeTitle: "Sector weights", detailTitle: "Checks",
       headline: function () { return P.fit.summary; },
+      /* the Portfolio Fit view already opens with this summary */
+      noHeadline: true,
       synthetic: true,
       lede: function (host) { draw("rangeStrip", host, K.cloSectors); },
       detail: null
     },
     challenge: {
       title: "Committee challenge", ledeTitle: "Challenges", detailTitle: "Responses", illusLede: true,
-      headline: "Would the secured 2032s hold value if the merger adds debt of unknown size [G8], and is the fall in Las Vegas Adjusted EBITDA to {C94|US$ m} from {C95|US$ m} cyclical or structural?",
+      headline: function () {
+        var qs = QUESTIONS.map(function (q) { return q.charAt(0).toLowerCase() + q.slice(1).replace(/\?$/, ""); });
+        return "Committee will ask: " + qs[0] + "; " + qs[1] + "; and " + qs[2] + "?";
+      },
       lede: function (host) {
         var sink = [];
         host.appendChild(table("Challenges", [th("Challenge"), th("Rests on")], I.weaknesses.map(function (w) {
@@ -1039,15 +1102,16 @@
     var into = foldOf(m);
     var id = modId(m), sid = slug(m.id), t = topicOf(m), topic = t ? TOPICS[t] : null, name = plainName(m);
     var v, root, level, hd;
+    gapHref = "#" + sid + "-gaps";
     if (into) {
-      v = VIEWS[into]; curView = into; curNum = VNUM[into]; subLevel = 4; level = 3;
+      v = VIEWS[into]; curView = into; curPre = PRE[into]; subLevel = 4; level = 3;
       root = el("section", { class: "fold", id: id, "aria-labelledby": id + "-h" });
       v.el.appendChild(root);
       hd = el("header", { class: "vhead vhead--fold" }, [el("div", { class: "vhead__top" }, [el("h2", { class: "fold__t", id: id + "-h", text: name }),
         el("span", { class: "vhead__code", title: "RBOT module code", text: m.id })])]);
       root.appendChild(hd);
     } else {
-      v = newView(id, { title: name, group: "Analysis", h1: name, cls: "view--module" });
+      v = newView(id, { title: name, group: "Analysis", h1: name, cls: "view--module", pre: m.id });
       v.mod = m; v.code = m.id;
       root = v.el; level = 2;
       hd = plainHead(v, null, m.id);
@@ -1056,14 +1120,17 @@
     hd.appendChild(facts);
     facts.appendChild(el("div", { class: "vfact" }, [el("span", { class: "vfact__k", text: "Reader question" }), el("p", { class: "vfact__v", text: m.question })]));
     var st = el("p", { class: "vfact__v" }, [txt(m.reason + " ")]);
-    (m.refs || []).forEach(function (r) { st.appendChild(UI.chip(r)); });
+    (m.refs || []).forEach(function (r) { st.appendChild(chipFor(r)); });
     facts.appendChild(el("div", { class: "vfact" }, [el("span", { class: "vfact__k" }, ["Status ", UI.status(m.status)]), st]));
-    var hl = topic ? headlineNodes(topic, m) : null;
+    var hl = topic && !topic.noHeadline ? headlineNodes(topic, m) : null;
     if (hl) hd.appendChild(el("div", { class: "headline" }, [el("div", { class: "headline__k" }, ["Headline finding", modelTag()]), el("p", { class: "headline__v" }, hl.nodes)]));
-    else hd.appendChild(el("p", { class: "na-note", text: "No headline finding is written for this module." }));
+    else if (!topic) hd.appendChild(el("p", { class: "na-note", text: "No headline finding is written for this module." }));
+    /* the headline's sources, one disclosure under it; gaps are stated once, under Gaps and limitations */
+    var srcRefs = hl ? hl.refs.filter(function (r) { return !D.gaps[r]; }) : [];
+    if (srcRefs.length) hd.appendChild(sourcesDisclosure(srcRefs));
 
     function add(o, build) {
-      var body = cb(root, { title: o.title, id: o.key ? sid + "-" + o.key : null, paper: true, level: level, meta: o.meta, illus: o.illus, model: o.model, synth: o.synth,
+      var body = cb(root, { title: o.title, short: o.short, id: o.key ? sid + "-" + o.key : null, paper: true, level: level, meta: o.meta, illus: o.illus, model: o.model, synth: o.synth,
         flush: o.flush, open: o.open, nav: into ? false : undefined });
       build(body);
     }
@@ -1076,36 +1143,24 @@
       var tp = TOPICS[sub], h2 = headlineNodes(tp);
       add({ key: sub, title: tp.title, model: tp.model, illus: tp.illusLede || tp.illusDetail }, function (b) {
         b.appendChild(el("p", { class: "lede-line" }, h2.nodes));
+        var hs = h2.refs.filter(function (r) { return !D.gaps[r]; });
+        if (hs.length) b.appendChild(sourcesDisclosure(hs));
         if (tp.lede) tp.lede(figHost(b));
         if (tp.detail) tp.detail(b);
-        b.appendChild(el("div", { class: "src-notes" }, [subh("Sources for this finding"), notes(h2.refs)]));
       });
     });
-    /* findings with their citations: only when there is something to cite */
+    /* its gaps and limitations, each stated once: every gap the module's status and findings cite */
     var gapRefs = (m.refs || []).filter(function (r) { return D.gaps[r]; });
     function addGaps(r) { if (D.gaps[r] && gapRefs.indexOf(r) < 0) gapRefs.push(r); }
     if (hl) hl.refs.forEach(addGaps);
     Object.keys(HOST).forEach(function (sub) {
       if (hostOf(sub) === m && !OWNED[sub] && sub !== t) refsIn(typeof TOPICS[sub].headline === "function" ? TOPICS[sub].headline() : TOPICS[sub].headline).forEach(addGaps);
     });
-    var hasSources = hl && hl.refs.length;
-    if (hasSources || t === "financials") {
-      add({ key: "findings", title: "Findings and sources" }, function (b) {
-        if (hasSources) b.appendChild(el("div", { class: "src-notes" }, [subh("Sources for the headline finding"), notes(hl.refs)]));
-        if (t === "financials") {
-          var sink = [];
-          b.appendChild(subh("Key findings", [modelTag()]));
-          b.appendChild(el("ol", { class: "kf kf--one" }, I.keyFindings.map(function (f) { return el("li", {}, [el("span", {}, itemNodes(f, sink))]); })));
-          var n = sourceNote(sink);
-          if (n) b.appendChild(n);
-        }
-      });
-    }
-    /* its gaps and limitations (the status reason is stated once, above); every gap the module's findings cite is listed */
     add({ key: "gaps", title: "Gaps and limitations" }, function (b) {
       if (gapRefs.length) b.appendChild(gapTable(gapRefs, "Gaps raised against " + name));
       else b.appendChild(el("p", { class: "na-note", text: "No gap is raised against this module. The run-wide limitations are on the Limitations view." }));
     });
+    gapHref = null;
     if (into) return;
     /* previous and next */
     var i = NAV_MODS.indexOf(m), prevM = NAV_MODS[i - 1], nextM = NAV_MODS[i + 1];
@@ -1116,13 +1171,16 @@
       el("a", { class: "pager__a pager__a--next", href: next.href }, [el("span", { class: "pager__k", text: next.k }), el("span", { class: "pager__t", text: next.t })])
     ]));
   }
+  function sourcesDisclosure(refs) {
+    return el("details", { class: "srcs srcs--head" }, [el("summary", { text: "Sources (" + refs.length + ")" }), el("div", { class: "src-notes src-notes--inline" }, [notes(refs)])]);
+  }
   function buildFolded(viewId) {
     MODS.forEach(function (m) { if (foldOf(m) === viewId) buildModule(m); });
   }
 
   /* ================================================================ 3. MODEL */
   function buildModel() {
-    var v = newView("model", { title: "Model" });
+    var v = newView("model", { title: "Model", pre: "M" });
     plainHead(v, ["Values-only twin of model.xlsx. Select any figure for its source, locator and excerpt, or its formula."]);
     var fin = T.financials;
     var earningsRows = function (r) { return fin.rows.indexOf(r) <= 5; };
@@ -1130,17 +1188,28 @@
     var bands = [
       { id: "model-earnings", t: "Earnings", lede: "LTM net revenues {K1|US$ m} and Adjusted EBITDA {K2|US$ m}, a margin of {K47|%}; FY2023 Adjusted EBITDA was {C74|US$ m}.",
         fig: function (h) { draw("columns", h, K.revenueEbitda, { height: 190 }); }, body: function (b) { b.appendChild(periodTable(fin, earningsRows, "Earnings")); } },
-      { id: "model-ebitda-bridge", t: "Adjusted EBITDA bridge", lede: "Q2 2026 Reported EBITDA {K65|US$ m} plus transaction costs {C204|US$ m} and stock-based compensation {C206|US$ m} gives Structuring EBITDA {K66|US$ m}; SSIM equals Structuring [G22].",
+      { id: "model-ebitda-bridge", t: "Adjusted EBITDA bridge", lede: "A Q2 2026 net loss of {C192|US$ m} becomes Adjusted EBITDA of {K66|US$ m} once interest, depreciation and amortisation are added back, with transaction costs of {C204|US$ m} and stock-based compensation of {C206|US$ m}; SSIM equals Structuring [G22].",
         fig: function (h) { draw("waterfall", h, K.ebitdaBridge, { height: 230 }); }, body: function (b) { b.appendChild(periodTable(T.ebitdaAdjustments)); b.appendChild(el("p", { class: "na-note", text: T.ebitdaAdjustments.note })); } },
       { id: "model-cash-flow", t: "Cash flow waterfall", lede: "LTM cash from operations {K4|US$ m} less capex {K3|US$ m} leaves free cash flow of {K50|US$ m}; lease cash interest of {K9|US$ m} runs through rent.",
         fig: function (h) { draw("waterfall", h, K.cashBridge, { height: 220 }); }, body: function (b) { b.appendChild(periodTable(fin, cashRows, "Cash flow")); } },
       { id: "model-debt-stack", t: "Debt stack by rank", lede: "Senior secured {K57|US$ m}, unsecured {K58|US$ m} and other {K59|US$ m}: total debt {C114|US$ m} at face; financing obligations of {C184|US$ m} are shown apart from debt.",
         fig: function (h) { TOPICS.financials.lede(h); }, body: function (b) { b.appendChild(debtStack()); } },
-      { id: "model-credit-metrics", t: "Credit metrics", lede: "Total leverage {K55|x}, net {K56|x} and senior {K61|x}; interest cover {K51|x}, or {K52|x} on debt cash interest alone.",
-        fig: function (h) { draw("lineStrip", h, K.leverage, { height: 170 }); }, body: function (b) { b.appendChild(periodTable(T.creditMetrics)); b.appendChild(periodTable(T.balanceSheet)); } }
+      { id: "model-credit-metrics", t: "Credit metrics, liquidity and maturities", lede: "Total leverage {K55|x}, net {K56|x} and senior {K61|x}; interest cover {K51|x}, or {K52|x} on debt cash interest alone. Accessible liquidity is {C177|US$ m}; the maturity wall shows face value at final maturity, while the 10-Q table, with amortisation, has {C182|US$ m} in 2030.",
+        fig: function (h) {
+          var a = el("div", { class: "figpair" }), b = el("div", { class: "figpair" });
+          h.appendChild(a); h.appendChild(b);
+          draw("lineStrip", figHost(a), K.leverage, { height: 170 }); draw("lineStrip", figHost(a), K.coverage, { height: 170 });
+          draw("lineStrip", figHost(b), K.liquidity, { height: 170 }); draw("stackedColumns", figHost(b), K.maturityWall, { height: 170 });
+        },
+        body: function (b) {
+          b.appendChild(periodTable(T.creditMetrics)); b.appendChild(periodTable(T.balanceSheet));
+          var two = el("div", { class: "figpair" });
+          b.appendChild(two);
+          two.appendChild(rowsTable(T.liquidity)); two.appendChild(rowsTable(T.maturities));
+        } }
     ];
     bands.forEach(function (bd, i) {
-      var body = cb(v.el, { title: bd.t, id: bd.id, paper: true, open: i < 2 });
+      var body = cb(v.el, { title: bd.t, short: bd.t.replace(/, liquidity and maturities$/, ""), id: bd.id, paper: true, open: i < 2 });
       body.appendChild(el("p", { class: "band__text" }, rich(bd.lede)));
       bd.fig(figHost(body));
       bd.body(body);
@@ -1162,7 +1231,7 @@
   function synthD(text, ref) { return { v: text, prov: "synthetic", ref: ref }; }
   function buildFit() {
     var fit = P.fit;
-    var v = newView("portfolio-fit", { title: "Portfolio Fit", h1: "Portfolio Fit: " + P.name });
+    var v = newView("portfolio-fit", { title: "Portfolio Fit", h1: "Portfolio Fit: " + P.name, pre: "PF" });
     plainHead(v, ["Portfolio as of " + P.asOf + ". The mandate, holdings and limits are synthetic Test CLO I files."]);
     var body = cb(v.el, { title: "Fit checks", id: "portfolio-fit-checks", paper: true, synth: true, illus: true, model: true });
     var grid = el("div", { class: "pf-summary" });
@@ -1211,7 +1280,7 @@
   /* ================================================================ 5. EVIDENCE */
   function buildEvidence() {
     var c = D.counts;
-    var v = newView("evidence", { title: "Evidence" });
+    var v = newView("evidence", { title: "Evidence", pre: "E" });
     plainHead(v, ["Every citation with its verbatim excerpt, every calculation with its formula and inputs: " + c.cited + " cited, " + c.calculated + " calculated, " + c.gaps + " gaps, " + c.synthetic_sources + " synthetic."]);
     buildFolded("evidence");
     cb(v.el, { title: "Documents admitted", id: "evidence-documents", paper: true }).appendChild(docTable());
@@ -1244,14 +1313,13 @@
   /* ================================================================ 6. LIMITATIONS */
   function buildLimitations() {
     var L = D.limitations;
-    var byScope = {};
-    L.forEach(function (l) { byScope[l.scope] = (byScope[l.scope] || 0) + 1; });
-    var v = newView("limitations", { title: "Limitations" });
-    plainHead(v, ["Stated before the run and carried into the Report. " + L.length + " known at Approval: " + Object.keys(byScope).map(function (k) { return k + ": " + byScope[k]; }).join(" · ") + "."]);
+    var nModel = L.filter(function (l) { return /^Model limitation/.test(l.scope); }).length;
+    var v = newView("limitations", { title: "Limitations", pre: "L" });
+    plainHead(v, ["Stated before the run and carried into the Report. " + L.length + " were known at Approval: " + (L.length - nModel) + " inputs missing from the Source Pack and " + nModel + " limits of the Model itself."]);
     var model = L.filter(function (l) { return /^Model limitation/.test(l.scope); });
     function limRows(list, prefix) {
       return list.map(function (l) {
-        return el("tr", { id: prefix ? prefix + l.ref : null }, [el("th", { scope: "row" }, [UI.chip(l.ref)]), el("td", { text: human(l.field) }), el("td", { text: l.text }), el("td", { text: l.scope }), el("td", { text: originText(l.origin) })]);
+        return el("tr", { id: prefix ? prefix + l.ref : null }, [el("th", { scope: "row" }, [UI.chip(l.ref)]), el("td", { text: human(l.field) }), el("td", { text: l.text }), el("td", { text: /^Model limitation/.test(l.scope) ? "Model" : l.scope.replace(/^Source Pack gap$/, "Source Pack") }), el("td", { text: originText(l.origin) })]);
       });
     }
     var cols = function () { return [th("Gap"), th("Missing item"), th("Limitation"), th("Scope"), th("Origin")]; };
@@ -1269,25 +1337,19 @@
   }
 
   /* ================================================================ navigation pane */
-  var navLinks = {};
-  function hostedLabel(m) {
-    var out = [];
-    Object.keys(HOST).forEach(function (sub) { if (hostOf(sub) === m && !OWNED[sub]) out.push(TOPICS[sub].title); });
-    return out.length ? "Also: " + out.join(", ") : null;
-  }
+  /* the pane holds the Report's 11 destinations and nothing else; each view's own sections are a contents line in the paper */
   function buildNav() {
     var nav = document.getElementById("nav");
     var ul = el("ul", { class: "nav__list" });
-    function link(id, label, code, status, hold) {
+    function link(id, label, code, status) {
       var a = el("a", { class: "nav__a", href: "#" + id, "data-view": id }, [
-        el("span", { class: "nav__t" }, [label, hold ? el("span", { class: "nav__hold", text: hold }) : null]),
+        el("span", { class: "nav__t", text: label }),
         code ? el("span", { class: "nav__code", title: "RBOT module code", text: code }) : null,
-        status ? el("span", { class: "on-navy nav__st", title: UI.statusLabel(status) }, [UI.status(status)]) : null
+        status ? el("span", { class: "on-navy nav__st" }, [UI.status(status)]) : null,
+        status ? el("span", { class: "nav__stw", "aria-hidden": "true", text: UI.statusLabel(status) }) : null
       ]);
       VIEWS[id].nav = a;
-      var li = el("li", {}, [a]);
-      navLinks[id] = li;
-      return li;
+      return el("li", {}, [a]);
     }
     ul.appendChild(link("snapshot", "Snapshot"));
     var tally = {};
@@ -1295,7 +1357,7 @@
     var grp = el("li", { class: "nav__grp" }, [
       el("span", { class: "nav__gt", id: "nav-analysis-h", text: "Analysis" }),
       el("span", { class: "nav__gm", text: NAV_MODS.length + " modules: " + Object.keys(tally).map(function (k) { return tally[k] + " " + UI.statusLabel(k).toLowerCase(); }).join(", ") }),
-      el("ul", { "aria-labelledby": "nav-analysis-h" }, NAV_MODS.map(function (m) { return link(modId(m), plainName(m), m.id, m.status, hostedLabel(m)); }))
+      el("ul", { "aria-labelledby": "nav-analysis-h" }, NAV_MODS.map(function (m) { return link(modId(m), plainName(m), m.id, m.status); }))
     ]);
     ul.appendChild(grp);
     ["model", "portfolio-fit", "evidence", "limitations"].forEach(function (id) { ul.appendChild(link(id, VIEWS[id].title)); });
@@ -1303,28 +1365,28 @@
     document.getElementById("pane-issuer").textContent = M.issuer.replace(/, Inc\.$/, "") + " (" + M.ticker + ")";
     document.getElementById("pane-meta").textContent = M.pathway + " · " + M.reportingPeriod + " · Analysis " + fmtDate(parseDate(M.analysisDate), "table");
   }
-  /* the active view's sections, as a second level; the one in view carries aria-current="location" */
-  var spy = { items: [], ul: null };
-  function buildSections(v) {
-    if (spy.ul && spy.ul.parentNode) spy.ul.parentNode.removeChild(spy.ul);
-    spy = { items: [], ul: null };
-    var li = navLinks[v.id];
-    if (!li) return;
-    var list = el("ul", { class: "nav__sub", "aria-label": "Sections of " + v.title });
-    list.appendChild(el("li", { class: "nav__tools" }, [v.tools]));
+  /* a view's contents line: its sections as links under the H1; the one in view carries aria-current="location" */
+  var spy = { items: [] };
+  function buildToc(v) {
+    var items = [];
     Array.prototype.forEach.call(v.el.querySelectorAll("details.cb[id], section.fold[id]"), function (d) {
       if (d.getAttribute("data-nav") === "skip") return;
-      var parent = d.parentElement && d.parentElement.closest("details.cb");
-      if (parent) return;
+      if (d.parentElement && d.parentElement.closest("details.cb")) return;
       var h = d.querySelector(".cb__t, .fold__t");
-      if (!h) return;
-      var a = el("a", { class: "nav__sa", href: "#" + d.id, text: h.textContent });
-      list.appendChild(el("li", {}, [a]));
-      spy.items.push({ el: d, a: a });
+      if (h) items.push({ el: d, label: d.getAttribute("data-short") || h.textContent });
     });
-    li.appendChild(list);
-    spy.ul = list;
-    updateSpy();
+    v.toc = items;
+    if (items.length < 2) return;
+    var ul = el("ul", { class: "toc__list" }, items.map(function (it) {
+      it.a = el("a", { href: "#" + it.el.id, text: it.label });
+      return el("li", {}, [it.a]);
+    }));
+    var nav = el("nav", { class: "toc", "aria-label": "Sections of " + v.title }, [el("span", { class: "toc__k", text: "On this page" }), ul]);
+    if (v.tocSlot) v.tocSlot.appendChild(nav);
+    else {
+      var hd = v.el.querySelector(":scope > header"), anchor = hd && (hd.querySelector(".vhead__lede") || hd.querySelector(".vhead__top"));
+      if (anchor) anchor.insertAdjacentElement("afterend", nav);
+    }
   }
   var spyTimer = 0;
   function updateSpy() {
@@ -1332,17 +1394,18 @@
     spyTimer = setTimeout(function () {
       spyTimer = 0;
       var cur = null, line = 140;
-      spy.items.forEach(function (it) { if (it.el.getBoundingClientRect().top <= line) cur = it; });
+      spy.items.forEach(function (it) { if (it.a && it.el.getBoundingClientRect().top <= line) cur = it; });
       spy.items.forEach(function (it) {
+        if (!it.a) return;
         if (it === cur) { if (it.a.getAttribute("aria-current") !== "location") it.a.setAttribute("aria-current", "location"); }
         else it.a.removeAttribute("aria-current");
       });
     }, 50);
   }
 
-  /* the key: how to read a figure, one disclosure at the top of the pane */
-  function buildKey() {
-    var host = document.getElementById("pane-keybody");
+  /* how to read a figure: a popover in the view header (the pane keeps only the Report's destinations) */
+  var keyPop = null, keyBtn = null;
+  function buildKeyBody(host) {
     function row(mark, text) { return el("li", {}, [el("span", { class: "key__m" }, [mark]), el("span", { text: text })]); }
     function sw(cls) { return el("i", { class: "prov-swatch prov-swatch--" + cls, "aria-hidden": "true" }); }
     host.appendChild(el("ul", { class: "key__list" }, [
@@ -1357,18 +1420,47 @@
     ]));
     host.appendChild(el("p", { class: "key__h", text: "House scales" }));
     host.appendChild(el("p", { class: "key__p" }, [UI.scale({ kind: "rec", pos: 2, word: "Modest OW", label: "Example" }),
-      txt(" Position 1 is the strongest (Strong OW, Strong, V1) and 5 the weakest; the meter marks the position.")]));
+      txt(" Position 1 is the strongest (Strong OW, Strong, V1) and 5 the weakest; the meter marks the position. The word carries the meaning; colour does not.")]));
     host.appendChild(el("p", { class: "key__h", text: "Module status in the pane" }));
     host.appendChild(el("ul", { class: "key__list key__list--status" }, ["Pass", "Restricted", "Blocked"].map(function (w) {
       return el("li", {}, [el("span", { class: "key__m key__m--navy" }, [el("span", { class: "on-navy nav__st" }, [UI.status(w)])]),
         el("span", { text: UI.statusLabel(w) + ": " + (w === "Pass" ? "checks reconcile" : w === "Restricted" ? "some inputs are missing, reason stated" : "cannot run") })]);
     })));
+    host.appendChild(el("p", { class: "key__h", text: "Keys" }));
+    host.appendChild(el("p", { class: "key__p" }, [el("kbd", { text: "/" }), txt(" searches the Report. Arrow keys move between figures in a table, a list or a chart; "), el("kbd", { text: "Esc" }), txt(" closes this and any source.")]));
+  }
+  function keyButton() {
+    var b = el("button", { type: "button", class: "btn btn--quiet vkey", "aria-haspopup": "dialog", "aria-expanded": "false", text: "How to read a figure" });
+    b.addEventListener("click", function () { if (keyBtn === b && keyPop && !keyPop.hidden) closeKey(true); else openKey(b); });
+    return b;
+  }
+  function openKey(b) {
+    if (!keyPop) {
+      keyPop = el("div", { class: "keypop", role: "dialog", "aria-label": "How to read a figure", tabindex: "-1", hidden: true });
+      buildKeyBody(keyPop);
+      document.body.appendChild(keyPop);
+    }
+    UI.close(false);
+    if (keyBtn) keyBtn.setAttribute("aria-expanded", "false");
+    keyBtn = b;
+    b.setAttribute("aria-expanded", "true");
+    keyPop.hidden = false;
+    var r = b.getBoundingClientRect(), w = keyPop.offsetWidth;
+    keyPop.style.left = Math.max(8, Math.min(window.scrollX + r.right - w, window.scrollX + document.documentElement.clientWidth - w - 8)) + "px";
+    keyPop.style.top = (window.scrollY + r.bottom + 6) + "px";
+    keyPop.focus({ preventScroll: true });
+  }
+  function closeKey(restore) {
+    if (!keyPop || keyPop.hidden) return;
+    keyPop.hidden = true;
+    if (keyBtn) { keyBtn.setAttribute("aria-expanded", "false"); if (restore) keyBtn.focus(); }
   }
 
   /* ================================================================ search */
   var SEARCH = [];
   function plain(s) { return String(s).replace(/\s+/g, " ").trim(); }
   function indexSearch() {
+    var seenFig = {};
     ORDER.forEach(function (id) {
       var v = VIEWS[id];
       var secs = v.el.querySelectorAll("details.cb[id], section.fold[id]");
@@ -1380,7 +1472,11 @@
       });
       Array.prototype.forEach.call(v.el.querySelectorAll("figure.chart[id]"), function (f) {
         var n = f.querySelector(".chart__num"), t = f.querySelector(".chart__title"), s = f.querySelector(".chart__summary");
-        SEARCH.push({ kind: "Figure", view: v.title, title: (n ? n.textContent + ". " : "") + (t ? t.textContent : ""), target: f.id, text: plain((t ? t.textContent : "") + " " + (s ? s.textContent : "")) });
+        /* a figure drawn in two views is listed once, in the view that numbered it first */
+        var key = n ? n.textContent : f.id;
+        if (seenFig[key]) return;
+        seenFig[key] = true;
+        SEARCH.push({ kind: "Figure", view: v.title, title: (n ? n.textContent + " " : "") + (t ? t.textContent : ""), target: f.id, text: plain((t ? t.textContent : "") + " " + (s ? s.textContent : "")) });
       });
     });
     Object.keys(D.citations).forEach(function (id) {
@@ -1425,12 +1521,13 @@
     function render() {
       var q = input.value.trim();
       while (out.firstChild) out.removeChild(out.firstChild);
-      if (q.length < 2) { status.textContent = ""; out.hidden = true; return; }
+      if (q.length < 2) { status.textContent = ""; status.hidden = true; out.hidden = true; return; }
       var words = q.toLowerCase().split(/\s+/).filter(Boolean), hits = runSearch(q);
       out.hidden = false;
-      status.textContent = hits.length ? hits.length + (hits.length === 1 ? " result" : " results") + (hits.length > 12 ? ", showing 12" : "") : "No results";
-      if (!hits.length) { out.appendChild(el("li", { class: "search__none", text: "Nothing in the Report matches “" + q + "”." })); return; }
-      hits.slice(0, 12).forEach(function (h) {
+      status.hidden = false;
+      status.textContent = hits.length ? hits.length + (hits.length === 1 ? " result" : " results") : "No results";
+      if (!hits.length) { out.appendChild(el("li", { class: "search__none", text: "Nothing in the Report matches “" + q + "”. Try a figure, a module name or a source id such as C12." })); return; }
+      hits.forEach(function (h) {
         var a = el("a", { class: "search__a", href: "#" + h.e.target }, [
           el("span", { class: "search__k", text: h.e.kind + " · " + h.e.view }),
           el("span", { class: "search__t", text: h.e.title }),
@@ -1482,16 +1579,27 @@
     document.getElementById("route-live").textContent = viewTitle(v);
     window.scrollTo(0, 0);
     if (user) v.h1.focus({ preventScroll: true });
+    closeKey(false);
     charts.forEach(function (c) { c.redraw(); });
-    buildSections(v);
+    spy = { items: v.toc || [] };
+    updateSpy();
     if (v.nav && v.nav.scrollIntoView) { var r = v.nav.getBoundingClientRect(); var pr = document.getElementById("pane-sheet").getBoundingClientRect(); if (r.top < pr.top || r.bottom > pr.bottom) v.nav.scrollIntoView({ block: "nearest" }); }
     return true;
   }
   /* open every closed section around the target, then bring it into view */
-  function reveal(t) {
+  function reveal(t, focus) {
     for (var p = t; p; p = p.parentElement) if (p.tagName === "DETAILS") p.open = true;
     if (t.tagName === "DETAILS") t.open = true;
-    requestAnimationFrame(function () { t.scrollIntoView({ block: "start" }); updateSpy(); });
+    requestAnimationFrame(function () {
+      t.scrollIntoView({ block: "start" });
+      updateSpy();
+      if (focus) {
+        /* focus lands on the hit, so the screen reader and the viewport agree */
+        var f = t.tagName === "DETAILS" ? t.querySelector(":scope > summary") : t;
+        if (f && !/^(A|BUTTON|SUMMARY|INPUT)$/.test(f.tagName) && !f.hasAttribute("tabindex")) f.setAttribute("tabindex", "-1");
+        if (f) f.focus({ preventScroll: true });
+      }
+    });
   }
   function route(user) {
     var id = decodeURIComponent(location.hash.replace(/^#/, ""));
@@ -1511,9 +1619,9 @@
       v = owner ? VIEWS[owner.getAttribute("data-view")] : null;
     }
     if (!v) v = VIEWS.snapshot;
-    var changed = show(v, user);
+    var changed = show(v, user && !target);
     if (back && scrolls[hashKey()] != null) { var y = scrolls[hashKey()]; requestAnimationFrame(function () { window.scrollTo(0, y); updateSpy(); }); }
-    else if (target) reveal(target);
+    else if (target) reveal(target, user);
     else if (!changed) window.scrollTo(0, 0);
     sheetOpen(false);
   }
@@ -1563,7 +1671,6 @@
 
   /* ================================================================ build */
   /* view numbers follow the pane, so a figure's number says where it lives ("Fig. 3.2" is the second figure of view 3) */
-  ["snapshot"].concat(NAV_MODS.map(modId), ["model", "portfolio-fit", "evidence", "limitations"]).forEach(function (id, i) { VNUM[id] = i + 1; });
   buildSnapshot();
   NAV_MODS.forEach(buildModule);
   buildModel();
@@ -1571,8 +1678,8 @@
   buildEvidence();
   buildLimitations();
   main.appendChild(el("footer", { class: "foot" }, [txt("Design mockup of an RBOT Report. Caesars figures are taken from its public filings, TRACE pages and peer releases with file and line citations; every score, recommendation, valuation and thesis line is illustrative and is not a view on Caesars. Test CLO I is a synthetic portfolio.")]));
+  ORDER.forEach(function (id) { buildToc(VIEWS[id]); });
   buildNav();
-  buildKey();
   indexSearch();
   buildSearch();
   tidyDates(main);
@@ -1581,10 +1688,12 @@
 
   menu.addEventListener("click", function () { sheetOpen(menu.getAttribute("aria-expanded") !== "true"); });
   document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && keyPop && !keyPop.hidden) { closeKey(true); return; }
     if (e.key === "Escape" && menu.getAttribute("aria-expanded") === "true") { sheetOpen(false); menu.focus(); }
   });
   document.addEventListener("click", function (e) {
     if (menu.getAttribute("aria-expanded") === "true" && !e.target.closest("#pane")) sheetOpen(false);
+    if (keyPop && !keyPop.hidden && !e.target.closest(".keypop, .vkey")) closeKey(false);
     /* remember where the reader was before an in-page jump, so Back returns there */
     var a = e.target.closest ? e.target.closest('a[href^="#"]') : null;
     if (a && !e.defaultPrevented) scrolls[hashKey()] = window.scrollY;
