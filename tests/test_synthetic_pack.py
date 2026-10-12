@@ -26,10 +26,17 @@ def _first_line(path: Path) -> str:
     return path.read_text(encoding="utf-8").splitlines()[0]
 
 
+def _committed(pack_path: str, f: dict[str, Any]) -> str:
+    """Where a SYNTHETIC file is committed: its own pack, or the pack its `external` names
+    (amendment A12: the portfolio packs share the primary pack's Test CLO I files)."""
+    root, _, rest = str(f.get("external", "")).partition("/")
+    return rest if root == "synthetic" else f"{pack_path}/{f['path']}"
+
+
 def test_every_authored_file_is_labelled_and_registered() -> None:
     committed = sorted(p for p in SYNTHETIC.rglob("*") if p.is_file())
     registered = {
-        f"{pack.path}/{f['path']}"
+        _committed(pack.path, f)
         for pack in CORPUS.packs
         for f in pack.data["files"]
         if f.get("synthetic")

@@ -272,9 +272,9 @@ KNOWN = {
     ("czr-2026q2-lite-covenant-refinancing", "COVENANT_REFINANCING", "quick"): (A, [], []),
     ("czr-2026q2-liquidity", "COVENANT_REFINANCING", "quick"): (A, [], []),
     ("czr-2026q2-lite-full-credit-screen", "FULL_CREDIT_ASSESSMENT", "quick"): (L, [], ["FIT"]),
-    ("czr-2026q2-lite-portfolio", "PORTFOLIO_DECISION", "quick"): (L, [], ["FIT"]),
+    ("czr-2026q2-lite-portfolio", "PORTFOLIO_DECISION", "quick"): (A, [], []),  # A12
     ("czr-2026q2-lite-relative-value", "RELATIVE_VALUE", "quick"): (L, [], ["FIT"]),
-    ("czr-2026q2-portfolio", "PORTFOLIO_DECISION", "full"): (L, [], ["FIT"]),
+    ("czr-2026q2-portfolio", "PORTFOLIO_DECISION", "full"): (A, [], []),  # A12
     ("czr-2026q2-relative-value", "RELATIVE_VALUE", "full"): (L, [], ["FIT"]),
     ("ccl-fy2025", "EARNINGS_UPDATE", "quick"): (A, [], []),
     ("ccl-fy2025-covenant-refinancing", "COVENANT_REFINANCING", "full"): (A, [], []),

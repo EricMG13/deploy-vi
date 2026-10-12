@@ -10,7 +10,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from rbotlib import approve, brief, calc, corpus, grade, inventory, prepare
+from rbotlib import approve, brief, calc, corpus, fit, grade, inventory, prepare
 from rbotlib.catalog import check_tree
 from rbotlib.contract import ContractError, load_contract
 from rbotlib.model.run import add_command as add_model_command
@@ -101,6 +101,7 @@ def main(argv: list[str] | None = None) -> int:
     grade.add_command(sub)
     approve.add_commands(sub)
     calc.add_command(sub)
+    fit.add_command(sub)
     args = parser.parse_args(argv)
     run_dir = getattr(args, "run_dir", None)
     log_run = Path(run_dir) if run_dir and Path(run_dir).is_dir() else None
