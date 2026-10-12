@@ -223,8 +223,7 @@ SNAPSHOT_BLOCKS = [
     ("relative_value", "always"),
     ("valuation", "always"),
     ("portfolio_fit", "portfolios"),
-    ("what_changed", "prior_case"),
-]
+]  # block 19, What changed (cp8.what_changed), returns with CP-8 in Plan 11
 SNAPSHOT_CHARTS = (
     "chart.model_strip chart.maturity_wall chart.capital_structure chart.ebitda_bridge "
     "chart.rv_loan chart.rv_hy chart.talk_range chart.fit_bullets"
@@ -238,10 +237,10 @@ def test_the_shipped_catalog_carries_the_host_tables_and_the_snapshot_blocks() -
     blocks = catalog.blocks["credit_snapshot"]
     assert [(b.id, b.condition) for b in blocks] == SNAPSHOT_BLOCKS
     tables = catalog.front_pages["credit_snapshot"]
-    assert len(tables) == len(set(tables)) == 26
+    assert len(tables) == len(set(tables)) == 25
     assert {t for b in blocks for t in b.tables} == set(tables)
     assert sorted(c for b in blocks for c in b.charts) == sorted(SNAPSHOT_CHARTS.split())
-    assert catalog.pathways == ()
+    assert [p.id for p in catalog.pathways] == ["FULL_CREDIT_ASSESSMENT"]
 
 
 def test_the_section_5_lists_are_ordered_under_a2(tmp_path: Path, rules: Rules) -> None:

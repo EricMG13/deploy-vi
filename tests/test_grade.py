@@ -153,7 +153,7 @@ def test_grading_is_deterministic_and_pins_its_inputs(root: Path, tmp_path: Path
     assert first["run_id"] == "20261011-acme-pending" and len(first["brief_sha256"]) == 64
 
 
-def test_the_shipped_catalog_grades_nothing_yet(
+def test_the_shipped_catalog_grades_full_credit_assessment(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     run = _acme(tmp_path)
@@ -163,10 +163,11 @@ def test_the_shipped_catalog_grades_nothing_yet(
     main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"])
     capsys.readouterr()
     assert main(["grade", "--run", str(run)]) == 0
-    assert "The catalog lists no Pathway yet, so nothing can be approved." in (
+    assert "| Full Credit Assessment | full (recommended) | With limitations | — | FIT |" in (
         capsys.readouterr().out
     )
-    assert json.loads((run / "grading.json").read_text(encoding="utf-8"))["pathways"] == []
+    pathways = json.loads((run / "grading.json").read_text(encoding="utf-8"))["pathways"]
+    assert [p["id"] for p in pathways] == ["FULL_CREDIT_ASSESSMENT"]
 
 
 def test_grade_refuses_a_missing_or_invalid_input(

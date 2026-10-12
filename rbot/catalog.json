@@ -52,8 +52,7 @@
         "model.summary",
         "model.projection_summary",
         "cp3.talk_valuation",
-        "cp6.portfolio_recommendation",
-        "cp8.what_changed"
+        "cp6.portfolio_recommendation"
       ],
       "blocks": [
         {"id": "header", "title": "Header", "tables": ["snapshot.run_header"], "charts": [], "condition": "always"},
@@ -73,10 +72,16 @@
         {"id": "chart_strip", "title": "Net leverage, interest cover and liquidity", "tables": ["model.metrics", "model.summary", "model.projection_summary"], "charts": ["chart.model_strip"], "condition": "always"},
         {"id": "relative_value", "title": "Loan relative value; high-yield relative value", "tables": ["snapshot.relative_value"], "charts": ["chart.rv_loan", "chart.rv_hy"], "condition": "always"},
         {"id": "valuation", "title": "Valuation per instrument", "tables": ["snapshot.instrument_levels", "cp3.talk_valuation"], "charts": ["chart.talk_range"], "condition": "always"},
-        {"id": "portfolio_fit", "title": "Portfolio Fit per portfolio", "tables": ["snapshot.portfolio_fit", "cp6.portfolio_recommendation"], "charts": ["chart.fit_bullets"], "condition": "portfolios"},
-        {"id": "what_changed", "title": "What changed since the Prior Case", "tables": ["cp8.what_changed"], "charts": [], "condition": "prior_case"}
+        {"id": "portfolio_fit", "title": "Portfolio Fit per portfolio", "tables": ["snapshot.portfolio_fit", "cp6.portfolio_recommendation"], "charts": ["chart.fit_bullets"], "condition": "portfolios"}
       ]
     }
   },
-  "pathways": []
+  "pathways": [
+    {
+      "id": "FULL_CREDIT_ASSESSMENT", "label": "Full Credit Assessment", "front_page": "credit_snapshot",
+      "depths": {
+        "full": ["CP-0", "CP-1", "CP-1A", "CP-1B", "CP-1D", "MODEL", "CP-2", "CP-3", "FIT", "CP-5", "CP-6"]
+      }
+    }
+  ]
 }
