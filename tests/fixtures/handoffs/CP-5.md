@@ -53,4 +53,4 @@ The prior Structuring EBITDA finding is fixed: CP-1 registers the arranger's 150
 | id | source | locator | excerpt |
 |---|---|---|---|
 | C1 | SYNTHETIC_CZR_2026_PF_Capitalisation.md | Earnings and interest | Run-rate cost synergies identified by Fertitta Entertainment, not yet realised \| 150 |
-| C2 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 4 | CZR TL B 2030,BL3912045,,1L Term Loan,99.375,99.750,99.563,,252,Ba3,BB |
+| C2 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 4 | CZR TL B 2030 BL3912045  1L Term Loan 99.375 99.750 99.563  252 Ba3 BB |

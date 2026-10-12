@@ -84,26 +84,26 @@ The 6.50% secured notes due 2032 yield 8.071057% at 93.25 (calc: bond_analytics 
 |---|---|---|---|
 | C1 | SYNTHETIC_CZR_2026_TLB_Term_Sheet.md | Summary of terms | Price Talk \| SOFR + 300–325 bps (initial talk) |
 | C2 | SYNTHETIC_CZR_2026_TLB_Term_Sheet.md | Summary of terms | OID \| 99.0–99.5 |
-| C3 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 4 | CZR TL B 2030,BL3912045,,1L Term Loan,99.375,99.750,99.563,,252,Ba3,BB |
-| C4 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 5 | CZR TL B-1 2031,BL4120876,,1L Term Loan,99.500,99.875,99.688,,241,Ba3,BB |
-| C5 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, Index Statistics | Morningstar LSTA US Leveraged Loan Index BB,SPBDLLBB,512000,99.62,0.12,0.41,6.71,248 |
-| C6 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, Sector Ratings Average | B,2,1550,313,99.13,99.63,7.69,331 |
+| C3 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 4 | CZR TL B 2030 BL3912045  1L Term Loan 99.375 99.750 99.563  252 Ba3 BB |
+| C4 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 5 | CZR TL B-1 2031 BL4120876  1L Term Loan 99.500 99.875 99.688  241 Ba3 BB |
+| C5 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, Index Statistics | Morningstar LSTA US Leveraged Loan Index BB SPBDLLBB 512000 99.62 0.12 0.41 6.71 248 |
+| C6 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, Sector Ratings Average | B 2 1550 313 99.13 99.63 7.69 331 |
 | C7 | SYNTHETIC_CZR_2026_TLB_Term_Sheet.md | Summary of terms | Expected facility ratings \| Ba3 (Moody's) / BB- (S&P) |
-| C8 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 7 | CZR 6.50 02/15/32,BO2201453,US12769GAC44,Senior Secured Notes,93.000,93.500,93.250,8.07 |
-| C9 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 6 | CZR 7.00 02/15/30,BO1185520,US12769GAA87,Senior Secured Notes,101.250,101.750,101.500,6.41 |
-| C10 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 8 | CZR 4.625 10/15/29,BO1203310,US12769GAB60,Senior Notes,94.250,94.875,94.563,6.52 |
-| C11 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 11 | PENN 4.125 07/01/29,BO1164521,US707569AV19,Senior Notes,93.500,94.000,93.750,6.65 |
-| C12 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, Sector Ratings Average | BB,4,1878,219,99.75,100.06,6.44,228 |
+| C8 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 7 | CZR 6.50 02/15/32 BO2201453 US12769GAC44 Senior Secured Notes 93.000 93.500 93.250 8.07 |
+| C9 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 6 | CZR 7.00 02/15/30 BO1185520 US12769GAA87 Senior Secured Notes 101.250 101.750 101.500 6.41 |
+| C10 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 8 | CZR 4.625 10/15/29 BO1203310 US12769GAB60 Senior Notes 94.250 94.875 94.563 6.52 |
+| C11 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 11 | PENN 4.125 07/01/29 BO1164521 US707569AV19 Senior Notes 93.500 94.000 93.750 6.65 |
+| C12 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, Sector Ratings Average | BB 4 1878 219 99.75 100.06 6.44 228 |
 | C13 | CZR_2024_650_Senior_Secured_Notes_2032_Indenture.txt | Paragraph 5, optional redemption | 2029 and thereafter \| 100.000% |
-| C14 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 9 | CZR 6.00 10/15/32,BO2219978,US12769GAD27,Senior Notes,84.500,85.250,84.875,9.33 |
-| C15 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, Index Statistics | Morningstar LSTA US Leveraged Loan Index,SPBDAL,1452300,96.84,0.21,0.94,8.11,389 |
+| C14 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 9 | CZR 6.00 10/15/32 BO2219978 US12769GAD27 Senior Notes 84.500 85.250 84.875 9.33 |
+| C15 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, Index Statistics | Morningstar LSTA US Leveraged Loan Index SPBDAL 1452300 96.84 0.21 0.94 8.11 389 |
 | C16 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, title | Gaming: loan relative value as of 2026-10-02 |
-| C17 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, Index Statistics | Morningstar LSTA US Leveraged Loan Index B,SPBDLLB,801500,97.15,0.24,1.02,8.04,381 |
-| C18 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, issuers | BL3912045,B,1st Lien,Ba3/BB,2018,225,2030-02-06,99.375,99.75,0.125,-0.25,6.62,252 |
-| C19 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, issuers | BL4120876,B-1,1st Lien,Ba3/BB,2835,225,2031-02-06,99.5,99.875,0.125,-0.125,6.55,241 |
-| C20 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, issuers | BL3550912,B,1st Lien,Ba2/BB+,1500,200,2031-03-14,100,100.25,0,0.125,6.21,202 |
-| C21 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, issuers | BL3640021,B,1st Lien,Ba2/BB,2200,225,2029-04-14,100.125,100.375,0,0.25,6.38,218 |
-| C22 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, issuers | BL3729054,B,1st Lien,B1/BB-,400,275,2030-05-28,99,99.5,-0.25,-0.5,7.36,296 |
-| C23 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, issuers | BL3488123,B,1st Lien,B2/B,2700,350,2029-01-27,99.25,99.75,0.25,0.125,8.02,366 |
+| C17 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, Index Statistics | Morningstar LSTA US Leveraged Loan Index B SPBDLLB 801500 97.15 0.24 1.02 8.04 381 |
+| C18 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, issuers | BL3912045 B 1st Lien Ba3/BB 2018 225 2030-02-06 99.375 99.75 0.125 -0.25 6.62 252 |
+| C19 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, issuers | BL4120876 B-1 1st Lien Ba3/BB 2835 225 2031-02-06 99.5 99.875 0.125 -0.125 6.55 241 |
+| C20 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, issuers | BL3550912 B 1st Lien Ba2/BB+ 1500 200 2031-03-14 100 100.25 0 0.125 6.21 202 |
+| C21 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, issuers | BL3640021 B 1st Lien Ba2/BB 2200 225 2029-04-14 100.125 100.375 0 0.25 6.38 218 |
+| C22 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, issuers | BL3729054 B 1st Lien B1/BB- 400 275 2030-05-28 99 99.5 -0.25 -0.5 7.36 296 |
+| C23 | SYNTHETIC_Sector_RV_Gaming.xlsx | sheet Gaming, issuers | BL3488123 B 1st Lien B2/B 2700 350 2029-01-27 99.25 99.75 0.25 0.125 8.02 366 |
 | C24 | SYNTHETIC_CZR_2026_TLB_Term_Sheet.md | Summary of terms | Pari passu with the existing CEI senior secured credit facilities and senior secured notes |
 | C25 | CZR_FINRA_TRACE_12769GAC4_2026-10-02.txt | p.1 | Moody's rating shown: B1 |

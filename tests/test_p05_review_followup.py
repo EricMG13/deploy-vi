@@ -107,7 +107,6 @@ def _a_evidence(tmp_path: Path, sources: str = "S1") -> tuple[str, Path, Path]:
                         "kind": "txt",
                         "unreadable": None,
                         "image_read": False,
-                        "kind": "txt",
                     }
                 ]
             }

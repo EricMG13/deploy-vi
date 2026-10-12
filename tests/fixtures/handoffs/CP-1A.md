@@ -82,12 +82,12 @@ The earnings and the fixed charges sit in different places. Regional is the larg
 | C11 | CZR_2026_Merger_Agreement_8K.txt | Securities registered | Common stock, $0.00001 par value \| CZR \| NASDAQ Stock Market |
 | C12 | CZR_2026_Merger_Press_Release.txt | About Caesars Entertainment, Inc. | resorts operate primarily under the Caesars®, Harrah’s®, Horseshoe®, and Eldorado® brand names |
 | C13 | CZR_Q2_2026_Earnings_Release.txt | About Caesars Entertainment, Inc. | the largest casino-entertainment company in the US |
-| C14 | CZR_Q2_2026_Earnings_Release.txt | Non-GAAP Measures | leases ... accounted for as financing obligations and the associated expense is included in interest |
+| C14 | CZR_Q2_2026_Earnings_Release.txt | Non-GAAP Measures | Adjusted EBITDA also excludes the expense associated with certain of our leases as these transactions were accounted for as financing obligations and the associated expense is included in interest expense. |
 | C15 | CZR_Q2_2026_Earnings_Release.txt | Net Revenues, six months ended June 30 | Caesars Digital \| 725 \| 678 \| 6.9% |
 | C16 | CZR_Q2_2026_Earnings_Release.txt | Adjusted EBITDA, six months ended June 30 | Caesars Digital \| 137 \| 123 \| 11.4% |
 | C17 | CZR_2026_Merger_Press_Release.txt | About Fertitta Entertainment, Inc. | Tilman Fertitta and Paige Fertitta’s holding company |
 | C18 | CZR_2026_Merger_Press_Release.txt | p.1 | are expected to remain in their roles |
-| C19 | CZR_2026_Merger_Agreement_8K.txt | cover page | May 27, 2026 |
+| C19 | CZR_2026_Merger_Agreement_8K.txt | p. 1 (cover) | May 27, 2026 |
 | C20 | CZR_2026_Merger_Press_Release.txt | Transaction Details | subject to the approval of Caesars Entertainment shareholders |
 | C21 | CZR_2026_Merger_Press_Release.txt | Transaction Details | “go-shop” period through July 11, 2026 |
 | C22 | SYNTHETIC_CZR_2026_TLB_Term_Sheet.md | Summary of terms | Commitment date \| 2026-10-08 |

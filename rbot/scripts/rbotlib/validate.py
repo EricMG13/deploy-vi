@@ -243,11 +243,17 @@ class _RunProblem(Exception):
 
 
 _LETTER = r"[^\W\d_]"
-_BREAK = re.compile(rf"({_LETTER})[-\u00ad\u2010-\u2012\u2212]\s*\n\s*({_LETTER})")
+_BREAK = re.compile(rf"(?<!\w)({_LETTER}+)[-\u00ad\u2010-\u2012\u2212]\s*\n\s*(?={_LETTER})")
 
 
 _THIN_GROUPS = re.compile(r"(?<!\d)\d{1,3}(?:[\u202f\u2009\u00a0]\d{3})+(?!\d)")
 _THIN = re.compile(r"[\u202f\u2009\u00a0]")
+
+
+def _join_break(match: re.Match[str]) -> str:
+    """Keep short uppercase labels (B-, BB-, CCC-, USD-) intact across lines."""
+    first = match.group(1)
+    return match.group() if len(first) <= 3 and first.isupper() else first
 
 
 def normalise(text: str) -> str:
@@ -258,7 +264,9 @@ def normalise(text: str) -> str:
     separated by a thin, narrow or no-break space (`11 486`) becomes one number.
     """
     grouped = _THIN_GROUPS.sub(lambda m: _THIN.sub("", m.group()), text)
-    joined = _BREAK.sub(r"\1\2", unicodedata.normalize("NFKC", grouped))
+    joined = unicodedata.normalize("NFKC", grouped)
+    while (unbroken := _BREAK.sub(_join_break, joined)) != joined:
+        joined = unbroken
     return " ".join(joined.translate(_QUOTES).casefold().split())
 
 
@@ -268,6 +276,11 @@ def _parts(excerpt: str) -> list[str]:
 
 _SIGNED = re.compile(r"(?:us\$|[$\u00a3\u20ac\u00a5])?\s*\d")
 _CUT_AFTER = r"(?!\s?(?:%|x\b|bps?\b))(?!-\d)"
+_GRADE_END = re.compile(
+    r"(?<!\w)(?:AAA|AA|A|BBB|BB|B|CCC|CC|C|D|SD|RD|NR|WR|Ca|"
+    r"(?:Aa|A|Baa|Ba|B|Caa)[123])[+-]?$",
+    re.I,
+)
 
 
 def _needle(text: str) -> re.Pattern[str]:
@@ -281,6 +294,8 @@ def _needle(text: str) -> re.Pattern[str]:
     if _SIGNED.match(text):
         before += r"(?<!(?<!\w)-)" + (r"(?<!\()" if ")" not in text else "")
     after = r"(?!\w)(?![.,]\d)" + (_CUT_AFTER if text[-1].isdigit() else "")
+    if _GRADE_END.search(text):
+        after += r"(?![+-])"
     return re.compile(before + re.escape(text) + after)
 
 

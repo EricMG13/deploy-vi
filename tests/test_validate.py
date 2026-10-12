@@ -244,6 +244,8 @@ def test_a_marker_inside_fenced_code_does_not_cite(
 ) -> None:
     text = handoff_text.replace("[C1]", "\n```\n[C1]\n```\n", 1)
     assert "unused_citation" in codes(text, contract, rules)[1]
+
+
 # --- the up-front review of Plan 05 (rest, I1): a Blocked Handoff can be written -------------
 
 

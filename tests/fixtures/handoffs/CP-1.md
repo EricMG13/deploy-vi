@@ -265,7 +265,7 @@ The new Senior Secured Term Loan B (`NEW-1`, 3,000) and the pro forma capitalisa
 | C41 | CZR_Q2_2026_10Q.txt | Terms of Outstanding Debt | 0.25% of the original aggregate principal amount of the CEI Term Loan B, |
 | C42 | CZR_Q2_2026_10Q.txt | Terms of Outstanding Debt | 0.25% of the original aggregate principal amount of the CEI Term Loan B-1, |
 | C43 | CZR_Q2_2026_10Q.txt | Terms of Outstanding Debt | up to an aggregate principal amount of $400 million (the “CVA Delayed Draw Term Loan”) |
-| C44 | CZR_Q2_2026_Earnings_Release.txt | Non-GAAP Measures | leases ... accounted for as financing obligations and the associated expense is included in interest |
+| C44 | CZR_Q2_2026_Earnings_Release.txt | Non-GAAP Measures | Adjusted EBITDA also excludes the expense associated with certain of our leases as these transactions were accounted for as financing obligations and the associated expense is included in interest expense. |
 | C45 | CZR_Q2_2026_10Q.txt | Balance Sheets | Long-term financing obligations \| 13,157 \| 13,096 |
 | C46 | CZR_Q2_2026_Earnings_Release.txt | Balance Sheet and Liquidity | Net debt (a) \| $10,842 \| $11,018 |
 | C47 | SYNTHETIC_CZR_2026_TLB_Term_Sheet.md | Summary of terms | Maturity \| 2033-12-15 (seven years from expected closing) |
@@ -285,14 +285,14 @@ The new Senior Secured Term Loan B (`NEW-1`, 3,000) and the pro forma capitalisa
 | C61 | CZR_Q2_2026_Earnings_Release.txt | Net Revenues, six months ended June 30 | Managed and Branded \| 123 \| 141 \| (12.8)% |
 | C62 | CZR_Q2_2026_Earnings_Release.txt | Net Revenues, six months ended June 30 | Corporate and Other \| (5) \| 2 \| * |
 | C63 | SYNTHETIC_CZR_2026_PF_Capitalisation.md | Earnings and interest | Pro forma cash interest paid for debt, LTM \| 989 |
-| C64 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 4 | CZR TL B 2030,BL3912045,,1L Term Loan,99.375,99.750,99.563,,252,Ba3,BB |
-| C65 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 5 | CZR TL B-1 2031,BL4120876,,1L Term Loan,99.500,99.875,99.688,,241,Ba3,BB |
-| C66 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 6 | CZR 7.00 02/15/30,BO1185520,US12769GAA87,Senior Secured Notes |
-| C67 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 7 | CZR 6.50 02/15/32,BO2201453,US12769GAC44,Senior Secured Notes |
+| C64 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 4 | CZR TL B 2030 BL3912045  1L Term Loan 99.375 99.750 99.563  252 Ba3 BB |
+| C65 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 5 | CZR TL B-1 2031 BL4120876  1L Term Loan 99.500 99.875 99.688  241 Ba3 BB |
+| C66 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 6 | CZR 7.00 02/15/30 BO1185520 US12769GAA87 Senior Secured Notes |
+| C67 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 7 | CZR 6.50 02/15/32 BO2201453 US12769GAC44 Senior Secured Notes |
 | C68 | CZR_FINRA_TRACE_12769GAC4_2026-10-02.txt | p.1 | CUSIP: 12769GAC4 |
 | C69 | CZR_2024_650_Senior_Secured_Notes_2032_Indenture.txt | Paragraph 5, optional redemption | 2027 \| 103.250% |
-| C70 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 8 | CZR 4.625 10/15/29,BO1203310,US12769GAB60,Senior Notes |
-| C71 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 9 | CZR 6.00 10/15/32,BO2219978,US12769GAD27,Senior Notes |
+| C70 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 8 | CZR 4.625 10/15/29 BO1203310 US12769GAB60 Senior Notes |
+| C71 | SYNTHETIC_Bloomberg_Levels_2026-10-02.csv | sheet SYNTHETIC_Bloomberg_Levels_2026-10-02, row 9 | CZR 6.00 10/15/32 BO2219978 US12769GAD27 Senior Notes |
 | C72 | CZR_FINRA_TRACE_12769GAD2_2026-10-02.txt | p.1 | CUSIP: 12769GAD2 |
 | C73 | SYNTHETIC_CZR_2026_TLB_Term_Sheet.md | Summary of terms | Expected facility ratings \| Ba3 (Moody's) / BB- (S&P) |
 | C74 | CZR_Q2_2026_10Q.txt | Supplemental cash flow information | Cash interest paid for rent related to GLPI and VICI Leases \| 686 \| 672 |
