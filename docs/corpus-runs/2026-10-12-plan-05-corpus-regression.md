@@ -1,39 +1,61 @@
-# Corpus regression — Plan 05 (core modules), 2026-10-12
+# Plan05 qualification on approved final dependencies — 2026-10-12
 
-Run during Plan 05's verification on the full corpus (`RBOT_CORPUS_ROOTS` set to caos-databricks `qualification/` and `TEST-Issuer Data`), `RBOT_REQUIRE_CORPUS=1`. Plan 05 adds eight modules (CP-1, CP-1A, CP-1B, CP-1D, CP-2, CP-3, CP-5, CP-6), the bond-analytics calculator, Portfolio Fit, the `FULL_CREDIT_ASSESSMENT` Pathway list and the A/B harness. The modules run from fixture Handoffs written by hand for `czr-2026q2-primary`; the proxy runs and A/B with model-written Handoffs are the controller's (Task 34 Steps 4–10) and are recorded in their own scorecards.
+This current record describes the actual integrated Codex branch with approved final02 9e65cd9, final03 0538271, final04 f4be647 and approved frozen05 t34 af36bfa. The combined dependency base is dea0e3a. Hand-written SYNTHETIC fixture Handoffs exercise the real host implementations and prepared-source readers. They do not certify model-written modules or live A/B performance.
 
-## Registry
+The fresh16-gate run observed head3726b90bd08f96974ed11c7dd75be267e55be347, tree db8349746976c9d18c348a65c2de3bdf37f64d35. Packaging was replayed with complete green G/H/I boundaries and the same final tracked tree. The final documentation scope copies the already binding main interfaces spec and writes this measured record; it changes no runtime, tests, corpus data or gate policy. Exact task trees and every uv.lock are reconstructed from the published main Plan05 patches. Original source tags and pre-packaging execution refs remain archived in common Git storage.
 
-- `rbot corpus verify`: 34 packs ok, `exit 0`. Amendment A12 adds the primary pack's two SYNTHETIC Test CLO I files to `czr-2026q2-portfolio` and `czr-2026q2-lite-portfolio` (same sha256).
+## Fresh final verification
 
-## Deterministic corpus checks (209 passed, 0 failed, 0 skipped)
+Required roots were `/Users/ericguei/Documents/caos-databricks/qualification` and `/Users/ericguei/Documents/TEST-Issuer Data`; `RBOT_REQUIRE_CORPUS=1`.
 
-Plans 02–04's 151 checks pass unchanged. Plan 05 adds:
+- Full suite: **2182 passed, zero failed, zero skipped**, coverage **98.13%** (one existing PytestWarning about an empty exception match).
+- Standalone required corpus: **214 passed, zero failed, zero skipped**,1968 deselected.
+- `rbot corpus verify`: all34 packs pass, exit0.
+- Synthetic corpus with roots unset and `RBOT_REQUIRE_CORPUS=synthetic`: **1 passed,213 skipped**,1968 deselected. Those external-root skips are disclosed and are not required-root evidence.
+- Lock, ruff, format, strict mypy175 files, suppression baseline0, complexity≤15, Bandit plus its scan floor, strict dependency audit, duplicate-code threshold3%, `rbot check` and gitleaks all exit0. Together with the three corpus controls and full pytest these are16 recorded gates.
 
-| Check | Cases | Result |
-|---|---|---|
-| `test_handoff_fixtures_validate[module]` | 9 | CP-0 and the eight core fixtures validate with `--run` against `czr-2026q2-primary` (exit 0, no finding); every citation names a pack file and its excerpt is in it |
-| `test_cp1_figures_are_on_their_cited_lines` | 1 | all 73 CP-1 figures sit on the filing line they cite |
-| `test_fit_arithmetic_test_clo_i` | 1 | `rbot fit` on the Test CLO I files and the CP-3 fixture: upper bound 15.7725 for rated non-CCC instruments, 0.88326 for unrated/CCC facilities, all 12 instruments `Watch`: unresolved sector exclusion C-17 and no matched issuer exposure are explicit conservative flags |
-| `test_fit_runs_on_the_czr_portfolio_packs` | 2 | A12: both CZR portfolio packs prepare `TEST_CLO_I` and FIT runs (`CEI-TLB` Watch, `CEI-SN-2032` Watch); Plan 04's two pinned grades change to Available |
-| `test_cp6_caps_are_fits` | 1 | CP-6's per-portfolio caps equal `rbot fit`'s on the same fixtures |
-| `test_full_credit_assessment_grades_on_the_corpus[pack]` | 34 | `rbot grade` with the real contracts gives the hand-checked grade, blocking and limited modules on every registry pack |
-| `test_measure_on_the_cp3_fixture` | 1 | `ab_grade measure` on the CP-3 fixture: C 25/25, F 129/129 from uniquely matched expected identities (11 supported loan peer/index rows; HY rows require spreads the source lacks, and the pack has no TRACE file), 6 gaps |
+The first fresh full suite failed13 checks (2169passed98.13%). Twelve failures named obsolete A12 aliases for two synthetic files whose approved final02 bytes already included date Notes; their primary entry carried the correct checksums. Four alias checksums were reconciled against the complete primary hashes and independent SHA of the unchanged source bytes. The remaining FIT assertion named old row8; the actual named source row9 now pins the same WAR minimum. Every monetary headroom/cap/verdict assertion remained unchanged. Original failing logs are retained in recovery evidence.
 
-Full suite with the corpus required: 1414 passed, coverage 97.84%.
+## Actual Model and downstream controls
 
-## Money code
+The filing-only corpus LTM EBITDA legitimately remains3592. The separate Plan05 fixture explicitly sources arranger150 on its registered LTM; it is not an invented filing amount or realized operating improvement. On that fixture the actual Model produces Structuring EBITDA3742 and SSIM EBITDA3592 for UNREALIZED/Challenged or REALIZED/Rejected. A newest REALIZED/Supported judgment produces3742 for both as an **explicit hypothetical positive control**. These values are pinned in model.json, the MODEL table and the workbook. Approved latest registered-LTM judgment controls the add-back across the Model in either direction; stale older assessments cannot upgrade an unassessed newest LTM and conflicting equal-date assessments refuse.
 
-- `rbot calc bond_analytics`: `mutmut` 3.7.0, all three bond test files: 1089 mutants, 1074 killed, 3 timed out (each makes the solver loop forever), 12 survivors, each rechecked against a concrete input in docs/calc/mutation.md.
-- Portfolio Fit arithmetic: `mutmut` 3.7.0: 770 mutants, 768 killed, 2 equivalents (non-None dictionary default; unused rows argument), concrete inputs in docs/fit/mutation.md.
+Other fixture results retain total debt14585, PF interest989 and adjusted debt27742 with CP1D financing obligations13157. No EV is supplied without a listed equity value or analyst SSIM multiple. A missing carried CP1D amount remains null/NOT_STATED with an explicit gap, never zero. Model production bytes remain approved03 exact.
 
-## The Model on the CP-1 fixtures
+CP5 F1 is Fixed: the real Model carries the cited LTM-only150 into Structuring3742 and excludes the unrealized benefit from SSIM3592. Its MODEL status is Traceable; the false omitted150 defect and associated source-that-would-lift row were removed. Real limitations remain: SYNTHETIC transaction sources require a lender presentation for a live run; no EV, reference-rate floor benefit or corporate ratings are manufactured. CP5 retains its named gap for later modules absent from the Pathway.
 
-`rbot model` on the CP-0 and CP-1 fixtures (`tests/test_cp1.py`): PF-LTM to June 30, 2026 total debt 14,585 (11,705 + 3,000 of NEW-1 − 120 revolver repaid), SSIM EBITDA 3,592 (3,624 + 1,807 − 1,839), PF interest 989 and cover 3.63x, SSIM multiple 4.06x, no EV (no listed equity value), no reconciliation fault. With the CP-1D fixture adjusted debt adds the 13,157 of financing obligations: 27,742 and 7.72x. The arranger's 150 of run-rate synergies is registered on the LTM period and reaches the Model as that cell's `stated` figure only (the Model builds LTM from the FY and half-year rows): see the plan's Decision 8. This is the frozen pre-review Plan 03 base, not a new analytical policy: after the final Plan 03/04 rebase, accepted A14 changes Structuring EBITDA to 3,742 and its shared assertions/CP-5 finding/this record must change together; the approved latest-LTM realization policy is also an upstream rebase obligation.
+Actual prepared primary controls run CP1/CP1D -> Model -> CP5 -> B measurement (C2/2, validate0). A changed page yields C1/2 and validate2. Actual FIT -> CP6 caps are equal and Front Page coverage is15/15. Test CLO I retains upper bound15.7725 for rated non-CCC facilities and0.88326 for unrated/CCC facilities; all12 instruments remain Watch, with unresolved C17 exclusion and unknown matched issuer exposure named. No broad unchanged Model/bond/FIT mutation rerun is claimed.
 
-## Grades on the registry classification (`FULL_CREDIT_ASSESSMENT`, full)
+## Shared source anchoring and native fidelity
 
-CP-1 requires a readable Issuer Source and a financial statement (including offering memoranda and lender presentations); a Market Levels or equity export is optional. CP-1A ratings input specifically accepts Rating report and Market levels export files across issuer/market classes; CP-3 wants a Market Levels export or the Sector RV Workbook; FIT needs prepared positions and limits but owns only the conditional Portfolio Fit block, so a missing portfolio limits the grade rather than blocking it. The four packs with no usable financial statement (tid-ford, tid-six-flags and both save-2024 packs) are Blocked at CP-1 and MODEL.
+The strengthened final02 prepared reader exposed28 obsolete fixture quotation/locator representations: CSV/XLSX quotes used comma-separated records rather than full parsed-cell text; the lease quote had an invalid one-word ellipsis piece; the cover locator needed explicit p.1. Corrections preserve every original cell value, number, sign, source/citation identity and all noncitation tables. Actual prepared comparisons and original failures are retained; source files were read only.
+
+Actual FINRA BB- followed by the next Standard & Poor's field exposed the original joining bug. The repaired matcher preserves short uppercase labels, leaves the next word available and repeats genuine joins until stable. Terminal agency grades retain complete +/- modifiers independently of label wording. Public failures/positives cover whole and truncated BB-/BB+, alternate labels, inter-/na-/tional, uppercase repeats, BB-/inter-/national, genuine soft hyphens and monetary sign/currency/accounting boundaries. Independent review verified28 public-provider witnesses plus fresh inventory/prepare of the byte-exact registered FINRA source. Stable validate.py SHA256 is e1bc45b528677ce07d9ab84df43eea18a7a209e68bb7476b33cf01b31167ce7b.
+
+Complete explicitly selected native locator/excerpt fields and per-source selectors remain lossless; only cell-edge whitespace is trimmed. Poor valid quotes lower C with findings. Shortened/substituted/cross-field or malformed maps refuse qualification by name. Genuine malformed prepared-index run_error refuses both A and B instead of becoming one bad citation. Ratio inputs remain finite in[0,1] with positive denominator and numerator≤denominator. Approved native-map/scorer production bytes remain source34 exact.
+
+Mandatory confidence reviews and capped no-argument inline tournaments are recorded. The portfolio integration has10 selected manual guard mutations generated/executed/killed; the new rating/word-break seam has10 selected manual mutations generated/executed/killed, each with a clean incumbent and actual failing tests. These are scoped manual proofs, not exhaustive mutmut counts. Historical bond1089/FIT770 mutation records remain under docs/calc and docs/fit because their production bytes are unchanged.
+
+## Fresh fixture stand-in A/B run
+
+Fixtures are side B, their actual to-r14 conversion is side A, and the fixture sheets are graders. Both C ratios use actual prepared-source anchors and all eight stand-in bars pass. No model produced either output.
+
+| Module | C(A) | C(B) | F(B) | Named gaps | validate / score |
+|---|---|---|---|---|---|
+| CP-1 | 76/76 | 76/76 | not applicable | 6 | 0 / 0 |
+| CP-1A | 27/27 | 27/27 | 9/9 | 4 | 0 / 0 |
+| CP-1B | 12/12 | 12/12 | 2/2 | 3 | 0 / 0 |
+| CP-1D | 15/15 | 15/15 | not applicable | 2 | 0 / 0 |
+| CP-2 | 16/16 | 16/16 | 24/24 | 3 | 0 / 0 |
+| CP-3 | 25/25 | 25/25 | 129/129 | 6 | 0 / 0 |
+| CP-5 | 2/2 | 2/2 | not applicable | 1 | 0 / 0 |
+| CP-6 | 10/10 | 10/10 | 15/15 | 2 | 0 / 0 |
+
+`model` and `fit` exit0; measured V27/27, missed0. CP3 scoring without required F exits2. Bad quotes, wrong pages, rating/sign changes and global errors have separate failure controls; fixture favorable grader sheets do not establish comparative quality.
+
+## Registry grade controls
+
+Every row below is freshly pinned by the full required corpus grade tests. Four packs without a usable financial statement block CP1/MODEL and downstream modules. Missing portfolio/market inputs retain named limitations.
 
 | Pack | Grade | Blocking | Limited |
 |---|---|---|---|
@@ -72,61 +94,8 @@ CP-1 requires a readable Issuer Source and a financial statement (including offe
 | tid-vmo2-fy2025 | With limitations | — | CP-1, CP-1A, CP-3, FIT |
 | tid-vmo2-2026q1 | With limitations | — | CP-1, CP-1A, CP-3, FIT |
 
-## Independent review follow-up
+## Historical evidence and limits
 
-All five Important findings are repaired: non-NR unreadable agency ratings remain conservative even with another readable rating; total par is required only for a touched pct_par limit and remains a gap otherwise; C(A) is measured through a checked map of actual frozen r14 Trace/Registry evidence, including every source on a multi-source record and any reference in headings; expected rows match unique identities with all three Strategies; carried null CP1D amounts remain null with explicit gaps and a noncritical amount contract. The validator also rejects duplicate real row keys while preserving honest Blocked placeholders.
+The pre-integration209 corpus /1414 full-suite counts, frozen Model limitation and standalone-final02 probes remain historical in original source refs p05-source-t26/t32/t34 and archived pre-packaging refs, not current qualifications. Their reports and the first failed integration logs are retained; no source history/helper is overwritten. The current record supersedes the old stated-only150/future-rebase narrative.
 
-The actual Model integration keeps addback:impairment FY:FY2023 null with NOT_STATED after the CP1 and CP1D carried amount is —. No fake zero is supplied in the Handoff. The frozen upstream A14/latest-LTM methodology and final Plan02 sign/currency anchoring repair still require the final base rebase. A global run_error from the final Plan02 validator is refused by name for both A and B; it cannot become one bad citation in a 20-reference ratio. Individual unanchored quotations remain measured with findings. No frozen validator edit is made. Main interfaces already synchronize the null amount, CP5 prepared-source access, Blocked critical/min_rows allowance and catalog host ownership.
-
-Required confidence-review and inline capped rewrite-tournament completed before the local review commits. Plan05 publication records the separate deterministic block replay against the unchanged frozen m0 tree.
-
-## Scoped native-fidelity closure
-
-The map now explicitly selects complete native locator/excerpt columns, with lossless per-source selectors for different citations on a multi-source record. Only cell-edge whitespace is trimmed; numbers, signs, units, page scope and quotation content remain unchanged. Shortening, substitution, absent selectors and malformed selectors refuse qualification. Full poor native quotations remain invalid citations, not mapping errors. Ratios require finite components, positive denominator and 0 <= numerator <= denominator before division. The narrow re-review observed 12 RED/8 positive controls and now passes 68 focused cases/10 corpus skips.
-
-Read-only controls bind the actual final02 validator9e65cd9 and verify positive/full bad quote/wrong page/sign-currency/accounting/global-error behavior without changing m0. Standalone final02 lacks P05 ROW_KEYS, so these controls prove actual A anchoring and the shared B guard seam, not complete rebased B execution. Required confidence review and capped inline tournament are complete; money code and its prior mutation evidence are unchanged.
-
-## The A/B harness on stand-in Handoffs
-
-The dry run of Task 34 Step 2 (fixtures as side B, their `to-r14` conversion as side A, the stand-in grader sheets): no model runs, so it proves the commands and the pass-bar arithmetic, not the modules. Both C(A) and C(B) are actual prepared-source measurements; all eight stand-in comparative bars pass. A valid mapped bad citation lowers C(A) with findings, while missing/duplicate/malformed/unverifiable maps fail qualification by name rather than receiving a fabricated ratio.
-
-```text
-model exit 0
-fit exit 0
-X=A Y=B
-{"module": "CP-1", "validate_exit": 0, "findings": [], "C": "76/76", "gaps": 6, "bytes": 34873, "qa_status": "Restricted", "F": null}
-{"module": "CP-1", "side": "A", "C": "76/76", "findings": [], "evidence_references": 76}
-CP-1 score exit 0
-X=A Y=B
-{"module": "CP-1A", "validate_exit": 0, "findings": [], "C": "27/27", "gaps": 4, "bytes": 10384, "qa_status": "Restricted", "F": "9/9"}
-{"module": "CP-1A", "side": "A", "C": "27/27", "findings": [], "evidence_references": 27}
-CP-1A score exit 0
-X=A Y=B
-{"module": "CP-1B", "validate_exit": 0, "findings": [], "C": "12/12", "gaps": 3, "bytes": 6051, "qa_status": "Restricted", "F": "2/2"}
-{"module": "CP-1B", "side": "A", "C": "12/12", "findings": [], "evidence_references": 12}
-CP-1B score exit 0
-X=A Y=B
-{"module": "CP-1D", "validate_exit": 0, "findings": [], "C": "15/15", "gaps": 2, "bytes": 6471, "qa_status": "Restricted", "F": null}
-{"module": "CP-1D", "side": "A", "C": "15/15", "findings": [], "evidence_references": 15}
-CP-1D score exit 0
-X=A Y=B
-{"module": "CP-2", "validate_exit": 0, "findings": [], "C": "16/16", "gaps": 3, "bytes": 8230, "qa_status": "Restricted", "F": "24/24"}
-{"module": "CP-2", "side": "A", "C": "16/16", "findings": [], "evidence_references": 16}
-CP-2 score exit 0
-X=A Y=B
-{"module": "CP-3", "validate_exit": 0, "findings": [], "C": "25/25", "gaps": 6, "bytes": 13651, "qa_status": "Restricted", "F": "129/129"}
-{"module": "CP-3", "side": "A", "C": "25/25", "findings": [], "evidence_references": 25}
-CP-3 score exit 0
-X=A Y=B
-{"module": "CP-5", "validate_exit": 0, "findings": [], "C": "2/2", "gaps": 1, "bytes": 4457, "qa_status": "Pass", "F": null}
-{"module": "CP-5", "side": "A", "C": "2/2", "findings": [], "evidence_references": 2}
-CP-5 score exit 0
-X=A Y=B
-{"module": "CP-6", "validate_exit": 0, "findings": [], "C": "10/10", "gaps": 2, "bytes": 7628, "qa_status": "Restricted", "F": "15/15"}
-{"module": "CP-6", "side": "A", "C": "10/10", "findings": [], "evidence_references": 10}
-CP-6 score exit 0
-CP-3 score without --f-b exit 2
-V 27/27 missed 0
-```
-
-Not verified: the modules written by a model, their A/B against r14, Copilot behaviour, GPT models and fetch (Task 34 Steps 4–10).
+Not verified: live model-written proxy runs, live native-r14 A/B, Copilot behavior, GPT models, fetch, later Full modules and Plans06–08 orchestration/reporting. Publication is a sequence of atomic output replacements with named partial-publication limitations, not simultaneous set visibility or crash rollback. Parent's final independent committed-head review is separate from the focused closure already observed.
