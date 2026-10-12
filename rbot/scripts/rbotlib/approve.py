@@ -37,7 +37,7 @@ from rbotlib.catalog import load_catalog
 from rbotlib.fsio import write_atomic
 from rbotlib.grade import BLOCKED, GRADING, SCHEMA, contracts_sha256
 from rbotlib.handoff import HandoffError
-from rbotlib.inventory import RunError
+from rbotlib.inventory import RunError, output_path
 from rbotlib.rules import Rules, load_rules
 
 STATE = "run-state.json"
@@ -278,8 +278,22 @@ def _new_state(
     return state
 
 
+def _inputs(run: Path) -> None:
+    """Refuse unsupported run-local Approval inputs before any of their reads."""
+    inputs = (
+        (GRADING, "grading.json; run rbot grade first"),
+        (rb.BRIEF, "Run Brief"),
+        (rb.CP0, "CP-0 Handoff"),
+    )
+    for name, what in inputs:
+        path = output_path(run, name)
+        if not path.is_file():
+            raise ApprovalError(f"{path}: {what} must be an existing regular file")
+
+
 def prepare(run: Path, root: Path, rules: Rules, choice: Choice) -> Commit:
     """Read and check everything, and compute every file Approval writes; write nothing."""
+    _inputs(run)
     grading = _grading(run / GRADING)
     try:
         state = rs.read(run)
