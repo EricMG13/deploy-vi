@@ -22,6 +22,7 @@ import hashlib
 import json
 import os
 import re
+import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
@@ -68,7 +69,7 @@ class Choice:
 def _load(path: Path, what: str) -> dict[str, Any]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ApprovalError(f"{path}: no readable {what} ({exc})") from exc
     if not isinstance(data, dict):
         raise ApprovalError(
@@ -328,21 +329,57 @@ def _locked(run: Path, where: list[Path]) -> Iterator[None]:
         (where[-1] / LOCK).unlink(missing_ok=True)
 
 
-def _commit(run: Path, commit: Commit, where: list[Path]) -> None:
-    old_brief = (run / rb.BRIEF).read_text(encoding="utf-8")
-    old_state = (run / STATE).read_text(encoding="utf-8")
-    write_atomic(run / rb.BRIEF, commit.brief)
-    write_atomic(run / STATE, commit.state)
+@contextmanager
+def _staged(run: Path, contents: list[str]) -> Iterator[list[Path]]:
+    """Flush both new files before either published file changes; clean up unused stages."""
+    paths: list[Path] = []
     try:
-        run.rename(commit.target)
-    except OSError as exc:
-        write_atomic(run / rb.BRIEF, old_brief)
-        write_atomic(run / STATE, old_state)
-        raise ApprovalError(
-            f"could not rename the run folder to {commit.target.name} ({exc}); nothing was"
-            " approved: close any file open in the run folder and approve again"
-        ) from exc
-    where.append(commit.target)
+        for text in contents:
+            fd, name = tempfile.mkstemp(dir=run, prefix=".approve-")
+            os.close(fd)
+            paths.append(Path(name))
+            write_atomic(paths[-1], text)
+        yield paths
+    finally:
+        for path in paths:
+            path.unlink(missing_ok=True)
+
+
+def _restore(published: list[tuple[Path, str]]) -> list[str]:
+    errors = []
+    for path, original in published:
+        try:
+            write_atomic(path, original)
+        except OSError as exc:
+            errors.append(f"{path}: {exc}")
+    return errors
+
+
+def _commit(run: Path, commit: Commit, where: list[Path]) -> None:
+    originals = [
+        (run / name, (run / name).read_text(encoding="utf-8")) for name in (rb.BRIEF, STATE)
+    ]
+    published: list[tuple[Path, str]] = []
+    with _staged(run, [commit.brief, commit.state]) as stages:
+        operation = "publish Approval"
+        try:
+            for staged, (path, original) in zip(stages, originals, strict=True):
+                os.replace(staged, path)
+                published.append((path, original))
+            operation = f"rename the run folder to {commit.target.name}"
+            run.rename(commit.target)
+        except OSError as exc:
+            errors = _restore(published)
+            if errors:
+                raise ApprovalError(
+                    f"could not {operation} ({exc}); recovery incomplete: {'; '.join(errors)};"
+                    " inspect the pending Run Brief and state before retrying"
+                ) from exc
+            raise ApprovalError(
+                f"could not {operation} ({exc}); nothing was approved: close any file open"
+                " in the run folder and approve again"
+            ) from exc
+        where.append(commit.target)
 
 
 def approve(run: Path, root: Path, rules: Rules, choice: Choice) -> Path:

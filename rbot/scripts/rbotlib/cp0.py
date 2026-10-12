@@ -18,6 +18,7 @@ from typing import Any
 
 from rbotlib.brief import ASSERTED, FIELDS, GAP, SOURCED, TRANCHE, BriefError, prefill_value
 from rbotlib.handoff import Handoff, Table, markers
+from rbotlib.inventory import RunError, output_path
 from rbotlib.rules import Rules
 from rbotlib.validate import Finding
 
@@ -44,6 +45,9 @@ def _status(row: dict[str, str], where: str) -> Finding | None:
 
 
 def _row(row: dict[str, str], rules: Rules) -> list[Finding]:
+    missing = sorted(set(("field", "tranche_id", "value", "status", "cite")) - row.keys())
+    if missing:
+        return [Finding("prefill_invalid", f"cp0.run_brief_prefill: missing {missing}")]
     cells = {k: ("" if v == "—" else v) for k, v in row.items()}
     name, tranche_id = cells.get("field", ""), cells.get("tranche_id", "")
     if tranche_id and name not in TRANCHE:
@@ -62,7 +66,17 @@ def _row(row: dict[str, str], rules: Rules) -> list[Finding]:
 
 def prefill_findings(h: Handoff, rules: Rules) -> list[Finding]:
     """The pre-fill and research-question rules MODULE.md states, row by row."""
-    found = [f for row in _records(h.tables.get("cp0.run_brief_prefill")) for f in _row(row, rules)]
+    found: list[Finding] = []
+    seen: set[tuple[str, str]] = set()
+    for row in _records(h.tables.get("cp0.run_brief_prefill")):
+        found += _row(row, rules)
+        if not all(k in row for k in ("tranche_id", "field")):
+            continue
+        tranche_id = row["tranche_id"]
+        key = ("" if tranche_id == "—" else tranche_id, row["field"])
+        if key in seen:
+            found.append(Finding("prefill_invalid", f"cp0.run_brief_prefill: duplicate {key}"))
+        seen.add(key)
     questions = _records(h.tables.get("cp0.research_questions"))
     if len(questions) > MAX_QUESTIONS:
         message = f"{len(questions)} questions; MODULE.md allows at most {MAX_QUESTIONS}"
@@ -74,10 +88,79 @@ def prefill_findings(h: Handoff, rules: Rules) -> list[Finding]:
     return found
 
 
+class _RunInputError(ValueError):
+    """A CP-0 run input cannot support verification; the message names its path."""
+
+
+def _read(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise _RunInputError(f"{path}: {exc}") from exc
+
+
+def _load(path: Path) -> dict[str, Any]:
+    try:
+        data = json.loads(_read(path))
+    except json.JSONDecodeError as exc:
+        raise _RunInputError(f"{path}: invalid JSON ({exc})") from exc
+    if not isinstance(data, dict):
+        raise _RunInputError(f"{path}: expected a JSON object")
+    return data
+
+
+def _objects(
+    path: Path, data: dict[str, Any], key: str, fields: tuple[str, ...]
+) -> list[dict[str, Any]]:
+    rows = data.get(key)
+    if not isinstance(rows, list) or any(
+        not isinstance(row, dict) or not all(f in row for f in fields) for row in rows
+    ):
+        raise _RunInputError(f"{path}: {key} must list objects with {fields}")
+    return rows
+
+
+def _strings(path: Path, row: dict[str, Any], fields: tuple[str, ...]) -> None:
+    if any(not isinstance(row.get(f), str) for f in fields):
+        raise _RunInputError(f"{path}: expected string fields {fields}")
+
+
+def _keyed(path: Path, rows: list[dict[str, Any]], key: str) -> dict[str, dict[str, Any]]:
+    records = {}
+    for row in rows:
+        _strings(path, row, (key,))
+        name = row[key]
+        if not name or name in records:
+            raise _RunInputError(f"{path}: empty or duplicate {key} {name!r}")
+        records[name] = row
+    return records
+
+
+def _run_path(run: Path, relative: str) -> Path:
+    try:
+        return output_path(run, relative)
+    except (RunError, OSError) as exc:
+        raise _RunInputError(f"{run / relative}: {exc}") from exc
+
+
+def _prepared_records(path: Path, index: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    keys = ("path", "sha256", "pages", "image_read", "unreadable", "prepared")
+    records = _keyed(path, _objects(path, index, "files", keys), "path")
+    for name, row in records.items():
+        _strings(path, row, ("sha256",))
+        good = type(row["pages"]) is int and row["pages"] >= 0
+        good = good and isinstance(row["image_read"], bool)
+        good = good and isinstance(row["unreadable"], (str, type(None)))
+        good = good and isinstance(row["prepared"], (str, type(None)))
+        if not good:
+            raise _RunInputError(f"{path}: {name}: invalid preparation metadata")
+    return records
+
+
 def empty_text(run: Path, record: dict[str, Any]) -> bool:
     if not record.get("prepared"):
         return True
-    text = (run / str(record["prepared"])).read_text(encoding="utf-8")
+    text = _read(_run_path(run, str(record["prepared"])))
     return not _PAGE_LINE.sub("", text).strip()
 
 
@@ -113,9 +196,14 @@ def _file(run: Path, name: str, row: dict[str, str], record: dict[str, Any]) -> 
 
 
 def _inventory(h: Handoff, run: Path, index: dict[str, Any]) -> list[Finding]:
-    inventory = json.loads((run / "inventory.json").read_text(encoding="utf-8"))
-    listed = {f["path"] for f in inventory["files"]}
-    records = {r["path"]: r for r in index["files"]}
+    path = run / "inventory.json"
+    inventory = _load(path)
+    entries = _objects(path, inventory, "files", ("path",))
+    listed = set(_keyed(path, entries, "path"))
+    records = _prepared_records(run / "prepared/index.json", index)
+    missing = sorted(listed - set(records))
+    if missing:
+        raise _RunInputError(f"{run / 'prepared/index.json'}: no prepared record for {missing}")
     rows = {r.get("file", ""): r for r in _records(h.tables.get("cp0.source_inventory"))}
     found = [
         Finding("inventory_mismatch", f"{p} is in inventory.json but not in cp0.source_inventory")
@@ -127,7 +215,7 @@ def _inventory(h: Handoff, run: Path, index: dict[str, Any]) -> list[Finding]:
     ]
     for name in sorted(set(rows) & listed & set(records)):
         found += _file(run, name, rows[name], records[name])
-    reports = {f["path"] for f in inventory["files"] if f.get("rbot_report")}
+    reports = {f["path"] for f in entries if f.get("rbot_report")}
     found += [
         Finding(
             "prior_case_mismatch", f"{r.get('file')} is not flagged rbot_report in inventory.json"
@@ -138,24 +226,62 @@ def _inventory(h: Handoff, run: Path, index: dict[str, Any]) -> list[Finding]:
     return found
 
 
-def run_findings(h: Handoff, run: Path) -> list[Finding]:
-    """Every claim CP-0 makes about the run's files, against inventory.json and the index."""
-    index = json.loads((run / "prepared" / "index.json").read_text(encoding="utf-8"))
-    found = _inventory(h, run, index)
-    prepared = {p["portfolio_id"] for p in index["portfolios"]}
-    claimed = {r.get("portfolio_id", "") for r in _records(h.tables.get("cp0.portfolios"))}
-    found += [
+PORTFOLIO_FIELDS = {
+    "portfolio_name": "portfolio_name",
+    "strategy": "strategy",
+    "positions_file": "positions_file",
+    "limits_file": "limits_file",
+    "as_of_date": "as_of",
+}
+
+
+def _portfolio_row(portfolio_id: str, row: dict[str, str], data: dict[str, Any]) -> list[Finding]:
+    found = []
+    for field, source in PORTFOLIO_FIELDS.items():
+        value = "" if row.get(field) == "—" else row.get(field, "")
+        if value != data[source]:
+            found.append(
+                Finding("portfolio_mismatch", f"{portfolio_id}: {field} differs from prepared JSON")
+            )
+    return found
+
+
+def _portfolios(h: Handoff, run: Path, index: dict[str, Any]) -> list[Finding]:
+    path = run / "prepared/index.json"
+    records = _keyed(
+        path, _objects(path, index, "portfolios", ("portfolio_id", "json")), "portfolio_id"
+    )
+    rows = _records(h.tables.get("cp0.portfolios"))
+    claimed = {r.get("portfolio_id", "") for r in rows}
+    found = [
         Finding(
             "portfolio_mismatch",
             f"{p} is in cp0.portfolios but rbot prepare found no such portfolio",
         )
-        for p in sorted(claimed - prepared)
+        for p in sorted(claimed - records.keys())
     ]
     found += [
         Finding("portfolio_mismatch", f"{p} was found by rbot prepare but is not in cp0.portfolios")
-        for p in sorted(prepared - claimed)
+        for p in sorted(records.keys() - claimed)
     ]
+    for portfolio_id, record in records.items():
+        _strings(path, record, ("json",))
+        data = _load(_run_path(run, record["json"]))
+        _strings(run / record["json"], data, ("portfolio_id", *PORTFOLIO_FIELDS.values()))
+        if data["portfolio_id"] != portfolio_id:
+            raise _RunInputError(f"{run / record['json']}: portfolio_id differs from index")
+        for row in (r for r in rows if r.get("portfolio_id") == portfolio_id):
+            found += _portfolio_row(portfolio_id, row, data)
     return found
+
+
+def run_findings(h: Handoff, run: Path) -> list[Finding]:
+    """Verify run claims, or name expected input/read/shape failures as run_error."""
+    try:
+        index = _load(run / "prepared/index.json")
+        return _inventory(h, run, index) + _portfolios(h, run, index)
+    except _RunInputError as exc:
+        return [Finding("run_error", str(exc))]
 
 
 def findings(h: Handoff, rules: Rules, run: Path | None) -> list[Finding]:
