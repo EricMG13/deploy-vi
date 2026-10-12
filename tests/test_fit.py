@@ -181,19 +181,25 @@ def test_fit_arithmetic_test_clo_i(prepared_run: Callable[[str], Path], tmp_path
     assert main(["fit", "--run", str(run)]) == 0
     fits = _fits(run)
     assert {k: (v["max_size"], v["verdict"]) for k, v in fits.items()} == {
-        **{k: ("15.7725", "Fits") for k in ("CEI-RCF", "CEI-TLA", "CVA-DDTL", "CEI-TLB")},
-        **{k: ("15.7725", "Fits") for k in ("CEI-TLB-1", "CEI-SSN-2030", "CEI-SSN-2032")},
-        **{k: ("15.7725", "Fits") for k in ("SID-BONDS", "OTHER-PAYABLES", "NEW-1")},
+        **{k: ("15.7725", "Watch") for k in ("CEI-TLB", "CEI-TLB-1", "NEW-1")},
+        **{k: ("15.7725", "Watch") for k in ("CEI-SSN-2030", "CEI-SSN-2032")},
+        # C-04 (7.36% of 7.5%) counts the unrated instruments with the CCC bucket (money review I1)
+        **{k: ("0.88326", "Watch") for k in ("CEI-RCF", "CEI-TLA", "CVA-DDTL")},
+        **{k: ("0.88326", "Watch") for k in ("SID-BONDS", "OTHER-PAYABLES")},
         "CEI-SN-2029": ("0.88326", "Watch"),
         "CEI-SN-2032": ("0.88326", "Watch"),
     }
     h = parse((run / "handoffs" / "FIT.md").read_text(encoding="utf-8"))
     rows = {(r["facility_id"], r["limit_id"]): r for r in _rows(h, "fit.limit_headroom")}
+    assert rows[("CEI-TLB", "C-17")]["status"] == "Not computed"
     assert rows[("CEI-TLB", "C-06")]["headroom_amount"] == "17.91756"  # (10 - 7.16) x 6.309
     assert rows[("CEI-RCF", "C-05")]["status"] == "Within"  # unrated: C-05 at 3.73%
+    assert rows[("CEI-RCF", "C-04")]["headroom_amount"] == "0.88326"  # unrated counts toward CCC
+    assert ("CEI-TLB", "C-04") not in rows and ("CEI-TLB", "C-05") not in rows
     assert rows[("CEI-SN-2029", "C-10")]["headroom"] == "9.39"  # 2nd lien / unsecured
-    assert ("CEI-TLB", "C-05") not in rows and ("CEI-TLB", "C-10") not in rows
+    assert ("CEI-TLB", "C-10") not in rows
     assert rows[("CEI-TLB", "C-02")]["status"] == "From file"
+    assert "row 8: minimum limit" in h.body  # the WAR floor "≥ Caa1" is a minimum, Gaps only
 
 
 @pytest.mark.corpus
@@ -218,4 +224,5 @@ def test_fit_runs_on_the_czr_portfolio_packs(
         shutil.copy(HANDOFFS / f"{module}.md", run / "handoffs" / f"{module}.md")
     assert main(["fit", "--run", str(run)]) == 0
     fits = _fits(run)
-    assert fits["CEI-TLB"]["verdict"] == "Fits" and fits["CEI-SN-2032"]["verdict"] == "Watch"
+    assert fits["CEI-TLB"]["verdict"] == "Watch" and fits["CEI-SN-2032"]["verdict"] == "Watch"
+    assert fits["CEI-TLB"]["max_size"] == "15.7725" and fits["CEI-SN-2032"]["max_size"] == "0.88326"

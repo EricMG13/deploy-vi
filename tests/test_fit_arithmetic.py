@@ -18,31 +18,42 @@ from hypothesis import strategies as st
 from rbotlib import fit_arithmetic as fa
 from rbotlib.fit_arithmetic import Instrument, Portfolio, Run
 
-RUN = Run("CZR", date(2026, 10, 2), "USD", "MILLIONS")
+RUN = Run("CZR", date(2026, 10, 2), "USD", "MILLIONS", ("Caesars Entertainment, Inc.",))
 NAV = Decimal("630.9")
+TAXONOMY = {"sector": frozenset({"casinos", "insurance"}), "country": frozenset({"us", "gb"})}
 
 
 def limit(
-    limit_id: str, scope: str, value: str, unit: str, kind: str, **extra: str
+    limit_id: str, scope: str, value: str, unit: str, kind: str, **extra: object
 ) -> dict[str, Any]:
+    """A limit as `rbot prepare` writes it; a bucket limit is a "largest bucket" one by default."""
     row: dict[str, Any] = {"limit_id": limit_id, "category": scope, "scope": scope}
     row["parameter"] = f"max {scope}"
     row |= {"scope_value": None, "limit_value": value, "unit": unit, "limit_kind": kind}
+    row["largest"] = scope != "issuer"
     return row | {"current_value": "0", "source": f"limits.csv row {limit_id}"} | extra
 
 
-def portfolio(*limits: dict[str, Any], positions: list[dict[str, Any]] | None = None) -> Portfolio:
+def portfolio(
+    *limits: dict[str, Any],
+    positions: list[dict[str, Any]] | None = None,
+    unparsed: tuple[dict[str, str], ...] = (),
+    nav: Decimal | None = NAV,
+    par: Decimal | None = Decimal("634.0"),
+    unit: str = "MILLIONS",
+) -> Portfolio:
     held = [{"issuer_id": "CZR", "par": "6.0"}, {"issuer_id": "ASURION", "par": "15.0"}]
     return Portfolio(
         "P",
         "Test",
         "CLO",
-        NAV,
-        Decimal("634.0"),
+        nav,
+        par,
         "USD",
-        "MILLIONS",
+        unit,
         tuple(held if positions is None else positions),
         tuple(limits),
+        unparsed,
     )
 
 
@@ -135,6 +146,7 @@ def test_rating_buckets_take_the_lowest_agency(ratings: tuple[str, ...], bucket:
         ("rating_bucket", "CCC", loan(ratings=("Caa1",)), True),
         ("rating_bucket", "CCC", loan(), False),
         ("rating_bucket", "Unrated", loan(ratings=()), True),
+        ("rating_bucket", "CCC", loan(ratings=()), True),  # unrated counts toward the CCC bucket
         ("seniority", "2nd Lien / Unsecured", loan(debt_type="SU Notes", secured=False), True),
         ("seniority", "2nd Lien / Unsecured", loan(), False),
         ("seniority", "1st Lien / Senior Secured", loan(), True),
@@ -154,7 +166,8 @@ def test_rating_buckets_take_the_lowest_agency(ratings: tuple[str, ...], bucket:
 def test_which_limits_touch_an_instrument(
     scope: str, value: str | None, instrument: Instrument, touched: bool | None
 ) -> None:
-    assert fa.touches({"scope": scope, "scope_value": value}, instrument) is touched
+    row = {"scope": scope, "scope_value": value, "largest": value is None}
+    assert fa.touches(row, instrument, TAXONOMY) is touched
 
 
 def test_a_maturity_limit_uses_the_tenor_and_caps_no_size() -> None:
@@ -355,7 +368,7 @@ def test_attributes_and_senior_rank() -> None:
     assert fa.is_senior_secured(loan(debt_type="2L Term Loan", secured=True)) is False
     assert fa.is_senior_secured(loan(debt_type="Other", secured=True)) is True
     two_words = {"scope": "sector", "scope_value": "Health Care, Insurance"}
-    assert fa.touches(two_words, loan(sector="Health Care")) is True
+    assert fa.touches(two_words, loan(sector="Health Care"), TAXONOMY) is True
 
 
 def test_units_other_than_millions_scale_every_amount() -> None:
@@ -430,3 +443,224 @@ def test_a_size_of_exactly_one_percent_of_nav_fits() -> None:
         portfolio(limit("H", "sector", "5", "pct_nav", "Hard", current_value="4")), loan(), RUN
     )
     assert (f.max_size, f.verdict) == (Decimal("6.309"), "Fits")
+
+
+# --- the up-front review of Plan 05 (money): every case below failed before its fix -----------
+
+
+def test_an_unreadable_limit_or_position_row_lowers_the_verdict() -> None:
+    """C1: spec section 7.4, a row in `unparsed` makes the fit a Watch."""
+    issuer = limit("C-01", "issuer", "2.5", "pct_nav", "Hard")
+    for kind in ("limit", "position"):
+        row = {"row": "limits.csv row 23", "reason": "amount limit under Unit 'millions'"}
+        f = fa.fit(portfolio(issuer, unparsed=({**row, "kind": kind},)), loan(), RUN)
+        assert (f.verdict, f.recommendation_cap) == ("Watch", "3 - MW")
+        assert f.reason == (
+            "limits.csv row 23 could not be read (amount limit under Unit 'millions')"
+        )
+    unkinded = fa.fit(portfolio(issuer, unparsed=(row,)), loan(), RUN)
+    assert unkinded.verdict == "Watch"  # a row of unknown kind is not assumed harmless
+
+
+@pytest.mark.parametrize("kind", ["info", "minimum", "meta"])
+def test_an_info_minimum_or_meta_row_only_goes_to_the_gaps(kind: str) -> None:
+    row = {"row": "limits.csv row 14", "reason": "minimum limit", "kind": kind}
+    f = fa.fit(
+        portfolio(limit("C-01", "issuer", "2.5", "pct_nav", "Hard"), unparsed=(row,)), loan(), RUN
+    )
+    assert (f.verdict, f.reason) == ("Fits", "every touched limit has headroom")
+
+
+def test_a_sector_name_that_holds_a_comma_is_touched() -> None:
+    """C2: `Hotel, Gaming & Leisure` is one name, not two."""
+    name = "Hotel, Gaming & Leisure"
+    hard = limit("S-1", "sector", "8", "pct_nav", "Hard", scope_value=name, largest=False)
+    hard["current_value"] = "7.9"
+    f = fa.fit(portfolio(hard), loan(sector=name), RUN)
+    assert [r.limit["limit_id"] for r in f.rows] == ["S-1"]
+    listed = limit(
+        "S-2", "sector", "8", "pct_nav", "Hard", scope_values=["Hotel, Gaming & Leisure", "Tobacco"]
+    )
+    assert fa.touches(listed | {"largest": False}, loan(sector=name)) is True
+
+
+def test_an_exclusion_list_cannot_clear_a_sector_outside_the_portfolios_taxonomy() -> None:
+    """C2: CP-1A's free text is not in the exclusion list's words, so the answer is unknown."""
+    gambling = limit(
+        "C-17", "sector", "0", "pct_nav", "Hard", scope_value="Tobacco, Gambling, Thermal Coal"
+    )
+    gambling["largest"] = False
+    casino = loan(sector="Casino-entertainment and online gaming")
+    f = fa.fit(portfolio(gambling), casino, RUN)
+    assert [(r.limit["limit_id"], r.status) for r in f.rows] == [("C-17", "Not computed")]
+    assert (f.verdict, f.recommendation_cap) == ("Watch", "3 - MW")
+    assert f.uncomputed_hard == ("C-17",)  # max_size ignores it
+
+
+def test_the_portfolios_own_sector_for_the_run_issuer_is_used_when_it_holds_the_issuer() -> None:
+    gambling = limit("C-17", "sector", "0", "pct_nav", "Hard", scope_value="Tobacco, Gambling")
+    gambling["largest"] = False
+    held = [{"issuer_id": "CZR", "par": "6.0", "sector": "Gambling", "country": "US"}]
+    f = fa.fit(portfolio(gambling, positions=held), loan(sector="Casino-entertainment"), RUN)
+    assert (f.rows[0].status, f.verdict) == ("Within", "Breaches")  # a 0% limit leaves no size
+
+
+def test_a_sector_in_the_portfolios_taxonomy_but_not_listed_is_not_touched() -> None:
+    tobacco = limit("T", "sector", "0", "pct_nav", "Hard", scope_value="Tobacco")
+    tobacco["largest"] = False
+    held = [{"issuer_id": "ASURION", "par": "15.0", "sector": "Casinos"}]
+    assert fa.fit(portfolio(tobacco, positions=held), loan(sector="Casinos"), RUN).rows == ()
+
+
+@pytest.mark.parametrize("ratings", [("(P)Caa1",), ("Caa1 *-",), ("Caa1u",), ("CCC+ (sf)",)])
+def test_provisional_watch_and_structured_ratings_are_read(ratings: tuple[str, ...]) -> None:
+    assert fa.rating_bucket(ratings) == "CCC"
+
+
+@pytest.mark.parametrize(
+    ("ratings", "bucket"),
+    [
+        (("NR",), "Unrated"),
+        (("WR", ""), "Unrated"),
+        (("Zz9",), "Unreadable"),
+        (("Zz9", "BB"), "BB"),
+    ],
+)
+def test_no_rating_is_unrated_and_an_unreadable_one_is_unreadable(
+    ratings: tuple[str, ...], bucket: str
+) -> None:
+    assert fa.rating_bucket(ratings) == bucket
+
+
+@pytest.mark.parametrize("ratings", [(), ("Zz9",)])
+def test_an_unrated_or_unreadable_instrument_counts_toward_the_ccc_bucket(
+    ratings: tuple[str, ...],
+) -> None:
+    """I1: C-04 sits at 7.36% of 7.5% (Hard), so such an instrument is a Watch."""
+    ccc = limit(
+        "C-04", "rating_bucket", "7.5", "pct_nav", "Hard", scope_value="CCC", current_value="7.36"
+    )
+    ccc["largest"] = False
+    f = fa.fit(portfolio(ccc), loan(ratings=ratings), RUN)
+    assert (f.max_size, f.verdict) == (Decimal("0.88326"), "Watch")
+    assert f.notes == ("TLB: no readable rating, counted toward C-04",)
+    assert fa.fit(portfolio(ccc), loan(ratings=("B2",)), RUN).rows == ()  # a rated B is not in it
+
+
+def test_a_limit_without_a_scope_value_that_is_not_a_largest_bucket_limit_is_not_computed() -> None:
+    """I2: `Asset Type, Max bonds` must not bind a loan, nor `Non-USD` make a USD loan Avoid."""
+    bonds = limit("C-20", "asset_type", "5", "pct_nav", "Hard", current_value="5", largest=False)
+    non_usd = limit("C-22", "currency", "0", "pct_nav", "Hard", current_value="0", largest=False)
+    f = fa.fit(portfolio(bonds, non_usd), loan(), RUN)
+    assert [r.status for r in f.rows] == ["Not computed", "Not computed"]
+    assert (f.verdict, f.max_size) == ("Watch", None)
+
+
+def test_a_count_limit_with_no_room_left_gives_no_size() -> None:
+    """I5: spec 7.2, count headroom under 1 gives an amount of 0, so Breaches."""
+    two = limit("C-26", "issuer", "2", "count", "Hard")
+    held = [{"issuer_id": "CZR", "par": "1"}, {"issuer_id": "CZR", "par": "2"}]
+    f = fa.fit(portfolio(two, positions=held), loan(), RUN)
+    assert (f.rows[0].headroom_amount, f.verdict, f.reason) == (
+        Decimal(0),
+        "Breaches",
+        "no size fits the hard limits",
+    )
+    three = fa.fit(portfolio(two | {"limit_value": "3"}, positions=held), loan(), RUN)
+    assert (three.rows[0].headroom_amount, three.verdict) == (None, "Fits")
+
+
+def test_a_maturity_limit_equal_to_the_tenor_caps_the_size_at_zero() -> None:
+    tenor = fa.tenor_years(loan(), RUN.as_of)
+    assert tenor is not None
+    row = limit("M", "maturity", str(tenor), "years", "Hard")
+    f = fa.fit(portfolio(row), loan(), RUN)
+    assert (f.rows[0].headroom_amount, f.verdict) == (Decimal(0), "Breaches")
+
+
+@pytest.mark.parametrize("issuer_id", ["czr", " CZR "])
+def test_the_issuer_id_is_matched_without_case_or_spaces(issuer_id: str) -> None:
+    """I6: `czr` is the run issuer, so its 14.0 par counts (2.5% limit, 2.22% held)."""
+    held = [{"issuer_id": issuer_id, "par": "14.0"}]
+    f = fa.fit(
+        portfolio(limit("C-01", "issuer", "2.5", "pct_nav", "Hard"), positions=held), loan(), RUN
+    )
+    assert f.current_exposure == Decimal("14.0")
+    assert f.max_size == Decimal("1.7725")
+
+
+def test_a_position_matched_by_issuer_name_alone_is_counted_and_a_watch() -> None:
+    held = [{"issuer_id": "CAESARS", "issuer_name": "CAESARS ENTERTAINMENT INC", "par": "14.0"}]
+    f = fa.fit(
+        portfolio(limit("C-01", "issuer", "5", "pct_nav", "Hard"), positions=held), loan(), RUN
+    )
+    assert f.current_exposure == Decimal("14.0")
+    assert (f.verdict, f.reason) == (
+        "Watch",
+        "positions CAESARS matched the issuer by name only; the ids disagree",
+    )
+
+
+def test_a_breached_hard_book_statistic_is_at_least_a_watch() -> None:
+    """I7: a Hard limit shown From file that is already negative still counts."""
+    book = limit("C-30", "other", "12.0", "pct_nav", "Hard", current_value="12.5")
+    f = fa.fit(portfolio(book), loan(), RUN)
+    assert f.rows[0].status == "From file"
+    assert (f.verdict, f.max_size) == (
+        "Watch",
+        None,
+    )
+    assert f.reason == "hard limit C-30 is already breached in the file (-0.5)"
+
+
+@pytest.mark.parametrize("nav", [Decimal(0), Decimal("-630.9"), None])
+def test_a_zero_negative_or_missing_nav_is_a_watch_not_a_crash(nav: Decimal | None) -> None:
+    """I8."""
+    rows = (
+        limit("C-01", "issuer", "2.5", "pct_nav", "Hard"),
+        limit("C-09", "issuer", "9", "amount", "Soft"),
+    )
+    f = fa.fit(portfolio(*rows, nav=nav), loan(), RUN)
+    assert [r.status for r in f.rows] == ["Not computed", "Within"]
+    assert (f.verdict, f.max_size, f.current_exposure_pct_nav) == ("Watch", None, None)
+
+
+def test_par_matters_only_to_a_limit_in_percent_of_par() -> None:
+    nav_limit = limit("C-01", "issuer", "2.5", "pct_nav", "Hard")
+    par_limit = limit("C-02", "issuer", "2.5", "pct_par", "Hard")
+    assert fa.fit(portfolio(nav_limit, par=None), loan(), RUN).rows[0].status == "Within"
+    assert fa.fit(portfolio(par_limit, par=None), loan(), RUN).rows[0].status == "Not computed"
+
+
+@pytest.mark.parametrize(
+    ("scope_value", "instrument", "touched"),
+    [
+        ("Senior secured bonds", loan(), False),
+        ("Senior secured bonds", loan(debt_type="SS Notes"), True),
+        ("Second lien loans", loan(debt_type="SU Notes", secured=False), False),
+        ("Second lien loans", loan(debt_type="2L Term Loan"), True),
+    ],
+)
+def test_seniority_words_also_name_the_asset_type(
+    scope_value: str, instrument: Instrument, touched: bool
+) -> None:
+    assert fa.touches({"scope": "seniority", "scope_value": scope_value}, instrument) is touched
+
+
+@pytest.mark.parametrize("unit", ["Millions", "MILLIONS", "millions"])
+def test_the_unit_is_matched_without_case(unit: str) -> None:
+    f = fa.fit(portfolio(limit("C", "issuer", "2.5", "pct_nav", "Hard"), unit=unit), loan(), RUN)
+    assert f.max_size == Decimal("9.7725")
+
+
+@pytest.mark.parametrize("unit", ["units", "USD"])
+def test_an_unscaled_unit_converts_to_the_run_unit(unit: str) -> None:
+    f = fa.fit(
+        portfolio(limit("C", "issuer", "20000000", "amount", "Hard"), unit=unit), loan(), RUN
+    )
+    assert f.rows[0].headroom_amount == Decimal("19.999994")  # 20,000,000 less 6, in millions
+
+
+def test_a_blank_unit_is_not_guessed() -> None:
+    f = fa.fit(portfolio(limit("C", "issuer", "2.5", "pct_nav", "Hard"), unit=""), loan(), RUN)
+    assert f.rows[0].status == "Not computed"

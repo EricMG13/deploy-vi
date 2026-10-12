@@ -167,8 +167,8 @@ def text(value: Decimal | None) -> str:
     return GAP if value is None else format(value.normalize(), "f")
 
 
-def percent(value: Decimal) -> str:
-    return f"{value.quantize(Decimal('0.1')):f}%"
+def percent(value: Decimal | None) -> str:
+    return GAP if value is None else f"{value.quantize(Decimal('0.1')):f}%"
 
 
 def fit_row(f: Fit, run: Run) -> list[str]:

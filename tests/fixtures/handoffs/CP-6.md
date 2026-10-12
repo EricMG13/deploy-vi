@@ -55,9 +55,9 @@ The bear case came closest to changing the call: Las Vegas earnings are falling 
 <!-- table: cp6.portfolio_recommendation -->
 | portfolio_id | strategy | instrument | uncapped | cap | final | fit_verdict | reason |
 |---|---|---|---|---|---|---|---|
-| TEST_CLO_I | CLO | NEW-1 | 3 - MW | 1 - Strong OW | 3 - MW | Fits | within the issuer limit C-01; the cap does not bite |
-| TEST_CLO_I | CLO | CEI-TLB | 4 - Modest UW | 1 - Strong OW | 4 - Modest UW | Fits | the cap does not bite |
-| TEST_CLO_I | CLO | CEI-TLB-1 | 4 - Modest UW | 1 - Strong OW | 4 - Modest UW | Fits | the cap does not bite |
+| TEST_CLO_I | CLO | NEW-1 | 3 - MW | 3 - MW | 3 - MW | Watch | limit C-17 (excluded sectors) could not be computed: CZR's sector is not in the CLO's taxonomy; the cap equals the view |
+| TEST_CLO_I | CLO | CEI-TLB | 4 - Modest UW | 3 - MW | 4 - Modest UW | Watch | limit C-17 could not be computed; the view is already below the cap |
+| TEST_CLO_I | CLO | CEI-TLB-1 | 4 - Modest UW | 3 - MW | 4 - Modest UW | Watch | limit C-17 could not be computed; the view is already below the cap |
 
 ## Gaps
 
