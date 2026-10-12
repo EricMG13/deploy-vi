@@ -6,11 +6,12 @@ A command given `--run <RUN>` appends one line to `<RUN>/log/rbot.log`.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from rbotlib import approve, brief, calc, corpus, fit, grade, inventory, prepare, state
+from rbotlib import approve, brief, calc, corpus, fit, grade, inventory, prepare, runs, state
 from rbotlib.catalog import check_tree
 from rbotlib.contract import ContractError, load_contract
 from rbotlib.model.run import add_command as add_model_command
@@ -84,8 +85,28 @@ def _log(run: Path, argv: list[str], code: int) -> None:
     destination = _log_path(run)
     destination.parent.mkdir(exist_ok=True)
     stamp = datetime.now(UTC).isoformat(timespec="seconds")
+    command = json.dumps(" ".join(argv), ensure_ascii=True)[1:-1]
     with destination.open("a", encoding="utf-8") as log:
-        log.write(f"{stamp}\t{' '.join(argv)}\t{code}\n")
+        log.write(f"{stamp}\t{command}\t{code}\n")
+
+
+def _finish_log(
+    args: argparse.Namespace, log_run: Path | None, argv: list[str] | None, result: int
+) -> int:
+    created = getattr(args, "created_run_dir", None)
+    if created is not None:
+        try:
+            log_run = state.log_run_path(Path(created))
+            args.run_dir = str(log_run)
+        except (OSError, ValueError, RecursionError) as exc:
+            result = _fail(Path(created), exc)
+    if log_run is not None:
+        log_run = Path(args.run_dir)
+        try:
+            _log(log_run, sys.argv[1:] if argv is None else argv, result)
+        except (inventory.RunError, OSError) as exc:
+            result = _fail(log_run, exc)
+    return result
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -113,6 +134,7 @@ def main(argv: list[str] | None = None) -> int:
     calc.add_command(sub)
     fit.add_command(sub)
     state.add_command(sub)
+    runs.add_command(sub)
     args = parser.parse_args(argv)
     run_dir = getattr(args, "run_dir", None)
     log_run = None
@@ -131,10 +153,5 @@ def main(argv: list[str] | None = None) -> int:
     try:
         result = int(args.run(args))
     finally:
-        if log_run is not None:
-            log_run = Path(args.run_dir)
-            try:
-                _log(log_run, sys.argv[1:] if argv is None else argv, result)
-            except (inventory.RunError, OSError) as exc:
-                result = _fail(log_run, exc)
+        result = _finish_log(args, log_run, argv, result)
     return result
