@@ -83,3 +83,11 @@ The fresh required-root full suite passes **1048 tests, 0 skipped, coverage 98.1
 Mutation evidence is scoped to changed functions/lines: initial 2,528 generated / 684 selected; expanded-control round2 2,524 generated / 680 selected; post-extraction round3 2,533 generated / 128 selected, plus a concrete killed accumulation survivor and four killed staging-generator mutations. Remaining unchanged branches are explicitly excluded; bounded diagnostic/refusal/cardinality survivors are individually justified. The exact confidence review, tournament, mutation classifications and final gate transcripts live in `p04-final-codex/review-repairs-report.md` and its linked artifacts.
 
 `Not verified:` crash-atomic publication of a multi-file set, recovery after power loss, Windows runtime, qualified live-model CP-0 proxy/A-B and later real module contracts. The fixture calibration above remains deterministic evidence only.
+
+## Residual I3 OS-path boundary — Task11 / PR04I
+
+Task10 remains preserved. A valid real Test CLO I prepared run (baseline check0), with only the JSON pointer changed to an escaped NUL, leaked `ValueError` through check, validate and grade. The CP-0-only `_run_path` catch now names that expected invalid OS-path failure as run_error/exit1; shared `inventory.output_path` is unchanged. All three real-caller RED cases become GREEN, with the exact failed pointer named and no Available output.
+
+Fresh final required-root full suite: **1051 passed, 0 skipped, 98.14% coverage**; separate required corpus and registry gates are recorded in `review-nul-final-gates.log` / `.log.json`. Targeted mutation generated 726 module mutants but selected/executed only 6 `_run_path` mutants, all killed; two additional explicit new-exception guard mutations are killed. The confidence review and trivial exception-tuple tournament exemption, required corpus, synthetic skips, cap and exact eleven-task replay are recorded in `p04-final-codex/review-nul-report.md`.
+
+`Not verified:` the previously disclosed live CP-0 proxy/A-B, later real module contracts, Windows and crash/power-loss behavior. This residual repair adds no crash-atomic multi-file guarantee.
