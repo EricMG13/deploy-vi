@@ -400,17 +400,27 @@ def verdict(
 
 
 def _ratio(text: str | None, name: str) -> Decimal | None:
-    """`n/d` or a decimal, as printed by `measure`; `na` or absent is None."""
+    """Finite probability n/d or decimal; fraction denominator must be positive."""
     if text is None or text == "na":
         return None
-    num, _, den = text.partition("/")
+    num, separator, den = text.partition("/")
     try:
-        value = Decimal(num) / Decimal(den) if den else Decimal(num)
+        numerator = Decimal(num)
+        denominator = Decimal(den) if separator else Decimal(1)
+        if not _ratio_domain(numerator, denominator):
+            raise ABError(f"{name}: {text!r} is not a ratio n/d or a decimal between 0 and 1")
+        return numerator / denominator
     except ArithmeticError:
         raise ABError(f"{name}: {text!r} is not a ratio n/d or a decimal") from None
-    if not value.is_finite():
-        raise ABError(f"{name}: {text!r} is not a ratio n/d or a decimal")
-    return value
+
+
+def _ratio_domain(numerator: Decimal, denominator: Decimal) -> bool:
+    return (
+        numerator.is_finite()
+        and denominator.is_finite()
+        and denominator > 0
+        and 0 <= numerator <= denominator
+    )
 
 
 def _contract(module_id: str) -> Contract:

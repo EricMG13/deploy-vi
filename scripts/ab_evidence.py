@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from rbotlib.handoff import Handoff, Table, _unfenced, cells, parse
-from rbotlib.validate import Finding, excerpt_found, run_findings
+from rbotlib.validate import Finding, run_findings
 
 
 class ABError(ValueError):
@@ -120,7 +120,7 @@ def _check_trace_headings(lines: list[str], sources: dict[str, tuple[str, str]])
 
 def _trace(
     h: Handoff, configured: dict[str, str], sources: dict[str, tuple[str, str]]
-) -> dict[tuple[str, str], str]:
+) -> dict[tuple[str, str], dict[str, str]]:
     lines = _section(h, "Evidence Trace")
     _check_trace_headings(lines, sources)
     records, prose = _records(lines, "Evidence Trace")
@@ -141,42 +141,67 @@ def _trace(
                 f"Evidence Trace {eid}: an extra source reference is outside "
                 "the configured source column"
             )
-        declared = " ".join(record.values())
         for sid in refs:
-            found[eid, sid] = declared
+            found[eid, sid] = record
     if not found:
         raise ABError("Evidence Trace: no verifiable source references")
     return found
 
 
+def _entry_key(entry: object, fields: tuple[str, ...]) -> tuple[str, str]:
+    if not isinstance(entry, dict) or not all(
+        isinstance(entry.get(k), str) and entry[k].strip() for k in fields
+    ):
+        raise ABError(f"evidence map: each entry needs nonempty {', '.join(fields)}")
+    return entry["evidence_id"], entry["source_id"]
+
+
+def _source_fields(
+    mapping: dict[str, Any], traces: dict[tuple[str, str], dict[str, str]]
+) -> dict[tuple[str, str], dict[str, str]]:
+    entries = mapping.get("source_fields", [])
+    if not isinstance(entries, list):
+        raise ABError("evidence map: source_fields must be a list")
+    selected = {}
+    for entry in entries:
+        key = _entry_key(entry, ("evidence_id", "source_id", "locator", "excerpt"))
+        if key in selected or key not in traces:
+            raise ABError(f"duplicate or unknown source field selector {key}")
+        selected[key] = entry
+    return selected
+
+
+def _faithful_values(
+    entry: dict[str, str], record: dict[str, str], columns: dict[str, str], key: tuple[str, str]
+) -> tuple[str, str]:
+    locator = _value(record, columns["locator"], f"Evidence Trace {key}")
+    excerpt = _value(record, columns["excerpt"], f"Evidence Trace {key}")
+    if entry["locator"].strip() != locator or entry["excerpt"].strip() != excerpt:
+        raise ABError(
+            f"evidence mapping {key}: locator or excerpt is not faithful to its native field"
+        )
+    return locator, excerpt
+
+
 def _mapped_rows(
-    mapping: dict[str, Any], traces: dict[tuple[str, str], str], sources: dict[str, tuple[str, str]]
+    mapping: dict[str, Any],
+    traces: dict[tuple[str, str], dict[str, str]],
+    sources: dict[str, tuple[str, str]],
 ) -> list[list[str]]:
     entries = mapping.get("citations")
     if not isinstance(entries, list):
         raise ABError("evidence map: citations must be a list")
+    defaults = _columns(mapping, "evidence_trace", ("id", "sources", "locator", "excerpt"))
+    selectors = _source_fields(mapping, traces)
     found = {}
     for entry in entries:
-        fields = ("evidence_id", "source_id", "locator", "excerpt")
-        if not isinstance(entry, dict) or not all(
-            isinstance(entry.get(k), str) and entry[k].strip() for k in fields
-        ):
-            raise ABError(
-                "evidence map: each citation needs nonempty evidence_id, source_id, "
-                "locator and excerpt"
-            )
-        key = entry["evidence_id"], entry["source_id"]
+        key = _entry_key(entry, ("evidence_id", "source_id", "locator", "excerpt"))
         if key in found:
             raise ABError(f"duplicate evidence mapping {key}")
         if key not in traces:
             raise ABError(f"unknown evidence mapping {key}")
-        source, registry = sources[key[1]]
-        declared = traces[key] + " " + registry
-        if not excerpt_found(declared, entry["locator"]) or not excerpt_found(
-            declared, entry["excerpt"]
-        ):
-            raise ABError(f"evidence mapping {key}: locator or excerpt is not declared by A")
-        found[key] = [f"{key[0]}:{key[1]}", source, entry["locator"], entry["excerpt"]]
+        locator, excerpt = _faithful_values(entry, traces[key], selectors.get(key, defaults), key)
+        found[key] = [f"{key[0]}:{key[1]}", sources[key[1]][0], locator, excerpt]
     missing = [key for key in traces if key not in found]
     if missing:
         raise ABError(f"missing evidence mapping {missing}")
@@ -200,7 +225,9 @@ def measure_a(text: str, run: Path, evidence: Path) -> dict[str, Any]:
     if not isinstance(mapping, dict):
         raise ABError("evidence map: not a JSON object")
     sources = _registry(h, _columns(mapping, "source_registry", ("id", "file")))
-    traces = _trace(h, _columns(mapping, "evidence_trace", ("id", "sources")), sources)
+    traces = _trace(
+        h, _columns(mapping, "evidence_trace", ("id", "sources", "locator", "excerpt")), sources
+    )
     rows = _mapped_rows(mapping, traces, sources)
     # Projection of verified native evidence, not invented citation values. Use the shared
     # anchoring implementation, including its page/sign/currency behavior on the final base.

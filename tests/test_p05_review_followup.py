@@ -138,7 +138,12 @@ Passed.
 """
     mapping = {
         "source_registry": {"id": "Source ID", "file": "File"},
-        "evidence_trace": {"id": "Evidence ID", "sources": "Source IDs"},
+        "evidence_trace": {
+            "id": "Evidence ID",
+            "sources": "Source IDs",
+            "locator": "Locator",
+            "excerpt": "Excerpt",
+        },
         "citations": [
             {"evidence_id": "E1", "source_id": "S1", "locator": "p. 1", "excerpt": "Revenue 100."}
         ],
@@ -172,7 +177,7 @@ def test_a_mapping_covers_every_reference_on_a_trace_record(tmp_path: Path) -> N
         ("missing", "missing evidence mapping"),
         ("duplicate", "duplicate evidence mapping"),
         ("unknown", "unknown evidence mapping"),
-        ("locator", "not declared by A"),
+        ("locator", "not faithful"),
         ("malformed", "nonempty evidence_id"),
     ],
 )
@@ -241,7 +246,12 @@ def test_converted_stand_in_a_is_measured_against_the_same_sources(
         json.dumps(
             {
                 "source_registry": {"id": "id", "file": "source"},
-                "evidence_trace": {"id": "id", "sources": "source_id"},
+                "evidence_trace": {
+                    "id": "id",
+                    "sources": "source_id",
+                    "locator": "locator",
+                    "excerpt": "excerpt",
+                },
                 "citations": [
                     {"evidence_id": r[0], "source_id": r[0], "locator": r[2], "excerpt": r[3]}
                     for r in rows
