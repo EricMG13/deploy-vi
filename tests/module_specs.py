@@ -236,3 +236,41 @@ INPUTS["CP-3"] = Inputs(
     "issuer market",
     "as_of_date primary transaction_summary",
 )
+
+
+TABLES["CP-2"] = [
+    TableSpec(
+        "snapshot.credit_view",
+        1,
+        (
+            "credit_score*:credit_score credit_direction*:credit_direction "
+            "sector_outlook*:sector_outlook primary_support* primary_downside* "
+            "confidence*:confidence basis*:depth_basis cite*"
+        ),
+        "REPORT CP-2A CP-2D CP-2E CP-2G CP-2H CP-3 CP-3C CP-3D CP-4 CP-4C CP-5 CP-6 CP-8",
+    ),
+    TableSpec(
+        "snapshot.strengths_weaknesses",
+        2,
+        "kind*:sw_kind label* text* cite*",
+        "REPORT CP-6 CP-8 CP-5",
+    ),
+    TableSpec(
+        "cp2.drivers",
+        3,
+        (
+            "rank* driver* evidence* risk_mechanism* credit_implication* direction*:risk_direction"
+            " confidence*:confidence cite*"
+        ),
+        "CP-2A CP-2G CP-3 CP-6 CP-5 CP-3C CP-4C",
+    ),
+    TableSpec(
+        "cp2.watch_items",
+        1,
+        "trigger* threshold_or_signal* why_it_matters* credit_impact* cite",
+        "CP-6 CP-2A CP-2H CP-8 REPORT",
+    ),
+]
+INPUTS["CP-2"] = Inputs(
+    "CP-0 CP-1 CP-1A MODEL", "CP-1B CP-1C CP-1D CP-DR", "issuer", "issuer as_of_date objective"
+)
