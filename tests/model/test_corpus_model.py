@@ -27,6 +27,7 @@ from typing import Any
 
 import pytest
 from credit_model_fixture import example_registers
+from ltm_czr_cases import EXCERPT, SOURCE, czr_with_synergies, synergy_assessment
 from model_handoffs import cp1_handoff, run_brief, run_folder
 
 from rbotlib.cli import main
@@ -129,3 +130,25 @@ def test_model_from_cp1_handoff_fixture(tmp_path: Path, corpus_pack: Callable[[s
     codes = set(data["limitations"])
     assert {"PF_LTM_EQUALS_LTM", "CP1D_NOT_READ", "NO_PROJECTIONS", "MATURITY_NOT_STATED"} <= codes
     assert data["reconciliation_faults"] == []
+
+
+@pytest.mark.parametrize(
+    ("status", "verdict", "ssim"),
+    [
+        ("UNREALIZED", "Challenged", "3592"),
+        ("REALIZED", "Rejected", "3592"),
+        ("REALIZED", "Supported", "3742"),
+    ],
+)
+def test_a14_outputs_use_the_current_registered_ltm_judgment(
+    tmp_path: Path, corpus_pack: Callable[[str], Path], status: str, verdict: str, ssim: str
+) -> None:
+    folder = corpus_pack(PACK)
+    assert EXCERPT in (folder / SOURCE).read_text(encoding="utf-8")
+    brief = (FIXTURES / "run_brief_czr.md").read_text(encoding="utf-8")
+    run = run_folder(tmp_path, czr_with_synergies(), brief, synergy_assessment(status, verdict))
+    assert main(["model", "--run", str(run)]) == 0
+    house = _model(run)["house"]
+    assert house["structuring_ebitda"]["value"] == "3742"
+    assert house["ssim_ebitda"]["value"] == ssim
+    assert "Structuring EBITDA 3742" in (run / "handoffs" / "MODEL.md").read_text(encoding="utf-8")

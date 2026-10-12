@@ -15,7 +15,9 @@ import json
 from io import BytesIO
 from pathlib import Path
 
+import pytest
 from credit_model_fixture import example_registers
+from ltm_czr_cases import czr_with_synergies, synergy_assessment
 from model_handoffs import cp1_handoff, run_brief, run_folder
 from openpyxl import load_workbook
 from run_cases import cp1d_handoff
@@ -60,3 +62,35 @@ def test_the_czr_outputs_are_unchanged(tmp_path: Path) -> None:
         "MODEL.md": "c8cac47ade480d7c38ce82f0243abff19f4d72184642fca787868cf0c483355f",
         "model.xlsx": "eef46f489bb52f1c9c460b8d7bf8148bd215b5f5de2a584288c362bf5718a8f2",
     }
+
+
+@pytest.mark.parametrize(
+    ("status", "verdict", "expected"),
+    [
+        (
+            "UNREALIZED",
+            "Challenged",
+            {
+                "model.json": "a474171567027750320ab42d471f53dd9b9febc9bb22bccd095fe68e336e67ed",
+                "MODEL.md": "925800330923671ef51e42e7c4a17b9fe9472c3baa0ffdd5a13ab26e70c69eca",
+                "model.xlsx": "da4de95c99cc65ceea17802820ffc8b9251491cf065761983c7ed24161aded17",
+            },
+        ),
+        (
+            "REALIZED",
+            "Supported",
+            {
+                "model.json": "f4d30406a660e3b098617b8cef25a9a529170b856ca71baf755d6b4050dac9ef",
+                "MODEL.md": "a0329aafcea953f543082a84920ce2791620cc136498d6a171880e3bcf74d8fb",
+                "model.xlsx": "45c79dd3c302100ce70616a57c088d67e3ec6887869ab8dcf5e5823be7eb8298",
+            },
+        ),
+    ],
+)
+def test_a14_outputs_pin_both_current_ltm_judgments(
+    tmp_path: Path, status: str, verdict: str, expected: dict[str, str]
+) -> None:
+    brief = (FIXTURES / "run_brief_czr.md").read_text(encoding="utf-8")
+    run = run_folder(tmp_path, czr_with_synergies(), brief, synergy_assessment(status, verdict))
+    run_model(run, AT)
+    assert _digests(run) == expected
