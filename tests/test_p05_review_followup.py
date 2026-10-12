@@ -272,3 +272,36 @@ def test_a_source_reference_in_a_trace_heading_cannot_be_ignored(
     )
     with pytest.raises(ab_grade.ABError, match="heading is unverifiable"):
         ab_grade.measure_a(text, run, path)
+
+
+@pytest.mark.parametrize("side", ["A", "B"])
+@pytest.mark.parametrize("message", ["malformed prepared/index.json; no reference verified", ""])
+def test_a_global_run_error_never_becomes_a_citation_ratio(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, side: str, message: str
+) -> None:
+    import ab_evidence
+
+    from rbotlib.handoff import Handoff
+    from rbotlib.validate import Finding
+
+    text, run, path = _a_evidence(tmp_path)
+    data = json.loads(path.read_text())
+    data["citations"] = [dict(data["citations"][0], evidence_id=f"E{i}") for i in range(1, 21)]
+    path.write_text(json.dumps(data))
+    text = text.replace(
+        "| E1 | S1 | p. 1 | Revenue 100. |",
+        "\n".join(f"| E{i} | S1 | p. 1 | Revenue 100. |" for i in range(1, 21)),
+    )
+
+    def failed_run(_h: Handoff, _run: Path) -> list[Finding]:
+        return [Finding("run_error", message)]
+
+    # Explicit final-Plan02 Finding contract; do not replace or rebase the frozen validator.
+    monkeypatch.setattr(ab_evidence, "run_findings", failed_run)
+    monkeypatch.setattr(ab_grade, "run_findings", failed_run)
+    with pytest.raises(ab_grade.ABError, match=r"run_error.*unverifiable"):
+        if side == "A":
+            ab_grade.measure_a(text, run, path)
+        else:
+            b = (FIXTURES / "handoffs/CP-1.md").read_text()
+            ab_grade.measure("CP-1", b, run, None)

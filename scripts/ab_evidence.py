@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from rbotlib.handoff import Handoff, Table, _unfenced, cells, parse
-from rbotlib.validate import excerpt_found, run_findings
+from rbotlib.validate import Finding, excerpt_found, run_findings
 
 
 class ABError(ValueError):
@@ -183,6 +183,14 @@ def _mapped_rows(
     return list(found.values())
 
 
+def checked_findings(findings: list[Finding], run: Path) -> list[Finding]:
+    """A global source-run failure cannot stand in for one unanchored citation."""
+    failures = [f.message for f in findings if f.code == "run_error"]
+    if failures:
+        raise ABError(f"run_error: {run} is unverifiable: {'; '.join(failures)}")
+    return findings
+
+
 def measure_a(text: str, run: Path, evidence: Path) -> dict[str, Any]:
     """Measure every actual A Evidence Trace source reference using a checked internal map."""
     h = parse(text)
@@ -197,7 +205,7 @@ def measure_a(text: str, run: Path, evidence: Path) -> dict[str, Any]:
     # Projection of verified native evidence, not invented citation values. Use the shared
     # anchoring implementation, including its page/sign/currency behavior on the final base.
     anchored = replace(h, tables={"citations": Table(["id", "source", "locator", "excerpt"], rows)})
-    findings = run_findings(anchored, run)
+    findings = checked_findings(run_findings(anchored, run), run)
     return {
         "module": h.front_matter.get("module_id"),
         "side": "A",

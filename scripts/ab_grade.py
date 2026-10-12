@@ -43,6 +43,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "rbot" / "scripts"))
 
 from ab_evidence import ABError as ABError
+from ab_evidence import checked_findings
 from ab_evidence import measure_a as measure_a
 
 from rbotlib.contract import Contract, load_contract
@@ -319,16 +320,18 @@ def measure(module_id: str, text: str, run: Path, expectations: Path | None) -> 
         raise ABError(f"{module_id}: no module contract (the modules are CP-1 ... CP-6)")
     contract = load_contract(path, rules)
     code, findings = check(text, contract, rules, run)
+    checked_findings(findings, run)
     try:
         h = parse(text)
     except HandoffError as exc:
         raise ABError(f"{module_id}: the Handoff cannot be read: {exc}") from exc
     citations = h.tables.get("citations")
     total = len(citations.rows) if citations else 0
-    bad = [f for f in run_findings(h, run) if f.code in ("citation_unanchored", "source_unknown")]
+    anchoring = checked_findings(run_findings(h, run), run)
+    bad = sum(f.code in ("citation_unanchored", "source_unknown") for f in anchoring)
     gaps = _sections(h.body).get("Gaps", [])
     result: dict[str, Any] = {"module": module_id, "validate_exit": code}
-    result |= {"findings": sorted({f.code for f in findings}), "C": f"{total - len(bad)}/{total}"}
+    result |= {"findings": sorted({f.code for f in findings}), "C": f"{total - bad}/{total}"}
     result |= {
         "gaps": sum(1 for line in gaps if line.startswith("- ")),
         "bytes": len(text.encode()),
