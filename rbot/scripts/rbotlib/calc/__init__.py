@@ -17,6 +17,7 @@ from types import ModuleType
 
 from rbotlib.calc import bond_analytics
 from rbotlib.calc.bond_analytics import CalcError
+from rbotlib.fsio import write_atomic
 
 CALCULATORS: dict[str, ModuleType] = {"bond_analytics": bond_analytics}
 
@@ -27,6 +28,8 @@ def read_input(path: Path) -> object:
         data: object = json.loads(path.read_text(encoding="utf-8"), parse_float=Decimal)
     except json.JSONDecodeError as exc:
         raise CalcError(f"{path}: not valid JSON: {exc}") from exc
+    except UnicodeDecodeError as exc:
+        raise CalcError(f"{path}: not UTF-8 text ({exc.reason})") from exc
     return data
 
 
@@ -34,13 +37,13 @@ def run_command(args: argparse.Namespace) -> int:
     calculator = CALCULATORS[args.name]
     try:
         result = calculator.compute(read_input(Path(args.in_path)))
+        if args.out_path:
+            text = json.dumps(result, indent=2, ensure_ascii=False) + "\n"
+            write_atomic(Path(args.out_path), text)
     except (CalcError, OSError) as exc:
         print(f"error: {exc}")
         return 1
     print(calculator.markdown(result), end="")
-    if args.out_path:
-        text = json.dumps(result, indent=2, ensure_ascii=False) + "\n"
-        Path(args.out_path).write_text(text, encoding="utf-8")
     return 0
 
 

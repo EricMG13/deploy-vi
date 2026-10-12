@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from datetime import date
 from decimal import ROUND_DOWN, Decimal, localcontext
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -19,6 +20,7 @@ import pytest
 from conftest import FIXTURES
 from rbotlib.calc import bond_analytics as ba
 from rbotlib.calc.bond_analytics import CalcError, compute, markdown
+from rbotlib.cli import main
 
 CALC = FIXTURES / "calc"
 AS_OF = "2026-10-02"
@@ -58,7 +60,7 @@ def test_days_360_follows_the_bond_basis(start: date, end: date, days: int) -> N
 
 
 def test_boundaries_that_are_valid() -> None:
-    assert one_loan("0.5", "0")["status"] == "Calculated"  # a price above 0, a zero margin
+    assert one_loan("0.5", "10")["status"] == "Calculated"  # a price above 0, the least margin
     row = one(
         {"facility_id": "B", "kind": "bond", "price": "100", "coupon_pct": "30"}
         | {"maturity_date": "2027-08-15"},
@@ -168,7 +170,7 @@ MESSAGES = [
             "facility_id": "L",
             "kind": "loan",
             "price": "99",
-            "margin_bps": "1",
+            "margin_bps": "100",
             "maturity_date": "x",
         },
         "instruments[0].maturity_date: 'x' is not an ISO date",
@@ -247,3 +249,153 @@ def test_results_do_not_depend_on_the_callers_decimal_context() -> None:
     with localcontext() as caller:
         caller.prec, caller.rounding = 6, ROUND_DOWN
         assert compute(data) == expected
+
+
+# --- the up-front review of Plan 05 (money): every case below failed before its fix ------------
+
+
+def test_an_in_force_call_on_a_coupon_date_settlement_is_tested_at_the_next_coupon() -> None:
+    """I4 (mutant `schedule` 4, `>=`): settlement on a coupon date, a call already in force."""
+    bond: dict[str, Any] = {"facility_id": "B", "kind": "bond", "price": "103", "coupon_pct": "8"}
+    bond |= {
+        "maturity_date": "2031-02-15",
+        "call_schedule": [{"date": "2026-02-15", "price": "102"}],
+    }
+    row = one(bond, as_of="2026-08-15")
+    assert (row["yield_or_dm"], row["worst_date"], row["status"]) == (
+        "5.825243",
+        "2027-02-15",
+        "Calculated",
+    )
+
+
+@pytest.mark.parametrize(
+    ("kind", "extra", "message"),
+    [
+        ("loan", {"floor_pct": "1.00"}, "instruments[0].floor_pct: unknown field for a loan"),
+        ("bond", {"calls": []}, "instruments[0].calls: unknown field for a bond"),
+        ("loan_talk", {"oid": "99"}, "instruments[0].oid: unknown field for a loan_talk"),
+        ("bond_talk", {"coupon": "7"}, "instruments[0].coupon: unknown field for a bond_talk"),
+        ("bond", {"margin_bps": "450"}, "instruments[0].margin_bps: a bond has a fixed coupon"),
+        ("bond", {"floor_bps": "50"}, "a floating-rate note is not priced as a bond"),
+        ("bond_talk", {"spread_bps": "450"}, "instruments[0].spread_bps: a bond_talk has a fixed"),
+    ],
+)
+def test_a_key_the_kind_does_not_read_is_refused_by_name(
+    kind: str, extra: dict[str, str], message: str
+) -> None:
+    base = {"loan": one_loan_item(), "bond": _bond(), "loan_talk": _talk(), "bond_talk": _hy()}
+    with pytest.raises(CalcError) as caught:
+        compute({"as_of": AS_OF, "instruments": [base[kind] | extra]})
+    assert message in str(caught.value)
+
+
+def one_loan_item() -> dict[str, Any]:
+    return {"facility_id": "L", "kind": "loan", "price": "98", "margin_bps": "300"}
+
+
+def test_an_unknown_top_level_key_is_refused() -> None:
+    with pytest.raises(CalcError, match=r"input.reference_rate: unknown field \(reads as_of"):
+        compute({"as_of": AS_OF, "reference_rate": "0.5", "instruments": [one_loan_item()]})
+
+
+@pytest.mark.parametrize(
+    ("instrument", "top", "message"),
+    [
+        ({"margin_bps": "3.25"}, {}, "instruments[0].margin_bps: 3.25 is below 10 bps"),
+        ({"floor_bps": "0.5"}, {}, "instruments[0].floor_bps: 0.5 is below 5 bps"),
+        ({}, {"reference_rate_pct": "0.042"}, "input.reference_rate_pct: 0.042 is below 0.2"),
+    ],
+)
+def test_a_slip_of_unit_is_refused(
+    instrument: dict[str, str], top: dict[str, str], message: str
+) -> None:
+    with pytest.raises(CalcError) as caught:
+        compute({"as_of": AS_OF, "instruments": [one_loan_item() | instrument], **top})
+    assert message in str(caught.value)
+
+
+@pytest.mark.parametrize("value", ["-50", "3.25"])
+def test_a_negative_or_slipped_talk_margin_is_refused(value: str) -> None:
+    with pytest.raises(CalcError, match=f"instruments.0..talk_low_bps: {value} "):
+        compute({"as_of": AS_OF, "instruments": [_talk(talk_low_bps=value)]})
+
+
+def test_a_floor_of_zero_and_a_reference_rate_of_zero_are_valid() -> None:
+    row = one(one_loan_item() | {"floor_bps": "0"}, reference_rate_pct="0")
+    assert row["floor_benefit_bps"] == "0.00"
+
+
+@pytest.mark.parametrize(
+    ("start", "end", "days"),
+    [
+        (date(2026, 2, 28), date(2026, 8, 31), 180),  # a last day of February counts as the 30th
+        (date(2026, 8, 31), date(2027, 2, 28), 178),  # the end of February is not moved alone
+        (date(2027, 2, 28), date(2028, 2, 29), 360),  # both are February month-ends
+        (date(2028, 2, 29), date(2028, 8, 31), 180),
+        (date(2026, 2, 27), date(2026, 8, 30), 183),  # not a month-end: unchanged
+    ],
+)
+def test_days_360_has_the_february_month_end_rule(start: date, end: date, days: int) -> None:
+    assert ba.days_360(start, end) == days
+
+
+def test_a_bond_maturing_on_the_last_day_of_february_has_month_end_coupons() -> None:
+    previous, dates = ba.schedule(date(2026, 8, 1), date(2030, 2, 28))
+    assert (previous, dates[:2]) == (date(2026, 2, 28), [date(2026, 8, 31), date(2027, 2, 28)])
+    assert ba.schedule(date(2026, 3, 1), date(2032, 2, 29))[1][0] == date(2026, 8, 31)
+    assert ba.schedule(date(2026, 3, 1), date(2030, 8, 30))[1][0] == date(2026, 8, 30)
+
+
+def test_accrued_never_exceeds_a_coupon_and_the_first_period_is_never_negative() -> None:
+    """M1: maturity 2030-08-31, settlement 2026-08-30 gave accrued 3.286 against a 3.25 coupon."""
+    flows = ba.cashflows(Decimal("6.5"), date(2026, 8, 30), date(2030, 8, 31), Decimal(100))
+    assert flows.accrued == Decimal("3.25") and flows.first == 0
+    off = ba.cashflows(Decimal("6.5"), date(2026, 8, 29), date(2030, 8, 31), Decimal(100))
+    assert 0 < off.accrued < Decimal("3.25") and 0 < off.first < 1
+
+
+def test_a_calc_output_in_a_missing_folder_exits_1(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    out = tmp_path / "missing" / "out.json"
+    code = main(
+        [
+            "calc",
+            "bond_analytics",
+            "--in",
+            str(CALC / "CP-3-bond_analytics.json"),
+            "--out",
+            str(out),
+        ]
+    )
+    assert code == 1 and "error:" in capsys.readouterr().out
+
+
+def test_a_calc_input_that_is_not_utf8_exits_1(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    bad = tmp_path / "in.json"
+    bad.write_bytes(b"\xff\xfe{}")
+    assert main(["calc", "bond_analytics", "--in", str(bad)]) == 1
+    assert "not UTF-8 text" in capsys.readouterr().out
+
+
+def test_a_calc_output_replaces_the_old_file_whole(tmp_path: Path) -> None:
+    out = tmp_path / "out.json"
+    out.write_text("old", encoding="utf-8")
+    assert (
+        main(
+            [
+                "calc",
+                "bond_analytics",
+                "--in",
+                str(CALC / "CP-3-bond_analytics.json"),
+                "--out",
+                str(out),
+            ]
+        )
+        == 0
+    )
+    assert json.loads(out.read_text("utf-8")) == compute(_input())
+    assert [p.name for p in tmp_path.iterdir()] == ["out.json"]  # no temp file left

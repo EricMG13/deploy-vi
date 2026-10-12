@@ -72,7 +72,7 @@ def test_talk_ranges_must_be_ordered() -> None:
 
 
 PRICES = st.decimals(min_value=Decimal(50), max_value=Decimal(150), places=3)
-MARGINS = st.decimals(min_value=Decimal(0), max_value=Decimal(1500), places=1)
+MARGINS = st.decimals(min_value=Decimal(10), max_value=Decimal(1500), places=1)
 YIELDS = st.decimals(min_value=Decimal("0.001"), max_value=Decimal("0.4"), places=4)
 COUPONS = st.decimals(min_value=Decimal(0), max_value=Decimal(15), places=3)
 

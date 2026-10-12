@@ -28,13 +28,22 @@ Conventions, stated in every output:
   is three years, or the years to maturity (actual/365) when shorter, and the floor benefit is
   max(0, floor - reference rate). With a floor above zero and no reference rate the benefit
   is not computed: the DM excludes it and the row says so.
-- Bonds: semi-annual coupons dated back from the redemption date, 30/360 (US) accrual, clean
-  price plus accrued interest discounted at the yield compounded semi-annually, with the
-  first period fractional. YTW is the lowest of the yield to maturity and the yields to each
-  call date at its call price; a call price already in force is tested at the next coupon
-  date. STW (bps) = YTW less the benchmark yield the input states (none: STW not computed).
+- Bonds: semi-annual coupons dated back from the redemption date (on the last day of the month
+  when that is the last day of February), 30/360 US accrual (SIA, with the February month-end
+  rule), clean price plus accrued interest discounted at the yield compounded semi-annually,
+  with the first period fractional (the days left in the period over the period's days). YTW
+  is the lowest of the yield to maturity and the yields to each call date at its call price; a
+  call price already in force is tested at the next coupon date. STW (bps) = YTW less the
+  benchmark yield the input states (none: STW not computed).
 - Talk: low = the low margin or coupon at the high OID, mid = the mid margin or coupon at the
-  mid OID, high = the high margin or coupon at the low OID.
+  mid OID, high = the high margin or coupon at the low OID. A bond talk accrues from the coupon
+  date before `as_of` that its maturity implies; a stub first coupon is not modelled.
+- Every key of an instrument must be one its kind lists above; an unknown key is refused
+  (`floor_pct` or `calls` would otherwise change nothing silently). A floating-rate note is not
+  a bond: a `bond` with `margin_bps`, `floor_bps` or `spread_bps` is refused. Margins are at
+  least 10 bps, a floor is 0 or at least 5 bps and the reference rate is 0 or at least 0.2
+  percent in magnitude (a percent typed into a bps field, or a fraction into a percent field,
+  is a slip); talk margins follow the margin rule.
 
 Pure: no I/O. Results are exact Decimals quantized for display: DMs and spreads to 0.01 bp,
 yields to 0.000001%.
@@ -56,7 +65,9 @@ YIELD_PLACES = Decimal("0.000001")
 HUNDRED = Decimal(100)
 HORIZON_YEARS = Decimal(3)
 DAYS_PER_YEAR = Decimal(365)
-PERIOD_DAYS = Decimal(180)
+MIN_MARGIN_BPS = Decimal(10)
+MIN_FLOOR_BPS = Decimal(5)
+MIN_REFERENCE_PCT = Decimal("0.2")
 LOW_YIELD, HIGH_YIELD = Decimal("-0.5"), Decimal(5)
 TOLERANCE = Decimal("1e-14")
 MAX_PRICE = Decimal(200)
@@ -64,12 +75,31 @@ MAX_COUPON = Decimal(30)
 CALCULATED, NOT_COMPUTABLE = "Calculated", "Not computable"
 DM_BASIS, YTW_BASIS = "3Y DM", "YTW"
 KINDS = ("loan", "bond", "loan_talk", "bond_talk")
+_COMMON = ("facility_id", "kind")
+FIELDS = {
+    "loan": (*_COMMON, "price", "margin_bps", "floor_bps", "maturity_date"),
+    "bond": (
+        *_COMMON,
+        *("price", "coupon_pct", "maturity_date", "benchmark_yield_pct", "call_schedule"),
+    ),
+    "loan_talk": (
+        *_COMMON,
+        *("talk_low_bps", "talk_high_bps", "oid_low", "oid_high", "floor_bps", "maturity_date"),
+    ),
+    "bond_talk": (
+        *_COMMON,
+        *("coupon_low_pct", "coupon_high_pct", "oid_low", "oid_high", "maturity_date"),
+    ),
+}
+FLOATING = ("margin_bps", "floor_bps", "spread_bps", "reference_rate_pct")
+TOP_FIELDS = ("as_of", "reference_rate_pct", "instruments")
 CONVENTIONS = {
     "settlement": "the as_of date, no settlement lag",
     "loan_dm": "margin + max(0, floor - reference rate) + (100 - price) / min(3, years to "
     "maturity, actual/365) x 100, in bps",
-    "bond_yield": "semi-annual, 30/360 US accrual, clean price plus accrued, first period "
-    "fractional",
+    "bond_yield": "semi-annual, 30/360 US accrual (SIA, February month-end rule), clean price "
+    "plus accrued, first period fractional; a new issue accrues from the coupon date before "
+    "as_of, no stub coupon",
     "ytw": "lowest of maturity and each call date at its call price",
     "talk": "low margin at high OID, mid at mid OID, high margin at low OID",
 }
@@ -170,20 +200,31 @@ def add_months(d: date, months: int, day_of_month: int) -> date:
     return date(year, month, min(day_of_month, calendar.monthrange(year, month)[1]))
 
 
+def _last_of_february(d: date) -> bool:
+    return d.month == 2 and d.day == calendar.monthrange(d.year, 2)[1]
+
+
 def schedule(settle: date, redemption: date) -> tuple[date, list[date]]:
     """The coupon date on or before `settle` and the coupon dates after it up to `redemption`,
-    dated back from `redemption` every six months."""
+    dated back from `redemption` every six months (month-end dating for a last day of February)."""
+    day_of_month = 31 if _last_of_february(redemption) else redemption.day
     dates = [redemption]
     while dates[-1] > settle:
-        dates.append(add_months(redemption, -6 * len(dates), redemption.day))
+        dates.append(add_months(redemption, -6 * len(dates), day_of_month))
     previous = dates.pop()
     return previous, sorted(dates)
 
 
 def days_360(start: date, end: date) -> int:
-    """30/360 US (bond basis) days from `start` to `end`."""
-    d1 = min(start.day, 30)
-    d2 = 30 if end.day == 31 and d1 == 30 else end.day
+    """30/360 US (SIA bond basis) days from `start` to `end`, with the February month-end rule."""
+    d1, d2 = start.day, end.day
+    if _last_of_february(start) and _last_of_february(end):
+        d2 = 30
+    if _last_of_february(start):
+        d1 = 30
+    if d2 == 31 and d1 >= 30:
+        d2 = 30
+    d1 = min(d1, 30)
     return 360 * (end.year - start.year) + 30 * (end.month - start.month) + (d2 - d1)
 
 
@@ -199,9 +240,10 @@ def cashflows(coupon_pct: Decimal, settle: date, redemption: date, price: Decima
     previous, dates = schedule(settle, redemption)
     with localcontext(CONTEXT):
         elapsed = Decimal(days_360(previous, settle))
+        period = Decimal(days_360(previous, dates[0]))
         half = coupon_pct / 2
-        accrued = half * elapsed / PERIOD_DAYS
-        first = (PERIOD_DAYS - elapsed) / PERIOD_DAYS
+        accrued = half * elapsed / period
+        first = (period - elapsed) / period
         amounts = tuple(half + (price if d == dates[-1] else 0) for d in dates)
     return Cashflows(accrued, first, amounts)
 
@@ -303,9 +345,24 @@ def _optional_maturity(item: Mapping[str, Any], where: str) -> date | None:
 
 
 def _margin_floor(item: Mapping[str, Any], key: str, where: str) -> Decimal | None:
+    """A margin or floor in bps; a slip of unit (percent for bps) is refused."""
     value = optional_figure(item, key, where)
-    if value is not None and value < 0:
+    if value is None:
+        return None
+    if value < 0:
         raise CalcError(f"{where}.{key}: {value} is negative")
+    if key == "floor_bps" and 0 < value < MIN_FLOOR_BPS:
+        raise CalcError(f"{where}.{key}: {value} is below {MIN_FLOOR_BPS} bps; basis points?")
+    if key == "margin_bps":
+        _margin(value, f"{where}.{key}")
+    return value
+
+
+def _margin(value: Decimal, field: str) -> Decimal:
+    if value < MIN_MARGIN_BPS:
+        raise CalcError(
+            f"{field}: {value} is below {MIN_MARGIN_BPS} bps; basis points, not percent?"
+        )
     return value
 
 
@@ -402,6 +459,7 @@ def _talk_row(
 
 def _loan_talk(item: Mapping[str, Any], where: str, run: Run) -> dict[str, Any]:
     talk = _range(item, "talk_low_bps", "talk_high_bps", where)
+    _margin(talk[0], f"{where}.talk_low_bps")  # the high end is at least the low end
     oid = _range(item, "oid_low", "oid_high", where)
     for value, key in ((oid[0], "oid_low"), (oid[1], "oid_high")):
         _price({key: value}, key, where)
@@ -461,6 +519,21 @@ _TALK: dict[str, Callable[[Mapping[str, Any], str, Run], dict[str, Any]]] = {
 }
 
 
+def _known_fields(item: Mapping[str, Any], kind: str, where: str) -> None:
+    """Refuse a key the kind does not read: a misnamed field would change nothing, silently."""
+    for key in item:
+        if key in FIELDS[kind]:
+            continue
+        if kind.startswith("bond") and key in FLOATING:
+            raise CalcError(
+                f"{where}.{key}: a {kind} has a fixed coupon; a floating-rate note is not priced "
+                "as a bond (give it as a loan, or leave it unpriced and say so under Gaps)"
+            )
+        raise CalcError(
+            f"{where}.{key}: unknown field for a {kind} (reads {', '.join(FIELDS[kind])})"
+        )
+
+
 def _instrument(item: object, n: int, run: Run) -> tuple[str, dict[str, Any]]:
     where = f"instruments[{n}]"
     if not isinstance(item, dict):
@@ -470,6 +543,7 @@ def _instrument(item: object, n: int, run: Run) -> tuple[str, dict[str, Any]]:
     kind = item.get("kind")
     if kind not in KINDS:
         raise CalcError(f"{where}.kind: {kind!r} is not one of {', '.join(KINDS)}")
+    _known_fields(item, kind, where)
     if kind in _LEVELS:
         return "levels", _LEVELS[kind](item, where, run)
     return "talk", _TALK[kind](item, where, run)
@@ -479,7 +553,16 @@ def compute(data: object) -> dict[str, Any]:
     """The calculator's output for one input document; CalcError names the bad field."""
     if not isinstance(data, dict):
         raise CalcError("the input must be a JSON object")
-    run = Run(day(data.get("as_of"), "as_of"), optional_figure(data, "reference_rate_pct", "input"))
+    for key in data:
+        if key not in TOP_FIELDS:
+            raise CalcError(f"input.{key}: unknown field (reads {', '.join(TOP_FIELDS)})")
+    reference = optional_figure(data, "reference_rate_pct", "input")
+    if reference is not None and reference != 0 and abs(reference) < MIN_REFERENCE_PCT:
+        raise CalcError(
+            f"input.reference_rate_pct: {reference} is below {MIN_REFERENCE_PCT} percent; "
+            "a percent, not a fraction?"
+        )
+    run = Run(day(data.get("as_of"), "as_of"), reference)
     items = data.get("instruments")
     if not isinstance(items, list) or not items:
         raise CalcError("instruments: needs a non-empty list")

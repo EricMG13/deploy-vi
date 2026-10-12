@@ -5,7 +5,7 @@
   "conventions": {
     "settlement": "the as_of date, no settlement lag",
     "loan_dm": "margin + max(0, floor - reference rate) + (100 - price) / min(3, years to maturity, actual/365) x 100, in bps",
-    "bond_yield": "semi-annual, 30/360 US accrual, clean price plus accrued, first period fractional",
+    "bond_yield": "semi-annual, 30/360 US accrual (SIA, February month-end rule), clean price plus accrued, first period fractional; a new issue accrues from the coupon date before as_of, no stub coupon",
     "ytw": "lowest of maturity and each call date at its call price",
     "talk": "low margin at high OID, mid at mid OID, high margin at low OID"
   },
