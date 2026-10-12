@@ -112,10 +112,18 @@ def _extra_references(text: str, refs: list[str], sources: dict[str, tuple[str, 
     return any(s not in refs for s in [*bracketed, *known])
 
 
+def _check_trace_headings(lines: list[str], sources: dict[str, tuple[str, str]]) -> None:
+    headings = "\n".join(line for line in lines if line.startswith("#"))
+    if _extra_references(headings, [], sources):
+        raise ABError("Evidence Trace: source reference in a heading is unverifiable")
+
+
 def _trace(
     h: Handoff, configured: dict[str, str], sources: dict[str, tuple[str, str]]
 ) -> dict[tuple[str, str], str]:
-    records, prose = _records(_section(h, "Evidence Trace"), "Evidence Trace")
+    lines = _section(h, "Evidence Trace")
+    _check_trace_headings(lines, sources)
+    records, prose = _records(lines, "Evidence Trace")
     if prose.strip():
         raise ABError("Evidence Trace: prose outside the configured records is unverifiable")
     found, seen = {}, set()

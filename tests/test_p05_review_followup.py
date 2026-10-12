@@ -260,3 +260,15 @@ def test_a_map_cannot_hide_an_unknown_bracket_reference_elsewhere_on_the_trace(
     text = text.replace("Revenue 100. |", "Revenue 100. [S3] |")
     with pytest.raises(ab_grade.ABError, match="outside the configured source column"):
         ab_grade.measure_a(text, run, path)
+
+
+@pytest.mark.parametrize("reference", ["S2", "[S3]"])
+def test_a_source_reference_in_a_trace_heading_cannot_be_ignored(
+    tmp_path: Path, reference: str
+) -> None:
+    text, run, path = _a_evidence(tmp_path)
+    text = text.replace(
+        "## Evidence Trace", "## Evidence Trace\n### Additional evidence " + reference
+    )
+    with pytest.raises(ab_grade.ABError, match="heading is unverifiable"):
+        ab_grade.measure_a(text, run, path)
