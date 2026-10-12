@@ -11,14 +11,14 @@ inputs: CP-0, CP-1, CP-1A, CP-1B, CP-1D, CP-2, CP-3, MODEL, FIT
 
 Hand-written test fixture of a CP-5 Handoff for the synthetic Primary pack `czr-2026q2-primary`. Overall, evidence traceability is Ready with Remediation. Of the Top 5 material credit drivers (Las Vegas earnings, the acquisition debt, the lease fixed charges, the new loan's talk valuation, the Portfolio Fit caps), 3 are directly sourced, 2 are calculated, 0 are assumption-based, 0 are analyst inferences, and 0 are weak-lineage, untraced or conflicting items. The upstream Handoffs agree on the debt stack, the ratings and the house EBITDA, and no High finding is open.
 
-The provenance gap that matters most is the Structuring EBITDA. CP-1 registers the arranger's 150 of run-rate synergies on the LTM period [C1], but the Model builds the LTM from the fiscal year and the half-years, so its Structuring EBITDA (3,592) leaves the synergies out and equals SSIM EBITDA; the marketed figure would be 3,742. The decision rests on SSIM EBITDA, so the gap changes a Front Page line, not the call. Second, CP-3's discount margins are the house convention and sit 12 to 6 bps below the Bloomberg export's own figures [C2]; CP-3 states both.
+The prior Structuring EBITDA finding is fixed: CP-1 registers the arranger's 150 of run-rate synergies on the LTM period [C1], and the actual Model carries it into Structuring EBITDA of 3,742 while SSIM EBITDA excludes the unrealized benefit and remains 3,592. The substantive source limitation remains: these transaction figures come from labelled SYNTHETIC test files, and a live run requires the lender presentation. CP-3's discount margins follow the house convention and sit 12 to 6 bps below the Bloomberg export's figures [C2]; CP-3 states both.
 
 ## Tables
 
 <!-- table: cp5.findings -->
 | finding_id | severity | module_id | kind | description | required_fix | status |
 |---|---|---|---|---|---|---|
-| F-1 | Medium | MODEL | Calculation | Structuring EBITDA on the PF-LTM is 3,592: the 150 of run-rate synergies CP-1 registers on LTM_Q2_2026 is not in it (the Model reads an add-back on the LTM from its parts) | carry an add-back stated only for the LTM into the PF-LTM's Structuring EBITDA | Open |
+| F-1 | Medium | MODEL | Calculation | The actual Model carries the 150 of LTM-only run-rate synergies into PF-LTM Structuring EBITDA of 3,742; SSIM EBITDA excludes this unrealized benefit and remains 3,592 | none: final Model carries the cited LTM-only add-back; real producer controls verify both house values | Fixed |
 | F-2 | Low | CP-3 | Market | the house 3Y DM of the CEI Term Loan B (239.57) differs from the Bloomberg export's 252, and of the B-1 (235.40) from 241 | none: CP-3 shows both; the floor benefit is excluded for want of a reference rate | Accepted |
 | F-3 | Low | CP-1 | Lineage | the new term loan's terms, the pro forma capitalisation and the synergies come from SYNTHETIC test files | none in a test run; a live run needs the lender presentation | Accepted |
 
@@ -26,7 +26,6 @@ The provenance gap that matters most is the Structuring EBITDA. CP-1 registers t
 | module_id | limitation | effect_on_decision | source_that_would_lift |
 |---|---|---|---|
 | MODEL | no EV: no listed equity value and no SSIM EV multiple | no % of EV per facility on the capital structure | an equity value export, or the SSIM EV multiple in the Run Brief |
-| MODEL | Structuring EBITDA leaves out the 150 of LTM synergies | the marketed multiple is overstated against the arranger's figure | a Model that carries LTM-only add-backs |
 | CP-3 | no reference rate: the 0.50% floors' benefit is not computed | DMs are a floor-free lower bound | a SOFR forward curve in Market Context |
 | CP-1A | no corporate family or issuer ratings in the pack | the ratings block shows instrument ratings only | an agency report |
 | FIT | minimum limits (rating floor, first-lien share, obligor count) are not sized against | the Portfolio Fit verdict covers maximum limits only | none: RBOT sizes against maximum limits by design |
@@ -39,7 +38,7 @@ The provenance gap that matters most is the Structuring EBITDA. CP-1 registers t
 | CP-1A | Restricted | Traceable | no corporate ratings |
 | CP-1B | Restricted | Traceable | no KPIs and no guidance in the pack |
 | CP-1D | Restricted | Traceable | synergy actions not evidenced |
-| MODEL | Pass | Partly traceable | Structuring EBITDA misses the LTM synergies (F-1) |
+| MODEL | Pass | Traceable | Structuring EBITDA 3,742 includes the cited 150; SSIM EBITDA 3,592 excludes the unrealized benefit (F-1 Fixed) |
 | CP-2 | Restricted | Traceable | — |
 | CP-3 | Restricted | Traceable | floor benefit and STW not computed |
 | FIT | Restricted | Traceable | minimum limits not sized |

@@ -6,8 +6,8 @@ the PF-LTM to June 30, 2026: total debt 11,705 + 3,000 (NEW-1) - 120 (the revolv
 3,592 / 989 = 3.63x; the SSIM Multiple 14,585 / 3,592 = 4.06x; no EV (no listed equity value).
 With CP-1D, adjusted debt adds the 13,157 of financing obligations: 27,742 and 7.72x. The
 arranger's 150 of run-rate synergies is registered on the LTM period itself; the Model builds
-the LTM from FY2025 and the half-years, so it reaches the Model as the LTM cell's `stated`
-figure only (CP-5 finding F-1).
+the LTM from FY2025 and the half-years, then carries this explicitly sourced LTM-only
+add-back into Structuring EBITDA (3,742) while SSIM EBITDA excludes it (3,592).
 """
 
 from __future__ import annotations
@@ -54,7 +54,8 @@ def test_the_cp1_fixture_feeds_the_model(tmp_path: Path) -> None:
     assert (house["ev"]["value"], house["ev"]["reason"]) == (None, "NOT_SOURCED")
     lines = {line["line_id"]: line for line in data["lines"]}
     pf = {c["column_id"]: c for c in lines["addback:run_rate_synergies"]["cells"]}["PF:LTM_Q2_2026"]
-    assert (pf["value"], pf["reason"], pf["stated"]) == (None, "NOT_SOURCED", "150")
+    assert (pf["value"], pf["reason"], pf["stated"]) == ("150", None, None)
+    assert house["structuring_ebitda"]["value"] == "3742"
     assert data["reconciliation_faults"] == []
 
 
