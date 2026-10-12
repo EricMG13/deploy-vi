@@ -399,8 +399,19 @@ def _commit(run: Path, commit: Commit, where: list[Path]) -> None:
         where.append(commit.target)
 
 
+def _owned_run(run: Path) -> Path:
+    """Prove production state ownership before any Approval lock or CLI log write."""
+    run = rs.run_path(run)
+    try:
+        rs.read(run)
+    except UnicodeDecodeError as exc:
+        raise ApprovalError(f"{run / STATE}: no readable run state ({exc})") from exc
+    return run
+
+
 def approve(run: Path, root: Path, rules: Rules, choice: Choice) -> Path:
     """Record the Approval under the run's lock; return the renamed run folder."""
+    run = _owned_run(run)
     where: list[Path] = []
     with _locked(run, where):
         commit = prepare(run, root, rules, choice)
@@ -474,7 +485,7 @@ def add_commands(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> No
     a.add_argument("--untick", nargs="+", action="extend", default=[], metavar="QUESTION_ID")
     a.add_argument("--prior-case", choices=["yes", "no"], default="no")
     a.add_argument("--acknowledge-blocked", action="store_true")
-    a.set_defaults(run=approve_command)
+    a.set_defaults(run=approve_command, log_run_guard=_owned_run)
     p = sub.add_parser("plan", help="print the run's ordered steps with their status")
     p.add_argument("--run", dest="run_dir", required=True, help="the run folder")
     p.set_defaults(run=plan_command)
