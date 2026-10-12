@@ -139,7 +139,7 @@ def _keyed(path: Path, rows: list[dict[str, Any]], key: str) -> dict[str, dict[s
 def _run_path(run: Path, relative: str) -> Path:
     try:
         return output_path(run, relative)
-    except (RunError, OSError) as exc:
+    except (RunError, OSError, ValueError) as exc:
         raise _RunInputError(f"{run / relative}: {exc}") from exc
 
 

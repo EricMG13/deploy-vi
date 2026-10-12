@@ -525,3 +525,45 @@ def test_run_input_uses_the_declared_portable_index_path(
         )[0]
         == 0
     )
+
+
+@pytest.mark.parametrize("caller", ["check", "validate", "grade"])
+def test_nul_portfolio_pointer_is_a_named_run_error(
+    root: Path,
+    tmp_path: Path,
+    rules: Rules,
+    capsys: pytest.CaptureFixture[str],
+    caller: str,
+) -> None:
+    extra = {name: (SYNTHETIC / name).read_text() for name in CLO}
+    classes = FILES | {
+        name: ("portfolio", kind, "Test CLO I Ltd", "Yes") for name, kind in CLO.items()
+    }
+    run = _acme(tmp_path, extra)
+    _graded(root, run, classes)
+    source = run / "handoffs/CP-0.md"
+    contract = load_contract(RBOT_ROOT / "modules/CP-0/contract.json", rules)
+    assert check(source.read_text(), contract, rules, run) == (0, [])
+    index_path = run / "prepared/index.json"
+    index = json.loads(index_path.read_text())
+    relative = "prepared/portfolios/\x00.json"
+    index["portfolios"][0]["json"] = relative
+    encoded = json.dumps(index)
+    assert "\\u0000" in encoded
+    index_path.write_text(encoded)
+    capsys.readouterr()
+    if caller == "check":
+        code, found = check(source.read_text(), contract, rules, run)
+        assert code == 1 and any(
+            f.code == "run_error" and f.message.startswith(str(run / relative) + ":") for f in found
+        )
+    else:
+        args = (
+            ["validate", str(source), "--module", "CP-0", "--run", str(run)]
+            if caller == "validate"
+            else ["--root", str(root), "grade", "--run", str(run)]
+        )
+        assert main(args) == 1
+        output = capsys.readouterr()
+        assert str(run / relative) in output.out + output.err
+        assert "Available" not in output.out
