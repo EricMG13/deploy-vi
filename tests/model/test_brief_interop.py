@@ -17,7 +17,7 @@ from rbotlib.model.house_inputs import BriefFields, brief_fields
 def test_a_run_brief_from_rbot_brief_reads_into_brief_fields(tmp_path: Path) -> None:
     run = make_run(tmp_path / "pack", "20261011-czr-pending")
     (run / "handoffs").mkdir()
-    shutil.copy(FIXTURES / "handoff_cp0_czr_primary.md", run / "handoffs" / "CP-0.md")
+    shutil.copy(FIXTURES / "handoffs" / "CP-0.md", run / "handoffs" / "CP-0.md")
     assert main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"]) == 0
     assert main(["brief", "--run", str(run), "--set", "ssim_ev_multiple=8.5"]) == 0
     brief = parse((run / "run-brief.md").read_text(encoding="utf-8"))

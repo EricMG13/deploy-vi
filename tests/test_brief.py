@@ -16,7 +16,7 @@ from rbotlib.handoff import Handoff, markers, parse
 from rbotlib.rules import Rules
 from rbotlib.validate import check, run_findings
 
-CP0 = FIXTURES / "handoff_cp0_czr_primary.md"
+CP0 = FIXTURES / "handoffs" / "CP-0.md"
 
 
 def _run(tmp_path: Path) -> Path:

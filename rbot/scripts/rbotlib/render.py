@@ -111,9 +111,10 @@ def render_module(contract: Contract, rules: Rules) -> str:
     lines += [
         "## Before you finish",
         "",
-        f"Run `python <RBOT>/scripts/rbot.py validate handoffs/{contract.module_id}.md "
-        f"--module {contract.module_id}` (`<RBOT>` is the RBOT folder named in your task) "
-        "and fix every finding until it exits 0, or 3 when the run is genuinely Blocked.",
+        f"Run `python <RBOT>/scripts/rbot.py validate <RUN>/handoffs/{contract.module_id}.md "
+        f"--module {contract.module_id} --run <RUN>` (`<RBOT>` is the RBOT folder and `<RUN>` "
+        "the run folder named in your task) and fix every finding until it exits 0, or 3 when "
+        "the run is genuinely Blocked.",
         "",
     ]
     return "\n".join(lines)
