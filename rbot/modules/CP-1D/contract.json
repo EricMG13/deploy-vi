@@ -1,0 +1,69 @@
+{
+  "module_id": "CP-1D",
+  "title": "Earnings quality",
+  "reader_question": "How much of adjusted EBITDA is supported by evidence, and what is debt-like beyond reported debt?",
+  "inputs": [
+    {"handoff": "CP-0", "required": true, "why": "the readable Issuer Sources"},
+    {"handoff": "CP-1", "required": true, "why": "the add-back bridge, the accounts and the definition conflicts the assessment starts from"},
+    {"handoff": "CP-1A", "required": false, "why": "the transaction and owner context behind marketed add-backs"},
+    {"handoff": "CP-1B", "required": false, "why": "the period deltas and signals that show whether an add-back recurs"},
+    {"sources": ["issuer"], "required": true, "why": "the issuer's add-back definitions, lease, pension, factoring and other obligation notes"},
+    {"run_brief": ["as_of_date"], "why": "the date by which a claimed benefit should have been realized"}
+  ],
+  "process": [
+    "The add-back challenge. Take the bridge CP-1 recorded (`cp1.adjusted_ebitda_bridge`) and establish how much of it the evidence supports: is each claimed synergy achievable, did each claimed one-off actually recur, does the adjusted figure convert to cash. Do not re-extract figures or restate CP-1's bridge; copy the citation of every CP-1 figure you use. An empty CP-1 bridge is a permitted upstream, not a missing one: `cp1d.addback_assessment` then carries one row with `addback_id` `NONE` stating that no add-back exists; never invent an add-back to fill a register. A null CP-1 figure is carried as it stands with a gap, never as zero.",
+    "Add-Back Register and Achievability Assessment (`cp1d.addback_assessment`, one row per CP-1 add-back and period entering the LTM: the latest fiscal year, both year-to-date periods and any row on the LTM period). Challenge on evidence. An add-back is Supported, Challenged or Rejected against what the sources show, never against a rule of thumb and never against a percentage haircut the evidence does not carry. `Supported` requires evidence of the action taken, not of the intention: a signed plan is intention; a headcount reduction already executed is action. Where evidence cannot settle an add-back, it is `Challenged` with what is missing in `rationale`, and the gap is logged. `house_realization_status` is REALIZED, UNREALIZED or NOT_STATED: UNREALIZED for a benefit not achieved by the period end (run-rate synergies, planned cost savings), whatever the issuer calls it; the Model treats `Rejected` as unrealized.",
+    "Recurrence Test (`recurrence`). A cost claimed non-recurring that appears in two or more prior periods is recurring. State the periods.",
+    "Cash Conversion Test (`cp1d.cash_conversion`). Cash conversion is a test, not a conclusion: a gap between adjusted EBITDA and CFO is evidence about the add-backs, and its explanation must be sourced. `conversion_pct` = cfo / adjusted_ebitda x 100.",
+    "Obligation Inventory and Debt-Like Assessment (`cp1d.debt_like_items`). Establish which off-balance-sheet and quasi-debt obligations belong beside CP-1's reported debt: pensions, operating and finance leases, factoring and reverse factoring, securitisation, hybrid and preferred instruments, earn-outs and put liabilities. Every adjustment is evidence-led: an obligation is treated as debt-like (`treatment` Debt-like, Not debt-like or Unclear) because the disclosure supports it, never because a convention says so by default. State the convention applied per item in `basis` and where it diverges from the rating agencies' treatment. Operating-lease treatment states the standard in force (IFRS 16 / ASC 842) and whether the figure is already on balance sheet, to avoid double counting. Where disclosure cannot support a quantum, log the gap and carry the item unquantified; never apply a default multiple to an undisclosed obligation. `period_id` is CP-1's LTM period; only `Debt-like` rows enter the Model's adjusted debt.",
+    "Gaps & Limitations, then `## Analysis` (an earnings quality read-through and an adjusted debt read-through). Every unresolved add-back and unquantified obligation is carried as a gap. Quality-adjusted EBITDA and adjusted debt are analytical restatements computed by the Model: never present either as reported or covenant figures. `qa_status`: Pass when every add-back entering the LTM is assessed; Restricted when one is unresolved or an obligation cannot be sized; Blocked when CP-1 registers no adjusted EBITDA."
+  ],
+  "tables": [
+    {
+      "id": "cp1d.addback_assessment",
+      "title": "Add-back assessment",
+      "min_rows": 1,
+      "columns": [
+        {"name": "addback_id", "critical": true}, {"name": "period_id", "critical": true},
+        {"name": "amount", "critical": true}, {"name": "currency", "critical": true},
+        {"name": "unit", "critical": true, "scale": "unit"}, {"name": "category", "critical": true},
+        {"name": "house_realization_status", "critical": true, "scale": "realization_status"},
+        {"name": "verdict", "critical": true, "scale": "addback_verdict"},
+        {"name": "rationale", "critical": true}, {"name": "recurrence", "critical": true},
+        {"name": "cite", "critical": true}
+      ],
+      "consumers": ["MODEL", "CP-2", "CP-6", "REPORT"]
+    },
+    {
+      "id": "cp1d.cash_conversion",
+      "title": "Cash conversion",
+      "min_rows": 1,
+      "columns": [
+        {"name": "period_id", "critical": true}, {"name": "adjusted_ebitda", "critical": true},
+        {"name": "cfo", "critical": true}, {"name": "conversion_pct", "critical": true},
+        {"name": "currency", "critical": true}, {"name": "unit", "critical": true, "scale": "unit"},
+        {"name": "explanation", "critical": true}, {"name": "credit_implication", "critical": true},
+        {"name": "cite", "critical": true}
+      ],
+      "consumers": ["CP-2", "CP-6", "REPORT"]
+    },
+    {
+      "id": "cp1d.debt_like_items",
+      "title": "Debt-like items",
+      "min_rows": 0,
+      "columns": [
+        {"name": "item", "critical": true}, {"name": "amount", "critical": true},
+        {"name": "currency", "critical": true}, {"name": "unit", "critical": true, "scale": "unit"},
+        {"name": "period_id", "critical": true},
+        {"name": "treatment", "critical": true, "scale": "debt_like_treatment"},
+        {"name": "basis", "critical": true}, {"name": "cite", "critical": true}
+      ],
+      "consumers": ["MODEL", "CP-2", "CP-3", "REPORT"]
+    }
+  ],
+  "prohibited": [
+    "Do not re-extract figures, restate CP-1's bridge, assess covenant-permitted add-back or debt capacity, or express an investment opinion.",
+    "No covenant-capacity conclusion, no restatement presented as reported or covenant debt.",
+    "No leverage or quality-adjusted EBITDA figure of your own: the Model computes them from your statuses and items."
+  ]
+}

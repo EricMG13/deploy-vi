@@ -274,3 +274,33 @@ TABLES["CP-2"] = [
 INPUTS["CP-2"] = Inputs(
     "CP-0 CP-1 CP-1A MODEL", "CP-1B CP-1C CP-1D CP-DR", "issuer", "issuer as_of_date objective"
 )
+
+
+TABLES["CP-1D"] = [
+    TableSpec(
+        "cp1d.addback_assessment",
+        1,
+        (
+            "addback_id* period_id* amount* currency* unit*:unit category* "
+            "house_realization_status*:realization_status verdict*:addback_verdict rationale* "
+            "recurrence* cite*"
+        ),
+        "MODEL CP-2 CP-4 CP-6 REPORT",
+    ),
+    TableSpec(
+        "cp1d.cash_conversion",
+        1,
+        (
+            "period_id* adjusted_ebitda* cfo* conversion_pct* currency* unit*:unit explanation* "
+            "credit_implication* cite*"
+        ),
+        "CP-2 CP-2G CP-6 REPORT",
+    ),
+    TableSpec(
+        "cp1d.debt_like_items",
+        0,
+        "item* amount* currency* unit*:unit period_id* treatment*:debt_like_treatment basis* cite*",
+        "MODEL CP-2 CP-3 CP-4C REPORT",
+    ),
+]
+INPUTS["CP-1D"] = Inputs("CP-0 CP-1", "CP-1A CP-1B", "issuer", "as_of_date")
