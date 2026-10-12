@@ -7,8 +7,8 @@ rows above the header give the portfolio: Portfolio ID (required to link the two
 Portfolio, Strategy, As of, Currency, Unit, Total NAV and Total Par. A sheet holds ONE
 table: with more than one header row nothing in it is read (a note says so), and no table
 ever takes another's Portfolio ID, Unit or As of. Amounts keep the file's unit, so an
-amount limit is read only when every table's Unit is blank or an unscaled currency (USD,
-EUR, GBP, units), the Unit row has one value and no cell was display-scaled; decided after
+amount limit is read only with exactly one explicit unscaled Unit row (USD,
+EUR, GBP, units), no unreadable unit evidence and no cell was display-scaled; decided after
 all tables are linked, never by file order. Rows RBOT cannot use are kept under `unparsed`
 with the reason, never dropped. A `%` current value cannot tell pct_nav from pct_par; the
 limit's unit decides.
@@ -93,7 +93,9 @@ class Portfolio:
     unparsed: list[dict[str, str]] = field(default_factory=list)
     files: dict[str, str] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
-    units: set[str] = field(default_factory=set)  # every table's Unit, normalised, non-blank
+    unit_rows: list[str] = field(default_factory=list)
+    unit_evidence: list[str] = field(default_factory=list)
+    split: dict[str, list[str]] = field(default_factory=dict)
     extras: dict[str, list[str]] = field(default_factory=dict)  # meta key -> all its value cells
     scaled: list[str] = field(default_factory=list)  # cells read after display scaling
 
@@ -234,19 +236,25 @@ def _meta(
     rows: list[list[str]], notes: list[str], source: str
 ) -> tuple[dict[str, str], dict[str, list[str]]]:
     """(meta values, and per key every value cell of a row that has more than one)."""
-    found, extras = {}, {}
+    found: dict[str, str] = {}
+    extras: dict[str, list[str]] = {}
     for row in rows:
         cells = [c for c in row if c]
-        if len(cells) >= 2 and _norm(cells[0]) in META:
-            key = META[_norm(cells[0])]
-            found[key] = cells[1]
-            if len(cells) > 2:
-                extras[key] = cells[1:]
-                notes.append(
-                    f"{source}: {cells[0]} row has extra cells {cells[2:]}; read {cells[1]!r}"
-                )
-    if "unit" in extras:  # which of the values is the unit is not known: keep them all
+        if not cells or _norm(cells[0]) not in META:
+            continue
+        key = META[_norm(cells[0])]
+        value = cells[1] if len(cells) > 1 else ""
+        if key in found:
+            extras.setdefault(key, [found[key]]).extend(cells[1:] or [""])
+            notes.append(f"{source}: more than one {cells[0]} row; not read")
+            continue
+        found[key] = value
+        if len(cells) > 2:
+            extras[key] = cells[1:]
+            notes.append(f"{source}: {cells[0]} row has extra cells {cells[2:]}; read {cells[1]!r}")
+    if "unit" in extras:
         found["unit"] = ", ".join(extras["unit"])
+
     return found, extras
 
 
@@ -335,22 +343,89 @@ def _link(
         if key in p.meta and p.meta[key] != value:
             p.notes.append(f"{source}: {key} {value!r} conflicts with {p.meta[key]!r}; kept")
     if kind in p.files:
+        files = p.split.setdefault(kind, [p.files[kind]])
+        files.append(source)
         who = meta["portfolio_id"]
         p.notes.append(
-            f"{source}: second {kind} table for {who!r} not merged ({p.files[kind]} kept)"
+            f"{kind} for {who} are in more than one table ({', '.join(files)}); "
+            "combine them into one table"
         )
         return False
     for key, value in meta.items():
         p.meta.setdefault(key, value)
     for key, cells in extras.items():
         p.extras.setdefault(key, cells)
-    if meta.get("unit"):
-        p.units.add(_norm(meta["unit"]))
     p.files[kind] = source
     return True
 
 
 ONE_TABLE = "more than one table in this sheet; put each portfolio table on its own sheet or file"
+
+
+def _identity_problem(rows: list[list[str]]) -> str | None:
+    for label in ("portfolio id", "as of"):
+        matches = [r for r in rows if r and _norm(r[0]) == label]
+        if len(matches) > 1:
+            return f"more than one {label.title()} row; sheet refused"
+        if label == "portfolio id" and matches and len([c for c in matches[0][1:] if c]) != 1:
+            return "Portfolio ID row does not have exactly one value; sheet refused"
+    return None
+
+
+def _table_tail_problem(rows: list[list[str]], kind: str, start: int, bad: dict[int, str]) -> bool:
+    header = [_norm(c) for c in rows[start]]
+    required = POSITIONS if kind == "positions" else LIMITS
+    for n, row in enumerate(rows[start + 1 :], start + 2):
+        if not any(row):
+            continue
+        item = dict(zip(header, row, strict=False))
+        identifiers = required[:2] if kind == "positions" else required[:3]
+        if (
+            _norm(row[0]) in META
+            or not all(item.get(c, "") for c in identifiers)
+            or (n not in bad and len(row) <= max(header.index(c) for c in required))
+        ):
+            return True
+    return False
+
+
+def _unit_rows(rows: list[list[str]], p: Portfolio) -> None:
+    heads = _tables(rows)
+    start = heads[0][1] if heads else -1
+    for n, row in enumerate(rows):
+        if not any(row):
+            continue
+        label = _norm(row[0])
+        if label == "unit":
+            p.unit_rows.append(", ".join(c for c in row[1:] if c))
+            if n >= start:
+                p.unit_evidence.append(", ".join(row))
+            continue
+        if _unit_hint(label, row):
+            p.unit_evidence.append(", ".join(row))
+
+
+def _unit_hint(label: str, row: list[str]) -> bool:
+    """Unsupported unit labels, currency scale evidence or unit hints on Total rows."""
+    if label.startswith(("unit", "amounts in")):
+        return True
+    if label == "currency":
+        return any(_norm(c) not in _UNSCALED for c in row[1:] if c)
+    return label.startswith("total") and (
+        len(row) > 2 or any(number(c) is None for c in row[1:] if c)
+    )
+
+
+def _refused(
+    source: str, rows: list[list[str]], found: dict[str, Portfolio], note: str
+) -> list[str]:
+    ids = {r[1] for r in rows if len(r) == 2 and _norm(r[0]) == "portfolio id" and r[1]}
+    for who in ids:
+        if not _id_problem(who, found):
+            p = found.setdefault(who, Portfolio())
+            p.notes.append(note)
+            _unit_rows(rows, p)
+    return [note]
 
 
 def read_sheet(
@@ -360,32 +435,39 @@ def read_sheet(
     bad: dict[int, str],
     scaled: Sequence[str] = (),
 ) -> list[str]:
-    """Add the sheet's one positions or limits table to its portfolio; the notes for the rest.
-
-    `bad` maps a 1-based row number to a formula cell there that has no stored value; `scaled`
-    names the cells read after display scaling. A sheet with more than one table is not read.
-    """
+    """Link one table; retain refused-sheet and unit evidence across file order."""
     heads = _tables(rows)
     if len(heads) > 1:
-        return [f"{source}: {ONE_TABLE} (header rows {', '.join(str(i + 1) for _, i in heads)})"]
-    if not heads:
-        return []
-    kind, start = heads[0]
+        note = f"{source}: {ONE_TABLE} (header rows {', '.join(str(i + 1) for _, i in heads)})"
+        return _refused(source, rows, found, note)
+    if heads and _table_tail_problem(rows, *heads[0], bad):
+        return _refused(source, rows, found, f"{source}: {ONE_TABLE}")
+    if problem := _identity_problem(rows):
+        return _refused(source, rows, found, f"{source}: {problem}")
+    kind, start = heads[0] if heads else ("summary", len(rows))
     own_notes: list[str] = []
     meta, extras = _meta(rows[:start], own_notes, source)
-    notes = list(own_notes)
-    portfolio_id = meta.get("portfolio_id")
-    if not portfolio_id:
-        return [*notes, f"{source}: {kind} table without a Portfolio ID row; not linked"]
-    if problem := _id_problem(portfolio_id, found):
-        who = f"unsafe Portfolio ID {portfolio_id!r} ({problem})"
-        return [*notes, f"{source}: {kind} table has {who}; not linked"]
-    p = found.setdefault(portfolio_id, Portfolio())
+    who = meta.get("portfolio_id")
+    if not who:
+        return (
+            [*own_notes, f"{source}: {kind} table without a Portfolio ID row; not linked"]
+            if heads
+            else []
+        )
+    if problem := _id_problem(who, found):
+        return [
+            *own_notes,
+            f"{source}: {kind} table has unsafe Portfolio ID {who!r} ({problem}); not linked",
+        ]
+    p = found.setdefault(who, Portfolio())
+    _unit_rows(rows, p)
+    if not heads:
+        return own_notes
     before = len(p.notes)
     if _link(source, kind, meta, extras, p):
         p.scaled += [f"{source} {ref}" for ref in scaled]
         (_positions if kind == "positions" else _limits)(Table(source, rows, start, bad), p)
-    notes += p.notes[before:]
+    notes = [*own_notes, *p.notes[before:]]
     p.notes += own_notes
     return notes
 
@@ -408,14 +490,20 @@ def _total(meta: dict[str, str], key: str, p: Portfolio, unparsed: list[dict[str
 
 def _amount_problem(p: Portfolio) -> str | None:
     """Why an amount limit cannot be read at the file's unit; None when it can."""
+    if p.unit_evidence:
+        return f"unit evidence RBOT cannot read: {p.unit_evidence[0]}"
+    if len(p.unit_rows) > 1:
+        return "more than one Unit row"
+    if not p.unit_rows or not p.unit_rows[0]:
+        return "amount unit not stated"
     if "unit" in p.extras:
         return f"ambiguous Unit row: {', '.join(p.extras['unit'])}"
     if p.scaled:
         return "values are display-scaled; the amount unit is not certain"
-    units = p.units - {"units"}  # "units" says nothing about a scale
-    if units <= _UNSCALED and len(units) <= 1:
+    unit = _norm(p.unit_rows[0])
+    if unit in _UNSCALED | {"units"}:
         return None
-    return f"amount limit under Unit {', '.join(sorted(units))!r}: the scale is not applied"
+    return f"amount limit under Unit {unit!r}: the scale is not applied"
 
 
 def _amount_limits(p: Portfolio) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
@@ -433,7 +521,7 @@ def to_json(p: Portfolio, rules: Rules) -> dict[str, Any]:
     unparsed += scaled
     for key in ("nav", "par"):
         meta[key] = _total(meta, key, p, unparsed)
-    as_of = iso_date(meta.get("as_of", ""))
+    as_of = None if "as_of" in p.extras else iso_date(meta.get("as_of", ""))
     if as_of is None:
         reason = f"{meta.get('as_of', '')!r} is not a date I can read as yyyy-mm-dd"
         unparsed.append({"row": "As of", "reason": reason})
@@ -461,7 +549,10 @@ def write_all(run: Path, found: dict[str, Portfolio], rules: Rules) -> list[dict
     folder.mkdir(parents=True, exist_ok=True)
     written = []
     for portfolio_id in sorted(found):
-        data = to_json(found[portfolio_id], rules)
+        p = found[portfolio_id]
+        if p.split or (not p.files and not p.meta):
+            continue
+        data = to_json(p, rules)
         name = f"prepared/portfolios/{portfolio_id}.json"
         text = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
         write_atomic(run / name, text)

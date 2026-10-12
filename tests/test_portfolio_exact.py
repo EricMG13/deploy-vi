@@ -139,21 +139,12 @@ def test_short_and_blank_rows_and_uncached_cells() -> None:
         ["C", "Gamma", "7", "3%"],
         ["Z"],
     )
-    assert read_sheet("p.csv", rows, found, {6: "B6"}) == []
-    p = found["P1"]
-    assert [x["issuer_id"] for x in p.positions] == ["C"]
-    assert p.unparsed == [
-        {"row": "p.csv row 4", "reason": "par or % NAV is not a number"},
-        {"row": "p.csv row 6", "reason": "formula B6 has no stored value"},
-        {"row": "p.csv row 8", "reason": "par or % NAV is not a number"},
-    ]
+    assert "more than one table" in read_sheet("p.csv", rows, found, {6: "B6"})[0]
+    assert found["P1"].positions == [] and found["P1"].files == {}
     good = ["C1", "Single Name", "x", "≤ 2% NAV", "Hard", "1%"]
     limits = _table("limits", good, [], ["C2", "Single Name"])
-    assert read_sheet("l.csv", limits, found, {4: "F4"}) == []
-    assert p.limits == [] and p.unparsed[3:] == [
-        {"row": "l.csv row 4", "reason": "formula F4 has no stored value"},
-        {"row": "l.csv row 6", "reason": "no Hard or Soft breach type (info only)"},
-    ]
+    assert "more than one table" in read_sheet("l.csv", limits, found, {4: "F4"})[0]
+    assert found["P1"].limits == []
     second = ["C2", "Single Name", "y", "≤ 3% NAV", "Hard", "2%"]
     other: dict[str, Portfolio] = {}
     assert read_sheet("m.csv", _table("limits", good, [], second), other, {}) == []
@@ -179,7 +170,7 @@ def test_a_scaled_unit_in_either_table_refuses_the_amount_limit(rules: Rules) ->
     read_sheet("p.csv", _table("positions", unit="USD"), found, {})
     read_sheet("l.csv", _table("limits", row, unit="MILLIONS"), found, {})
     data = to_json(found["P1"], rules)
-    assert data["limits"] == [] and "MILLIONS" in data["unparsed"][0]["reason"].upper()
+    assert data["limits"] == [] and data["unparsed"][0]["reason"] == "more than one Unit row"
     other: dict[str, Portfolio] = {}
     read_sheet("p.csv", _table("positions", unit="MILLIONS"), other, {})
     read_sheet("l.csv", _table("limits", row), other, {})
@@ -195,10 +186,10 @@ def test_notes_come_back_once_per_sheet_and_all_of_them() -> None:
     first = read_sheet("a.csv", sheets[1], found, {})
     assert len(first) == 1 and "Rating limit 'Rating' names no bucket" in first[0]
     assert read_sheet("b.csv", sheets[0], found, {}) == [
-        "b.csv: second positions table for 'P1' not merged (a.csv kept)"
+        "positions for P1 are in more than one table (a.csv, b.csv); combine them into one table"
     ]
     assert read_sheet("b.csv", sheets[1], found, {}) == [
-        "b.csv: second limits table for 'P1' not merged (a.csv kept)"
+        "limits for P1 are in more than one table (a.csv, b.csv); combine them into one table"
     ]
 
 

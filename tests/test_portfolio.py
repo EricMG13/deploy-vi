@@ -251,7 +251,7 @@ def test_e4_a_second_table_or_conflicting_meta_is_a_note_not_a_merge() -> None:
     other = [["Portfolio ID", "P1"], ["As of", "2026-06-30"], [], HEADER, _limit("≤ 9% NAV", "1%")]
     notes = read_sheet("m.csv", other, found, {})
     assert [lim["limit_value"] for lim in p.limits] == ["2.5"] and p.meta["as_of"] == "2026-05-29"
-    assert any("second limits table" in n for n in notes)
+    assert any("limits for P1 are in more than one table" in n for n in notes)
     assert any("as_of" in n and "2026-06-30" in n for n in notes)
 
 

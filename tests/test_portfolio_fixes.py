@@ -56,8 +56,8 @@ def _unit(text: str | None) -> str:
         ("USD", "MILLIONS", False),
         ("USD", "EUR", False),
         ("USD", None, True),
-        ("units", "usd", True),
-        (None, None, True),
+        ("units", "usd", False),
+        (None, None, False),
         (None, "GBP", True),
     ],
 )
@@ -73,7 +73,14 @@ def test_c1_amount_limit_is_decided_after_linking_whatever_the_file_order(
     assert [x["limit_id"] for x in d["limits"]] == (["C-01"] if kept else [])
     reasons = [u["reason"] for u in d["unparsed"] if u["row"].startswith(order[1])]
     assert bool(reasons) is not kept
-    assert all("amount limit under Unit" in r for r in reasons)
+    expected = (
+        "more than one Unit row"
+        if pos_unit is not None and lim_unit is not None
+        else "amount unit not stated"
+        if pos_unit is None and lim_unit is None
+        else "amount limit under Unit"
+    )
+    assert all(expected in r for r in reasons)
 
 
 def test_c1_the_synthetic_pack_with_an_amount_limit_is_refused_in_either_order(
@@ -170,7 +177,7 @@ def test_m3_a_total_that_is_not_above_zero_is_unparsed(tmp_path: Path, total: st
 def test_m5_the_portfolio_notes_are_in_the_json(tmp_path: Path) -> None:
     pos = POS.format(unit="")
     data, notes = _json(tmp_path, {"a.csv": pos, "b.csv": pos})
-    assert data["P1"]["notes"] and data["P1"]["notes"][0] in " ".join(notes)
+    assert data == {} and "positions for P1 are in more than one table" in notes[0]
 
 
 @given(
@@ -233,11 +240,10 @@ def test_i7_conflicting_units_are_named_in_the_reason(tmp_path: Path) -> None:
         "b.csv": LIM.format(unit="Unit,USD\n") + AMOUNT,
     }
     reason = _json(tmp_path, files)[0]["P1"]["unparsed"][-1]["reason"]
-    assert reason == "amount limit under Unit 'millions, usd': the scale is not applied"
+    assert reason == "more than one Unit row"
 
 
 def test_i7_a_note_row_below_the_table_is_an_unparsed_row(tmp_path: Path) -> None:
     text = STACK_POS.format("P1") + STACK_HEAD + "CZR,Caesars,6.0,6%\nNote,two cells\n"
     data, _ = _json(tmp_path, {"two.csv": text})
-    assert [u["row"] for u in data["P1"]["unparsed"]] == ["two.csv row 9"]
-    assert [p["par"] for p in data["P1"]["positions"]] == ["6.0"]
+    assert data == {}
