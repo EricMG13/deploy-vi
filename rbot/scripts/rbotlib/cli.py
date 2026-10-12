@@ -11,7 +11,19 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from rbotlib import approve, brief, calc, corpus, fit, grade, inventory, prepare, runs, state
+from rbotlib import (
+    approve,
+    brief,
+    calc,
+    corpus,
+    dispatch,
+    fit,
+    grade,
+    inventory,
+    prepare,
+    runs,
+    state,
+)
 from rbotlib.catalog import check_tree
 from rbotlib.contract import ContractError, load_contract
 from rbotlib.model.run import add_command as add_model_command
@@ -135,6 +147,7 @@ def main(argv: list[str] | None = None) -> int:
     fit.add_command(sub)
     state.add_command(sub)
     runs.add_command(sub)
+    dispatch.add_command(sub)
     args = parser.parse_args(argv)
     run_dir = getattr(args, "run_dir", None)
     log_run = None
