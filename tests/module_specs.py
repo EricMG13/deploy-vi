@@ -347,3 +347,45 @@ TABLES["CP-1B"] = [
     ),
 ]
 INPUTS["CP-1B"] = Inputs("CP-0 CP-1", "CP-1A", "issuer", "as_of_date")
+
+
+TABLES["CP-1A"] = [
+    TableSpec(
+        "snapshot.company_profile",
+        1,
+        (
+            "morningstar_issuer_id sector* country* shareholders* management* corp_rating_moodys "
+            "corp_rating_sp corp_rating_fitch outlook_moodys outlook_sp outlook_fitch "
+            "sponsor_quality*:sponsor_quality listed*:yes_no ticker cite*"
+        ),
+        "REPORT CP-2 CP-2H CP-3 CP-6 CP-L10 FIT CP-8",
+    ),
+    TableSpec("snapshot.business_description", 1, "description* cite*", "REPORT CP-2 CP-DR CP-L10"),
+    TableSpec(
+        "cp1a.business_facts",
+        3,
+        "item* fact* risk_mechanism* credit_implication* evidence_quality*:evidence_quality cite*",
+        "CP-2 CP-2A CP-DR CP-3 CP-L10",
+    ),
+    TableSpec(
+        "cp1a.ownership_governance",
+        1,
+        "topic* fact* risk_direction*:risk_direction credit_implication* cite*",
+        "CP-2 CP-4 CP-6 CP-L10",
+    ),
+    TableSpec(
+        "cp1a.transactions_events",
+        1,
+        "event_date* event* status* credit_relevance* perimeter_change*:yes_no cite*",
+        "CP-2 CP-2A CP-3C CP-4C CP-6 CP-8 CP-L10 CP-DR",
+    ),
+    TableSpec(
+        "cp1a.ratings_register",
+        0,
+        "agency* scope* rating* outlook* rating_date* rationale cite*",
+        "CP-2H CP-3 CP-2 REPORT",
+    ),
+]
+INPUTS["CP-1A"] = Inputs(
+    "CP-0", "CP-1", "issuer market", "issuer as_of_date objective morningstar_issuer_id"
+)

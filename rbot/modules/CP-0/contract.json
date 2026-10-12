@@ -36,7 +36,7 @@
         {"name": "sha256", "critical": true},
         {"name": "note"}
       ],
-      "consumers": ["CP-5", "RUN_BRIEF", "REPORT"]
+      "consumers": ["CP-1A", "CP-5", "RUN_BRIEF", "REPORT"]
     },
     {
       "id": "cp0.run_brief_prefill",
