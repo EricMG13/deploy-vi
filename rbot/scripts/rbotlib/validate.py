@@ -454,6 +454,8 @@ def check(
         findings += _table(spec, h, rules)
     findings += _citations(h, rules)
     findings += _module_findings(h, contract, rules, run)
+    if any(f.code == "run_error" for f in findings):
+        return EXIT_USAGE, findings
     if any(f.code == "identity" for f in findings):
         return EXIT_IDENTITY, findings
     if findings:
