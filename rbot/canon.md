@@ -17,6 +17,20 @@ The rules every module follows. Your MODULE.md adds your inputs, process, tables
 
 Each `[C<n>]` marker points to one row of your citations table: the source file name exactly as in the run's inventory, a locator (page, section, sheet and cell, or clause), and a short verbatim excerpt of at most 15 words that shows the cited value or statement. Cite the most specific locator you have. A citation you cannot anchor is a gap, not a guess.
 
+## Figures and tables
+
+1. **One figure per cell**, in the column's form: a column ending `_x` holds a multiple (`4.2x`), `_pct` a percentage (`12.5%`), `_bps` whole basis points, `_date` an ISO date; any other figure column a plain decimal (`-` sign, `.` decimal point, no thousands separator). A table with an amount carries its `currency` (ISO code) and `unit` (`UNITS`, `THOUSANDS` or `MILLIONS`).
+2. **A `cite` cell** holds one or more `[C<n>]` markers, or `calc: <formula or source>` for a figure calculated from cited figures, or both.
+3. **Canonical metric bases:** Total Debt = balance-sheet carrying value: current portion of debt + long-term debt, net of unamortized issuance costs and discounts. Gross principal outstanding is never the canonical basis for Total Debt, Net Debt, or any leverage ratio; where it is disclosed and materially different from carrying value, log both figures. Net Debt = canonical Total Debt − cash and cash equivalents. Interest coverage denominators state their basis (P&L interest expense vs cash interest paid).
+4. **Multi-figure events:** when one economic event carries different figures in different statements or notes, extract all figures, label each with its statement role, and record them as one conflict explaining why they differ.
+
+## Upstream Handoffs, the Model and calculators
+
+1. **Use an upstream figure as it stands** and copy its citation row (same source, locator and excerpt) into your citations table under your own id. Never restate it with a different value; a disagreement is a gap.
+2. **The Model and Portfolio Fit are host-computed** (`handoffs/MODEL.md`, `handoffs/FIT.md`). Cite their figures `calc: MODEL <table> <line or item>` or `calc: FIT <table> <instrument>`; never recompute one by hand.
+3. **A module calculator** (`rbot calc <name>`) owns its figures: write its input JSON from your cited inputs, run it, and copy its output exactly, cited `calc: <name> <row>`.
+4. **A Blocked input** is used for what it carries, with its gaps; a missing optional input is a named limitation, never inferred.
+
 ## Analytical depth
 
 1. Complete every step of your process; a populated table is not proof the step ran.
@@ -39,4 +53,4 @@ Set `qa_status`:
 
 ## Scope
 
-Answer your reader question and nothing else. Never state a conclusion your MODULE.md prohibits. House scales (Credit Score, Valuation, Recommendation, Credit Direction, Sector Outlook, Portfolio Fit) take exactly the values printed in your MODULE.md.
+Answer your reader question and nothing else. Never state a conclusion your MODULE.md prohibits. House scales take exactly the values printed in your MODULE.md: Credit Score grades fundamentals (1 - Strong to 5 - Stressed); Valuation grades compensation for risk (V1 - Very attractive to V5 - Very unattractive); Recommendation combines the two per Strategy (CLO, Indexed Loans, Indexed HY) and per instrument (1 - Strong OW to 5 - Strong UW, Avoid, N/A where the Strategy owns no instrument of the issuer); Credit Direction is the fundamental trend; Sector Outlook the sector's direction; Portfolio Fit is Fits, Watch or Breaches.
