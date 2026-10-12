@@ -422,6 +422,17 @@ def run_findings(h: Handoff, run: Path) -> list[Finding]:
         return [Finding("run_error", str(exc))]
 
 
+def _module_findings(
+    h: Handoff, contract: Contract, rules: Rules, run: Path | None
+) -> list[Finding]:
+    """A module's own checks beyond its tables: CP-0's in `rbotlib.cp0` (Plan 04)."""
+    if contract.module_id != "CP-0":
+        return []
+    from rbotlib import cp0  # imported here: cp0 builds on this module's Finding
+
+    return cp0.findings(h, rules, run)
+
+
 def check(
     text: str, contract: Contract, rules: Rules, run: Path | None = None
 ) -> tuple[int, list[Finding]]:
@@ -442,6 +453,7 @@ def check(
     for spec in contract.tables:
         findings += _table(spec, h, rules)
     findings += _citations(h, rules)
+    findings += _module_findings(h, contract, rules, run)
     if any(f.code == "identity" for f in findings):
         return EXIT_IDENTITY, findings
     if findings:
