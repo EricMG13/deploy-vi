@@ -4,7 +4,7 @@ Source predecessor `7fd60911e68d2fa8b0705476978c4d92cad4b006`; runtime scopes `8
 
 Exact replay uses complete verified Git patches, never a hand assembly from snippets. Main staging `task-03-proof.py` executes this algorithm for each immediate-parent scope: obtain `git diff --binary --full-index <parent> <head>`; create a temporary `GIT_INDEX_FILE`; `git read-tree <parent>`; `git apply --cached --check -` then `git apply --cached -` with actual complete patch bytes; `git write-tree`; assert equality with `<head>^{tree}`; record ordinary numstat, patch SHA256 and uv.lock blob. It preserves the real index/worktree. `task-03-proof.json` records the actual reconstruction, docs scopes and final head/tree/lock. Any mismatch stops replay; no hand repair is authorized.
 
-The new module below is exact executed source bytes. Existing `approve.py`/`state.py` and retained tests are fully included in the verified runtime commits/patches; this block is not a claim to contain all those unchanged files. The canonical orchestrator plan declares the actual bounded signatures, caller/lineage rule, required tests, observed-vs-unknown evidence and future owner boundary. Required roots are exactly those in main task-03-report.md. Causal tests precede repairs; confidence review then complete capped tournament precede local commits. Independent reviews are still pending.
+The new module below is exact executed source bytes. Existing `approve.py`/`state.py` and retained tests are fully included in the verified runtime commits/patches; this block is not a claim to contain all those unchanged files. The canonical orchestrator plan declares the actual bounded signatures, caller/lineage rule, required tests, observed-vs-unknown evidence and future owner boundary. Required roots are exactly those in main task-03-report.md. Causal tests precede repairs; confidence review then complete capped tournament precede local commits. The original source was subsequently rejected for public Approval input read ordering; the bounded repair1 below is the current executed source, and both fresh repaired reviews remain pending.
 
 ## New executed file: rbot/scripts/rbotlib/bootstrap.py
 
@@ -130,6 +130,76 @@ def phase(run: Path, root: Path, rules: Rules) -> str:
         return "cp0"
     checked_cp0(run, root, rules, record)
     return "approval" if record["approval"] is None else "analysis"
+```
+
+## Current repair1 Approval source
+
+Original rejected tip/tree remain recorded above and in original proof/reviews. Local repair commit `3fc6651fa1936a29c951b9a51022853bb3001557`, tree `c3854b98cc9a8f856df1f58cab567014bdccaf9c`, is116 ordinary lines including all causal public tests. Import adds existing `inventory.output_path`; no dependency/lock change. Exact changed Approval symbols follow; bootstrap block above is unchanged exact bytes. Complete binary/full-index patches remain the replay authority for all files, including `tests/test_approval_inputs.py`; these snippets are not a complete patch. New main `task-03-fix-proof.py/json` reconstruct every original and repair/docs scope without touching the real index. Final report records exact clean final head/tree and unchanged lock. Stop any replay mismatch/failed gate; no hand repair.
+
+```python
+def _inputs(run: Path) -> None:
+    """Refuse unsupported run-local Approval inputs before any of their reads."""
+    inputs = (
+        (GRADING, "grading.json; run rbot grade first"),
+        (rb.BRIEF, "Run Brief"),
+        (rb.CP0, "CP-0 Handoff"),
+    )
+    for name, what in inputs:
+        path = output_path(run, name)
+        if not path.is_file():
+            raise ApprovalError(f"{path}: {what} must be an existing regular file")
+
+
+def prepare(run: Path, root: Path, rules: Rules, choice: Choice) -> Commit:
+    """Read and check everything, and compute every file Approval writes; write nothing."""
+    _inputs(run)
+    grading = _grading(run / GRADING)
+    try:
+        state = rs.read(run)
+    except UnicodeDecodeError as exc:
+        raise ApprovalError(f"{run / STATE}: no readable run state ({exc})") from exc
+    _checked(run, root, grading)
+    graded = _graded(grading, choice)
+    pathway = load_catalog(root).pathway(choice.pathway)
+    if pathway is None or choice.depth not in pathway.depths:
+        raise ApprovalError("the catalog changed after rbot grade; run rbot grade again")
+    plan = pathway.depths[choice.depth]
+    brief = _rebuilt(run, rules)
+    _confirm(brief, choice)
+    approved_q = any(q[-1] == "Yes" for q in brief.questions)
+    choice = replace(choice, deep_research=choice.deep_research and "CP-DR" in plan and approved_q)
+    target = new_name(run, brief.fields["issuer_id"].value, choice.pathway)
+    brief.run_id = target.name
+    brief.approval = [_approval_row(brief, choice, graded, grading["brief_sha256"])]
+    brief.approval[0][1] = brief.fields["analyst"].analyst_value
+    text = rb.render(brief)
+    state = dict(state, steps={**state.get("steps", {})})
+    qualified = _cp0_step(run, root, rules)
+    if (
+        not rules.is_placeholder(qualified.issuer_id)
+        and qualified.issuer_id != brief.fields["issuer_id"].value
+    ):
+        raise ApprovalError(
+            "CP-0 issuer identity differs from the confirmed Run Brief; use the completion owner"
+        )
+    if (
+        qualified.step["sha256"] != grading["cp0_sha256"]
+        or _sha(run / rb.CP0) != qualified.step["sha256"]
+    ):
+        raise ApprovalError(f"{rb.CP0} changed during Approval; run rbot grade again")
+    state["steps"]["CP-0"] = qualified.step
+    state["cp0_lineage"] = {
+        "pending_run_id": qualified.run_id,
+        "issuer_id": qualified.issuer_id,
+        "sha256": state["steps"]["CP-0"]["sha256"],
+    }
+    new = _new_state(state, brief, choice, graded)
+    new["run_brief_sha256"] = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    new |= {"plan": list(plan), "steps": _steps(plan, state, brief, choice, rules)}
+    rs.validate(new, target)
+    return Commit(
+        target, text, json.dumps(new, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
+    )
 ```
 
 ## Mechanical closure and limits
