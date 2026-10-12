@@ -304,3 +304,46 @@ TABLES["CP-1D"] = [
     ),
 ]
 INPUTS["CP-1D"] = Inputs("CP-0 CP-1", "CP-1A CP-1B", "issuer", "as_of_date")
+
+
+TABLES["CP-1B"] = [
+    TableSpec("snapshot.historical_performance", 1, "text* cite*", "REPORT CP-2 CP-L10 CP-8"),
+    TableSpec(
+        "cp1b.period_comparison",
+        3,
+        (
+            "metric_id* current_period_id* reference_period_id* comparison_basis*:comparison_basis"
+            " current_value* reference_value* abs_change pct_change_pct currency* unit*:unit "
+            "restatement*:yes_no perimeter_change*:yes_no cite*"
+        ),
+        "CP-2 CP-L10 CP-2G CP-8 REPORT",
+    ),
+    TableSpec(
+        "cp1b.variance_drivers",
+        1,
+        "metric_id* management_driver* analyst_driver* credit_implication* cite*",
+        "CP-2 CP-L10 CP-2G REPORT",
+    ),
+    TableSpec(
+        "cp1b.kpi_changes",
+        0,
+        "kpi_id* current_value* reference_value* change* unit* trend*:delta_direction cite*",
+        "CP-2 CP-2G REPORT",
+    ),
+    TableSpec(
+        "cp1b.guidance_vs_delivery",
+        0,
+        (
+            "metric_id* benchmark_source* benchmark_value* actual_value* variance* currency* "
+            "unit*:unit credit_implication* cite*"
+        ),
+        "CP-2 CP-2G CP-6 REPORT",
+    ),
+    TableSpec(
+        "cp1b.signals",
+        0,
+        "signal* evidence* severity*:severity credit_implication* cite*",
+        "CP-2 CP-2A CP-6 REPORT",
+    ),
+]
+INPUTS["CP-1B"] = Inputs("CP-0 CP-1", "CP-1A", "issuer", "as_of_date")
