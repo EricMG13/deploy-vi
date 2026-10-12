@@ -2,8 +2,12 @@
 
 `--from handoffs/CP-0.md` builds it from CP-0's `cp0.run_brief_prefill`, `cp0.portfolios`,
 `cp0.research_questions` and `cp0.prior_case`, keeping the analyst's earlier edits.
-`--set <field>=<value>` records an analyst edit and rebuilds from `handoffs/CP-0.md`, so
-the brief always reflects the CP-0 Handoff plus every edit. Source wins (design D8): a
+`--set <field>=<value>` records an analyst edit and `--set-tranche <id> <field>=<value>` an
+edit of one new tranche's Transaction Summary field (Plan 04); each rebuilds from
+`handoffs/CP-0.md`, so the brief always reflects the CP-0 Handoff plus every edit. Every
+tranche field is a Run Brief field too: `brief.run_brief_fields` lists it as
+`<tranche_id>.<field>` with its own status and citation, which is how an edit survives a
+rebuild. Source wins (design D8): a
 Sourced value stays and the edit is kept as `analyst_value`; a gap or an earlier assertion
 takes the edit as Analyst-asserted. Pathway, depth and Primary are confirmed by
 `rbot approve` (Plan 04), which also writes the approval table. The file is
@@ -15,6 +19,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import unicodedata
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
@@ -22,8 +27,8 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
+from rbotlib.fsio import write_atomic
 from rbotlib.handoff import Handoff, HandoffError, Table, markers, parse
-from rbotlib.inventory import write_atomic
 from rbotlib.rules import Rules, load_rules
 
 BRIEF = "run-brief.md"
@@ -52,12 +57,6 @@ FIELDS = (
     "morningstar_issuer_id",
     "ssim_ev_multiple",
 )
-TRANCHE_SCALES = {
-    "debt_type": "debt_type",
-    "use_of_proceeds": "use_of_proceeds",
-    "talk_stage": "price_talk_stage",
-    "unit": "unit",
-}
 REQUIRED = ("issuer", "issuer_id", "as_of_date", "objective", "analyst")
 TRANCHE = (
     "borrower",
@@ -79,6 +78,17 @@ TRANCHE = (
 TRANCHE_OPTIONAL = frozenset(
     {"bloomberg_id", "oid", "expected_ratings", "cr_score", "commitment_date"}
 )
+TRANCHE_ID = re.compile(r"NEW-[1-9][0-9]*")
+TRANCHE_SCALES = {
+    "debt_type": "debt_type",
+    "use_of_proceeds": "use_of_proceeds",
+    "talk_stage": "price_talk_stage",
+    "unit": "unit",
+}
+TRANCHE_DATES = ("maturity_date", "commitment_date")
+CURRENCY = re.compile(r"[A-Z]{3}")
+PLAIN_DECIMAL = re.compile(r"\d+(\.\d+)?")
+CONTROL = re.compile(r"[\x00-\x1f\x7f\u2028\u2029]")
 COLUMNS = {
     "snapshot.run_header": (
         "run_id",
@@ -133,6 +143,7 @@ class Brief:
     questions: list[list[str]] = field(default_factory=list)
     prior: list[list[str]] = field(default_factory=list)
     citations: list[list[str]] = field(default_factory=list)
+    cp0_sha256: str = ""
 
 
 def _rows(table: Table | None, columns: tuple[str, ...]) -> list[dict[str, str]]:
@@ -147,27 +158,19 @@ def _rows(table: Table | None, columns: tuple[str, ...]) -> list[dict[str, str]]
     return rows
 
 
-def _reject_blank_or_control(name: str, value: str) -> None:
+def free_text(name: str, value: str) -> str:
+    """A value stripped of outer spaces; empty or holding a line break, BriefError."""
+    value = value.strip()
     if not value:
-        raise BriefError(f"{name} needs a value; leave it unset to keep the gap")
+        raise BriefError(f"{name} is empty")
     if any(unicodedata.category(c) in ("Cc", "Zl", "Zp") for c in value):
-        raise BriefError(f"{name} must be one line without control characters")
-
-
-def _multiple(name: str, value: str) -> str:
-    try:
-        number = Decimal(value.removesuffix("x"))
-    except InvalidOperation as exc:
-        raise BriefError(f"{name} must be a number, not {value!r}") from exc
-    if not number.is_finite() or number <= 0:
-        raise BriefError(f"{name} must be a finite number above zero, not {value!r}")
-    return format(number, "f")
+        raise BriefError(f"{name} holds a line break or control character")
+    return value
 
 
 def normalise_value(name: str, value: str, rules: Rules) -> str:
     """The edit as stored, or BriefError naming why it is refused."""
-    value = value.strip()
-    _reject_blank_or_control(name, value)
+    value = free_text(name, value)
     if name == "primary":
         match = [v for v in rules.scales["yes_no"] if v.casefold() == value.casefold()]
         if not match:
@@ -183,6 +186,27 @@ def normalise_value(name: str, value: str, rules: Rules) -> str:
     return value
 
 
+def normalise_tranche(name: str, value: str, rules: Rules) -> str:
+    """A tranche edit as stored, or BriefError naming why it is refused."""
+    value = free_text(name, value)
+    if name in TRANCHE_SCALES:
+        values = rules.scales[TRANCHE_SCALES[name]]
+        match = [v for v in values if v.casefold() == value.casefold()]
+        if not match:
+            raise BriefError(f"{name} must be one of {values}, not {value!r}")
+        return match[0]
+    if name == "currency" and not CURRENCY.fullmatch(value.upper()):
+        raise BriefError(f"currency must be a three-letter ISO code, not {value!r}")
+    if name == "size" and not PLAIN_DECIMAL.fullmatch(value):
+        raise BriefError(f"size must be a plain decimal, not {value!r}")
+    if name in TRANCHE_DATES:
+        try:
+            return date.fromisoformat(value).isoformat()
+        except ValueError as exc:
+            raise BriefError(f"{name} must be YYYY-MM-DD, not {value!r}") from exc
+    return value.upper() if name == "currency" else value
+
+
 def apply_edit(entry: Entry, value: str) -> None:
     """Source wins: a Sourced value stays; otherwise the edit becomes Analyst-asserted."""
     entry.analyst_value = value
@@ -190,25 +214,22 @@ def apply_edit(entry: Entry, value: str) -> None:
         entry.value, entry.status = value, ASSERTED
 
 
-def _tranche_cell(field_name: str, value: str, rules: Rules) -> str:
-    """A tranche cell as stored: scaled cells must be one of their section 3.1 values."""
-    _reject_blank_or_control(field_name, value)
-    scale = TRANCHE_SCALES.get(field_name)
-    if scale and value not in rules.scales[scale]:
-        raise BriefError(f"cp0.run_brief_prefill: {field_name} {value!r} is not one of {scale}")
-    return value
-
-
-def _prefill_entry(row: dict[str, str], rules: Rules) -> Entry:
-    status = row["status"]
-    if status not in rules.scales["brief_status"]:
-        raise BriefError(f"cp0.run_brief_prefill: {row['field']!r} has status {status!r}")
-    name, value = row["field"], row["value"]
-    if value and row["tranche_id"]:
-        value = _tranche_cell(name, value, rules)
-    elif value and name in FIELDS:
-        value = normalise_value(name, value, rules)
-    return Entry(value or MISSING, status, "", row["cite"])
+def prefill_value(row: dict[str, str], rules: Rules) -> str:
+    """A pre-fill value held to the rules an analyst's edit of that field meets (MODULE.md)."""
+    name, tranche_id, value = row["field"], row["tranche_id"], row["value"]
+    if tranche_id and not TRANCHE_ID.fullmatch(tranche_id):
+        raise BriefError(f"cp0.run_brief_prefill: tranche id {tranche_id!r} is not NEW-<n>")
+    if not value:
+        return MISSING
+    where = " ".join(p for p in ("cp0.run_brief_prefill", tranche_id, name) if p)
+    try:
+        if tranche_id and name in TRANCHE:
+            return normalise_tranche(name, value, rules)
+        if name in ("as_of_date", "primary", "ssim_ev_multiple"):
+            return normalise_value(name, value, rules)
+        return free_text(name, value)
+    except BriefError as exc:
+        raise BriefError(f"{where}: {exc} ({name} {value!r})") from exc
 
 
 def _prefill(h: Handoff, brief: Brief, rules: Rules) -> None:
@@ -225,7 +246,11 @@ def _prefill(h: Handoff, brief: Brief, rules: Rules) -> None:
             raise BriefError(f"cp0.run_brief_prefill: {row['field']!r} is not a tranche field")
         if not row["tranche_id"] and row["field"] not in FIELDS:
             raise BriefError(f"cp0.run_brief_prefill: unknown field {row['field']!r}")
-        entry = _prefill_entry(row, rules)
+        if row["status"] not in rules.scales["brief_status"]:
+            raise BriefError(
+                f"cp0.run_brief_prefill: {row['field']!r} has status {row['status']!r}"
+            )
+        entry = Entry(prefill_value(row, rules), row["status"], "", row["cite"])
         if row["tranche_id"]:
             brief.tranches.setdefault(row["tranche_id"], {})[row["field"]] = entry
         else:
@@ -243,30 +268,19 @@ def from_cp0(run: Path, cp0_text: str, rules: Rules) -> Brief:
     brief.questions = [
         [*q.values(), "Yes"] for q in _rows(h.tables.get("cp0.research_questions"), questions)
     ]
-    prior = COLUMNS["brief.prior_case"][:-1]
-    brief.prior = [[*p.values(), "No"] for p in _rows(h.tables.get("cp0.prior_case"), prior)]
+    prior = ("file", "report_date", "run_id", "offered")
+    offered = [p for p in _rows(h.tables.get("cp0.prior_case"), prior) if p["offered"] == "Yes"]
+    brief.prior = [[p["file"], p["report_date"], p["run_id"], "No"] for p in offered]
     brief.citations = h.tables["citations"].rows if "citations" in h.tables else []
     _check_cites(brief)
     return brief
-
-
-def _check_cites(brief: Brief) -> None:
-    """Every [C<n>] marker in the pre-fill has a row in the CP-0 citations table."""
-    cells = [e.cite for e in brief.fields.values()]
-    cells += [e.cite for entries in brief.tranches.values() for e in entries.values()]
-    known = {row[0] for row in brief.citations if row}
-    missing = sorted(markers(" ".join(cells)) - known)
-    if missing:
-        raise BriefError(
-            f"cp0.run_brief_prefill cites {', '.join(missing)}, not in the citations table"
-        )
 
 
 def previous(run: Path) -> dict[str, Entry]:
     """The fields of the Run Brief as last written (empty when there is none yet)."""
     if not (run / BRIEF).is_file():
         return {}
-    h = parse(_read(run / BRIEF))
+    h = parse((run / BRIEF).read_text(encoding="utf-8"))
     rows = _rows(h.tables.get("brief.run_brief_fields"), COLUMNS["brief.run_brief_fields"])
     return {
         r["field"]: Entry(r["value"] or MISSING, r["status"], r["analyst_value"], r["cite"])
@@ -277,7 +291,11 @@ def previous(run: Path) -> dict[str, Entry]:
 def carry(old: dict[str, Entry], new: Brief) -> None:
     """Re-apply the analyst's earlier edits, and Approval's fields, to a fresh pre-fill."""
     for name, entry in old.items():
-        if name in EDITABLE and entry.analyst_value:
+        tranche_id, dot, field_name = name.partition(".")
+        if dot and entry.analyst_value:
+            fields = new.tranches.setdefault(tranche_id, {})
+            apply_edit(fields.setdefault(field_name, Entry()), entry.analyst_value)
+        elif name in EDITABLE and entry.analyst_value:
             apply_edit(new.fields[name], entry.analyst_value)
         elif name in FIELDS and name not in EDITABLE and entry.status != GAP:
             new.fields[name] = entry
@@ -287,6 +305,8 @@ def _table(table_id: str, rows: list[list[str]]) -> list[str]:
     columns = COLUMNS.get(table_id, ("id", "source", "locator", "excerpt"))
     lines = [f"<!-- table: {table_id} -->", "| " + " | ".join(columns) + " |"]
     lines.append("|" + "---|" * len(columns))
+    if any(CONTROL.search(cell) for row in rows for cell in row):
+        raise BriefError(f"{table_id}: a cell holds a line break or control character")
     cells = [[(cell or MISSING).replace("|", "\\|") for cell in row] for row in rows]
     lines += ["| " + " | ".join(row) + " |" for row in cells]
     return [*lines, ""]
@@ -326,18 +346,36 @@ def _analysis(brief: Brief) -> str:
     )
 
 
+def _tranche_gaps(brief: Brief) -> list[str]:
+    hint = "not found in the Source Pack; set it with `rbot brief --set-tranche {0} {1}=<value>`."
+    return [
+        f"- `{t}.{f}`: " + hint.format(t, f)
+        for t, entries in sorted(brief.tranches.items())
+        for f in TRANCHE
+        if f not in TRANCHE_OPTIONAL and entries.get(f, Entry()).status == GAP
+    ]
+
+
 def render(brief: Brief) -> str:
     gaps = [n for n in REQUIRED if brief.fields[n].status == GAP]
     field_rows = [[n, e.value, e.status, e.analyst_value, e.cite] for n, e in brief.fields.items()]
-    primary = brief.fields["primary"].value == "Yes"
-    tranche_rows = [_tranche_row(t, e) for t, e in sorted(brief.tranches.items()) if primary]
+    for tranche_id, entries in sorted(brief.tranches.items()):
+        for f in TRANCHE:
+            e = entries.get(f, Entry())
+            field_rows.append([f"{tranche_id}.{f}", e.value, e.status, e.analyst_value, e.cite])
+    tranche_rows = [
+        _tranche_row(t, e)
+        for t, e in sorted(brief.tranches.items())
+        if brief.fields["primary"].value == "Yes"
+    ]
     used = markers(" ".join(cell for row in field_rows + tranche_rows for cell in row))
     front = ["---", "module_id: RUN_BRIEF", f"run_id: {brief.run_id}"]
     front += [f"issuer_id: {brief.fields['issuer_id'].value}"]
     front += [f"analysis_date: {brief.fields['as_of_date'].value}"]
-    front += [f"qa_status: {'Restricted' if gaps else 'Pass'}", "inputs: CP-0", "---", ""]
+    front += [f"qa_status: {'Restricted' if gaps else 'Pass'}", "inputs: CP-0"]
+    front += [f"cp0_sha256: {brief.cp0_sha256}", "---", ""]
     hint = "not found in the Source Pack; set it with `rbot brief --set {0}=<value>`."
-    gap_lines = [f"- `{n}`: " + hint.format(n) for n in gaps] or ["None."]
+    gap_lines = [f"- `{n}`: " + hint.format(n) for n in gaps] + _tranche_gaps(brief)
     return "\n".join(
         [
             *front,
@@ -348,22 +386,32 @@ def render(brief: Brief) -> str:
             *_table("brief.portfolios", brief.portfolios),
             *_table("brief.research_questions", brief.questions),
             *_table("brief.prior_case", brief.prior),
-            *("## Gaps", "", *gap_lines, "", "## Citations", ""),
+            *("## Gaps", "", *(gap_lines or ["None."]), "", "## Citations", ""),
             *_table("citations", [r for r in brief.citations if r and r[0] in used]),
         ]
     )
 
 
-def _read(path: Path) -> str:
-    try:
-        return path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError) as exc:
-        raise BriefError(f"error: {path}: {getattr(exc, 'strerror', None) or exc}") from exc
+def _edit_tranche(brief: Brief, tranche_id: str, assignment: str, rules: Rules) -> None:
+    name, sep, value = assignment.partition("=")
+    if not TRANCHE_ID.fullmatch(tranche_id):
+        raise BriefError(f"tranche id {tranche_id!r} is not NEW-<n>")
+    if not sep or name not in TRANCHE:
+        raise BriefError(f"unknown tranche field {name!r}; fields are {', '.join(TRANCHE)}")
+    fields = brief.tranches.setdefault(tranche_id, {})
+    apply_edit(fields.setdefault(name, Entry()), normalise_tranche(name, value, rules))
 
 
-def build(run: Path, source: Path, edits: list[str], rules: Rules) -> Brief:
-    """Pre-fill from the CP-0 Handoff, carry earlier edits, then apply `edits` in order."""
+def build(
+    run: Path,
+    source: Path,
+    edits: list[str],
+    rules: Rules,
+    tranche_edits: list[list[str]] | None = None,
+) -> Brief:
+    """Pre-fill from the CP-0 Handoff, carry earlier edits, then apply the new edits in order."""
     brief = from_cp0(run, _read(source), rules)
+    brief.cp0_sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
     carry(previous(run), brief)
     for assignment in edits:
         name, sep, value = assignment.partition("=")
@@ -372,12 +420,89 @@ def build(run: Path, source: Path, edits: list[str], rules: Rules) -> Brief:
         if name not in EDITABLE:
             raise BriefError(f"{name} is set by rbot approve")
         apply_edit(brief.fields[name], normalise_value(name, value, rules))
+    for tranche_id, assignment in tranche_edits or []:
+        _edit_tranche(brief, tranche_id, assignment, rules)
     if brief.tranches and brief.fields["primary"].value != "Yes":
         raise BriefError(
             f"CP-0 lists new tranche(s) {', '.join(sorted(brief.tranches))} but primary is "
             f"{brief.fields['primary'].value!r}; the transaction summary is for a Primary run"
         )
     return brief
+
+
+def run_command(args: argparse.Namespace) -> int:
+    run = Path(args.run_dir)
+    edits = bool(args.set or args.set_tranche)
+    if [bool(args.source), args.show, edits].count(True) != 1:
+        print("give --from, or --show, or one or more --set / --set-tranche edits")
+        return 1
+    try:
+        if args.show:
+            if not (run / BRIEF).is_file():
+                print(f"{run}: no {BRIEF}; run rbot brief --from {CP0} first")
+                return 1
+            print(_read(run / BRIEF), end="")
+            return 0
+        return _write(run, args)
+    except (BriefError, HandoffError) as exc:
+        print(exc)
+        return 1
+    except OSError as exc:
+        print(f"error: {exc.filename or run}: {exc.strerror or exc}")
+        return 1
+
+
+def add_command(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    c = sub.add_parser("brief", help="build, edit or show the Run Brief")
+    c.add_argument("--run", dest="run_dir", required=True, help="the run folder")
+    mode = c.add_mutually_exclusive_group()
+    mode.add_argument("--from", dest="source", help="the CP-0 Handoff, relative to the run")
+    mode.add_argument("--show", action="store_true", help="print run-brief.md")
+    c.add_argument("--set", action="append", help="an analyst edit <field>=<value>")
+    c.add_argument(
+        "--set-tranche",
+        action="append",
+        nargs=2,
+        metavar=("TRANCHE_ID", "FIELD=VALUE"),
+        help="an analyst edit of one new tranche's Transaction Summary field",
+    )
+    c.set_defaults(run=run_command)
+
+
+def _reject_blank_or_control(name: str, value: str) -> None:
+    if not value:
+        raise BriefError(f"{name} needs a value; leave it unset to keep the gap")
+    if any(unicodedata.category(c) in ("Cc", "Zl", "Zp") for c in value):
+        raise BriefError(f"{name} must be one line without control characters")
+
+
+def _multiple(name: str, value: str) -> str:
+    try:
+        number = Decimal(value.removesuffix("x"))
+    except InvalidOperation as exc:
+        raise BriefError(f"{name} must be a number, not {value!r}") from exc
+    if not number.is_finite() or number <= 0:
+        raise BriefError(f"{name} must be a finite number above zero, not {value!r}")
+    return format(number, "f")
+
+
+def _check_cites(brief: Brief) -> None:
+    """Every [C<n>] marker in the pre-fill has a row in the CP-0 citations table."""
+    cells = [e.cite for e in brief.fields.values()]
+    cells += [e.cite for entries in brief.tranches.values() for e in entries.values()]
+    known = {row[0] for row in brief.citations if row}
+    missing = sorted(markers(" ".join(cells)) - known)
+    if missing:
+        raise BriefError(
+            f"cp0.run_brief_prefill cites {', '.join(missing)}, not in the citations table"
+        )
+
+
+def _read(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise BriefError(f"error: {path}: {getattr(exc, 'strerror', None) or exc}") from exc
 
 
 def _state(run: Path) -> dict[str, Any] | None:
@@ -415,35 +540,7 @@ def _write(run: Path, args: argparse.Namespace) -> int:
     state = _state(run)
     if _approved(run, state):
         raise BriefError("the brief is approved; re-run rbot approve to change it")
-    brief = build(run, source, args.set or [], load_rules(args.root))
+    brief = build(run, source, args.set or [], load_rules(args.root), args.set_tranche)
     _record(run, state, render(brief))
     print(f"{BRIEF}: written")
     return 0
-
-
-def run_command(args: argparse.Namespace) -> int:
-    run = Path(args.run_dir)
-    try:
-        if args.show:
-            if not (run / BRIEF).is_file():
-                print(f"{run}: no {BRIEF}; run rbot brief --from {CP0} first")
-                return 1
-            print(_read(run / BRIEF), end="")
-            return 0
-        return _write(run, args)
-    except (BriefError, HandoffError) as exc:
-        print(exc)
-        return 1
-    except OSError as exc:
-        print(f"error: {exc.filename or run}: {exc.strerror or exc}")
-        return 1
-
-
-def add_command(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    c = sub.add_parser("brief", help="build, edit or show the Run Brief")
-    c.add_argument("--run", dest="run_dir", required=True, help="the run folder")
-    mode = c.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--from", dest="source", help="the CP-0 Handoff, relative to the run")
-    mode.add_argument("--set", action="append", help="an analyst edit <field>=<value>")
-    mode.add_argument("--show", action="store_true", help="print run-brief.md")
-    c.set_defaults(run=run_command)

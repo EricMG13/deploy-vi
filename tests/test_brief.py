@@ -294,7 +294,7 @@ def test_a_multiple_is_written_as_a_plain_decimal(tmp_path: Path) -> None:
 def test_the_fields_table_follows_the_spec_order(tmp_path: Path) -> None:
     run = _run(tmp_path)
     _from(run)
-    assert [r[0] for r in _brief(run).tables["brief.run_brief_fields"].rows] == [
+    assert [r[0] for r in _brief(run).tables["brief.run_brief_fields"].rows[:10]] == [
         "issuer",
         "issuer_id",
         "as_of_date",
@@ -393,3 +393,205 @@ def test_a_gap_analysis_date_passes_the_front_matter_rules(tmp_path: Path, rules
     )
     codes = {f.code for f in check(text, contract, rules)[1]}
     assert not codes & {"front_matter_missing", "identity", "qa_status", "inputs", "sections"}
+
+
+def _set_tranche(run: Path, *edits: tuple[str, str]) -> int:
+    return main(["brief", "--run", str(run), *[a for e in edits for a in ("--set-tranche", *e)]])
+
+
+def _tranche(h: Handoff, tranche_id: str) -> dict[str, str]:
+    table = h.tables["snapshot.transaction_summary"]
+    row = next(r for r in table.rows if r[0] == tranche_id)
+    return dict(zip(table.columns, row, strict=True))
+
+
+def test_tranche_edits_follow_source_wins_and_survive_a_rebuild(tmp_path: Path) -> None:
+    run = _run(tmp_path)
+    main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"])
+    assert _set_tranche(run, ("NEW-1", "bloomberg_id=BBG01ABC2345"), ("NEW-1", "size=3500")) == 0
+    assert main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"]) == 0
+    h = _brief(run)
+    fields = _fields(h)
+    assert fields["NEW-1.bloomberg_id"] == [
+        "BBG01ABC2345",
+        "Analyst-asserted",
+        "BBG01ABC2345",
+        "[C14]",
+    ]
+    assert fields["NEW-1.size"] == ["3000", "Sourced", "3500", "[C7]"]
+    assert fields["NEW-1.cr_score"] == ["—", "Gap", "—", "[C15]"]
+    row = _tranche(h, "NEW-1")
+    assert (row["bloomberg_id"], row["size"], row["status"]) == (
+        "BBG01ABC2345",
+        "3000",
+        "Analyst-asserted",
+    )
+    assert row["analyst_value"] == "size=3500; bloomberg_id=BBG01ABC2345"
+
+
+def test_tranche_values_are_normalised_to_their_scales(tmp_path: Path) -> None:
+    run = _run(tmp_path)
+    main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"])
+    edits = [
+        ("NEW-2", "debt_type=ss notes"),
+        ("NEW-2", "currency=eur"),
+        ("NEW-2", "talk_stage=revised GUIDANCE"),
+        ("NEW-2", "unit=millions"),
+        ("NEW-2", "size= 500.0 "),
+        ("NEW-2", "maturity_date=2031-04-15"),
+    ]
+    assert _set_tranche(run, *edits) == 0
+    row = _tranche(_brief(run), "NEW-2")
+    assert [row[f] for f in ("debt_type", "currency", "talk_stage", "unit", "size")] == [
+        "SS Notes",
+        "EUR",
+        "Revised guidance",
+        "MILLIONS",
+        "500.0",
+    ]
+    assert (row["maturity_date"], row["status"]) == ("2031-04-15", "Gap")
+    text = (run / "run-brief.md").read_text(encoding="utf-8")
+    assert "- `NEW-2.borrower`: not found in the Source Pack; set it with" in text
+    assert "`rbot brief --set-tranche NEW-2 borrower=<value>`." in text
+    assert "NEW-2.oid" not in text.split("## Gaps")[1]
+
+
+@pytest.mark.parametrize(
+    ("tranche", "edit", "message"),
+    [
+        ("NEW-1", "margin=300", "unknown tranche field 'margin'"),
+        ("NEW-1", "size", "unknown tranche field 'size'"),
+        ("TLB", "size=1", "tranche id 'TLB' is not NEW-<n>"),
+        ("NEW-1", "debt_type=Loan", "debt_type must be one of ('RCF', '1L Term Loan'"),
+        ("NEW-1", "size=3,000", "size must be a plain decimal, not '3,000'"),
+        ("NEW-1", "maturity_date=15/12/2033", "maturity_date must be YYYY-MM-DD"),
+        ("NEW-1", "currency=dollars", "currency must be a three-letter ISO code"),
+        ("NEW-1", "size=NaN", "size must be a plain decimal, not 'NaN'"),
+        ("NEW-1", "size=Infinity", "size must be a plain decimal, not 'Infinity'"),
+        ("NEW-1", "size=1e3", "size must be a plain decimal, not '1e3'"),
+        ("NEW-1", "size=-5", "size must be a plain decimal, not '-5'"),
+        ("NEW-1", "price_talk=S+325\n## Gaps", "price_talk holds a line break or control"),
+        ("NEW-1", "borrower=  ", "borrower is empty"),
+    ],
+)
+def test_refused_tranche_edits_exit_1(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], tranche: str, edit: str, message: str
+) -> None:
+    run = _run(tmp_path)
+    main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"])
+    capsys.readouterr()
+    assert _set_tranche(run, (tranche, edit)) == 1
+    assert message in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["--from", "handoffs/CP-0.md", "--set", "analyst=A"],
+        ["--show", "--set-tranche", "NEW-1", "oid=99"],
+        [],
+    ],
+)
+def test_exactly_one_mode_is_given(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], argv: list[str]
+) -> None:
+    run = _run(tmp_path)
+    assert main(["brief", "--run", str(run), *argv]) == 1
+    assert "give --from, or --show, or one or more --set / --set-tranche edits" in (
+        capsys.readouterr().out
+    )
+
+
+@pytest.mark.corpus
+def test_tranche_edits_keep_the_brief_anchored_in_the_primary_pack(
+    prepared_run: Callable[[str], Path],
+) -> None:
+    run = prepared_run("czr-2026q2-primary")
+    (run / "handoffs").mkdir(exist_ok=True)
+    shutil.copy(CP0, run / "handoffs" / "CP-0.md")
+    assert main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"]) == 0
+    assert _set_tranche(run, ("NEW-1", "cr_score=3"), ("NEW-1", "oid=99.25")) == 0
+    h = _brief(run)
+    assert run_findings(h, run) == []
+    assert _fields(h)["NEW-1.oid"] == ["99.0\u201399.5", "Sourced", "99.25", "[C10]"]
+    assert _tranche(h, "NEW-1")["cr_score"] == "3"
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "message"),
+    [
+        (
+            "| debt_type | NEW-1 | 1L Term Loan |",
+            "| debt_type | Tranche A | 1L Term Loan |",
+            "cp0.run_brief_prefill: tranche id 'Tranche A' is not NEW-<n>",
+        ),
+        (
+            "| debt_type | NEW-1 | 1L Term Loan |",
+            "| debt_type | NEW-1 | Senior secured notes |",
+            "cp0.run_brief_prefill NEW-1 debt_type: debt_type must be one of",
+        ),
+        (
+            "| size | NEW-1 | 3000 |",
+            "| size | NEW-1 | 1,000 million |",
+            "cp0.run_brief_prefill NEW-1 size: size must be a plain decimal",
+        ),
+        (
+            "| as_of_date | | 2026-10-02 |",
+            "| as_of_date | | 2 October 2026 |",
+            "cp0.run_brief_prefill as_of_date: as_of_date must be YYYY-MM-DD",
+        ),
+    ],
+)
+def test_the_prefill_is_held_to_the_edit_rules(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], old: str, new: str, message: str
+) -> None:
+    run = _run(tmp_path)
+    cp0 = run / "handoffs" / "CP-0.md"
+    cp0.write_text(CP0.read_text(encoding="utf-8").replace(old, new), encoding="utf-8")
+    assert main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"]) == 1
+    assert message in capsys.readouterr().out
+
+
+def test_blank_or_multiline_edits_are_refused(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = _run(tmp_path)
+    main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"])
+    capsys.readouterr()
+    assert main(["brief", "--run", str(run), "--set", "analyst=  "]) == 1
+    assert "analyst is empty" in capsys.readouterr().out
+    assert main(["brief", "--run", str(run), "--set", "objective=Review\n## Gaps"]) == 1
+    assert "objective holds a line break or control character" in capsys.readouterr().out
+    assert parse((run / "run-brief.md").read_text(encoding="utf-8")).sections == [
+        "Analysis",
+        "Tables",
+        "Gaps",
+        "Citations",
+    ]
+
+
+OTHER_ISSUER = (
+    "| old/other.html | 2026-07-15 | 20260715-zeta-earnings-update | EARNINGS_UPDATE | full | No |"
+)
+OWN = "| old/own.html | 2026-07-15 | 20260715-czr-earnings-update | EARNINGS_UPDATE | full | Yes |"
+
+
+def test_a_report_cp0_did_not_offer_is_not_carried(tmp_path: Path) -> None:
+    run = _run(tmp_path)
+    cp0 = run / "handoffs" / "CP-0.md"
+    head = "offered |\n|---|---|---|---|---|---|\n"
+    text = CP0.read_text(encoding="utf-8").replace(head, f"{head}{OTHER_ISSUER}\n{OWN}\n")
+    cp0.write_text(text, encoding="utf-8")
+    assert main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"]) == 0
+    assert _brief(run).tables["brief.prior_case"].rows == [
+        ["old/own.html", "2026-07-15", "20260715-czr-earnings-update", "No"]
+    ]
+
+
+def test_the_brief_records_the_cp0_it_was_built_from(tmp_path: Path) -> None:
+    run = _run(tmp_path)
+    main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"])
+    sha = hashlib.sha256((run / "handoffs" / "CP-0.md").read_bytes()).hexdigest()
+    assert _brief(run).front_matter["cp0_sha256"] == sha
+    main(["brief", "--run", str(run), "--set", "analyst=A"])
+    assert _brief(run).front_matter["cp0_sha256"] == sha
