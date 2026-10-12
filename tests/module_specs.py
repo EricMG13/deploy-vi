@@ -389,3 +389,119 @@ TABLES["CP-1A"] = [
 INPUTS["CP-1A"] = Inputs(
     "CP-0", "CP-1", "issuer market", "issuer as_of_date objective morningstar_issuer_id"
 )
+
+
+TABLES["CP-1"] = [
+    TableSpec(
+        "cp1.model_period_register",
+        1,
+        (
+            "period_id* fiscal_year* fiscal_quarter period_type*:period_type start_date* end_date*"
+            " day_count* currency* unit*:unit component_period_ids"
+        ),
+        "MODEL CP-1B CP-2G CP-5",
+    ),
+    TableSpec(
+        "cp1.model_account_register",
+        1,
+        "metric_id* period_id* value calculation_status* source_id source_locator",
+        "MODEL CP-1B CP-1D CP-4 CP-2D CP-5",
+    ),
+    TableSpec(
+        "cp1.adjusted_ebitda_bridge",
+        0,
+        (
+            "addback_id* addback_label* addback_classification* "
+            "realization_status*:realization_status display_priority* period_id* value source_id "
+            "source_locator"
+        ),
+        "MODEL CP-1D CP-4",
+    ),
+    TableSpec(
+        "cp1.segment_revenue_schedule",
+        0,
+        (
+            "segment_id* segment_name* segment_type*:segment_type display_priority* period_id* "
+            "revenue source_id source_locator"
+        ),
+        "MODEL CP-1B CP-2G",
+    ),
+    TableSpec(
+        "cp1.operating_kpi_schedule",
+        0,
+        (
+            "kpi_id* kpi_label* display_priority* period_id* value unit* value_type*:value_type "
+            "source_id source_locator"
+        ),
+        "MODEL CP-1B",
+    ),
+    TableSpec(
+        "cp1.debt_facility_register",
+        1,
+        (
+            "facility_id* facility_name* period_id* facility_type* currency* carrying_value "
+            "drawn_amount commitment secured_status* seniority* margin_or_coupon* maturity_date "
+            "lease_classification* rate_type reference_rate spread_bps floor_bps fixed_rate "
+            "annual_amortisation source_id source_locator"
+        ),
+        "MODEL CP-3 CP-4 CP-2E CP-3C CP-3D CP-4C CP-2D FIT",
+    ),
+    TableSpec(
+        "cp1.pro_forma_adjustment_register",
+        0,
+        (
+            "adjustment_id* label* period_id* effective_date* classification* metric_id* value* "
+            "source_id* source_locator*"
+        ),
+        "MODEL CP-3 CP-1A CP-5",
+    ),
+    TableSpec(
+        "cp1.cp_model_segment_allocation", 0, "slot_id* component_segment_ids*", "MODEL CP-2G"
+    ),
+    TableSpec(
+        "cp1.equity_value",
+        0,
+        "market_cap* share_price shares_outstanding value_date* currency* unit*:unit cite*",
+        "MODEL",
+    ),
+    TableSpec(
+        "cp1.instrument_identity",
+        1,
+        (
+            "facility_id* instrument_name* debt_type*:debt_type bloomberg_id isin cusip "
+            "issuer_entity* rating_moodys rating_sp rating_fitch call_schedule "
+            "listed_market*:yes_no cite*"
+        ),
+        "MODEL CP-3 CP-3D CP-4 FIT REPORT",
+    ),
+    TableSpec(
+        "cp1.reconciliation_checks",
+        1,
+        (
+            "check_id* period_id* check_type* reported_value calculated_value difference status* "
+            "explanation* cite"
+        ),
+        "CP-5 REPORT",
+    ),
+    TableSpec(
+        "cp1.definition_conflicts",
+        0,
+        (
+            "metric_id* issuer_definition* canonical_definition* periods_affected* "
+            "materiality*:materiality resolution* cite*"
+        ),
+        "CP-1B CP-1D CP-4 CP-5",
+    ),
+    TableSpec(
+        "cp1.entity_profile",
+        1,
+        (
+            "entity* role* fiscal_year_end* reporting_currency* reporting_unit*:unit perimeter* "
+            "accounting_basis* cite*"
+        ),
+        "MODEL CP-1A CP-4 CP-5",
+    ),
+]
+INPUTS["CP-1"] = Inputs(
+    "CP-0", "", "issuer market", "issuer issuer_id as_of_date primary transaction_summary"
+)

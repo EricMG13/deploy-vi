@@ -1,0 +1,207 @@
+{
+  "module_id": "CP-1",
+  "title": "Canonical data foundation",
+  "reader_question": "What are the issuer's canonical figures, definitions and instruments, period by period, with every figure cited?",
+  "inputs": [
+    {"handoff": "CP-0", "required": true, "why": "the source inventory: which files are readable Issuer Sources about this issuer, their periods and their traps"},
+    {"sources": ["issuer"], "required": true, "why": "the financial statements, debt notes, term sheets and pro forma capitalisation the figures come from"},
+    {"sources": ["issuer"], "document_types": ["Annual report", "Quarterly report", "Earnings release", "Bond report"], "why": "period financial statements; without them CP-1 registers what other Issuer Sources state and names the missing periods"},
+    {"sources": ["market"], "document_types": ["Market levels export", "Equity value export"], "why": "instrument identifiers, agency ratings and a listed equity value"},
+    {"run_brief": ["issuer", "issuer_id", "as_of_date", "primary", "transaction_summary"], "why": "the entity and date in scope, and the new tranches' ids (`NEW-<n>`) to register as facilities"}
+  ],
+  "process": [
+    "File Gate & Source Validation. Gate: no financial sources -> Blocked; do not proceed. Read `handoffs/CP-0.md`: its `cp0.source_inventory` is the source register; use only files it lists with `entity_match` Yes and `readable` Yes. Evidence hierarchy: Tier 1 (Audited FS) > 2a (Unaudited w/ auditor) > 2b (w/o) > 2c (Lender/sponsor) > 2d (Rating) > 3a (Internal) > 3b (External). Assess material sufficiency for IS + CFS + BS + KPIs; flag downstream impact if insufficient. Do NOT classify from filenames alone; inspect content. Source-first discipline: complete before any extraction.",
+    "Entity/Period Scope (`cp1.entity_profile`). Establish issuer entity scope: issuer name (legal entity), borrower, guarantor group, restricted group; note ambiguity. Establish all reporting periods: annual, interim, quarterly; record FY end (`fiscal_year_end` as `MM-DD`), stub/short periods. Record reporting basis: currency, unit, consolidation perimeter, accounting basis. Entity names from content, not filenames. If consolidation perimeter differs across sources, flag it. Where a consolidated issuer contains a captive finance company, financing subsidiary or financial-services segment, show the perimeters separately; never substitute one perimeter for another. Subsequent events: the reporting period ends at the balance-sheet date; scan every source for events after that date (subsequent-events note, dividends declared, refinancings, buybacks, disposals) and flag each with the event date under `## Gaps`; never blend it into period figures.",
+    "Normalization. Establish canonical basis: single currency, single unit, single perimeter, single accounting basis. Record every adjustment (what, source, before/after, rationale, affected periods) in `## Analysis`. Flag incomplete normalization: carry the figure with a limitation. Once established, the basis applies to ALL subsequent steps; currency/unit switching is prohibited. Unresolvable accounting basis differences must be flagged, not silently chosen.",
+    "Period register (`cp1.model_period_register`; `period_type` QUARTER, YTD, FY, LTM or PERIOD_END). Direct reported discrete quarter has priority. Calculate Q2 as H1-Q1 and Q3 as 9M-H1 only when direct quarters are absent. Reported unaudited Q4 remains independent. Direct reported FY is not replaced by a sum of quarters. Flow LTM = latest FY + current YTD - prior comparable YTD: register the LTM period (`LTM_Q<n>_<yyyy>`) and let the Model derive its figures; a derived period with a missing component is `—`. Balance-sheet LTM means the latest period end. Ids `FY<yyyy>`, `H1_<yyyy>` (and `9M_<yyyy>`, `Q<n>_<yyyy>`); `day_count` = end - start + 1; `fiscal_quarter` only on a quarter or year-to-date row.",
+    "Income Statement, Cash Flow Statement and Balance Sheet coverage (`cp1.model_account_register`, one row per `metric_id` and `period_id`). Extract + normalize the full IS, CFS and BS for every available period on the Step 3 basis. Controlled metric IDs: `revenue`, `cogs`, `gross_profit`, `opex_including_da`, `ebit`, `depreciation_amortization`, `ebitda`, `adjusted_ebitda`, `cash_interest_paid`, `cash_lease_payments`, `cash_taxes_paid`, `cfo_ncfo`, `working_capital_change`, `capex_and_intangible_investment`, `acquisitions_disposals`, `net_debt_issue_repay`, `net_equity_issue_repay`, `dividends_paid`, `other_investing_financing`, `net_cash_change`, `cash_and_equivalents`, `rcf_commitment`, `rcf_drawn`, `senior_secured_debt`, `unsecured_debt`, `total_debt`, `net_accounts_receivable`, `inventory`, `accounts_payable`, `pretax_income`, `income_tax_expense`, `operating_lease_cost`, `lease_payments_in_financing`, `interest_paid_in_financing`. Cash interest and cash tax mean cash paid, not accrued expense. `cfo_ncfo` accepts reported CFO, OCF, NCFO or net cash provided by operating activities. Use the canonical sign convention: inflows/positive balances positive and outflows negative. EBITDA not stated -> derive from components (`calculation_status` CALCULATED). Do NOT fabricate missing items: non-derivable = `—` + gap. `calculation_status`: VERIFIED, CALCULATED, ESTIMATED, PROXY, NOT CALCULABLE, PARTIAL, CONFLICTED, NOT AVAILABLE. `source_id` holds the citation marker (`[C<n>]`), `source_locator` its locator.",
+    "Debt basis. Total Debt = balance-sheet carrying value: current portion of debt + long-term debt, net of unamortized issuance costs and discounts. Gross principal outstanding is NEVER the canonical basis for Total Debt, Net Debt or any leverage ratio; where it is disclosed and materially different, log BOTH figures in `cp1.definition_conflicts`. The account metric `total_debt` excludes lease liabilities. Debt classification by seniority is critical for CP-3: not disclosed -> `—`; do NOT estimate. Pension/lease obligations separated from financial debt where possible. A material non-debt, non-interest-bearing liability funding operations (customer deposits, deferred revenue, supplier finance) is credit-relevant working-capital float: size, trend and obligation in `## Analysis`, never ordinary payables.",
+    "Segment, EBITDA and KPI registers. Emit one stable `segment_id` per identified business unit and one row per applicable period in `cp1.segment_revenue_schedule`; retain exact issuer labels and order by `display_priority`; `segment_type` is OPERATING_SEGMENT or CORPORATE_ELIMINATION, at most one corporate/elimination row per period. If no business-unit revenue schedule is disclosed, emit an empty segment table; do not imply a zero segment sum. When segments exist, map every stable `segment_id` exactly once to `DIVISION_1`, `DIVISION_2` or `DIVISION_3` in `cp1.cp_model_segment_allocation`. `cp1.operating_kpi_schedule` contains operating measures (users, subscribers, RGUs, connections, backlog, homes passed, churn, ARPU), never revenue, EBITDA, leverage or other financial ratios; `value_type` PERIOD_END, PERIOD_FLOW or RATE.",
+    "Adjusted EBITDA bridge (`cp1.adjusted_ebitda_bridge`). Emit one stable `addback_id` per separately identified add-back and one row per applicable period; retain the exact `addback_label`; add-back priorities must be unique. `addback_classification` is one of RESTRUCTURING, SBC, COST_SAVINGS, RUN_RATE, SYNERGY, TRANSACTION_COSTS, OTHER_EXPLICIT; `realization_status` is independently REALIZED, UNREALIZED or NOT_STATED. Do not infer realization from the nature classification; split an item into stable IDs when only part has been realized. Every OTHER_EXPLICIT line must be source-supported and is never a plug. Do not manufacture empty slots: if the issuer explicitly reports no add-backs, emit an empty bridge. Show source vs normalized one-offs; label normalization.",
+    "Debt facility register (`cp1.debt_facility_register`). Model debt totals use carrying values; `drawn_amount` and `commitment` are retained separately and are not substitutes. Every row requires `facility_name`, currency, interest cost or an explicit `Not stated`, maturity, `source_id` and `source_locator`. `secured_status` SECURED, UNSECURED or NOT_STATED; `seniority` SUPER_SENIOR, SENIOR, SENIOR_SUBORDINATED, SUBORDINATED, JUNIOR or NOT_STATED; `lease_classification` FINANCE_LEASE, OPERATING_LEASE, NOT_LEASE or NOT_STATED. NOT_STATED is not affirmative evidence of a security or ranking. Do not infer security or ranking from the instrument name. `rate_type` FIXED, FLOATING or NOT_STATED; `reference_rate` SOFR, TERM_SOFR, EURIBOR, SONIA, NONE or NOT_STATED; `spread_bps` an integer basis-point spread; `floor_bps` an integer floor, `—` when no floor is stated; `fixed_rate` a decimal percent coupon for FIXED; `annual_amortisation` in the register's currency and unit, `0` for a bullet, `—` only when not stated. A term no source states is NOT_STATED or `—`; it is never inferred from the instrument name (a \"Term Loan B\" is not evidence of FLOATING). A new tranche of the Run Brief is a row with `facility_id` its `tranche_id`, `period_id` the LTM and `carrying_value` `0`, its terms from the term sheet; Price Talk is not a final spread.",
+    "Pro forma adjustment register (`cp1.pro_forma_adjustment_register`): adjustments a source states for activity outside the reported LTM (a lender presentation for a primary transaction, or a post-period acquisition, disposal or refinancing). When no source states one, the table is empty; never construct an adjustment the source does not state. `classification` is one of ACQUISITION, DISPOSAL, REFINANCING, SUBSEQUENT_EVENT, LENDER_UPDATE, OTHER_EXPLICIT; `period_id` names the LTM period; `metric_id` is one of `revenue`, `ebitda`, `adjusted_ebitda`, `cash_interest_paid`, `cash_and_equivalents`, `total_debt`, or a facility's `facility_id` prefixed `facility:`; `value` follows the account register's sign convention. The Model adds each `facility:` row into total debt, so `total_debt` is only for a change no facility row carries. Pro forma interest only from a source, never from Price Talk.",
+    "Instrument identity and equity value (`cp1.instrument_identity`, `cp1.equity_value`), for CP-3, FIT and the capital structure. One identity row per facility of the latest balance date and per new tranche: `debt_type` from its scale, identifiers (`bloomberg_id`, `isin`, `cusip`) and agency ratings as a dated Market Context or offering document states them, `call_schedule` as the indenture writes it, `listed_market` Yes when a Market Level exists; `—` where none is stated. `cp1.equity_value` only from a listed market capitalisation in Market Context.",
+    "Reconciliation (`cp1.reconciliation_checks`). Cross-check internal consistency: segment revenue to reported revenue, EBITDA bridge, adjusted EBITDA bridge at exact `addback_id` granularity, CFO identity, debt totals (`DEBT_TOTAL`: the sum of the carrying values of the NOT_LEASE and NOT_STATED rows equals `total_debt`), NCF to cash movement and reported FY to quarterly sum. A reported-FY difference can be WARN when audited and unaudited bases differ and the explanation is explicit. It is not silently forced to zero. `status` PASS, WARN or FAIL.",
+    "Definition Conflict Register (`cp1.definition_conflicts`). Review all metrics: issuer def vs. canonical? Sources disagree? Definition changed across periods? Log each conflict: metric, canonical def, issuer def, periods, materiality, resolution. Common conflict areas: EBITDA (add-backs, exclusions, management vs. audited), Debt (leases, pensions, drawn facilities), FCF (levered vs. unlevered, WC inclusion), Capex (capitalized items, maint vs. growth), Net Debt (restricted cash, ST investments). Multi-figure events: one economic event with different figures across statements -> extract ALL, label statement roles, ONE register row explaining the differences. Silent definition acceptance is NOT valid; with no conflict, say so in `## Analysis`.",
+    "Evidence-to-Risk-to-Credit Analysis (`## Analysis`). Apply the required analytical chain to every material finding: Evidence -> Risk Mechanic -> Credit Implication. Cover leverage trajectory, coverage trends, cash-flow quality, liquidity adequacy, data-quality risks, definition risks and key gaps. Synthesis only: no new data extraction; all evidence must trace to the tables. Every statement issuer-specific; no generic credit commentary. Required stories where present: the working-capital float, subsequent events (date, effect, why excluded from period figures), multi-figure events (which figure serves which purpose).",
+    "Coverage Gate. Consolidate ALL gaps from ALL prior steps under `## Gaps`: every `—` in a value-bearing column with its table, row, column and the reason; a `—` in a column where none applies (`component_period_ids` on a reported period, `fiscal_quarter` on a fiscal year, `floor_bps` with no floor, `fixed_rate` on a FLOATING row, `spread_bps` on a FIXED row) is not a gap. `qa_status`: Pass when complete; Restricted with gaps or limitations; Blocked when no financial sources."
+  ],
+  "tables": [
+    {
+      "id": "cp1.model_period_register",
+      "title": "Model period register",
+      "min_rows": 1,
+      "columns": [
+        {"name": "period_id", "critical": true}, {"name": "fiscal_year", "critical": true},
+        {"name": "fiscal_quarter"},
+        {"name": "period_type", "critical": true, "scale": "period_type"},
+        {"name": "start_date", "critical": true}, {"name": "end_date", "critical": true},
+        {"name": "day_count", "critical": true}, {"name": "currency", "critical": true},
+        {"name": "unit", "critical": true, "scale": "unit"}, {"name": "component_period_ids"}
+      ],
+      "consumers": ["MODEL", "CP-1B", "CP-5"]
+    },
+    {
+      "id": "cp1.model_account_register",
+      "title": "Model account register",
+      "min_rows": 1,
+      "columns": [
+        {"name": "metric_id", "critical": true}, {"name": "period_id", "critical": true},
+        {"name": "value"}, {"name": "calculation_status", "critical": true}, {"name": "source_id"},
+        {"name": "source_locator"}
+      ],
+      "consumers": ["MODEL", "CP-1B", "CP-1D", "CP-5"]
+    },
+    {
+      "id": "cp1.adjusted_ebitda_bridge",
+      "title": "Adjusted EBITDA bridge",
+      "min_rows": 0,
+      "columns": [
+        {"name": "addback_id", "critical": true}, {"name": "addback_label", "critical": true},
+        {"name": "addback_classification", "critical": true},
+        {"name": "realization_status", "critical": true, "scale": "realization_status"},
+        {"name": "display_priority", "critical": true}, {"name": "period_id", "critical": true},
+        {"name": "value"}, {"name": "source_id"}, {"name": "source_locator"}
+      ],
+      "consumers": ["MODEL", "CP-1D"]
+    },
+    {
+      "id": "cp1.segment_revenue_schedule",
+      "title": "Segment revenue schedule",
+      "min_rows": 0,
+      "columns": [
+        {"name": "segment_id", "critical": true}, {"name": "segment_name", "critical": true},
+        {"name": "segment_type", "critical": true, "scale": "segment_type"},
+        {"name": "display_priority", "critical": true}, {"name": "period_id", "critical": true},
+        {"name": "revenue"}, {"name": "source_id"}, {"name": "source_locator"}
+      ],
+      "consumers": ["MODEL", "CP-1B"]
+    },
+    {
+      "id": "cp1.operating_kpi_schedule",
+      "title": "Operating KPI schedule",
+      "min_rows": 0,
+      "columns": [
+        {"name": "kpi_id", "critical": true}, {"name": "kpi_label", "critical": true},
+        {"name": "display_priority", "critical": true}, {"name": "period_id", "critical": true},
+        {"name": "value"}, {"name": "unit", "critical": true},
+        {"name": "value_type", "critical": true, "scale": "value_type"}, {"name": "source_id"},
+        {"name": "source_locator"}
+      ],
+      "consumers": ["MODEL", "CP-1B"]
+    },
+    {
+      "id": "cp1.debt_facility_register",
+      "title": "Debt facility register",
+      "min_rows": 1,
+      "columns": [
+        {"name": "facility_id", "critical": true}, {"name": "facility_name", "critical": true},
+        {"name": "period_id", "critical": true}, {"name": "facility_type", "critical": true},
+        {"name": "currency", "critical": true}, {"name": "carrying_value"},
+        {"name": "drawn_amount"}, {"name": "commitment"},
+        {"name": "secured_status", "critical": true}, {"name": "seniority", "critical": true},
+        {"name": "margin_or_coupon", "critical": true}, {"name": "maturity_date"},
+        {"name": "lease_classification", "critical": true}, {"name": "rate_type"},
+        {"name": "reference_rate"}, {"name": "spread_bps"}, {"name": "floor_bps"},
+        {"name": "fixed_rate"}, {"name": "annual_amortisation"}, {"name": "source_id"},
+        {"name": "source_locator"}
+      ],
+      "consumers": ["MODEL", "CP-3", "FIT"]
+    },
+    {
+      "id": "cp1.pro_forma_adjustment_register",
+      "title": "Pro forma adjustment register",
+      "min_rows": 0,
+      "columns": [
+        {"name": "adjustment_id", "critical": true}, {"name": "label", "critical": true},
+        {"name": "period_id", "critical": true}, {"name": "effective_date", "critical": true},
+        {"name": "classification", "critical": true}, {"name": "metric_id", "critical": true},
+        {"name": "value", "critical": true}, {"name": "source_id", "critical": true},
+        {"name": "source_locator", "critical": true}
+      ],
+      "consumers": ["MODEL", "CP-3", "CP-1A", "CP-5"]
+    },
+    {
+      "id": "cp1.cp_model_segment_allocation",
+      "title": "Segment allocation to forecast slots",
+      "min_rows": 0,
+      "columns": [
+        {"name": "slot_id", "critical": true}, {"name": "component_segment_ids", "critical": true}
+      ],
+      "consumers": ["MODEL"]
+    },
+    {
+      "id": "cp1.equity_value",
+      "title": "Listed equity value",
+      "min_rows": 0,
+      "columns": [
+        {"name": "market_cap", "critical": true}, {"name": "share_price"},
+        {"name": "shares_outstanding"}, {"name": "value_date", "critical": true},
+        {"name": "currency", "critical": true}, {"name": "unit", "critical": true, "scale": "unit"},
+        {"name": "cite", "critical": true}
+      ],
+      "consumers": ["MODEL"]
+    },
+    {
+      "id": "cp1.instrument_identity",
+      "title": "Instrument identity",
+      "min_rows": 1,
+      "columns": [
+        {"name": "facility_id", "critical": true}, {"name": "instrument_name", "critical": true},
+        {"name": "debt_type", "critical": true, "scale": "debt_type"}, {"name": "bloomberg_id"},
+        {"name": "isin"}, {"name": "cusip"}, {"name": "issuer_entity", "critical": true},
+        {"name": "rating_moodys"}, {"name": "rating_sp"}, {"name": "rating_fitch"},
+        {"name": "call_schedule"}, {"name": "listed_market", "critical": true, "scale": "yes_no"},
+        {"name": "cite", "critical": true}
+      ],
+      "consumers": ["MODEL", "CP-3", "FIT", "REPORT"]
+    },
+    {
+      "id": "cp1.reconciliation_checks",
+      "title": "Reconciliation checks",
+      "min_rows": 1,
+      "columns": [
+        {"name": "check_id", "critical": true}, {"name": "period_id", "critical": true},
+        {"name": "check_type", "critical": true}, {"name": "reported_value"},
+        {"name": "calculated_value"}, {"name": "difference"}, {"name": "status", "critical": true},
+        {"name": "explanation", "critical": true}, {"name": "cite"}
+      ],
+      "consumers": ["CP-5", "REPORT"]
+    },
+    {
+      "id": "cp1.definition_conflicts",
+      "title": "Definition conflicts",
+      "min_rows": 0,
+      "columns": [
+        {"name": "metric_id", "critical": true}, {"name": "issuer_definition", "critical": true},
+        {"name": "canonical_definition", "critical": true},
+        {"name": "periods_affected", "critical": true},
+        {"name": "materiality", "critical": true, "scale": "materiality"},
+        {"name": "resolution", "critical": true}, {"name": "cite", "critical": true}
+      ],
+      "consumers": ["CP-1B", "CP-1D", "CP-5"]
+    },
+    {
+      "id": "cp1.entity_profile",
+      "title": "Entity profile",
+      "min_rows": 1,
+      "columns": [
+        {"name": "entity", "critical": true}, {"name": "role", "critical": true},
+        {"name": "fiscal_year_end", "critical": true},
+        {"name": "reporting_currency", "critical": true},
+        {"name": "reporting_unit", "critical": true, "scale": "unit"},
+        {"name": "perimeter", "critical": true}, {"name": "accounting_basis", "critical": true},
+        {"name": "cite", "critical": true}
+      ],
+      "consumers": ["MODEL", "CP-1A", "CP-5"]
+    }
+  ],
+  "prohibited": [
+    "No independent credit recommendation or unsupported normalization.",
+    "Unsupported financial assertion: must cite source file + locator; no bare claims.",
+    "Conflicting source definitions: do NOT reconcile silently; log them in `cp1.definition_conflicts`.",
+    "Missing financial data: store `—` + log gap; do NOT fabricate or infer. Null is not zero unless the source explicitly states zero.",
+    "Promotional / equity-optimism language: creditor-focused institutional tone only.",
+    "No ratio, KPI or LTM figure the Model computes: register its inputs."
+  ]
+}
