@@ -47,7 +47,9 @@ def test_text_markdown_and_html_become_page_anchored_text(tmp_path: Path) -> Non
     )
     tenq = index["CZR_10Q.txt"]
     assert tenq["pages"] == 2 and tenq["kind"] == "txt"
-    assert tenq["prepared"] == f"prepared/{tenq['sha256'][:16]}-czr-10q-txt.txt"
+    assert re.fullmatch(
+        rf"prepared/{tenq['sha256'][:16]}-[0-9a-f]{{8}}-czr-10q-txt\.txt", tenq["prepared"]
+    )
     assert _text(run, tenq).endswith("<<< page 2 >>>\npage two text\n")
     assert tenq["entities"] == ["CAESARS ENTERTAINMENT, INC."]
     assert tenq["dates"] == ["2026-06-30"]

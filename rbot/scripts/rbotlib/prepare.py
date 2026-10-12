@@ -5,8 +5,8 @@ Each readable file becomes `prepared/<sha16>-<slug>.txt`, its pages opened by
 `prepared/index.json` records per file the prepared path, page count, a 400-character
 first-page excerpt, the entity names and dates found on the first page, sheet names
 the `image_read` flag, the text encoding, each sheet's state, its uncached formulas, the
-cells read as displayed after trailing-comma scaling and the count of dropped lone
-surrogates. A
+cells read as displayed after trailing-comma scaling, the cells whose number format was
+not applied and the count of dropped lone surrogates. A
 file that cannot be read is listed with `unreadable` and the reason; the others are still
 prepared (exit 0).
 """
@@ -15,22 +15,24 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import io
 import json
 import math
 import re
 import zlib
-from collections.abc import Callable
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import closing
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import ROUND_HALF_UP, Context, Decimal
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import Any, TypeGuard
+from typing import Any, NamedTuple, TypeGuard, TypeVar
 from zipfile import BadZipFile
 
 from openpyxl import Workbook, load_workbook
+from openpyxl.cell import Cell, MergedCell
 from openpyxl.utils import get_column_letter
 from openpyxl.utils.exceptions import InvalidFileException
 from openpyxl.worksheet.worksheet import Worksheet
@@ -63,6 +65,7 @@ class Prepared:
     sheet_states: dict[str, str] = field(default_factory=dict)
     uncached: dict[str, list[str]] = field(default_factory=dict)
     scaled: dict[str, list[str]] = field(default_factory=dict)
+    not_applied: dict[str, list[str]] = field(default_factory=dict)
 
 
 def page_marker(n: int) -> str:
@@ -181,10 +184,15 @@ def clean_cell(value: object) -> str:
 
 _QUOTED = re.compile(r'"[^"]*"|\\.')
 _SCALING = re.compile(r"(?<=[0#?])(,+)(?![0#?,])")  # trailing commas: divide by 1000 each
+_CONDITION = re.compile(r"\[\s*(?:<=|>=|<>|<|>|=)")  # [>=1000]: which section applies depends
+MAX_PLACES = 20  # decimal places of a scaling format that are applied; more would need a rounding
+# precision no sheet needs
 
 
 def _numeric(value: object) -> TypeGuard[int | float]:
-    return isinstance(value, int | float) and not isinstance(value, bool) and math.isfinite(value)
+    if isinstance(value, bool):
+        return False
+    return isinstance(value, int) or (isinstance(value, float) and math.isfinite(value))
 
 
 def _section(number_format: str | None) -> str:
@@ -198,10 +206,24 @@ def display_scale(number_format: str | None) -> int:
     return len(match[1]) if match else 0
 
 
+def _places(number_format: str | None) -> int:
+    """How many decimal places the format's positive section shows."""
+    fraction = _section(number_format).partition(".")[2]
+    return len(fraction) - len(fraction.lstrip("0#?"))
+
+
+def format_problem(number_format: str | None) -> str | None:
+    """Why a number format is read as stored instead of as displayed; None when it is applied."""
+    if _CONDITION.search(_QUOTED.sub("", number_format or "")):
+        return "conditional format"
+    if display_scale(number_format) and _places(number_format) > MAX_PLACES:
+        return f"more than {MAX_PLACES} decimal places"
+    return None
+
+
 def _scaled_text(value: float, scale: int, number_format: str | None) -> str:
     """The number as a scaling format shows it: divided by 1000 per comma, rounded to its places."""
-    fraction = _section(number_format).partition(".")[2]
-    places = len(fraction) - len(fraction.lstrip("0#?"))
+    places = _places(number_format)
     ctx = Context(prec=400)
     shown = Decimal(repr(value)).scaleb(-3 * scale, ctx)
     return format(
@@ -211,7 +233,10 @@ def _scaled_text(value: float, scale: int, number_format: str | None) -> str:
 
 def cell_text(value: object, number_format: str | None) -> str:
     """A cell as text, as the sheet displays it: a `%` format shows value x 100 with a `%`, and
-    trailing commas (`#,##0.0,,`) divide by 1000 each. Anything else is the stored value."""
+    trailing commas (`#,##0.0,,`) divide by 1000 each. Anything else, and a format that cannot
+    be applied (`format_problem`), is the stored value."""
+    if _numeric(value) and format_problem(number_format):
+        return clean_cell(value)
     if _numeric(value) and "%" in _QUOTED.sub("", number_format or ""):
         return format((Decimal(repr(value)) * 100).normalize(), "f") + "%"
     if _numeric(value) and (scale := display_scale(number_format)):
@@ -250,59 +275,99 @@ def read_csv(path: Path) -> Prepared:
     return result
 
 
-def _sheet_rows(ws: Worksheet, wf: Worksheet) -> tuple[list[list[str]], list[str], list[str]]:
-    """(rows as text, cells whose formula has no stored value, cells read after display scaling)."""
-    rows, missing, scaled = [], [], []
-    for r, (values, forms) in enumerate(zip(ws.iter_rows(), wf.iter_rows(), strict=False), 1):
-        rows.append([cell_text(c.value, c.number_format) for c in values])
+class SheetRead(NamedTuple):
+    rows: list[list[str]]  # cells as text
+    missing: list[str]  # cells whose formula has no stored value
+    scaled: list[str]  # cells read after display scaling
+    not_applied: list[str]  # `REF (reason)`: cells whose number format was not applied
+
+
+# Fail-open per file (decision record 0002): openpyxl lets damaged-package errors escape as
+# zlib.error, KeyError or the XML parser's ParseError (a SyntaxError subclass; importing
+# xml.etree only for its name would trip bandit B405). Each is listed as unreadable, but only
+# where openpyxl runs, so an error of RBOT's own is never turned into "unreadable".
+_OPENPYXL_ERRORS = (
+    InvalidFileException,
+    BadZipFile,
+    KeyError,
+    ValueError,
+    OSError,
+    SyntaxError,
+    zlib.error,
+)
+_Item = TypeVar("_Item")
+
+
+def _guarded(items: Iterable[_Item]) -> Iterator[_Item]:
+    """The items of an openpyxl iterator; a damaged package is an unreadable file."""
+    try:
+        yield from items
+    except _OPENPYXL_ERRORS as exc:
+        raise UnreadableError(f"openpyxl could not read the workbook: {exc}") from exc
+
+
+def _flag_cell(
+    out: SheetRead, ref: str, cached: Cell | MergedCell, formula: Cell | MergedCell
+) -> None:
+    if formula.data_type == "f" and cached.value is None:
+        out.missing.append(ref)
+    if not _numeric(cached.value):
+        return
+    if problem := format_problem(cached.number_format):
+        out.not_applied.append(f"{ref} ({problem})")
+    elif display_scale(cached.number_format):
+        out.scaled.append(ref)
+
+
+def _sheet_rows(ws: Worksheet, wf: Worksheet) -> SheetRead:
+    """The sheet's cells as text, and the cells that need a word (see `SheetRead`)."""
+    out = SheetRead([], [], [], [])
+    pairs = zip(_guarded(ws.iter_rows()), _guarded(wf.iter_rows()), strict=False)
+    for r, (values, forms) in enumerate(pairs, 1):
+        out.rows.append([cell_text(c.value, c.number_format) for c in values])
         for col, (c, f) in enumerate(zip(values, forms, strict=False), 1):
-            ref = f"{get_column_letter(col)}{r}"
-            if f.data_type == "f" and c.value is None:
-                missing.append(ref)
-            if _numeric(c.value) and display_scale(c.number_format):
-                scaled.append(ref)
-    return _trimmed(rows), missing, scaled
+            _flag_cell(out, f"{get_column_letter(col)}{r}", c, f)
+    return out._replace(rows=_trimmed(out.rows))
 
 
-def _workbook(cached: Workbook, formulas: Workbook) -> Prepared:
+def _workbook(cached: list[Worksheet], formulas: list[Worksheet]) -> Prepared:
     """Stored values per sheet; a formula with no stored value is named, not read as blank."""
     sheets: list[Sheet] = []
     states: dict[str, str] = {}
-    uncached: dict[str, list[str]] = {}
-    scaled: dict[str, list[str]] = {}
-    for ws, wf in zip(cached.worksheets, formulas.worksheets, strict=True):
-        rows, missing, shown = _sheet_rows(ws, wf)
-        sheets.append((ws.title, rows))
+    named: tuple[dict[str, list[str]], ...] = ({}, {}, {})  # uncached, scaled, not applied
+    for ws, wf in zip(cached, formulas, strict=True):
+        read = _sheet_rows(ws, wf)
+        sheets.append((ws.title, read.rows))
         states[ws.title] = str(ws.sheet_state)
-        if missing:
-            uncached[ws.title] = missing
-        if shown:
-            scaled[ws.title] = shown
+        for found, refs in zip(named, read[1:], strict=True):
+            if refs:
+                found[ws.title] = refs
+    uncached, scaled, not_applied = named
     pages = _sheet_pages(sheets).pages
-    return Prepared(pages, sheets, sheet_states=states, uncached=uncached, scaled=scaled)
+    return Prepared(
+        pages,
+        sheets,
+        sheet_states=states,
+        uncached=uncached,
+        scaled=scaled,
+        not_applied=not_applied,
+    )
+
+
+def _open(path: Path, data_only: bool) -> Workbook:
+    try:
+        return load_workbook(path, read_only=True, data_only=data_only)
+    except _OPENPYXL_ERRORS as exc:
+        raise UnreadableError(f"openpyxl could not read the workbook: {exc}") from exc
 
 
 def read_xlsx(path: Path) -> Prepared:
     """Every sheet's stored values (formula results as cached, never recalculated)."""
-    try:
-        with (
-            closing(load_workbook(path, read_only=True, data_only=True)) as cached,
-            closing(load_workbook(path, read_only=True, data_only=False)) as formulas,
-        ):
-            return _workbook(cached, formulas)
-    # Fail-open per file (decision record 0002): openpyxl lets damaged-package errors escape as
-    # zlib.error, KeyError or the XML parser's ParseError (a SyntaxError subclass; importing
-    # xml.etree only for its name would trip bandit B405). Each is listed as unreadable.
-    except (
-        InvalidFileException,
-        BadZipFile,
-        KeyError,
-        ValueError,
-        OSError,
-        SyntaxError,
-        zlib.error,
-    ) as exc:
-        raise UnreadableError(f"openpyxl could not read the workbook: {exc}") from exc
+    with (
+        closing(_open(path, data_only=True)) as cached,
+        closing(_open(path, data_only=False)) as formulas,
+    ):
+        return _workbook(list(_guarded(cached.worksheets)), list(_guarded(formulas.worksheets)))
 
 
 def read_image(path: Path) -> Prepared:
@@ -393,11 +458,14 @@ def slug(name: str) -> str:
 
 
 def prepared_name(entry: dict[str, Any]) -> str:
-    return f"prepared/{entry['sha256'][:16]}-{slug(Path(entry['path']).name)}.txt"
+    """`prepared/<content hash>-<path hash>-<slug>.txt`: a copy at another path is its own file."""
+    where = hashlib.sha256(entry["path"].encode("utf-8", "surrogatepass")).hexdigest()[:8]
+    return f"prepared/{entry['sha256'][:16]}-{where}-{slug(Path(entry['path']).name)}.txt"
 
 
 _ANCHOR_LIKE = re.compile(r"^[ \t]*<<<[ \t]*page\b", re.I | re.M)
 _BREAKS = re.compile(r"\r\n|[\r\v\f\x1c-\x1e\x85\u2028\u2029]")  # every line break to "\n"
+_PAIR = re.compile(r"([\ud800-\udbff])([\udc00-\udfff])")  # a UTF-16 pair is one code point
 _SURROGATES = re.compile(r"[\ud800-\udfff]")  # lone surrogates (PDF text); UTF-8 cannot hold them
 
 
@@ -408,8 +476,14 @@ def anchored_text(pages: list[str]) -> str:
     return "".join(f"{page_marker(n)}\n" + (f"{b}\n" if b else "") for n, b in enumerate(bodies, 1))
 
 
+def _join_pair(match: re.Match[str]) -> str:
+    high, low = match.groups()
+    return chr(0x10000 + ((ord(high) - 0xD800) << 10) + (ord(low) - 0xDC00))
+
+
 def _drop_surrogates(pages: list[str]) -> tuple[list[str], int]:
-    cleaned = [_SURROGATES.subn("", text) for text in pages]
+    """Valid surrogate pairs joined into their code point; the lone ones dropped (and counted)."""
+    cleaned = [_SURROGATES.subn("", _PAIR.sub(_join_pair, text)) for text in pages]
     return [text for text, _ in cleaned], sum(n for _, n in cleaned)
 
 
@@ -418,7 +492,7 @@ def prepare_file(run: Path, pack: Path, entry: dict[str, Any]) -> dict[str, Any]
     record |= {"kind": entry["kind"], "prepared": None, "pages": 0, "excerpt": ""}
     record |= {"entities": [], "dates": [], "sheets": [], "image_read": False, "unreadable": None}
     record |= {"encoding": None, "sheet_states": {}, "uncached_formulas": {}}
-    record |= {"display_scaled": {}, "dropped_surrogates": 0}
+    record |= {"display_scaled": {}, "format_not_applied": {}, "dropped_surrogates": 0}
     try:
         result = read(pack / entry["path"], entry["kind"])
     except UnreadableError as exc:
@@ -436,7 +510,8 @@ def prepare_file(run: Path, pack: Path, entry: dict[str, Any]) -> dict[str, Any]
     record |= {"excerpt": " ".join(first.split())[:EXCERPT_CHARS], "image_read": result.image_read}
     record |= {"entities": entities(first[:SCAN_CHARS]), "dates": dates(first[:SCAN_CHARS])}
     record |= {"encoding": result.encoding, "sheet_states": result.sheet_states}
-    record |= {"display_scaled": result.scaled, "dropped_surrogates": dropped}
+    record |= {"display_scaled": result.scaled, "format_not_applied": result.not_applied}
+    record |= {"dropped_surrogates": dropped}
     return record | {"uncached_formulas": result.uncached}
 
 
@@ -451,7 +526,10 @@ def _sheet_portfolios(
             notes.append(f"{label}: {state} sheet not read for portfolios")
             continue
         bad = {int(re.sub(r"\D", "", ref)): ref for ref in result.uncached.get(name, [])}
-        notes += portfolio.read_sheet(label, rows, found, bad, result.scaled.get(name, []))
+        uncertain = result.scaled.get(name, []) + [
+            ref.split()[0] for ref in result.not_applied.get(name, [])
+        ]
+        notes += portfolio.read_sheet(label, rows, found, bad, uncertain)
     return notes
 
 
@@ -547,6 +625,10 @@ def run_command(args: argparse.Namespace) -> int:
     for r in index["files"]:
         for sheet, refs in r["display_scaled"].items():
             print(f"display-scaled (read as shown): {r['path']} sheet {sheet}: {', '.join(refs)}")
+    for r in index["files"]:
+        for sheet, refs in r["format_not_applied"].items():
+            what = f"{r['path']} sheet {sheet}: {', '.join(refs)}"
+            print(f"number format not applied (read as stored): {what}")
     for note in index["portfolio_notes"]:
         print(f"portfolio: {note}")
     found = ", ".join(p["portfolio_id"] for p in index["portfolios"]) or "none"
