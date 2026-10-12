@@ -105,3 +105,79 @@ INPUTS["CP-6"] = Inputs(
     "",
     "analyst as_of_date depth portfolios",
 )
+
+
+TABLES["CP-5"] = [
+    TableSpec(
+        "cp5.findings",
+        0,
+        (
+            "finding_id* severity*:severity module_id* kind*:finding_kind description* "
+            "required_fix* status*:finding_status"
+        ),
+        "CP-6 CP-8 REPORT",
+    ),
+    TableSpec(
+        "cp5.limitations",
+        0,
+        "module_id* limitation* effect_on_decision* source_that_would_lift*",
+        "REPORT CP-6 CP-8",
+    ),
+    TableSpec(
+        "cp5.module_status",
+        1,
+        "module_id* qa_status*:qa_status traceability*:traceability note",
+        "REPORT CP-6 CP-8",
+    ),
+]
+INPUTS["CP-5"] = Inputs(
+    "CP-0",
+    (
+        "CP-1 CP-1A CP-1B CP-1C CP-1D CP-2 CP-2A CP-2D CP-2E CP-2G CP-2H CP-3 CP-3C CP-3D CP-4 "
+        "CP-4C CP-L10 CP-DR MODEL PROJECTION FIT"
+    ),
+    "issuer market portfolio",
+    "pathway depth",
+)
+
+
+TABLES["CP-0"] = [
+    TableSpec(
+        "cp0.source_inventory",
+        1,
+        (
+            "file* class*:source_class document_type*:document_type entity_named* "
+            "entity_match*:yes_no period_covered document_date readable*:yes_no image_read*:yes_no "
+            "pages sha256* note"
+        ),
+        "CP-1 CP-1A CP-DR CP-5 RUN_BRIEF REPORT",
+    ),
+    TableSpec(
+        "cp0.run_brief_prefill",
+        1,
+        "field* tranche_id value status*:brief_status cite",
+        "RUN_BRIEF REPORT",
+    ),
+    TableSpec(
+        "cp0.research_questions",
+        0,
+        "question_id* question* why_it_matters* consumer_module* evidence_needed*",
+        "RUN_BRIEF CP-DR REPORT",
+    ),
+    TableSpec(
+        "cp0.prior_case",
+        0,
+        "file* report_date* run_id* pathway* depth* offered*:yes_no",
+        "RUN_BRIEF CP-8 REPORT",
+    ),
+    TableSpec(
+        "cp0.portfolios",
+        0,
+        (
+            "portfolio_id* portfolio_name* strategy*:strategy positions_file* limits_file* "
+            "as_of_date"
+        ),
+        "RUN_BRIEF FIT REPORT",
+    ),
+]
+INPUTS["CP-0"] = Inputs("", "", "issuer market portfolio", "")
