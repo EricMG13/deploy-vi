@@ -659,7 +659,7 @@ Prepared portfolio JSON (`"schema": "rbot-portfolio/1"`):
 
 ```json
 {"portfolio_id": "TEST_CLO_I", "portfolio_name": "Test CLO I Ltd", "strategy": "CLO", "as_of": "2026-05-29",
- "nav": "630.9", "par": "634.0", "currency": "USD", "unit": "MILLIONS",
+ "nav": "630.9", "par": "634.0", "currency": "USD", "unit": "MILLIONS",  // a Unit row with several values is kept joined ("USD, millions") and makes every amount limit unparsed; one portfolio table per sheet or file — a sheet with more than one table is refused with a note (amended 2026-10-12)
  "positions": [{"issuer_id": "CZR", "issuer_name": "...", "instrument_id": "...", "par": "6.0", "pct_nav": "0.95", "sector": "...", "rating": "B1", "country": "US", "currency": "USD", "seniority": "Senior secured", "asset_type": "Loan"}],
  "limits": [{"limit_id": "C-04", "category": "Concentration", "parameter": "Single obligor", "scope": "issuer|sector|rating_bucket|country|asset_type|seniority|maturity|currency|other", "scope_value": null, "limit_value": "2.0", "unit": "pct_nav|pct_par|amount|count|years", "limit_kind": "Hard|Soft", "current_value": "0.95", "source": "CP-6A_-_Portfolio_Constraints_Compliance_Monitor_-_Test_CLO_I_Ltd.csv row 4"}],
  "unparsed": [{"row": "...", "reason": "unit not recognised"}],
@@ -690,8 +690,8 @@ Prepared portfolio JSON (`"schema": "rbot-portfolio/1"`):
 | `run-state.json` | every command | §8.2 |
 | `run-brief.md` | `rbot brief`, `rbot approve` | §3.1 |
 | `inventory.json` | `rbot inventory` | every file: relative path, size, sha256, extension, detected kind (pdf, xlsx, csv, txt, md, html, image), page count, `rbot_report` flag (file holds `id="rbot-run"`) |
-| `prepared/index.json` | `rbot prepare` | per file: prepared text path, pages, first-page excerpt (400 chars), detected entity names and dates, sheet names, `image_read` flag |
-| `prepared/<sha16>-<slug>.txt` | `rbot prepare` | page-anchored text: `<<< page N >>>` lines; xlsx/csv as `<<< sheet NAME >>>` then CSV rows with `#N/A`, `#N/A N/A`, `#VALUE!`, `#DIV/0!`, `#NAME?`, `—`, blank → empty cell; images produce a stub with `image_read: true` and no text |
+| `prepared/index.json` | `rbot prepare` | per file: prepared text path, pages, first-page excerpt (400 chars), detected entity names and dates, sheet names and states, `image_read` flag, `unreadable` reason, `encoding` when not UTF-8, `uncached_formulas`, `display_scaled`, `format_not_applied`, `dropped_surrogates`; top level `portfolio_notes` (amended 2026-10-12) |
+| `prepared/<sha16>-<pathhash8>-<slug>.txt` | `rbot prepare` | (name amended 2026-10-12: content hash + inventory-path hash + slug) page-anchored text: `<<< page N >>>` lines; xlsx/csv as `<<< sheet NAME >>>` then CSV rows with `#N/A`, `#N/A N/A`, `#VALUE!`, `#DIV/0!`, `#NAME?`, `—`, blank → empty cell; images produce a stub with `image_read: true` and no text |
 | `prepared/portfolios/<portfolio_id>.json` | `rbot prepare` | §7 |
 | `fetched/<nn>-<host>.md` | `CP-DR` (via `rbot fetch`) | fetched page as text with front matter `url`, `retrieved`, `sha256` |
 | `handoffs/<ID>.md`, `handoffs/MODEL.md`, `handoffs/PROJECTION.md`, `handoffs/FIT.md` | modules / host steps | Handoffs |
