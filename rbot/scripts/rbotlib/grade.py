@@ -6,14 +6,13 @@ catalog's Pathway lists and Front Page blocks. Writes `grading.json` and prints 
 menu (interfaces spec section 10.2). No Pathway is hidden.
 
 A file is usable evidence when CP-0 classified it readable and about this issuer
-(`entity_match` Yes). A step cannot run when a required `sources` input finds no usable
-file of its classes and document types, when it is FIT and the pack holds no Portfolio
-Context file (FIT is limited when the files hold no sheet `rbot prepare` could read into
-`brief.portfolios`), or when a required input in the same list cannot run. A step that cannot run
-blocks the Pathway when it owns a table of an unconditional Front Page block (or one of
-those steps needs it); otherwise it limits it, as does a missing optional document type.
-Deep Research, Prior Case and the projection are add-ons that Approval switches on or off,
-so they never lower a grade.
+(`entity_match` Yes). A step cannot run when a required `sources` input finds no usable file
+of its classes and document types, when it is FIT and the pack holds no Portfolio Context
+file (limited when no sheet could be read into `brief.portfolios`), or when a required input
+in the list cannot run. A step that cannot run blocks the Pathway when it owns a table of an
+unconditional Front Page block (or one of those steps needs it); otherwise it limits it, as
+does a missing optional document type. Deep Research, Prior Case and the projection are
+add-ons that Approval switches on or off, so they never lower a grade.
 """
 
 from __future__ import annotations
@@ -29,6 +28,7 @@ from typing import Any
 from rbotlib.brief import BRIEF, CP0, REQUIRED, TRANCHE, TRANCHE_OPTIONAL
 from rbotlib.catalog import ALWAYS, Catalog, Pathway, load_catalog, load_contracts
 from rbotlib.contract import Contract, load_contract
+from rbotlib.fsio import write_atomic
 from rbotlib.handoff import Handoff, HandoffError, Table, parse
 from rbotlib.rules import Rules, load_rules
 from rbotlib.validate import EXIT_BLOCKED, EXIT_VALID, check
@@ -93,9 +93,8 @@ def evidence(cp0: Handoff, brief: Handoff) -> Evidence:
             excluded.append({"file": row.get("file", ""), "reason": reason})
         else:
             usable.setdefault(row.get("class", ""), set()).add(row.get("document_type", ""))
-    portfolios = len(_records(brief.tables.get("brief.portfolios")))
     frozen = {c: frozenset(types) for c, types in usable.items()}
-    return Evidence(frozen, excluded, portfolios)
+    return Evidence(frozen, excluded, len(_records(brief.tables.get("brief.portfolios"))))
 
 
 def _labels(classes: tuple[str, ...]) -> str:
@@ -205,10 +204,8 @@ def grade_depth(
     blocking = _blocking(graded, grades, essential, contracts)
     limited = [s for s in graded if s not in blocking and grades[s].limitations]
     status = BLOCKED if blocking else LIMITED if limited else AVAILABLE
-    named = [grades[s] for s in graded if s in blocking or s in limited]
-    return {"status": status, "blocking_modules": blocking, "limited_modules": limited} | _named(
-        named
-    )
+    result = {"status": status, "blocking_modules": blocking, "limited_modules": limited}
+    return result | _named([grades[s] for s in graded if s in blocking or s in limited])
 
 
 def _named(named: list[StepGrade]) -> dict[str, list[str]]:
@@ -244,20 +241,41 @@ def _read_inputs(run: Path, root: Path, rules: Rules) -> tuple[Handoff, Handoff]
         if not (run / name).is_file():
             raise GradeError(f"{run}: no {name}; cp-start turn 1 writes it")
     text = (run / CP0).read_text(encoding="utf-8")
-    contract = load_contract(root / "modules" / "CP-0" / "contract.json", rules)
+    try:
+        contract = load_contract(root / "modules" / "CP-0" / "contract.json", rules)
+    except (ValueError, KeyError, TypeError) as exc:
+        raise GradeError(f"modules/CP-0/contract.json is not readable: {exc}") from exc
     code, findings = check(text, contract, rules, run)
     if code not in (EXIT_VALID, EXIT_BLOCKED):
         listed = "; ".join(f"{f.code}: {f.message}" for f in findings)
         raise GradeError(f"{CP0} does not validate (exit {code}): {listed}")
     try:
-        return parse((run / BRIEF).read_text(encoding="utf-8")), parse(text)
+        brief = parse((run / BRIEF).read_text(encoding="utf-8"))
     except HandoffError as exc:
         raise GradeError(f"{BRIEF}: {exc}") from exc
+    if brief.front_matter.get("cp0_sha256") != _sha(run / CP0):
+        raise GradeError(f"{BRIEF} was built from another {CP0}; run rbot brief --from {CP0}")
+    return brief, parse(text)
+
+
+def _catalog(root: Path) -> Catalog:
+    try:
+        return load_catalog(root)
+    except (ValueError, KeyError, TypeError) as exc:
+        raise GradeError(f"catalog.json is not readable: {exc}") from exc
+
+
+def contracts_sha256(root: Path) -> str:
+    """One sha256 over every module contract (path and bytes), so Approval sees a change."""
+    digest = hashlib.sha256()
+    for path in sorted((root / "modules").glob("*/contract.json")):
+        digest.update(path.parent.name.encode() + b"\0" + path.read_bytes() + b"\0")
+    return digest.hexdigest()
 
 
 def grade_run(run: Path, root: Path, rules: Rules) -> dict[str, Any]:
     brief, cp0 = _read_inputs(run, root, rules)
-    catalog = load_catalog(root)
+    catalog = _catalog(root)
     problems: list[str] = []
     contracts = load_contracts(root, rules, problems)
     unknown = [
@@ -279,6 +297,8 @@ def grade_run(run: Path, root: Path, rules: Rules) -> dict[str, Any]:
         "graded_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "brief_sha256": _sha(run / BRIEF),
         "cp0_sha256": _sha(run / CP0),
+        "catalog_sha256": _sha(root / "catalog.json"),
+        "contracts_sha256": contracts_sha256(root),
         "issuer": fields.get("issuer", {}).get("value", "—"),
         "issuer_id": fields.get("issuer_id", {}).get("value", "—"),
         "as_of_date": fields.get("as_of_date", {}).get("value", "—"),
@@ -372,9 +392,7 @@ def run_command(args: argparse.Namespace) -> int:
     except (GradeError, OSError) as exc:
         print(exc)
         return 1
-    (run / GRADING).write_text(
-        json.dumps(grading, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-    )
+    write_atomic(run / GRADING, json.dumps(grading, indent=2, ensure_ascii=False) + "\n")
     print(menu(grading), end="")
     return 0
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 from collections.abc import Callable
@@ -8,11 +9,14 @@ from typing import Any
 
 import pytest
 
-from builders import make_run
+from builders import prepared_pack
 from conftest import CORPUS
 from cp0_fixture import Classification, cp0_handoff, registry_classification
 from rbotlib.cli import main
 from rbotlib.corpus import Pack
+from rbotlib.grade import AVAILABLE as A
+from rbotlib.grade import BLOCKED as B
+from rbotlib.grade import LIMITED as L
 from rbotlib.rules import Rules
 from spec_fixture import SOURCES, build_tree
 
@@ -36,14 +40,8 @@ def root(tmp_path: Path, rules: Rules) -> Path:
 
 
 def _prepare(tmp_path: Path, files: dict[str, str]) -> Path:
-    pack = tmp_path / "pack"
-    pack.mkdir()
-    for name, text in files.items():
-        (pack / name).write_text(text, encoding="utf-8")
-    run = make_run(pack, "20261011-acme-pending")
-    assert main(["inventory", "--run", str(run)]) == 0
-    assert main(["prepare", "--run", str(run)]) == 0
-    return run
+    content: dict[str, str | bytes] = dict(files)
+    return prepared_pack(tmp_path, content)
 
 
 def _graded(
@@ -189,6 +187,70 @@ def test_grade_refuses_a_missing_or_invalid_input(
     assert "the RBOT folder does not check: ['CP-3'" in capsys.readouterr().out
 
 
+def test_a_module_that_cannot_fill_an_unconditional_block_blocks(
+    tmp_path: Path, rules: Rules
+) -> None:
+    """Decision 2 on a module's own table: CP-1A owns `snapshot.company_profile` (Credit
+    Snapshot block 2, always shown) and needs a Rating report it cannot find."""
+    sources = dict(SOURCES)
+    need = {"sources": ["issuer"], "document_types": ["Rating report"], "required": True}
+    sources["CP-1A"] = [need | {"why": "ratings"}]
+    (tmp_path / "rbot").mkdir()
+    root = build_tree(
+        tmp_path / "rbot", rules, sources, tables={"CP-1A": ["snapshot.company_profile"]}
+    )
+    grading = _graded(root, _acme(tmp_path), FILES)
+    full = _depth(grading, "FULL_CREDIT_ASSESSMENT", "full")
+    assert (full["status"], full["blocking_modules"]) == ("Blocked", ["CP-1A"])
+    assert "CP-1A: no Rating report (Issuer Sources) in the Source Pack" in full["limitations"]
+    assert "CP-2: needs CP-1A, which cannot run" in full["limitations"]
+    update = _depth(grading, "EARNINGS_UPDATE", "full")
+    assert (update["status"], update["blocking_modules"]) == ("With limitations", [])
+
+
+def test_grade_refuses_a_brief_built_from_another_cp0(
+    root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = _acme(tmp_path)
+    _graded(root, run, FILES)
+    cp0 = run / "handoffs" / "CP-0.md"
+    cp0.write_text(cp0.read_text(encoding="utf-8").replace("Test fixture:", "Re-dispatched:"))
+    capsys.readouterr()
+    assert main(["--root", str(root), "grade", "--run", str(run)]) == 1
+    assert "run-brief.md was built from another handoffs/CP-0.md; run rbot brief --from" in (
+        capsys.readouterr().out
+    )
+
+
+BROKEN = [
+    ("catalog.json", "{", "catalog.json is not readable"),
+    ("catalog.json", "{}", "catalog.json is not readable: 'size_budget_bytes'"),
+    ("modules/CP-0/contract.json", "{}", "modules/CP-0/contract.json is not readable"),
+]
+
+
+@pytest.mark.parametrize("case", BROKEN)
+def test_grade_names_a_broken_rbot_folder(
+    root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str], case: tuple[str, str, str]
+) -> None:
+    name, content, message = case
+    run = _acme(tmp_path)
+    _graded(root, run, FILES)
+    (root / name).write_text(content, encoding="utf-8")
+    capsys.readouterr()
+    assert main(["--root", str(root), "grade", "--run", str(run)]) == 1
+    assert message in capsys.readouterr().out
+
+
+def test_grading_pins_the_catalog_and_contracts(root: Path, tmp_path: Path) -> None:
+    grading = _graded(root, _acme(tmp_path), FILES)
+    assert (
+        grading["catalog_sha256"]
+        == hashlib.sha256((root / "catalog.json").read_bytes()).hexdigest()
+    )
+    assert len(grading["contracts_sha256"]) == 64
+
+
 def _expected(pack: Pack, fit: str) -> set[str]:
     """Interfaces spec section 12.5 row 04: the grade a pack's `pathways[].fit` implies."""
     if fit in ("primary", "exercises"):
@@ -198,19 +260,57 @@ def _expected(pack: Pack, fit: str) -> set[str]:
     return {"Available", "With limitations"}
 
 
-# Hand-checked grades: (pack, Pathway, Depth) -> (status, blocking, limited).
+# Every graded (pack, Pathway, Depth) of the regression record: (grade, blocking, limited).
 KNOWN = {
-    ("czr-2026q2-primary", "FULL_CREDIT_ASSESSMENT", "full"): ("Available", [], []),
-    ("czr-2026q2-primary", "PORTFOLIO_DECISION", "full"): ("Available", [], []),
-    ("ccl-fy2025-portfolio", "PORTFOLIO_DECISION", "quick"): ("Blocked", ["FIT"], ["CP-3"]),
-    ("vmo2-fy2025-portfolio", "PORTFOLIO_DECISION", "quick"): ("Blocked", ["FIT"], ["CP-3"]),
-    ("tid-ford", "COVENANT_REFINANCING", "full"): ("With limitations", [], ["CP-1"]),
-    ("tid-six-flags", "COVENANT_REFINANCING", "full"): ("With limitations", [], ["CP-1"]),
+    ("czr-2026q2-primary", "FULL_CREDIT_ASSESSMENT", "full"): (A, [], []),
+    ("czr-2026q2-primary", "PORTFOLIO_DECISION", "full"): (A, [], []),
+    ("czr-2026q2-primary", "RELATIVE_VALUE", "full"): (A, [], []),
+    ("czr-2026q2-full-credit-assessment", "FULL_CREDIT_ASSESSMENT", "full"): (L, [], ["FIT"]),
+    ("czr-2026q2", "EARNINGS_UPDATE", "quick"): (A, [], []),
+    ("czr-2026q2-earnings-update", "EARNINGS_UPDATE", "full"): (A, [], []),
+    ("czr-2026q2-covenant-refinancing", "COVENANT_REFINANCING", "full"): (A, [], []),
+    ("czr-2026q2-lite-covenant-refinancing", "COVENANT_REFINANCING", "quick"): (A, [], []),
+    ("czr-2026q2-liquidity", "COVENANT_REFINANCING", "quick"): (A, [], []),
+    ("czr-2026q2-lite-full-credit-screen", "FULL_CREDIT_ASSESSMENT", "quick"): (L, [], ["FIT"]),
+    ("czr-2026q2-lite-portfolio", "PORTFOLIO_DECISION", "quick"): (L, [], ["FIT"]),
+    ("czr-2026q2-lite-relative-value", "RELATIVE_VALUE", "quick"): (L, [], ["FIT"]),
+    ("czr-2026q2-portfolio", "PORTFOLIO_DECISION", "full"): (L, [], ["FIT"]),
+    ("czr-2026q2-relative-value", "RELATIVE_VALUE", "full"): (L, [], ["FIT"]),
+    ("ccl-fy2025", "EARNINGS_UPDATE", "quick"): (A, [], []),
+    ("ccl-fy2025-covenant-refinancing", "COVENANT_REFINANCING", "full"): (A, [], []),
+    ("ccl-fy2025-earnings-update", "EARNINGS_UPDATE", "full"): (A, [], []),
+    ("ccl-fy2025-full-relative-value", "RELATIVE_VALUE", "full"): (L, [], ["FIT"]),
+    ("ccl-fy2025-liquidity", "COVENANT_REFINANCING", "quick"): (L, [], ["CP-4"]),
+    ("ccl-fy2025-lite-covenant-refinancing", "COVENANT_REFINANCING", "quick"): (A, [], []),
+    ("ccl-fy2025-lite-full-credit-screen", "FULL_CREDIT_ASSESSMENT", "quick"): (
+        L,
+        [],
+        ["CP-3", "FIT"],
+    ),
+    ("ccl-fy2025-market-dislocation", "RELATIVE_VALUE", "quick"): (L, [], ["FIT"]),
+    ("ccl-fy2025-portfolio", "PORTFOLIO_DECISION", "quick"): (B, ["FIT"], ["CP-3"]),
+    ("ccl-fy2025-relative-value", "RELATIVE_VALUE", "quick"): (L, [], ["CP-3", "FIT"]),
+    ("ba-fy2025", "EARNINGS_UPDATE", "quick"): (A, [], []),
+    ("f-fy2025", "EARNINGS_UPDATE", "quick"): (A, [], []),
     ("save-2024-distressed-restructuring", "DISTRESSED_RESTRUCTURING", "full"): (
-        "With limitations",
+        L,
         [],
         ["CP-1", "CP-4", "CP-3", "FIT"],
     ),
+    ("save-2024-lite-distressed-restructuring", "DISTRESSED_RESTRUCTURING", "quick"): (
+        L,
+        [],
+        ["CP-1", "CP-4", "CP-3", "FIT"],
+    ),
+    ("vmo2-fy2025", "EARNINGS_UPDATE", "quick"): (A, [], []),
+    ("vmo2-fy2025-deep-research", "EARNINGS_UPDATE", "quick"): (A, [], []),
+    ("vmo2-fy2025-full-deep-research", "EARNINGS_UPDATE", "full"): (A, [], []),
+    ("vmo2-fy2025-portfolio", "PORTFOLIO_DECISION", "quick"): (B, ["FIT"], ["CP-3"]),
+    ("tid-ford", "COVENANT_REFINANCING", "full"): (L, [], ["CP-1"]),
+    ("tid-six-flags", "COVENANT_REFINANCING", "full"): (L, [], ["CP-1"]),
+    ("tid-vmo2-fy2025", "FULL_CREDIT_ASSESSMENT", "full"): (L, [], ["CP-4", "CP-3", "FIT"]),
+    ("tid-vmo2-fy2025", "EARNINGS_UPDATE", "full"): (A, [], []),
+    ("tid-vmo2-2026q1", "EARNINGS_UPDATE", "full"): (A, [], []),
 }
 
 
@@ -241,6 +341,5 @@ def test_grade_matches_expectations(
     for entry in pack.data["pathways"]:
         got = _depth(grading, entry["id"], entry["depth"])
         assert got["status"] in _expected(pack, entry["fit"]), (entry, got)
-        known = KNOWN.get((pack_id, entry["id"], entry["depth"]))
-        if known:
-            assert (got["status"], got["blocking_modules"], got["limited_modules"]) == known
+        expected = KNOWN[(pack_id, entry["id"], entry["depth"])]
+        assert (got["status"], got["blocking_modules"], got["limited_modules"]) == expected

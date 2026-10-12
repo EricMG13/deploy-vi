@@ -147,7 +147,10 @@ SOURCES: dict[str, list[dict[str, Any]]] = {
 }
 
 
-def stand_in(module_id: str, sources: list[dict[str, Any]]) -> dict[str, Any]:
+def stand_in(
+    module_id: str, sources: list[dict[str, Any]], tables: tuple[str, ...] = ()
+) -> dict[str, Any]:
+    """A contract with section 1's Handoff inputs, the given sources and owned tables."""
     required, optional = INPUTS[module_id]
     inputs: list[dict[str, Any]] = [
         {"handoff": h, "required": True, "why": "section 1"} for h in required.split()
@@ -159,7 +162,10 @@ def stand_in(module_id: str, sources: list[dict[str, Any]]) -> dict[str, Any]:
         "reader_question": "None: a test stand-in.",
         "inputs": inputs + sources,
         "process": ["None: a test stand-in."],
-        "tables": [],
+        "tables": [
+            {"id": t, "columns": [{"name": "value"}], "min_rows": 0, "consumers": ["REPORT"]}
+            for t in tables
+        ],
     }
 
 
@@ -176,13 +182,20 @@ def _front_pages() -> dict[str, Any]:
     return pages
 
 
-def build_tree(root: Path, rules: Rules, sources: dict[str, list[dict[str, Any]]]) -> Path:
-    """An RBOT folder: real rules, canon and CP-0; stand-ins; the section 5 Pathways."""
+def build_tree(
+    root: Path,
+    rules: Rules,
+    sources: dict[str, list[dict[str, Any]]],
+    tables: dict[str, list[str]] | None = None,
+) -> Path:
+    """An RBOT folder: real rules, canon and CP-0; stand-ins (with `sources` and owned
+    `tables` where given); the section 5 Pathways."""
     for name in ("rules.json", "canon.md"):
         shutil.copy(RBOT_ROOT / name, root / name)
     shutil.copytree(RBOT_ROOT / "modules" / "CP-0", root / "modules" / "CP-0")
     for module_id in INPUTS:
-        write_module(root, stand_in(module_id, sources.get(module_id, [])), rules)
+        owned = tuple((tables or {}).get(module_id, ()))
+        write_module(root, stand_in(module_id, sources.get(module_id, []), owned), rules)
     catalog = json.loads((RBOT_ROOT / "catalog.json").read_text(encoding="utf-8"))
     catalog["front_pages"] = _front_pages()
     catalog["pathways"] = [
