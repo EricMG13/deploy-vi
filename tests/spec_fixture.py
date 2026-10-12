@@ -121,6 +121,31 @@ FIT_BLOCKS = {
     "portfolio_decision": "always",
 }
 
+# Sources the grading tests give three stand-ins (the spec leaves them to each module's plan):
+# CP-1 needs a readable Issuer Source and wants financial statements, CP-4 the legal
+# documents, CP-3 Market Levels.
+STATEMENTS = ["Annual report", "Quarterly report", "Earnings release", "Bond report"]
+SOURCES: dict[str, list[dict[str, Any]]] = {
+    "CP-1": [
+        {"sources": ["issuer"], "required": True, "why": "the issuer's figures"},
+        {"sources": ["issuer"], "document_types": STATEMENTS, "why": "financial statements"},
+    ],
+    "CP-4": [
+        {
+            "sources": ["issuer"],
+            "document_types": ["Credit agreement", "Indenture", "Offering memorandum"],
+            "why": "the legal documents",
+        }
+    ],
+    "CP-3": [
+        {
+            "sources": ["market"],
+            "document_types": ["Market levels export", "Sector RV Workbook"],
+            "why": "Market Levels",
+        }
+    ],
+}
+
 
 def stand_in(module_id: str, sources: list[dict[str, Any]]) -> dict[str, Any]:
     required, optional = INPUTS[module_id]
