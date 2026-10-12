@@ -1,0 +1,14 @@
+{
+  "as_of": "2026-10-02",
+  "reference_rate_pct": null,
+  "instruments": [
+    {"facility_id": "CEI-TLB", "kind": "loan", "price": "99.563", "margin_bps": "225", "floor_bps": "50", "maturity_date": "2030-02-06"},
+    {"facility_id": "CEI-TLB-1", "kind": "loan", "price": "99.688", "margin_bps": "225", "floor_bps": "50", "maturity_date": "2031-02-06"},
+    {"facility_id": "CEI-SSN-2030", "kind": "bond", "price": "101.500", "coupon_pct": "7.00", "maturity_date": "2030-02-15"},
+    {"facility_id": "CEI-SSN-2032", "kind": "bond", "price": "93.250", "coupon_pct": "6.50", "maturity_date": "2032-02-15",
+     "call_schedule": [{"date": "2027-02-15", "price": "103.250"}, {"date": "2028-02-15", "price": "101.625"}, {"date": "2029-02-15", "price": "100.000"}]},
+    {"facility_id": "CEI-SN-2029", "kind": "bond", "price": "94.563", "coupon_pct": "4.625", "maturity_date": "2029-10-15"},
+    {"facility_id": "CEI-SN-2032", "kind": "bond", "price": "84.875", "coupon_pct": "6.00", "maturity_date": "2032-10-15"},
+    {"facility_id": "NEW-1", "kind": "loan_talk", "talk_low_bps": "300", "talk_high_bps": "325", "oid_low": "99.0", "oid_high": "99.5", "floor_bps": "50", "maturity_date": "2033-12-15"}
+  ]
+}

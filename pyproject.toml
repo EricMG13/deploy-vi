@@ -30,7 +30,7 @@ max-complexity = 10
 [tool.ruff.lint.isort]
 known-first-party = [
   "rbotlib", "conftest", "builders", "check_suppressions", "check_bandit_floor", "proxy_run",
-  "spec_fixture", "cp0_fixture", "test_grade", "module_specs",
+  "spec_fixture", "cp0_fixture", "test_grade", "module_specs", "mutation_workspace", "test_bond_analytics",
 ]
 
 [tool.mypy]

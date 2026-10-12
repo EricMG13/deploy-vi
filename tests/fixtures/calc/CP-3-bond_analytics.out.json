@@ -1,0 +1,98 @@
+{
+  "schema": "rbot-calc-bond-analytics/1",
+  "as_of": "2026-10-02",
+  "reference_rate_pct": null,
+  "conventions": {
+    "settlement": "the as_of date, no settlement lag",
+    "loan_dm": "margin + max(0, floor - reference rate) + (100 - price) / min(3, years to maturity, actual/365) x 100, in bps",
+    "bond_yield": "semi-annual, 30/360 US accrual, clean price plus accrued, first period fractional",
+    "ytw": "lowest of maturity and each call date at its call price",
+    "talk": "low margin at high OID, mid at mid OID, high margin at low OID"
+  },
+  "levels": [
+    {
+      "facility_id": "CEI-TLB",
+      "metric_basis": "3Y DM",
+      "price": "99.563",
+      "yield_or_dm": "239.57",
+      "horizon_years": "3.000000",
+      "floor_benefit_bps": null,
+      "status": "Calculated",
+      "note": "floor benefit not computed: no reference rate; the DM excludes it"
+    },
+    {
+      "facility_id": "CEI-TLB-1",
+      "metric_basis": "3Y DM",
+      "price": "99.688",
+      "yield_or_dm": "235.40",
+      "horizon_years": "3.000000",
+      "floor_benefit_bps": null,
+      "status": "Calculated",
+      "note": "floor benefit not computed: no reference rate; the DM excludes it"
+    },
+    {
+      "facility_id": "CEI-SSN-2030",
+      "metric_basis": "YTW",
+      "price": "101.500",
+      "yield_or_dm": "6.493579",
+      "ytm_pct": "6.493579",
+      "worst_date": "2030-02-15",
+      "worst_price": "100",
+      "stw_bps": null,
+      "status": "Calculated",
+      "note": "STW not computed: no benchmark yield"
+    },
+    {
+      "facility_id": "CEI-SSN-2032",
+      "metric_basis": "YTW",
+      "price": "93.250",
+      "yield_or_dm": "8.071057",
+      "ytm_pct": "8.071057",
+      "worst_date": "2032-02-15",
+      "worst_price": "100",
+      "stw_bps": null,
+      "status": "Calculated",
+      "note": "STW not computed: no benchmark yield"
+    },
+    {
+      "facility_id": "CEI-SN-2029",
+      "metric_basis": "YTW",
+      "price": "94.563",
+      "yield_or_dm": "6.630562",
+      "ytm_pct": "6.630562",
+      "worst_date": "2029-10-15",
+      "worst_price": "100",
+      "stw_bps": null,
+      "status": "Calculated",
+      "note": "STW not computed: no benchmark yield"
+    },
+    {
+      "facility_id": "CEI-SN-2032",
+      "metric_basis": "YTW",
+      "price": "84.875",
+      "yield_or_dm": "9.333010",
+      "ytm_pct": "9.333010",
+      "worst_date": "2032-10-15",
+      "worst_price": "100",
+      "stw_bps": null,
+      "status": "Calculated",
+      "note": "STW not computed: no benchmark yield"
+    }
+  ],
+  "talk": [
+    {
+      "facility_id": "NEW-1",
+      "talk_low": "300",
+      "talk_mid": "312.5",
+      "talk_high": "325",
+      "oid": "99.25",
+      "oid_low": "99.0",
+      "oid_high": "99.5",
+      "metric_basis": "3Y DM",
+      "implied_low": "316.67",
+      "implied_mid": "337.50",
+      "implied_high": "358.33",
+      "note": "floor benefit not computed: no reference rate"
+    }
+  ]
+}
