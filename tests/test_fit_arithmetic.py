@@ -664,3 +664,220 @@ def test_an_unscaled_unit_converts_to_the_run_unit(unit: str) -> None:
 def test_a_blank_unit_is_not_guessed() -> None:
     f = fa.fit(portfolio(limit("C", "issuer", "2.5", "pct_nav", "Hard"), unit=""), loan(), RUN)
     assert f.rows[0].status == "Not computed"
+
+
+# --- mutation review: cases that pin the arithmetic's small decisions ----------------------------
+
+
+def test_fold_and_name_are_what_the_matching_relies_on() -> None:
+    assert fa._fold("  Hotel,  Gaming &\tLeisure ") == "hotel, gaming & leisure"
+    assert fa._name("Caesars Entertainment, Inc.") == "caesars entertainment"
+    assert fa._name("THE Acme Holdings Co Ltd") == "acme holdings"
+
+
+def test_scope_values_lists_the_whole_name_then_its_comma_parts() -> None:
+    assert fa.scope_values({"scope_value": "Hotel, Gaming & Leisure"}) == [
+        "hotel, gaming & leisure",
+        "hotel",
+        "gaming & leisure",
+    ]
+    assert fa.scope_values({"scope_value": "Tobacco"}) == ["tobacco"]
+    assert fa.scope_values({"scope_value": "A, , B"}) == ["a, , b", "a", "b"]
+    assert fa.scope_values({"scope_values": ["X, Y", "Z"], "scope_value": "ignored"}) == [
+        "x, y",
+        "z",
+    ]
+    assert fa.scope_values({"scope_value": None}) == []
+
+
+def test_a_sector_name_with_a_comma_is_a_within_row_with_its_headroom() -> None:
+    name = "Hotel, Gaming & Leisure"
+    hard = limit("S-1", "sector", "8", "pct_nav", "Hard", scope_value=name, largest=False)
+    hard["current_value"] = "7.9"
+    row = fa.fit(portfolio(hard), loan(sector=name), RUN).rows[0]
+    assert (row.status, row.headroom, row.headroom_amount) == (
+        "Within",
+        Decimal("0.1"),
+        Decimal("0.6309"),
+    )
+
+
+@pytest.mark.parametrize(
+    ("scope", "value", "instrument", "touched"),
+    [
+        ("rating_bucket", "B", loan(ratings=()), False),  # unrated counts toward CCC only
+        ("rating_bucket", "B", loan(ratings=("Zz9",)), False),
+        ("rating_bucket", "Unrated", loan(ratings=("Zz9",)), True),
+        ("sector", "Tobacco", loan(sector="Casinos"), False),
+    ],
+)
+def test_unrated_instruments_touch_only_the_ccc_and_unrated_limits(
+    scope: str, value: str, instrument: Instrument, touched: bool
+) -> None:
+    row = {"scope": scope, "scope_value": value}
+    assert (
+        fa.touches(row, instrument, TAXONOMY | {"sector": frozenset({"casinos", "tobacco"})})
+        is touched
+    )
+
+
+@pytest.mark.parametrize(
+    ("scope", "value", "ratings", "counted"),
+    [
+        ("rating_bucket", "CCC", (), True),
+        ("rating_bucket", "CCC", ("Zz9",), True),
+        ("rating_bucket", "CCC", ("B2",), False),  # rated: counted for what it is
+        ("rating_bucket", "Unrated", (), False),  # a direct hit, not a stretch to CCC
+        ("sector", "CCC", (), False),  # not a rating limit
+        ("rating_bucket", "B", (), False),
+    ],
+)
+def test_the_unrated_are_flagged_only_when_stretched_to_the_ccc_bucket(
+    scope: str, value: str, ratings: tuple[str, ...], counted: bool
+) -> None:
+    assert (
+        fa.counted_as_ccc({"scope": scope, "scope_value": value}, loan(ratings=ratings)) is counted
+    )
+
+
+def test_a_taxonomy_without_the_scope_means_unknown() -> None:
+    row = {"scope": "sector", "scope_value": "Tobacco", "largest": False}
+    assert fa.touches(row, loan(sector="Casinos")) is None
+    assert fa.touches(row, loan(sector="Casinos"), {"country": frozenset({"us"})}) is None
+    assert fa.touches(row, loan(sector="Casinos"), {"sector": frozenset({"casinos"})}) is False
+
+
+def test_the_attributes_of_a_position_without_an_id_or_a_name() -> None:
+    """Defaults: a position with neither key is nobody's, whatever the run's id or name is."""
+    nameless = [{"par": "5.0"}]
+    for who in (
+        Run("None", RUN.as_of, "USD", "MILLIONS", ("None",)),
+        Run("XXXX", RUN.as_of, "USD", "MILLIONS", ("XXXX",)),
+    ):
+        held = fa.exposure(portfolio(positions=nameless), who)
+        assert held.par == 0 and held.count == 0 and not held.by_name_only
+    by_name = [{"issuer_name": "Caesars Entertainment Inc", "par": "5.0"}]
+    held = fa.exposure(portfolio(positions=by_name), RUN)
+    assert held.by_name_only == ("",) and held.count == 1  # a position with no id: the empty id
+
+
+def test_the_issuer_the_portfolio_holds_gives_its_own_sector_and_country() -> None:
+    positions = [
+        {"issuer_id": "CZR", "par": "6.0", "sector": "Casinos", "country": "US"},
+        {"issuer_id": "CZR", "par": "1.0", "sector": "Casinos", "country": "US"},
+    ]
+    held = fa.exposure(portfolio(positions=positions), RUN)
+    assert held.par == 7 and held.sector == "Casinos" and held.country == "US"
+    split = [{**positions[0], "country": "GB"}, positions[1]]
+    held = fa.exposure(portfolio(positions=split), RUN)
+    assert held.sector == "Casinos" and held.country is None  # the positions disagree
+    country = limit("K", "country", "5", "pct_nav", "Soft", scope_value="US", largest=False)
+    f = fa.fit(portfolio(country, positions=positions), loan(country="United States"), RUN)
+    assert f.rows[0].status == "Within"  # the portfolio's "US", not CP-1A's "United States"
+
+
+def test_a_maturity_with_room_under_a_year_is_not_a_cap() -> None:
+    tenor = fa.tenor_years(loan(), RUN.as_of)
+    assert tenor is not None
+    row = limit("M", "maturity", str(tenor + Decimal("0.5")), "years", "Hard")
+    f = fa.fit(portfolio(row), loan(), RUN)
+    assert (f.rows[0].headroom_amount, f.verdict) == (None, "Fits")
+
+
+def test_a_pct_nav_limit_that_is_not_the_issuers_needs_the_nav_too() -> None:
+    sector = limit("S", "sector", "10", "pct_nav", "Soft", current_value="5")
+    par = limit("P", "sector", "10", "pct_par", "Soft", current_value="5")
+    assert fa.fit(portfolio(sector, nav=None), loan(), RUN).rows[0].status == "Not computed"
+    assert fa.fit(portfolio(par, par=None), loan(), RUN).rows[0].status == "Not computed"
+    assert fa.fit(portfolio(par, nav=None), loan(), RUN).rows[0].status == "Within"
+    assert fa.fit(portfolio(sector, par=None), loan(), RUN).rows[0].status == "Within"
+
+
+def test_a_small_positive_nav_or_par_is_a_figure() -> None:
+    issuer = limit("C", "issuer", "2.5", "pct_nav", "Hard")
+    f = fa.fit(portfolio(issuer, nav=Decimal("0.5"), par=Decimal("0.5")), loan(), RUN)
+    assert f.rows[0].status != "Not computed" and f.current_exposure_pct_nav is not None
+    zero_par = limit("P", "issuer", "2.5", "pct_par", "Hard")
+    assert fa.fit(portfolio(zero_par, par=Decimal(0)), loan(), RUN).rows[0].status == "Not computed"
+
+
+def test_the_portfolio_with_nothing_to_compute_is_still_a_watch_for_a_missing_nav_or_par() -> None:
+    reason = "the portfolio's NAV or par is not a positive figure"
+    for nav, par in ((None, Decimal(634)), (NAV, None), (None, None)):
+        f = fa.fit(portfolio(nav=nav, par=par), loan(), RUN)
+        assert (f.verdict, f.reason) == ("Watch", reason)
+    assert fa.fit(portfolio(), loan(), RUN).verdict == "Fits"
+
+
+def test_the_one_percent_test_uses_the_nav_in_the_run_unit() -> None:
+    thousands = portfolio(
+        limit("C", "issuer", "2.5", "pct_nav", "Hard"),
+        positions=[],
+        nav=Decimal(630900),
+        par=Decimal(634000),
+        unit="THOUSANDS",
+    )
+    f = fa.fit(thousands, loan(), RUN)
+    assert (f.max_size, f.verdict, f.positions_held) == (Decimal("15.7725"), "Fits", 0)
+    held = fa.fit(portfolio(limit("C", "issuer", "5", "pct_nav", "Hard")), loan(), RUN)
+    assert held.positions_held == 1
+
+
+@pytest.mark.parametrize(
+    ("current", "verdict"),
+    [("12.5", "Watch"), ("12.0", "Fits"), ("11.5", "Fits"), ("11.99", "Fits")],
+)
+def test_only_a_negative_hard_book_statistic_is_a_concern(current: str, verdict: str) -> None:
+    book = limit("C-30", "other", "12.0", "pct_nav", "Hard", current_value=current)
+    assert fa.fit(portfolio(book), loan(), RUN).verdict == verdict
+    soft = limit("C-31", "other", "12.0", "pct_nav", "Soft", current_value="12.5")
+    assert fa.fit(portfolio(soft), loan(), RUN).verdict == "Fits"  # a Soft statistic never binds
+
+
+def test_a_non_book_row_is_not_a_book_concern() -> None:
+    breached = limit("S", "sector", "5", "pct_nav", "Soft", current_value="6")
+    f = fa.fit(portfolio(breached), loan(), RUN)
+    assert fa.concerns(f.portfolio, fa.exposure(f.portfolio, RUN), f.rows) == []
+
+
+def test_two_name_only_matches_are_listed_together() -> None:
+    held = [
+        {"issuer_id": "A", "issuer_name": "Caesars Entertainment", "par": "1"},
+        {"issuer_id": "B", "issuer_name": "CAESARS ENTERTAINMENT, INC.", "par": "1"},
+    ]
+    f = fa.fit(portfolio(positions=held), loan(), RUN)
+    assert f.reason == "positions A, B matched the issuer by name only; the ids disagree"
+
+
+@pytest.mark.parametrize(
+    ("ratings", "bucket"),
+    [
+        (("Ba2u",), "BB"),  # Moody's unsolicited mark is dropped, not the rating's last letter
+        (("(P)Baa2",), "IG"),
+        (("B1 *+",), "B"),
+        (("BB (sf)",), "BB"),
+        (("Caa1",), "CCC"),
+    ],
+)
+def test_marks_are_dropped_from_a_rating_and_the_rating_is_kept(
+    ratings: tuple[str, ...], bucket: str
+) -> None:
+    assert fa.rating_bucket(ratings) == bucket
+
+
+@settings(deadline=None)
+@given(
+    st.lists(st.tuples(LIMIT_VALUES, CURRENT, st.sampled_from(["Hard", "Soft"])), max_size=4),
+    st.sampled_from(["limit", "position"]),
+)
+def test_an_unreadable_row_never_improves_the_verdict_and_is_never_a_fit(
+    limits: list[tuple[Decimal, Decimal, str]], kind: str
+) -> None:
+    rows = [
+        limit(f"L{n}", "sector", str(v), "pct_nav", k, current_value=str(c))
+        for n, (v, c, k) in enumerate(limits)
+    ]
+    lost = ({"row": "limits.csv row 9", "reason": "unreadable", "kind": kind},)
+    before = fa.fit(portfolio(*rows), loan(), RUN).verdict
+    after = fa.fit(portfolio(*rows, unparsed=lost), loan(), RUN).verdict
+    assert ORDER[after] >= ORDER[before] and after != "Fits"
