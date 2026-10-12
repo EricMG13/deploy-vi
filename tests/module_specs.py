@@ -181,3 +181,58 @@ TABLES["CP-0"] = [
     ),
 ]
 INPUTS["CP-0"] = Inputs("", "", "issuer market portfolio", "")
+
+
+TABLES["CP-3"] = [
+    TableSpec(
+        "snapshot.instrument_levels",
+        1,
+        (
+            "facility_id* instrument* level_basis*:level_basis level_date bid ask mid "
+            "spread_or_coupon* metric_basis*:metric_basis yield_or_dm* oid valuation*:valuation "
+            "rationale* cite*"
+        ),
+        "REPORT CP-6 FIT CP-8 CP-5",
+    ),
+    TableSpec(
+        "snapshot.relative_value",
+        1,
+        (
+            "block*:rv_block name* bloomberg_id ratings size currency unit:unit margin_or_coupon "
+            "maturity_date seniority price chg_1m chg_ytd yield_pct* spread_or_dm_bps* "
+            "market_value level_date* cite*"
+        ),
+        "REPORT CP-6 CP-8",
+    ),
+    TableSpec(
+        "cp3.talk_valuation",
+        0,
+        (
+            "facility_id* talk_stage*:price_talk_stage talk_low* talk_mid* talk_high* oid* "
+            "metric_basis*:metric_basis implied_low* implied_mid* implied_high* comparable_level* "
+            "comparable_basis* verdict*:valuation cite*"
+        ),
+        "CP-6 FIT REPORT CP-8",
+    ),
+    TableSpec(
+        "cp3.compensation",
+        1,
+        (
+            "facility_id* structural_rank* recovery_sensitivity*:ordinal "
+            "compensation_vs_risk*:compensation comparables* cite*"
+        ),
+        "CP-6 REPORT CP-5",
+    ),
+    TableSpec(
+        "cp3.security_preference",
+        1,
+        "facility_id* preference*:preference key_reason* monitoring_trigger* cite*",
+        "CP-6 FIT REPORT CP-8",
+    ),
+]
+INPUTS["CP-3"] = Inputs(
+    "CP-0 CP-1 MODEL",
+    "CP-1A CP-1C CP-1D CP-2 CP-L10 CP-2A CP-2E CP-2G PROJECTION CP-2H CP-3C CP-3D CP-4 CP-4C CP-DR",
+    "issuer market",
+    "as_of_date primary transaction_summary",
+)
