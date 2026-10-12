@@ -10,7 +10,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from rbotlib import approve, brief, calc, corpus, fit, grade, inventory, prepare
+from rbotlib import approve, brief, calc, corpus, fit, grade, inventory, prepare, state
 from rbotlib.catalog import check_tree
 from rbotlib.contract import ContractError, load_contract
 from rbotlib.model.run import add_command as add_model_command
@@ -69,9 +69,19 @@ def _check(args: argparse.Namespace) -> int:
     return 1 if problems else 0
 
 
+def _log_path(run: Path) -> Path:
+    """Refuse pre-existing unsupported log kinds without opening or creating anything."""
+    destination = inventory.output_path(run, "log/rbot.log")
+    if destination.parent.exists() and not destination.parent.is_dir():
+        raise inventory.RunError(f"{destination.parent}: log parent must be a directory")
+    if destination.exists() and not destination.is_file():
+        raise inventory.RunError(f"{destination}: log must be a regular file")
+    return destination
+
+
 def _log(run: Path, argv: list[str], code: int) -> None:
     """One line per command in <RUN>/log/rbot.log: time, command, exit (spec section 8.1)."""
-    destination = inventory.output_path(run, "log/rbot.log")
+    destination = _log_path(run)
     destination.parent.mkdir(exist_ok=True)
     stamp = datetime.now(UTC).isoformat(timespec="seconds")
     with destination.open("a", encoding="utf-8") as log:
@@ -102,14 +112,21 @@ def main(argv: list[str] | None = None) -> int:
     approve.add_commands(sub)
     calc.add_command(sub)
     fit.add_command(sub)
+    state.add_command(sub)
     args = parser.parse_args(argv)
     run_dir = getattr(args, "run_dir", None)
-    log_run = Path(run_dir) if run_dir and Path(run_dir).is_dir() else None
-    if log_run is not None:
+    log_run = None
+    if run_dir:
+        selected = Path(run_dir)
         try:
-            inventory.output_path(log_run, "log/rbot.log")
-        except (inventory.RunError, OSError) as exc:
-            return _fail(log_run, exc)
+            guard = getattr(args, "log_run_guard", None)
+            if guard is not None:
+                selected = guard(selected)
+            if selected.is_dir():
+                _log_path(selected)
+                log_run = selected
+        except (OSError, ValueError, RecursionError) as exc:
+            return _fail(selected, exc)
     result = 1  # what the log records when the command raises
     try:
         result = int(args.run(args))
