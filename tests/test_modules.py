@@ -111,3 +111,20 @@ def test_a_blocked_module_can_write_a_handoff_that_exits_3(module_id: str, rules
     blocked = _blocked(fixture(module_id), c)
     assert "qa_status: Blocked" in blocked and "—" in blocked
     assert check(blocked, c, rules) == (3, [])
+
+
+def test_cp6_gate_names_only_handoffs_it_may_read(rules: Rules) -> None:
+    """Rest review M4: CP-1 is not a CP-6 input (spec section 1) and the canon forbids reading
+    it, so the gate may not ask for it."""
+    c = contract("CP-6", rules)
+    assert "CP-1" not in c.handoff_inputs()
+    text = (FOLDERS / "CP-6" / "MODULE.md").read_text(encoding="utf-8")
+    assert "Full Run when CP-2 (or CP-L10 at Quick depth) and CP-3" in text
+    assert "Full Run when CP-1" not in text
+
+
+def test_cp1b_builds_no_ltm_figure_of_its_own(rules: Rules) -> None:
+    """Rest review M13: the Model owns LTM; CP-1B compares only what CP-1 registers."""
+    text = (FOLDERS / "CP-1B" / "MODULE.md").read_text(encoding="utf-8")
+    assert "never build an LTM by hand" in text
+    assert "prior-year comparable stub" not in text

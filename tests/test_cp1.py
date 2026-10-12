@@ -13,6 +13,7 @@ add-back into Structuring EBITDA (3,742) while SSIM EBITDA excludes it (3,592).
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from collections.abc import Callable
 from decimal import Decimal
@@ -24,8 +25,11 @@ import pytest
 from builders import make_run
 from conftest import FIXTURES
 from rbotlib.cli import main
+from rbotlib.contract import load_contract
 from rbotlib.handoff import parse
 from rbotlib.model.snapshot import display
+from rbotlib.rules import RBOT_ROOT, Rules
+from rbotlib.validate import check
 
 HANDOFFS = FIXTURES / "handoffs"
 CHECKED = {"VERIFIED"}
@@ -87,6 +91,11 @@ def _shown(value: str) -> str:
     return f"{abs(Decimal(value)):,f}"
 
 
+def _on(shown: str, line: str) -> bool:
+    """`shown` is a whole figure of the line: 807 is not found in 1,807 or 8,070."""
+    return re.search(rf"(?<![\d,.]){re.escape(shown)}(?![\d,])", line) is not None
+
+
 @pytest.mark.corpus
 def test_cp1_figures_are_on_their_cited_lines(corpus_pack: Callable[[str], Path]) -> None:
     folder = corpus_pack("czr-2026q2-primary")
@@ -111,4 +120,80 @@ def test_cp1_figures_are_on_their_cited_lines(corpus_pack: Callable[[str], Path]
         _, source, _, excerpt = citations[marker.strip("[]")]
         cells = excerpt.replace("\\|", "|")
         lines = [line for line in texts[source].splitlines() if cells in line]
-        assert lines and any(_shown(value) in line for line in lines), (marker, value)
+        assert lines and any(_on(_shown(value), line) for line in lines), (marker, value)
+
+
+def test_a_debt_adjustment_row_reconciles_in_the_model(tmp_path: Path) -> None:
+    """Rest review I2: face value on a facility plus the aggregate discount as a DEBT ADJUSTMENT
+    row (r14's rule) is the one negative row the Model accepts, and the totals do not move."""
+    text = (HANDOFFS / "CP-1.md").read_text(encoding="utf-8")
+    tla = "| CEI-TLA | CEI Term Loan A | H1_2026 | Term loan | USD | 618 |"
+    assert tla in text
+    adjustment = (
+        "| DEBT-ADJ | Unamortized discount and debt issuance costs | H1_2026 | DEBT ADJUSTMENT "
+        "| USD | -87 | — | — | NOT_STATED | NOT_STATED | Not stated | — | NOT_LEASE "
+        "| NOT_STATED | NOT_STATED | — | — | — | — | [C25] | Note 6. Long-Term Debt |\n"
+    )
+    row = next(line for line in text.splitlines() if line.startswith(tla))
+    changed = text.replace(row, row.replace("| 618 |", "| 705 |") + "\n" + adjustment.rstrip("\n"))
+    run = tmp_path / "pack" / "rbot-runs" / "20261011-czr-full-credit-assessment"
+    (run / "handoffs").mkdir(parents=True)
+    shutil.copy(HANDOFFS / "CP-0.md", run / "handoffs" / "CP-0.md")
+    assert main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"]) == 0
+    (run / "handoffs" / "CP-1.md").write_text(changed, encoding="utf-8")
+    assert main(["model", "--run", str(run)]) == 0
+    data = json.loads((run / "model.json").read_text(encoding="utf-8"))
+    assert data["house"]["adjusted_debt"]["value"] == "14585"  # 705 - 87 = 618: unchanged
+    assert data["reconciliation_faults"] == []
+
+
+def test_the_cp1_prompt_names_the_debt_adjustment_row_and_the_lease_metrics() -> None:
+    """Rest review I2: the words r14 gave CP-1 and the Model's spelling are in the prompt."""
+    prompt = (Path(__file__).parent.parent / "rbot" / "modules" / "CP-1" / "MODULE.md").read_text(
+        encoding="utf-8"
+    )
+    for phrase in (
+        "`DEBT ADJUSTMENT` row (`facility_type` `DEBT ADJUSTMENT`",
+        "Only that adjustment row may be negative",
+        "plus any `DEBT ADJUSTMENT` row, equals `total_debt`",
+        "`operating_lease_cost` is the lease cost recognised inside operating expenses",
+        "under IFRS 16 only short-term and variable lease expense",
+        "`interest_paid_in_financing` the interest paid that the issuer classified in financing",
+    ):
+        assert phrase in prompt, phrase
+
+
+def test_a_figure_is_found_only_as_a_whole_number() -> None:
+    assert _on("807", "Revenue 807 1,001") and not _on("807", "Revenue 1,807")
+    assert not _on("807", "Revenue 8,070") and not _on("807", "rate 0.807")
+
+
+def _without_rows(text: str, table_id: str) -> str:
+    """The Handoff with every data row of one table removed (header and separator stay)."""
+    out, inside, seen = [], False, 0
+    for line in text.splitlines():
+        if line.startswith("<!-- table:"):
+            inside, seen = line == f"<!-- table: {table_id} -->", 0
+        elif inside and line.startswith("|"):
+            seen += 1
+            if seen > 2:
+                continue
+        out.append(line)
+    return "\n".join(out) + "\n"
+
+
+def test_an_empty_cp1_bridge_gives_an_empty_assessment_that_validates_and_runs(
+    tmp_path: Path, rules: Rules
+) -> None:
+    """Rest review I4: no `NONE` row with an invented verdict and amount."""
+    cp1 = _without_rows((HANDOFFS / "CP-1.md").read_text("utf-8"), "cp1.adjusted_ebitda_bridge")
+    cp1d = _without_rows((HANDOFFS / "CP-1D.md").read_text("utf-8"), "cp1d.addback_assessment")
+    contract = load_contract(RBOT_ROOT / "modules" / "CP-1D" / "contract.json", rules)
+    assert check(cp1d, contract, rules) == (0, [])
+    run = tmp_path / "pack" / "rbot-runs" / "20261011-czr-full-credit-assessment"
+    (run / "handoffs").mkdir(parents=True)
+    shutil.copy(HANDOFFS / "CP-0.md", run / "handoffs" / "CP-0.md")
+    assert main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"]) == 0
+    (run / "handoffs" / "CP-1.md").write_text(cp1, encoding="utf-8")
+    (run / "handoffs" / "CP-1D.md").write_text(cp1d, encoding="utf-8")
+    assert main(["model", "--run", str(run)]) == 0

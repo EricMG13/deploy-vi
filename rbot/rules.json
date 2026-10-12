@@ -46,7 +46,7 @@
     "metric_basis": ["3Y DM", "YTW", "YTM", "STW", "OAS", "Price"],
     "rv_block": ["Loan index", "Loan comparable", "HY index", "HY comparable"],
     "preference": ["Preferred", "Neutral", "Avoid", "Requires more work"],
-    "compensation": ["Adequate", "Inadequate", "Rich", "Unclear"],
+    "compensation": ["Attractive", "Adequate", "Inadequate", "Unclear"],
     "addback_verdict": ["Supported", "Challenged", "Rejected"],
     "debt_like_treatment": ["Debt-like", "Not debt-like", "Unclear"],
     "sw_kind": ["Strength", "Weakness"],

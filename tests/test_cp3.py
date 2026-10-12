@@ -15,6 +15,7 @@ from typing import Any
 from conftest import CORPUS, FIXTURES
 from rbotlib.calc.bond_analytics import compute
 from rbotlib.handoff import Handoff, parse
+from rbotlib.rules import RBOT_ROOT, Rules
 
 CP3 = parse((FIXTURES / "handoffs" / "CP-3.md").read_text(encoding="utf-8"))
 
@@ -66,3 +67,27 @@ def test_the_primary_pack_traps_and_expectations_hold() -> None:
         assert levels[value["where"]["facility_id"]][value["column"]] == value["value"]
     image = next(t["file"] for t in pack.data["traps"] if t["kind"] == "image_read_only")
     assert image not in {r[1] for r in CP3.tables["citations"].rows}
+
+
+def test_rich_means_expensive_only_and_compensation_uses_r14s_labels(rules: Rules) -> None:
+    """Rest review I3: the word has one meaning. `Rich` is an RV label (V4); an attractive
+    instrument is `Attractive` in `cp3.compensation`, as r14 wrote it."""
+    assert rules.scales["compensation"] == ("Attractive", "Adequate", "Inadequate", "Unclear")
+    prompt = (RBOT_ROOT / "modules" / "CP-3" / "MODULE.md").read_text(encoding="utf-8")
+    assert "Rich (Attractive)" not in prompt and "Secondary" not in prompt
+    assert "Rich -> V4 - Unattractive" in prompt
+    handoff = parse((FIXTURES / "handoffs" / "CP-3.md").read_text(encoding="utf-8"))
+    levels = {r[0]: r for r in handoff.tables["snapshot.instrument_levels"].rows}
+    valuation = handoff.tables["snapshot.instrument_levels"].columns.index("valuation")
+    compensation = handoff.tables["cp3.compensation"]
+    label = compensation.columns.index("compensation_vs_risk")
+    for row in compensation.rows:
+        if levels[row[0]][valuation].startswith(("V1", "V2")):
+            assert row[label] in ("Attractive", "Adequate"), row[0]
+
+
+def test_the_prompt_tells_cp3_how_to_give_a_floating_rate_note() -> None:
+    """Money review I3: no FRN path, so the prompt sends one to `loan` or to the Gaps."""
+    prompt = (RBOT_ROOT / "modules" / "CP-3" / "MODULE.md").read_text(encoding="utf-8")
+    assert "A floating-rate note is not a `bond`: give it as a `loan`" in prompt
+    assert "the calculator refuses any other key" in prompt

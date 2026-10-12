@@ -52,10 +52,10 @@ The 6.50% secured notes due 2032 yield 8.071057% at 93.25 (calc: bond_analytics 
 | CEI-TLB | 1 (first-lien senior secured) | Medium | Adequate | BB loan index 248; gaming BB average 228 | [C5] [C12] |
 | CEI-TLB-1 | 1 (first-lien senior secured) | Medium | Adequate | BB loan index 248; gaming BB average 228 | [C5] [C12] |
 | CEI-SSN-2030 | 1 (first-lien senior secured notes) | Medium | Adequate | the issuer's 2032 secured notes | [C13] |
-| CEI-SSN-2032 | 1 (first-lien senior secured notes) | Medium | Rich | the issuer's 2030 secured notes | [C9] |
+| CEI-SSN-2032 | 1 (first-lien senior secured notes) | Medium | Attractive | the issuer's 2030 secured notes | [C9] |
 | CEI-SN-2029 | 2 (senior unsecured) | High | Inadequate | PENN 4.125% notes due 2029 at 6.65 | [C11] |
 | CEI-SN-2032 | 2 (senior unsecured) | High | Adequate | the issuer's 2032 secured notes | [C13] |
-| NEW-1 | 1 (first-lien senior secured, pari passu) | Medium | Rich | the issuer's term loans; BB index; gaming B average 331 | [C3] [C5] [C6] [C24] |
+| NEW-1 | 1 (first-lien senior secured, pari passu) | Medium | Attractive | the issuer's term loans; BB index; gaming B average 331 | [C3] [C5] [C6] [C24] |
 
 <!-- table: cp3.security_preference -->
 | facility_id | preference | key_reason | monitoring_trigger | cite |
