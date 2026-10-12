@@ -20,6 +20,8 @@ from rbotlib.handoff import parse
 
 AB = FIXTURES / "ab"
 SHEETS = [AB / f"grader-{n}.md" for n in (1, 2, 3)]
+EXPECTATIONS = FIXTURES.parent / "corpus" / "expectations" / "czr-2026q2-primary.json"
+WHO = ["--module", "CP-1", "--expectations", str(EXPECTATIONS)]  # CP-1 owns no Front Page table
 
 
 def _order(tmp_path: Path, x: str) -> Path:
@@ -57,7 +59,7 @@ def test_two_sheets_resolve_to_their_mean_and_map_back_to_a_and_b(tmp_path: Path
 
 
 def test_score_applies_the_pass_bar(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    args = ["score", "--sheets", *map(str, SHEETS[:2]), "--c-b", "25/25", "--f-b", "0.95"]
+    args = ["score", "--sheets", *map(str, SHEETS[:2]), "--c-b", "25/25", "--f-b", "0.95", *WHO]
     assert ab_grade.main([*args, "--order", str(_order(tmp_path, "A"))]) == 0  # B is Y
     result = json.loads(capsys.readouterr().out)
     assert result["pass"] and result["scores"]["B"]["D3"] == "2"
@@ -76,10 +78,20 @@ def test_a_third_grader_is_needed_then_the_median_decides(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     order = str(_order(tmp_path, "A"))
-    two = ["score", "--order", order, "--sheets", str(SHEETS[0]), str(SHEETS[2]), "--c-b", "1"]
+    two = [
+        "score",
+        "--order",
+        order,
+        "--sheets",
+        str(SHEETS[0]),
+        str(SHEETS[2]),
+        "--c-b",
+        "1",
+        *WHO,
+    ]
     assert ab_grade.main(two) == 3
     assert json.loads(capsys.readouterr().out) == {"third_grader_needed": ["D1", "D2", "D5", "G"]}
-    three = ["score", "--order", order, "--sheets", *map(str, SHEETS), "--c-b", "0.96"]
+    three = ["score", "--order", order, "--sheets", *map(str, SHEETS), "--c-b", "0.96", *WHO]
     assert ab_grade.main(three) == 0
     assert json.loads(capsys.readouterr().out)["scores"]["B"]["D1"] == "3"
 
@@ -111,7 +123,9 @@ def test_bad_sheets_and_inputs_are_named(
     )
     order = str(_order(tmp_path, "A"))
     assert (
-        ab_grade.main(["score", "--order", order, "--sheets", str(bad), str(bad), "--c-b", "1"])
+        ab_grade.main(
+            ["score", "--order", order, "--sheets", str(bad), str(bad), "--c-b", "1", *WHO]
+        )
         == 2
     )
     assert "criterion D1: scores '2', 'x' are not 0-3" in capsys.readouterr().out
@@ -119,7 +133,9 @@ def test_bad_sheets_and_inputs_are_named(
         "| criterion | X | Y | reason |\n|---|---|---|---|\n| D1 | 2 | 3 | - |\n", "utf-8"
     )
     assert (
-        ab_grade.main(["score", "--order", order, "--sheets", str(bad), str(bad), "--c-b", "1"])
+        ab_grade.main(
+            ["score", "--order", order, "--sheets", str(bad), str(bad), "--c-b", "1", *WHO]
+        )
         == 2
     )
     assert "needs every criterion scored 0-3" in capsys.readouterr().out
@@ -140,3 +156,120 @@ def test_measure_on_the_cp3_fixture(
     measured = json.loads(capsys.readouterr().out)
     assert (measured["validate_exit"], measured["findings"], measured["C"]) == (0, [], "25/25")
     assert measured["F"] == "129/129" and measured["gaps"] == 6  # levels 7 x 9, RV 11 x 6
+
+
+# --- the up-front review of Plan 05 (rest, I11 I12 M8): every case below failed before its fix --
+
+
+def _cp3_fill(handoff_text: str) -> str | None:
+    from rbotlib.contract import load_contract
+    from rbotlib.rules import RBOT_ROOT, load_rules
+
+    rules = load_rules()
+    contract = load_contract(RBOT_ROOT / "modules" / "CP-3" / "contract.json", rules)
+    return ab_grade.front_page_fill(contract, parse(handoff_text), EXPECTATIONS, rules)
+
+
+def test_f_counts_a_missing_row_as_unfilled() -> None:
+    """I11: a CP-3 cut to one level and one RV row once scored 15/15."""
+    text = (FIXTURES / "handoffs" / "CP-3.md").read_text("utf-8")
+    assert _cp3_fill(text) == "129/129"
+    keep = ("snapshot.instrument_levels", "snapshot.relative_value")
+    out, table, seen = [], "", 0
+    for line in text.splitlines():
+        tag = line.startswith("<!-- table:") and line.removeprefix("<!-- table: ")[:-4]
+        if tag:
+            table, seen = tag, 0
+        elif line.startswith("|") and table in keep:
+            seen += 1
+            if seen > 3:
+                continue
+        out.append(line)
+    assert _cp3_fill("\n".join(out) + "\n") == "15/129"
+
+
+def test_f_needs_expected_rows(tmp_path: Path) -> None:
+    from rbotlib.contract import load_contract
+    from rbotlib.rules import RBOT_ROOT, load_rules
+
+    rules = load_rules()
+    contract = load_contract(RBOT_ROOT / "modules" / "CP-3" / "contract.json", rules)
+    bare = tmp_path / "e.json"
+    bare.write_text(
+        json.dumps(
+            {"front_pages": {"p": {"supportable": [{"table": "snapshot.instrument_levels"}]}}}
+        ),
+        encoding="utf-8",
+    )
+    text = (FIXTURES / "handoffs" / "CP-3.md").read_text("utf-8")
+    with pytest.raises(ab_grade.ABError, match=r"snapshot\.instrument_levels needs expected_rows"):
+        ab_grade.front_page_fill(contract, parse(text), bare, rules)
+
+
+def test_score_refuses_a_missing_f_for_a_module_that_owns_front_page_tables(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """I11: the dry run never passed --f-b, and a missing one passed silently."""
+    order = str(_order(tmp_path, "A"))
+    args = ["score", "--order", order, "--sheets", *map(str, SHEETS[:2]), "--c-b", "1"]
+    cp3 = ["--module", "CP-3", "--expectations", str(EXPECTATIONS)]
+    assert ab_grade.main([*args, *cp3]) == 2
+    assert "--f-b is required: CP-3 owns Front Page tables (snapshot.instrument_levels" in (
+        capsys.readouterr().out
+    )
+    assert ab_grade.main([*args, *cp3, "--f-b", "129/129"]) == 0
+
+
+@pytest.mark.parametrize("bad", ["0/0", "abc", "1/x", "nan"])
+def test_a_bad_ratio_is_named_not_a_traceback(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], bad: str
+) -> None:
+    order = str(_order(tmp_path, "A"))
+    args = ["score", "--order", order, "--sheets", *map(str, SHEETS[:2]), *WHO, "--c-b", bad]
+    assert ab_grade.main(args) == 2
+    assert f"--c-b: {bad!r} is not a ratio" in capsys.readouterr().out
+
+
+def test_a_criterion_scored_twice_is_refused(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    twice = tmp_path / "twice.md"
+    twice.write_text(SHEETS[0].read_text("utf-8") + "| D1 | 0 | 3 | extra |\n", encoding="utf-8")
+    order = str(_order(tmp_path, "A"))
+    args = ["score", "--order", order, "--sheets", str(twice), str(SHEETS[1]), "--c-b", "1", *WHO]
+    assert ab_grade.main(args) == 2
+    assert "criterion D1 is scored twice" in capsys.readouterr().out
+
+
+@pytest.mark.corpus
+def test_measure_names_a_handoff_it_cannot_read(
+    prepared_run: Callable[[str], Path], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    bad = tmp_path / "bad.md"
+    bad.write_text("no front matter", encoding="utf-8")
+    run = prepared_run("czr-2026q2-primary")
+    args = ["measure", "--module", "CP-3", "--handoff", str(bad), "--run", str(run)]
+    assert ab_grade.main(args) == 2
+    assert "CP-3: the Handoff cannot be read" in capsys.readouterr().out
+
+
+def _steps(tmp_path: Path, x: str, folder: str = "cp-1d-earnings-quality") -> int:
+    args = ["steps", "--module", "CP-1D", "--folder", folder, "--order", str(_order(tmp_path, x))]
+    return ab_grade.main([*args, "--out", str(tmp_path)])
+
+
+def test_steps_give_the_graders_each_sides_method_without_naming_the_side(tmp_path: Path) -> None:
+    """I12: D1 asks whether every step of the method was done, so the graders need the steps."""
+    assert _steps(tmp_path, "B") == 0  # X is the rewrite, Y the r14 original
+    x = (tmp_path / "steps-X.md").read_text("utf-8")
+    y = (tmp_path / "steps-Y.md").read_text("utf-8")
+    assert x.startswith("# Method given to side X (CP-1D)") and "The add-back challenge." in x
+    assert y.startswith("# Method given to side Y (CP-1D)") and "SKILL.md" in y
+    assert _steps(tmp_path, "A") == 0  # the other way round
+    assert "SKILL.md" in (tmp_path / "steps-X.md").read_text("utf-8")
+    assert "The add-back challenge." in (tmp_path / "steps-Y.md").read_text("utf-8")
+
+
+def test_steps_refuse_a_folder_outside_the_r14_skills(tmp_path: Path) -> None:
+    assert _steps(tmp_path, "B", "../../rbot") == 2
+    assert not (tmp_path / "steps-X.md").exists()

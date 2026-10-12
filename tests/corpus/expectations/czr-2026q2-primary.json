@@ -1,7 +1,7 @@
 {
   "schema": "rbot-expectations/1",
   "pack": "czr-2026q2-primary",
-  "note": "Hand-checked on 2026-10-11 against the cited files. Figures are plain decimals in USD millions. Metric and period ids are the Model's (Plan 03, amendment A10): CP-1 metric ids as rbotlib.model reads them; period ids FY<yyyy> and H1_<yyyy> (six months to June 30; June 30 balances sit on H1_<yyyy>, the period ending that day). Sign convention: pro forma rows are not sign-normalised, so a cash outflow on a pro forma row is negative. carrying_value and total_debt are book values (the carrying amount as filed), never face.",
+  "note": "Hand-checked on 2026-10-11 against the cited files; the `expected_rows` of the Front Page tables (2026-10-12) are the hand-checked fixtures' row counts, so a measured F counts a missing row as unfilled. Figures are plain decimals in USD millions. Metric and period ids are the Model's (Plan 03, amendment A10): CP-1 metric ids as rbotlib.model reads them; period ids FY<yyyy> and H1_<yyyy> (six months to June 30; June 30 balances sit on H1_<yyyy>, the period ending that day). Sign convention: pro forma rows are not sign-normalised, so a cash outflow on a pro forma row is negative. carrying_value and total_debt are book values (the carrying amount as filed), never face.",
   "values": [
     {"module": "CP-1", "table": "cp1.model_account_register", "where": {"metric_id": "revenue", "period_id": "FY2025"}, "value": "11486", "tolerance": "0", "source": "CZR_FY2025_10K.txt", "locator": "Consolidated Statements of Operations", "excerpt": "Net revenues | 11,486 | 11,245 | 11,528"},
     {"module": "CP-1", "table": "cp1.model_account_register", "where": {"metric_id": "revenue", "period_id": "FY2024"}, "value": "11245", "tolerance": "0", "source": "CZR_FY2025_10K.txt", "locator": "Consolidated Statements of Operations", "excerpt": "Net revenues | 11,486 | 11,245 | 11,528"},
@@ -46,21 +46,21 @@
     "credit_snapshot": {
       "supportable": [
         {"table": "snapshot.run_header", "critical": "all"},
-        {"table": "snapshot.company_profile", "critical": "all"},
-        {"table": "snapshot.business_description", "critical": "all"},
+        {"table": "snapshot.company_profile", "critical": "all", "expected_rows": 1},
+        {"table": "snapshot.business_description", "critical": "all", "expected_rows": 1},
         {"table": "snapshot.transaction_summary", "critical": "all", "rows": ["NEW-1"], "note": "bloomberg_id and cr_score are explicit gaps (not critical)"},
         {"table": "snapshot.capital_structure", "critical": "all", "rows": ["one per facility at H1_2026 plus NEW-1"]},
         {"table": "snapshot.capital_structure_totals", "critical": "all", "note": "PF interest rows from the PF capitalisation"},
         {"table": "snapshot.ebitda_adjustments", "critical": "all", "note": "one unrealized add-back: run-rate cost synergies"},
-        {"table": "snapshot.instrument_levels", "critical": "all", "note": "NEW-1 at talk; screenshot levels are Image-Read and never used in yield_or_dm"},
-        {"table": "snapshot.relative_value", "critical": "all", "note": "Loan RV from the Sector RV Workbook; HY rows from the Bloomberg levels export and TRACE"},
-        {"table": "snapshot.credit_view", "critical": "all"},
-        {"table": "snapshot.strengths_weaknesses", "critical": "all"},
-        {"table": "snapshot.historical_performance", "critical": "all"},
+        {"table": "snapshot.instrument_levels", "critical": "all", "expected_rows": 7, "note": "the six instruments with a market level in the Bloomberg export plus NEW-1 at talk; screenshot levels are Image-Read and never used in yield_or_dm"},
+        {"table": "snapshot.relative_value", "critical": "all", "expected_rows": 11, "note": "five loan index rows and six loan comparables from the Sector RV Workbook; no HY row: the Bloomberg levels export states yields but no spread, so CP-3 leaves such a row out and names it under Gaps (its step 4), and the pack holds no TRACE file"},
+        {"table": "snapshot.credit_view", "critical": "all", "expected_rows": 1},
+        {"table": "snapshot.strengths_weaknesses", "critical": "all", "expected_rows": 4},
+        {"table": "snapshot.historical_performance", "critical": "all", "expected_rows": 1},
         {"table": "snapshot.financial_columns", "critical": "all"},
         {"table": "snapshot.financials", "critical": "all"},
-        {"table": "snapshot.recommendation", "critical": "all"},
-        {"table": "snapshot.portfolio_fit", "critical": "all", "rows": ["TEST_CLO_I"]}
+        {"table": "snapshot.recommendation", "critical": "all", "expected_rows": 3},
+        {"table": "snapshot.portfolio_fit", "critical": "all", "rows": ["TEST_CLO_I"], "expected_rows": 12}
       ]
     }
   }
