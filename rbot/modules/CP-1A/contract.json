@@ -6,7 +6,7 @@
     {"handoff": "CP-0", "required": true, "why": "which readable Issuer Sources describe the business, its owners and the current transaction"},
     {"handoff": "CP-1", "required": false, "why": "the entity profile and pro forma register, so facts and figures name the same entity, perimeter and transaction"},
     {"sources": ["issuer"], "required": true, "why": "annual and quarterly reports, merger and offering documents, term sheets and rating reports"},
-    {"sources": ["market"], "required": false, "why": "agency ratings shown in Market Levels exports"},
+    {"sources": ["issuer", "market"], "document_types": ["Rating report", "Market levels export"], "required": false, "why": "agency ratings: a rating report, or the ratings shown in a Market Levels export"},
     {"run_brief": ["issuer", "as_of_date", "objective", "morningstar_issuer_id"], "why": "the issuer and date in scope and the Morningstar Issuer ID for the company profile"}
   ],
   "process": [

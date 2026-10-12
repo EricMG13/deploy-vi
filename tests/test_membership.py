@@ -12,7 +12,11 @@ a Full-depth module, so at Quick it owns nothing (section 5).
 
 from __future__ import annotations
 
-from rbotlib.catalog import load_catalog, load_contracts
+import json
+import shutil
+from pathlib import Path
+
+from rbotlib.catalog import check_tree, load_catalog, load_contracts
 from rbotlib.grade import HOST_INPUTS
 from rbotlib.rules import RBOT_ROOT, Rules
 from spec_fixture import INPUTS, PATHWAYS
@@ -78,3 +82,17 @@ def test_the_committed_list_is_the_derived_list_of_built_steps(rules: Rules) -> 
     assert list(pathway.depths["full"]) == expected
     quick = derive(rules, "quick")
     assert not quick <= built and "quick" not in pathway.depths  # CP-L10 and CP-8 come later
+
+
+def test_a_host_table_needs_its_host_step_in_the_pathway(tmp_path: Path, rules: Rules) -> None:
+    """Rest review M1: take FIT out of the list and `snapshot.portfolio_fit` has no producer."""
+    root = tmp_path / "rbot"
+    shutil.copytree(RBOT_ROOT, root, ignore=shutil.ignore_patterns("__pycache__", "scripts"))
+    path = root / "catalog.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    full = next(p for p in data["pathways"] if p["id"] == "FULL_CREDIT_ASSESSMENT")
+    full["depths"]["full"].remove("FIT")
+    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    problems = check_tree(root, rules)
+    assert any("snapshot.portfolio_fit has 0 owners" in p for p in problems), problems
+    assert check_tree(RBOT_ROOT, rules) == []

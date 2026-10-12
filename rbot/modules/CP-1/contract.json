@@ -5,7 +5,7 @@
   "inputs": [
     {"handoff": "CP-0", "required": true, "why": "the source inventory: which files are readable Issuer Sources about this issuer, their periods and their traps"},
     {"sources": ["issuer"], "required": true, "why": "the financial statements, debt notes, term sheets and pro forma capitalisation the figures come from"},
-    {"sources": ["issuer"], "document_types": ["Annual report", "Quarterly report", "Earnings release", "Bond report"], "why": "period financial statements; without them CP-1 registers what other Issuer Sources state and names the missing periods"},
+    {"sources": ["issuer"], "document_types": ["Annual report", "Quarterly report", "Earnings release", "Bond report", "Offering memorandum", "Lender presentation"], "required": true, "why": "period financial statements (an offering memorandum or lender presentation holds them for a private or 144A issuer); without any, CP-1 has nothing to register and is Blocked"},
     {"sources": ["market"], "document_types": ["Market levels export", "Equity value export"], "why": "instrument identifiers, agency ratings and a listed equity value"},
     {"run_brief": ["issuer", "issuer_id", "as_of_date", "primary", "transaction_summary"], "why": "the entity and date in scope, and the new tranches' ids (`NEW-<n>`) to register as facilities"}
   ],

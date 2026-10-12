@@ -182,11 +182,16 @@ def _order(
     return problems
 
 
+ADD_ONS = frozenset({"RUN_BRIEF", "PROJECTION"})
+
+
 def _owners(
     pathway: Pathway, modules: tuple[str, ...], catalog: Catalog, contracts: dict[str, Contract]
 ) -> list[str]:
     owned = [t.id for m in modules if m in contracts for t in contracts[m].tables]
-    owned += list(catalog.host_tables)
+    # A host step owns its tables only where the Pathway runs it; the Run Brief is on every run and
+    # PROJECTION is an add-on a Full-depth run may append after CP-2G.
+    owned += [t for t, host in catalog.host_tables.items() if host in modules or host in ADD_ONS]
     problems = []
     for table_id in catalog.front_pages.get(pathway.front_page, ()):
         count = owned.count(table_id)

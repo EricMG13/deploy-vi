@@ -80,7 +80,13 @@ def test_an_optional_input_outside_the_pathway_is_fine(tree: Path, rules: Rules)
 
 
 def test_a_front_page_table_owned_twice_is_named(tree: Path, rules: Rules) -> None:
-    write_catalog(tree, host_tables={"snapshot.view": "MODEL"})
+    pathway = {
+        "id": "EXAMPLE",
+        "label": "Example",
+        "front_page": "fp",
+        "depths": {"full": ["CP-X", "CP-Y", "MODEL"]},
+    }
+    write_catalog(tree, host_tables={"snapshot.view": "MODEL"}, pathways=[pathway])
     problems = check_tree(tree, rules)
     assert "EXAMPLE: front-page table snapshot.view has 2 owners" in problems
     assert "host table snapshot.view is also a module table" in problems
