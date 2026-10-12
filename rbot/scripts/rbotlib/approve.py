@@ -9,7 +9,10 @@ tranche, then writes `brief.approval` into `run-brief.md`, the plan and the Appr
 Approval switches off are `skipped` with the fixed reasons of section 8.3; every other step
 is `pending`, except CP-0, whose Handoff is recorded as it stands. `plan` prints the steps.
 
-The files are written through a temporary file and `os.replace`; the folder is renamed last.
+Every input is read, shape-checked and turned into the new file contents before anything is
+written. The writes hold an exclusive lock file (`.approve.lock`, created with O_EXCL), go
+through a temporary file and `os.replace`, and the folder is renamed last; if the rename
+fails, the pre-Approval Run Brief and state are put back, so the run can be approved again.
 """
 
 from __future__ import annotations
@@ -17,7 +20,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -27,12 +33,13 @@ from rbotlib import brief as rb
 from rbotlib.catalog import load_catalog
 from rbotlib.contract import load_contract
 from rbotlib.fsio import write_atomic
-from rbotlib.grade import BLOCKED, GRADING
+from rbotlib.grade import BLOCKED, GRADING, SCHEMA, contracts_sha256
 from rbotlib.handoff import HandoffError, parse
 from rbotlib.rules import Rules, load_rules
-from rbotlib.validate import EXIT_VALID, check
+from rbotlib.validate import EXIT_BLOCKED, EXIT_VALID, check
 
 STATE = "run-state.json"
+LOCK = ".approve.lock"
 PENDING_NAME = re.compile(r"(\d{8})-.+-pending(-\d+)?")
 SKIPS = {
     "CP-DR": "not approved",
@@ -60,18 +67,44 @@ class Choice:
 
 def _load(path: Path, what: str) -> dict[str, Any]:
     try:
-        data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ApprovalError(f"{path}: no readable {what} ({exc})") from exc
+    if not isinstance(data, dict):
+        raise ApprovalError(
+            f"{path.name} is not a {'run state' if path.name == STATE else 'grading record'}"
+        )
     return data
 
 
 def _state(path: Path) -> dict[str, Any]:
-    return _load(path, f"{STATE}; the run was not created with rbot new-run")
+    state = _load(path, f"{STATE}; the run was not created with rbot new-run")
+    if not isinstance(state.get("steps", {}), dict):
+        raise ApprovalError(f"{STATE} is not a run state: 'steps' is not an object")
+    return state
+
+
+def _depths_ok(p: object) -> bool:
+    depths = p.get("depths") if isinstance(p, dict) else None
+    keys = ("status", "blocking_modules", "limitations")
+    return isinstance(depths, dict) and all(
+        isinstance(d, dict) and all(k in d for k in keys) for d in depths.values()
+    )
 
 
 def _grading(path: Path) -> dict[str, Any]:
-    return _load(path, "grading.json; run rbot grade first")
+    grading = _load(path, "grading.json; run rbot grade first")
+    keys = ("brief_sha256", "cp0_sha256", "catalog_sha256", "contracts_sha256")
+    if grading.get("schema") != SCHEMA or not all(isinstance(grading.get(k), str) for k in keys):
+        raise ApprovalError(f"{GRADING} is not a grading record; run rbot grade again")
+    pathways = grading.get("pathways")
+    if not isinstance(pathways, list):
+        raise ApprovalError(f"{GRADING} is not a grading record (no pathways); run rbot grade")
+    for p in pathways:
+        if not _depths_ok(p):
+            name = p.get("id") if isinstance(p, dict) else p
+            raise ApprovalError(f"{GRADING} is not a grading record (pathway {name} has no depths)")
+    return grading
 
 
 def _sha(path: Path) -> str:
@@ -99,7 +132,7 @@ def _graded(grading: dict[str, Any], choice: Choice) -> dict[str, Any]:
 
 def _confirm(brief: rb.Brief, choice: Choice) -> None:
     """Apply the Approval to the Run Brief's fields, questions and Prior Case rows."""
-    rb.apply_edit(brief.fields["analyst"], choice.analyst)
+    rb.apply_edit(brief.fields["analyst"], rb.free_text("analyst", choice.analyst))
     missing = [n for n in rb.REQUIRED if brief.fields[n].status == rb.GAP]
     if missing:
         raise ApprovalError(f"the Run Brief still has gaps: {', '.join(missing)}; rbot brief --set")
@@ -137,6 +170,10 @@ def new_name(run: Path, issuer_id: str, pathway: str) -> Path:
     if not match:
         raise ApprovalError(f"{run.name} is not a pending run folder (<YYYYMMDD>-<issuer>-pending)")
     issuer = re.sub(r"[^a-z0-9]+", "-", issuer_id.lower()).strip("-")
+    if not issuer:
+        raise ApprovalError(
+            f"issuer_id {issuer_id!r} gives no folder name; rbot brief --set issuer_id"
+        )
     stem = f"{match.group(1)}-{issuer}-{pathway.lower().replace('_', '-')}"
     n, candidate = 1, run.parent / stem
     while candidate.exists():
@@ -149,6 +186,8 @@ def _cp0_step(run: Path, root: Path, rules: Rules) -> dict[str, Any]:
     text = (run / rb.CP0).read_text(encoding="utf-8")
     contract = load_contract(root / "modules" / "CP-0" / "contract.json", rules)
     code, _ = check(text, contract, rules, run)
+    if code not in (EXIT_VALID, EXIT_BLOCKED):
+        raise ApprovalError(f"{rb.CP0} no longer validates (exit {code}); run rbot grade")
     qa = parse(text).front_matter.get("qa_status", "")
     status = "accepted" if code == EXIT_VALID else "blocked"
     record = {"kind": "module", "status": status, "qa_status": qa, "handoff": rb.CP0}
@@ -167,8 +206,8 @@ def _steps(
     steps: dict[str, dict[str, Any]] = {}
     for step in plan:
         kind = "host" if step in rules.host_producers else "module"
-        if step in state["steps"]:
-            steps[step] = state["steps"][step]
+        if step == "CP-0":
+            steps[step] = state["steps"]["CP-0"]
         elif off.get(step):
             steps[step] = {"kind": kind, "status": "skipped", "reason": SKIPS[step]}
         else:
@@ -202,11 +241,21 @@ def _checked(run: Path, root: Path, grading: dict[str, Any]) -> None:
         raise ApprovalError(f"{rb.BRIEF} changed after rbot grade; run rbot grade again")
     if _sha(run / rb.CP0) != grading["cp0_sha256"]:
         raise ApprovalError(f"{rb.CP0} changed after rbot grade; run rbot grade again")
+    catalog = _sha(root / "catalog.json") != grading["catalog_sha256"]
+    if catalog or contracts_sha256(root) != grading["contracts_sha256"]:
+        message = "the catalog or a module contract changed after rbot grade; run rbot grade again"
+        raise ApprovalError(message)
 
 
 def _rebuilt(run: Path, rules: Rules) -> rb.Brief:
-    """The Run Brief rebuilt from CP-0 and its edits."""
-    return rb.build(run, run / rb.CP0, [], rules)
+    """The Run Brief rebuilt from CP-0 and its edits; it must be the one that was graded."""
+    brief = rb.build(run, run / rb.CP0, [], rules)
+    if rb.render(brief) != (run / rb.BRIEF).read_text(encoding="utf-8"):
+        raise ApprovalError(
+            f"{rb.BRIEF} differs from the brief {rb.CP0} and its edits give; rebuild it with"
+            f" rbot brief --from {rb.CP0}, then rbot grade"
+        )
+    return brief
 
 
 def _new_state(
@@ -262,18 +311,59 @@ def prepare(run: Path, root: Path, rules: Rules, choice: Choice) -> Commit:
     return Commit(target, text, json.dumps(new, indent=2, ensure_ascii=False) + "\n")
 
 
-def approve(run: Path, root: Path, rules: Rules, choice: Choice) -> Path:
-    """Record the Approval; return the renamed run folder."""
-    commit = prepare(run, root, rules, choice)
+@contextmanager
+def _locked(run: Path, where: list[Path]) -> Iterator[None]:
+    """An exclusive lock file for the run; `where` tracks it when the folder is renamed."""
+    try:
+        os.close(os.open(run / LOCK, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+    except FileExistsError as exc:
+        raise ApprovalError(
+            f"another rbot approve holds this run ({LOCK}); wait for it, or delete {run / LOCK}"
+            " if no approve is running"
+        ) from exc
+    where.append(run)
+    try:
+        yield
+    finally:
+        (where[-1] / LOCK).unlink(missing_ok=True)
+
+
+def _commit(run: Path, commit: Commit, where: list[Path]) -> None:
+    old_brief = (run / rb.BRIEF).read_text(encoding="utf-8")
+    old_state = (run / STATE).read_text(encoding="utf-8")
     write_atomic(run / rb.BRIEF, commit.brief)
     write_atomic(run / STATE, commit.state)
-    run.rename(commit.target)
+    try:
+        run.rename(commit.target)
+    except OSError as exc:
+        write_atomic(run / rb.BRIEF, old_brief)
+        write_atomic(run / STATE, old_state)
+        raise ApprovalError(
+            f"could not rename the run folder to {commit.target.name} ({exc}); nothing was"
+            " approved: close any file open in the run folder and approve again"
+        ) from exc
+    where.append(commit.target)
+
+
+def approve(run: Path, root: Path, rules: Rules, choice: Choice) -> Path:
+    """Record the Approval under the run's lock; return the renamed run folder."""
+    where: list[Path] = []
+    with _locked(run, where):
+        commit = prepare(run, root, rules, choice)
+        _commit(run, commit, where)
     return commit.target
 
 
 def plan_lines(state: dict[str, Any]) -> list[str]:
     if not state.get("plan"):
         raise ApprovalError("the run is not approved yet; rbot approve sets its plan")
+    try:
+        return _plan_lines(state)
+    except (KeyError, TypeError, AttributeError) as exc:
+        raise ApprovalError(f"{STATE} lacks {exc}; it is not an approved run state") from exc
+
+
+def _plan_lines(state: dict[str, Any]) -> list[str]:
     head = f"{state['run_id']}: {state['pathway']} at {state['depth']} depth"
     flags = f"Primary {'Yes' if state['primary'] else 'No'}"
     flags += f", Deep Research {'Yes' if state['deep_research'] else 'No'}"

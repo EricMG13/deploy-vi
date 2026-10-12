@@ -25,7 +25,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from rbotlib.brief import BRIEF, CP0, REQUIRED, TRANCHE, TRANCHE_OPTIONAL
+from rbotlib.brief import (
+    BRIEF,
+    CP0,
+    REQUIRED,
+    TRANCHE,
+    TRANCHE_OPTIONAL,
+    BriefError,
+    refuse_if_approved,
+)
 from rbotlib.catalog import ALWAYS, Catalog, Pathway, load_catalog, load_contracts
 from rbotlib.contract import Contract, load_contract
 from rbotlib.fsio import write_atomic
@@ -240,6 +248,10 @@ def _read_inputs(run: Path, root: Path, rules: Rules) -> tuple[Handoff, Handoff]
     for name in (BRIEF, CP0):
         if not (run / name).is_file():
             raise GradeError(f"{run}: no {name}; cp-start turn 1 writes it")
+    try:
+        refuse_if_approved(run)  # the grading record an Approval points to stays as it was
+    except (BriefError, HandoffError) as exc:
+        raise GradeError(str(exc)) from exc
     text = (run / CP0).read_text(encoding="utf-8")
     try:
         contract = load_contract(root / "modules" / "CP-0" / "contract.json", rules)

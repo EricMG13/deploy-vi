@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 import shutil
+import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+import rbotlib.approve as ap
 from conftest import FIXTURES
 from rbotlib.approve import ApprovalError, new_name
 from rbotlib.cli import main
@@ -311,6 +313,62 @@ def test_approval_on_the_primary_pack(
     assert h.tables["snapshot.transaction_summary"].rows[0][0] == "NEW-1"
 
 
+TARGET = "20261011-acme-full-credit-assessment"
+
+
+def test_a_failed_rename_leaves_the_run_unapproved_and_retryable(
+    root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = _ready(root, tmp_path)
+    brief, state = (run / "run-brief.md").read_bytes(), (run / "run-state.json").read_bytes()
+
+    def in_use(self: Path, target: object) -> Path:
+        raise PermissionError(13, "The process cannot access the file", str(self))
+
+    monkeypatch.setattr(Path, "rename", in_use)
+    capsys.readouterr()
+    assert _approve(root, run) == 1
+    out = capsys.readouterr().out
+    assert "could not rename the run folder" in out
+    assert (
+        "; nothing was approved: close any file open in the run folder and approve again\n" in out
+    )
+    monkeypatch.undo()
+    assert (run / "run-brief.md").read_bytes() == brief
+    assert (run / "run-state.json").read_bytes() == state
+    assert sorted(p.name for p in run.iterdir() if p.name.startswith(".")) == []
+    assert _approve(root, run) == 0
+    assert (run.parent / TARGET / "run-state.json").is_file()
+
+
+def test_a_concurrent_approve_is_refused_by_the_lock(
+    root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = _ready(root, tmp_path)
+    inside, done = threading.Event(), threading.Event()
+    real = ap._cp0_step
+
+    def slow(run: Path, root: Path, rules: Rules) -> dict[str, Any]:
+        inside.set()
+        assert done.wait(10)
+        return real(run, root, rules)
+
+    monkeypatch.setattr(ap, "_cp0_step", slow)
+    codes: dict[str, int] = {}
+    first = threading.Thread(target=lambda: codes.update(fca=_approve(root, run)))
+    first.start()
+    assert inside.wait(10)
+    codes["eu"] = _approve(root, run, pathway="EARNINGS_UPDATE")
+    done.set()
+    first.join()
+    assert codes == {"fca": 0, "eu": 1}
+    assert "another rbot approve holds this run (.approve.lock)" in capsys.readouterr().out
+    assert [p.name for p in run.parent.iterdir()] == [TARGET]
+    state = _state(run.parent / TARGET)
+    assert (state["pathway"], state["run_id"]) == ("FULL_CREDIT_ASSESSMENT", TARGET)
+    assert not (run.parent / TARGET / ".approve.lock").exists()
+
+
 def test_a_report_cp0_did_not_offer_cannot_be_accepted(
     root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -318,3 +376,132 @@ def test_a_report_cp0_did_not_offer_cannot_be_accepted(
     capsys.readouterr()
     assert _approve(root, run, "--prior-case", "yes") == 1
     assert "no Prior Case was offered" in capsys.readouterr().out
+
+
+def test_a_hand_edited_brief_is_refused(
+    root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = _ready(root, tmp_path, rows=PRIOR)
+    brief = run / "run-brief.md"
+    row = "| RQ-1 | Is demand recovering? | CP-2 | Yes |\n"
+    assert row in brief.read_text(encoding="utf-8")
+    brief.write_text(brief.read_text(encoding="utf-8").replace(row, ""), encoding="utf-8")
+    assert main(["--root", str(root), "grade", "--run", str(run)]) == 0
+    capsys.readouterr()
+    assert _approve(root, run) == 1
+    assert "run-brief.md differs from the brief handoffs/CP-0.md and its edits give" in (
+        capsys.readouterr().out
+    )
+
+
+@pytest.mark.parametrize(
+    ("analyst", "message"),
+    [("  ", "analyst is empty"), ("X\n## Gaps", "analyst holds a line break or control")],
+)
+def test_the_approving_analyst_is_checked(
+    root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str], analyst: str, message: str
+) -> None:
+    run = _ready(root, tmp_path)
+    argv = ["--root", str(root), "approve", "--run", str(run), "--pathway"]
+    argv += ["FULL_CREDIT_ASSESSMENT", "--depth", "full", "--primary", "no", "--analyst", analyst]
+    capsys.readouterr()
+    assert main(argv) == 1
+    assert message in capsys.readouterr().out
+    assert "brief.approval" not in (run / "run-brief.md").read_text(encoding="utf-8")
+
+
+BAD_FILES = [
+    ("grading.json", "{}", "grading.json is not a grading record"),
+    ("grading.json", "[]", "grading.json is not a grading record"),
+    ("run-state.json", "[]", "run-state.json is not a run state"),
+    ("run-state.json", '{"steps": []}', "run-state.json is not a run state"),
+]
+
+
+@pytest.mark.parametrize("case", BAD_FILES)
+def test_malformed_run_files_are_named(
+    root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str], case: tuple[str, str, str]
+) -> None:
+    name, content, message = case
+    run = _ready(root, tmp_path)
+    (run / name).write_text(content, encoding="utf-8")
+    capsys.readouterr()
+    assert _approve(root, run) == 1
+    assert message in capsys.readouterr().out
+    assert "brief.approval" not in (run / "run-brief.md").read_text(encoding="utf-8")
+
+
+def test_a_grading_record_without_depths_is_named(
+    root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = _ready(root, tmp_path)
+    grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
+    grading["pathways"] = [{"id": "FULL_CREDIT_ASSESSMENT"}]
+    (run / "grading.json").write_text(json.dumps(grading), encoding="utf-8")
+    capsys.readouterr()
+    assert _approve(root, run) == 1
+    assert "grading.json is not a grading record (pathway FULL_CREDIT_ASSESSMENT" in (
+        capsys.readouterr().out
+    )
+
+
+def test_plan_names_an_incomplete_state(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    (tmp_path / "run-state.json").write_text('{"plan": ["CP-0"], "steps": {}}', encoding="utf-8")
+    assert main(["plan", "--run", str(tmp_path)]) == 1
+    assert "run-state.json lacks 'run_id'; it is not an approved run state" in (
+        capsys.readouterr().out
+    )
+
+
+def test_a_cp0_that_no_longer_validates_is_refused(
+    root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = _ready(root, tmp_path)
+    index = json.loads((run / "prepared" / "index.json").read_text(encoding="utf-8"))
+    index["files"][0]["sha256"] = "0" * 64
+    (run / "prepared" / "index.json").write_text(json.dumps(index), encoding="utf-8")
+    capsys.readouterr()
+    assert _approve(root, run) == 1
+    assert "handoffs/CP-0.md no longer validates (exit 2); run rbot grade" in (
+        capsys.readouterr().out
+    )
+
+
+def test_a_catalog_change_after_grading_is_refused(
+    root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = _ready(root, tmp_path)
+    catalog = json.loads((root / "catalog.json").read_text(encoding="utf-8"))
+    update = next(p for p in catalog["pathways"] if p["id"] == "EARNINGS_UPDATE")
+    update["depths"]["full"].insert(-2, "CP-4")
+    (root / "catalog.json").write_text(json.dumps(catalog), encoding="utf-8")
+    capsys.readouterr()
+    assert _approve(root, run, pathway="EARNINGS_UPDATE") == 1
+    assert "the catalog or a module contract changed after rbot grade" in capsys.readouterr().out
+
+
+def test_grade_refuses_an_approved_run(
+    root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = _ready(root, tmp_path)
+    _approve(root, run)
+    graded = (run.parent / TARGET / "grading.json").read_bytes()
+    capsys.readouterr()
+    assert main(["--root", str(root), "grade", "--run", str(run.parent / TARGET)]) == 1
+    assert "run-brief.md was approved" in capsys.readouterr().out
+    assert (run.parent / TARGET / "grading.json").read_bytes() == graded
+
+
+def test_only_cp0_survives_from_the_pre_approval_steps(root: Path, tmp_path: Path) -> None:
+    run = _ready(root, tmp_path)
+    state = _state(run)
+    state["steps"]["FIT"] = {"kind": "host", "status": "accepted", "reason": ""}
+    (run / "run-state.json").write_text(json.dumps(state), encoding="utf-8")
+    assert _approve(root, run) == 0
+    fit = _state(run.parent / TARGET)["steps"]["FIT"]
+    assert (fit["status"], fit["reason"]) == ("skipped", "no portfolio context")
+
+
+def test_an_issuer_id_without_a_slug_is_refused(tmp_path: Path) -> None:
+    with pytest.raises(ApprovalError, match="issuer_id '株式' gives no folder name"):
+        new_name(tmp_path / "20261011-x-pending", "株式", "RELATIVE_VALUE")
