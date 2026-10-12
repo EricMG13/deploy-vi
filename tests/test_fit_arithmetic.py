@@ -1,0 +1,432 @@
+"""Portfolio Fit arithmetic (interfaces spec section 7): hand cases and properties (money code).
+
+The portfolio below is Test CLO I's shape (NAV 630.9, par 634.0, USD millions) with a 6.0 par
+position in the run's issuer, so its exposure is 6.0 / 630.9 x 100 = 0.951022...% of NAV.
+"""
+
+from __future__ import annotations
+
+from dataclasses import asdict
+from datetime import date
+from decimal import Decimal
+from typing import Any
+
+import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
+from rbotlib import fit_arithmetic as fa
+from rbotlib.fit_arithmetic import Instrument, Portfolio, Run
+
+RUN = Run("CZR", date(2026, 10, 2), "USD", "MILLIONS")
+NAV = Decimal("630.9")
+
+
+def limit(
+    limit_id: str, scope: str, value: str, unit: str, kind: str, **extra: str
+) -> dict[str, Any]:
+    row: dict[str, Any] = {"limit_id": limit_id, "category": scope, "scope": scope}
+    row["parameter"] = f"max {scope}"
+    row |= {"scope_value": None, "limit_value": value, "unit": unit, "limit_kind": kind}
+    return row | {"current_value": "0", "source": f"limits.csv row {limit_id}"} | extra
+
+
+def portfolio(*limits: dict[str, Any], positions: list[dict[str, Any]] | None = None) -> Portfolio:
+    held = [{"issuer_id": "CZR", "par": "6.0"}, {"issuer_id": "ASURION", "par": "15.0"}]
+    return Portfolio(
+        "P",
+        "Test",
+        "CLO",
+        NAV,
+        Decimal("634.0"),
+        "USD",
+        "MILLIONS",
+        tuple(held if positions is None else positions),
+        tuple(limits),
+    )
+
+
+LOAN = Instrument(
+    "TLB",
+    "Term Loan B",
+    "1L Term Loan",
+    True,
+    "USD",
+    date(2031, 2, 6),
+    ("Ba3", "BB"),
+    "Casinos",
+    "US",
+)
+EXPOSURE = fa.CONTEXT.divide(Decimal("600.0"), NAV)  # 6.0 x 100 / 630.9
+
+
+def loan(**extra: object) -> Instrument:
+    fields = asdict(LOAN)
+    fields.update(extra)
+    return Instrument(**fields)
+
+
+def test_the_issuer_limit_uses_the_run_issuers_own_exposure() -> None:
+    f = fa.fit(
+        portfolio(limit("C-01", "issuer", "2.5", "pct_nav", "Hard", current_value="2.37")),
+        loan(),
+        RUN,
+    )
+    assert f.current_exposure == Decimal("6.0")
+    assert f.current_exposure_pct_nav == EXPOSURE
+    row = f.rows[0]
+    assert row.current_value == EXPOSURE  # not the file's 2.37 (Asurion)
+    assert row.headroom == fa.CONTEXT.subtract(Decimal("2.5"), EXPOSURE)
+    # (2.5 - 0.951022...) x 630.9 / 100 = 15.7725 - 6.0 = 9.7725
+    assert row.headroom_amount == Decimal("9.7725")
+    assert (f.max_size, f.binding_limit, f.verdict, f.recommendation_cap) == (
+        Decimal("9.7725"),
+        "C-01",
+        "Fits",
+        "1 - Strong OW",
+    )
+
+
+@pytest.mark.parametrize(
+    ("unit", "current", "amount"),
+    [
+        (
+            "pct_par",
+            fa.CONTEXT.divide(Decimal(600), Decimal(634)),
+            Decimal("9.85"),
+        ),  # 2.5 x 6.34 - 6
+        ("amount", Decimal("6.0"), Decimal("-3.5")),
+        ("count", Decimal(1), None),
+    ],
+)
+def test_issuer_limits_in_other_units(unit: str, current: Decimal, amount: Decimal | None) -> None:
+    f = fa.fit(portfolio(limit("C-01", "issuer", "2.5", unit, "Soft")), loan(), RUN)
+    assert f.rows[0].current_value == current
+    assert f.rows[0].headroom_amount == amount
+
+
+@pytest.mark.parametrize(
+    ("ratings", "bucket"),
+    [
+        (("Ba3", "BB"), "BB"),
+        (("B1", "BB-"), "B"),
+        (("Caa1", "B-"), "CCC"),
+        (("Baa3",), "IG"),
+        (("BBB-",), "IG"),
+        (("B+",), "B"),
+        (("CCC+",), "CCC"),
+        (("A1", "D"), "CCC"),
+        (("NR",), "Unrated"),
+        ((), "Unrated"),
+        (("B3*",), "B"),
+    ],
+)
+def test_rating_buckets_take_the_lowest_agency(ratings: tuple[str, ...], bucket: str) -> None:
+    assert fa.rating_bucket(ratings) == bucket
+
+
+@pytest.mark.parametrize(
+    ("scope", "value", "instrument", "touched"),
+    [
+        ("sector", "Tobacco, Casinos", loan(), True),
+        ("sector", "Insurance", loan(), False),
+        ("sector", None, loan(), True),  # the largest sector bounds every sector
+        ("sector", "Casinos", loan(sector=None), None),
+        ("rating_bucket", "CCC", loan(ratings=("Caa1",)), True),
+        ("rating_bucket", "CCC", loan(), False),
+        ("rating_bucket", "Unrated", loan(ratings=()), True),
+        ("seniority", "2nd Lien / Unsecured", loan(debt_type="SU Notes", secured=False), True),
+        ("seniority", "2nd Lien / Unsecured", loan(), False),
+        ("seniority", "1st Lien / Senior Secured", loan(), True),
+        ("seniority", "2nd Lien", loan(debt_type="Other", secured=None), None),
+        ("seniority", "Mezzanine", loan(), False),
+        ("asset_type", "Loan", loan(), True),
+        ("asset_type", "Bond", loan(debt_type="SS Notes"), True),
+        ("asset_type", "Loan", loan(debt_type="Other"), None),
+        ("country", "US", loan(), True),
+        ("currency", "EUR", loan(), False),
+        ("maturity", "any", loan(), True),
+        ("maturity", "any", loan(maturity=None), None),
+        ("other", None, loan(), False),
+        ("unknown", "x", loan(), False),
+    ],
+)
+def test_which_limits_touch_an_instrument(
+    scope: str, value: str | None, instrument: Instrument, touched: bool | None
+) -> None:
+    assert fa.touches({"scope": scope, "scope_value": value}, instrument) is touched
+
+
+def test_a_maturity_limit_uses_the_tenor_and_caps_no_size() -> None:
+    f = fa.fit(
+        portfolio(limit("M", "maturity", "8", "years", "Hard", scope_value="max")), loan(), RUN
+    )
+    # 2026-10-02 to 2031-02-06 is 1588 days: 8 - 1588 / 365
+    assert f.rows[0].headroom == fa.CONTEXT.subtract(
+        Decimal(8), fa.CONTEXT.divide(Decimal(1588), Decimal(365))
+    )
+    assert (f.rows[0].headroom_amount, f.max_size, f.binding_limit) == (None, None, None)
+    late = fa.fit(
+        portfolio(limit("M", "maturity", "3", "years", "Hard", scope_value="max")), loan(), RUN
+    )
+    assert (late.rows[0].status, late.verdict) == ("Breached", "Breaches")
+
+
+def test_a_book_statistic_is_from_file_and_never_binds() -> None:
+    f = fa.fit(
+        portfolio(limit("C-11", "other", "8.0", "years", "Soft", current_value="4.82")), loan(), RUN
+    )
+    assert (f.rows[0].status, f.rows[0].headroom, f.max_size) == (
+        "From file",
+        Decimal("3.18"),
+        None,
+    )
+
+
+@pytest.mark.parametrize(
+    ("limits", "verdict", "reason"),
+    [
+        (
+            [limit("H", "sector", "5", "pct_nav", "Hard", current_value="6")],
+            "Breaches",
+            "hard limit H has negative headroom",
+        ),
+        (
+            [limit("H", "sector", "5", "pct_nav", "Hard", current_value="5")],
+            "Breaches",
+            "no size fits the hard limits",
+        ),
+        (
+            [limit("S", "sector", "5", "pct_nav", "Soft", current_value="6")],
+            "Watch",
+            "soft limit S has negative headroom",
+        ),
+        (
+            [limit("H", "sector", "5", "pct_nav", "Hard", current_value="4.5")],
+            "Watch",
+            "the largest size that fits is under 1% of NAV",
+        ),
+        (
+            [limit("H", "sector", "5", "pct_nav", "Hard", current_value="3.99")],
+            "Fits",
+            "every touched limit has headroom",
+        ),
+        (
+            [limit("N", "sector", "5", "pct_nav", "Soft", scope_value="Casinos")],
+            "Fits",
+            "every touched limit has headroom",
+        ),
+    ],
+)
+def test_verdicts(limits: list[dict[str, Any]], verdict: str, reason: str) -> None:
+    f = fa.fit(portfolio(*limits), loan(), RUN)
+    assert (f.verdict, f.reason) == (verdict, reason)
+
+
+def test_a_limit_that_cannot_be_computed_is_a_watch() -> None:
+    f = fa.fit(
+        portfolio(limit("N", "sector", "5", "pct_nav", "Soft", scope_value="Casinos")),
+        loan(sector=None),
+        RUN,
+    )
+    assert (f.rows[0].status, f.verdict, f.reason) == (
+        "Not computed",
+        "Watch",
+        "limit N could not be computed",
+    )
+    assert f.recommendation_cap == "3 - MW"
+
+
+def test_units_convert_and_a_foreign_currency_is_not_computed() -> None:
+    thousands = Portfolio(
+        "P",
+        "T",
+        "CLO",
+        Decimal(630900),
+        Decimal(634000),
+        "USD",
+        "THOUSANDS",
+        (),
+        (limit("C", "issuer", "2.5", "pct_nav", "Hard"),),
+    )
+    f = fa.fit(thousands, loan(), RUN)
+    assert (f.max_size, f.currency, f.unit) == (Decimal("15.7725"), "USD", "MILLIONS")
+    euros = Portfolio(
+        "P",
+        "T",
+        "CLO",
+        NAV,
+        Decimal(634),
+        "EUR",
+        "MILLIONS",
+        (),
+        (limit("C", "issuer", "2.5", "pct_nav", "Hard"),),
+    )
+    f = fa.fit(euros, loan(), RUN)
+    assert (f.rows[0].status, f.verdict, f.currency) == ("Not computed", "Watch", "EUR")
+
+
+def test_the_smallest_hard_headroom_binds() -> None:
+    f = fa.fit(
+        portfolio(
+            limit("A", "sector", "10", "pct_nav", "Hard", current_value="5"),
+            limit("B", "issuer", "2.5", "pct_nav", "Hard"),
+            limit("C", "sector", "1", "pct_nav", "Soft", current_value="0"),
+        ),
+        loan(),
+        RUN,
+    )
+    assert (f.max_size, f.binding_limit) == (Decimal("9.7725"), "B")
+
+
+# --- properties ------------------------------------------------------------------------------
+
+LIMIT_VALUES = st.decimals(min_value=Decimal(0), max_value=Decimal(20), places=2)
+CURRENT = st.decimals(min_value=Decimal(0), max_value=Decimal(20), places=2)
+
+
+@settings(deadline=None)
+@given(LIMIT_VALUES, LIMIT_VALUES, CURRENT)
+def test_headroom_rises_with_the_limit(a: Decimal, b: Decimal, current: Decimal) -> None:
+    low, high = sorted((a, b))
+    rows = [
+        fa.fit(
+            portfolio(limit("L", "sector", str(v), "pct_nav", "Hard", current_value=str(current))),
+            loan(),
+            RUN,
+        ).rows[0]
+        for v in (low, high)
+    ]
+    assert rows[0].headroom is not None and rows[1].headroom is not None
+    assert rows[0].headroom <= rows[1].headroom
+
+
+@settings(deadline=None)
+@given(
+    st.lists(
+        st.tuples(LIMIT_VALUES, CURRENT, st.sampled_from(["Hard", "Soft"])), min_size=1, max_size=6
+    )
+)
+def test_max_size_never_exceeds_a_hard_headroom(limits: list[tuple[Decimal, Decimal, str]]) -> None:
+    rows = [
+        limit(f"L{n}", "sector", str(v), "pct_nav", k, current_value=str(c))
+        for n, (v, c, k) in enumerate(limits)
+    ]
+    f = fa.fit(portfolio(*rows), loan(), RUN)
+    hard = [
+        r.headroom_amount
+        for r in f.rows
+        if r.limit["limit_kind"] == "Hard" and r.headroom_amount is not None
+    ]
+    if hard:
+        assert f.max_size is not None and f.max_size <= max(Decimal(0), min(hard))
+    else:
+        assert f.max_size is None
+
+
+ORDER = {"Fits": 0, "Watch": 1, "Breaches": 2}
+
+
+@settings(deadline=None)
+@given(
+    st.lists(st.tuples(LIMIT_VALUES, CURRENT, st.sampled_from(["Hard", "Soft"])), max_size=5),
+    st.tuples(LIMIT_VALUES, CURRENT, st.sampled_from(["Hard", "Soft"])),
+)
+def test_adding_a_limit_never_improves_the_verdict(
+    limits: list[tuple[Decimal, Decimal, str]], extra: tuple[Decimal, Decimal, str]
+) -> None:
+    rows = [
+        limit(f"L{n}", "sector", str(v), "pct_nav", k, current_value=str(c))
+        for n, (v, c, k) in enumerate(limits)
+    ]
+    before = fa.fit(portfolio(*rows), loan(), RUN).verdict
+    added = limit("X", "sector", str(extra[0]), "pct_nav", extra[2], current_value=str(extra[1]))
+    after = fa.fit(portfolio(*rows, added), loan(), RUN).verdict
+    assert ORDER[after] >= ORDER[before]
+
+
+def test_attributes_and_senior_rank() -> None:
+    assert [fa.asset_type(t) for t in ("1L Term Loan", "SU Notes", "Other", None)] == [
+        "Loan",
+        "Bond",
+        None,
+        None,
+    ]
+    assert fa.is_senior_secured(loan(debt_type="2L Term Loan", secured=True)) is False
+    assert fa.is_senior_secured(loan(debt_type="Other", secured=True)) is True
+    two_words = {"scope": "sector", "scope_value": "Health Care, Insurance"}
+    assert fa.touches(two_words, loan(sector="Health Care")) is True
+
+
+def test_units_other_than_millions_scale_every_amount() -> None:
+    held = (
+        {"issuer_id": "CZR", "par": "6000"},
+        {"issuer_id": "A", "par": "1"},
+        {"issuer_id": "B", "par": "1"},
+    )
+    limits = (
+        limit("P", "issuer", "2.5", "pct_par", "Hard"),
+        limit("A", "issuer", "20000", "amount", "Hard"),
+        limit("N", "issuer", "3", "count", "Soft"),
+    )
+    thousands = Portfolio(
+        "P", "T", "CLO", Decimal(630900), Decimal(634000), "USD", "THOUSANDS", held, limits
+    )
+    f = fa.fit(thousands, loan(), RUN)
+    assert [r.headroom_amount for r in f.rows] == [Decimal("9.85"), Decimal(14), None]
+    assert f.rows[2].current_value == Decimal(1)  # one Caesars position, not the others
+    assert (f.current_exposure, f.max_size, f.binding_limit) == (Decimal(6), Decimal("9.85"), "P")
+
+
+def test_an_unknown_unit_or_currency_is_not_computed_and_keeps_the_figures() -> None:
+    billions = Portfolio(
+        "P",
+        "T",
+        "CLO",
+        NAV,
+        Decimal(634),
+        "USD",
+        "BILLIONS",
+        (),
+        (limit("C", "issuer", "2.5", "pct_nav", "Hard"),),
+    )
+    f = fa.fit(billions, loan(), RUN)
+    assert (f.rows[0].status, f.rows[0].current_value) == ("Not computed", Decimal(0))
+    stats = fa.fit(
+        portfolio(limit("W", "other", "8.0", "years", "Soft", current_value="4.82")), loan(), RUN
+    )
+    assert stats.rows[0].current_value == Decimal("4.82")
+    euros = Portfolio(
+        "P",
+        "T",
+        "CLO",
+        NAV,
+        Decimal(634),
+        "EUR",
+        "MILLIONS",
+        (),
+        (limit("C", "issuer", "2.5", "pct_nav", "Hard"),),
+    )
+    f = fa.fit(euros, loan(), RUN)
+    assert type(f.current_exposure) is Decimal and f.current_exposure == 0
+    assert (f.portfolio, f.instrument, f.current_exposure_pct_nav) == (euros, loan(), Decimal(0))
+    assert (f.max_size, f.binding_limit, f.reason) == (None, None, "limit C could not be computed")
+
+
+def test_the_first_of_two_equal_hard_limits_binds() -> None:
+    f = fa.fit(
+        portfolio(
+            limit("Z", "sector", "5", "pct_nav", "Hard", current_value="2"),
+            limit("A", "sector", "5", "pct_nav", "Hard", current_value="2"),
+        ),
+        loan(),
+        RUN,
+    )
+    assert f.binding_limit == "Z"
+
+
+def test_a_size_of_exactly_one_percent_of_nav_fits() -> None:
+    f = fa.fit(
+        portfolio(limit("H", "sector", "5", "pct_nav", "Hard", current_value="4")), loan(), RUN
+    )
+    assert (f.max_size, f.verdict) == (Decimal("6.309"), "Fits")

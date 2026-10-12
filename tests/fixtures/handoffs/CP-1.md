@@ -11,6 +11,8 @@ inputs: CP-0
 
 Hand-written test fixture of a CP-1 Handoff for the synthetic Primary pack `czr-2026q2-primary`. Caesars Entertainment, Inc. reports consolidated US GAAP figures in USD millions; the registers carry FY2023 to FY2025 from the Form 10-K [C10], the six months to June 30 of 2025 and 2026 from the Form 10-Q [C1], and an LTM to June 30, 2026 that the Model derives. Adjusted EBITDA fell from 3,938 in FY2023 to 3,624 in FY2025 [C13] and from 1,839 to 1,807 in the first half [C4]; total debt at book was 11,705 at June 30, 2026 [C9]. Facility terms come from the debt note: the revolver's size and maturity [C35], the margins [C36], the term loans' floors, maturities and amortisation [C37] [C38] [C39] [C40] [C41] [C42] and the CVA term loan's size [C43]. Two definitions move leverage. Caesars' Adjusted EBITDA excludes the rent on the GLPI and VICI leases, which are accounted for as financing obligations [C44], while total debt excludes those obligations of 13,157 [C45]; the pair is consistent, but lease-adjusted leverage needs both. Debt is carried at book; the issuer's net debt of 10,842 is on face value [C46].
 
+The new Senior Secured Term Loan B (`NEW-1`, 3,000) and the pro forma capitalisation come from SYNTHETIC test files [C47] [C48]: the PF register adds the tranche and repays the revolver (the Model carries both into total debt, so no separate total-debt row is written), adds 100 of cash and 213 of cash interest, and the bridge carries 150 of run-rate synergies as an unrealized add-back [C52]. Restricted: the PF figures are arranger estimates, FY2023 debt is not in the pack, and most instruments lack a call schedule.
+
 ## Tables
 
 <!-- table: cp1.model_period_register -->
