@@ -7,6 +7,7 @@ import json
 import re
 import zipfile
 from collections.abc import Callable
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -36,6 +37,10 @@ def _prep(tmp_path: Path, files: dict[str, bytes], *extra: str) -> tuple[Path, d
     assert main(["inventory", "--run", str(run)]) == 0
     code = main(["prepare", "--run", str(run), *extra])
     index = load_index(run) if (run / "prepared/index.json").exists() else {"files": []}
+    if (run / "prepared/index.json").exists():
+        assert index["schema"] == "rbot-prepared/1"
+        assert datetime.fromisoformat(index["generated_at"]).tzinfo == UTC
+        assert (run / "prepared/index.json").read_text().startswith('{\n  "schema":')
     return run, {r["path"]: r for r in index["files"]}, code
 
 
@@ -238,6 +243,7 @@ def test_m1_only_never_deletes_another_files_text(tmp_path: Path) -> None:
     path.write_text(json.dumps(data))
     assert main(["prepare", "--run", str(run), "--only", "a.txt"]) == 0
     assert (run / index["b.txt"]["prepared"]).exists()
+    assert all((run / r["prepared"]).exists() for r in load_index(run)["files"])
 
 
 def test_m1_only_with_no_index_says_to_run_prepare_first(

@@ -83,11 +83,14 @@ def test_m1_two_identical_files_at_different_paths_have_different_prepared_names
     (tmp_path / "pack" / "archive").mkdir(parents=True)
     run, index, _ = _prep(tmp_path, files)
     assert index["a.txt"]["prepared"] != index["archive/a.txt"]["prepared"]
+    (run / index["a.txt"]["prepared"]).unlink()
     (tmp_path / "pack" / "a.txt").write_bytes(b"a.txt edited, new content now\n")
     assert main(["inventory", "--run", str(run)]) == 0
     assert main(["prepare", "--run", str(run), "--only", "a.txt"]) == 0
     again = {r["path"]: r for r in load_index(run)["files"]}
     assert (run / again["archive/a.txt"]["prepared"]).is_file()
+    assert (run / again["a.txt"]["prepared"]).is_file()
+    assert main(["prepare", "--run", str(run), "--only", "a.txt"]) == 0
     assert (run / again["a.txt"]["prepared"]).is_file()
 
 
@@ -100,7 +103,7 @@ def test_m1_the_name_is_content_path_hash_and_slug() -> None:
     entry = {"sha256": "ab" * 32, "path": "x/Q1 Report.txt"}
     name = prepared_name(entry)
     assert name.startswith("prepared/" + "ab" * 8 + "-") and name.endswith("-q1-report-txt.txt")
-    assert len(name.split("-")[1]) == 8
+    assert len(name.split("-")[1]) == 16
     assert name != prepared_name(entry | {"path": "y/Q1 Report.txt"})
     assert prepared_name(entry | {"path": "\ud800.txt"})  # a lone surrogate in a path is hashed
 

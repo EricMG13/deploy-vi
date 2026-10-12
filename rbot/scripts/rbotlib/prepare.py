@@ -1,6 +1,6 @@
 """`rbot prepare`: page-anchored text for every inventoried file (interfaces spec section 8.1).
 
-Each readable file becomes `prepared/<sha16>-<slug>.txt`, its pages opened by
+Each readable file becomes `prepared/<sha16>-<path-sha16>-<slug>.txt`, its pages opened by
 `<<< page N >>>` lines, so a citation's page locator and excerpt can be checked.
 `prepared/index.json` records per file the prepared path, page count, a 400-character
 first-page excerpt, the entity names and dates found on the first page, sheet names
@@ -224,9 +224,17 @@ def _scaled_text(value: float, scale: int, number_format: str | None) -> str:
     )
 
 
+def conditional_format(number_format: str | None) -> bool:
+    """A multi-section format with numeric conditions cannot use the positive section."""
+    plain = _QUOTED.sub("", number_format or "")
+    return ";" in plain and bool(re.search(r"\[[<>=]", plain))
+
+
 def cell_text(value: object, number_format: str | None) -> str:
     """A cell as text, as the sheet displays it: a `%` format shows value x 100 with a `%`, and
     trailing commas (`#,##0.0,,`) divide by 1000 each. Anything else is the stored value."""
+    if conditional_format(number_format):
+        return clean_cell(value)
     if _numeric(value) and "%" in _QUOTED.sub("", number_format or ""):
         return format((Decimal(repr(value)) * 100).normalize(), "f") + "%"
     if (
@@ -278,14 +286,16 @@ def _sheet_rows(
     missing: list[str] = []
     scaled: list[str] = []
     ignored: list[str] = []
-    for r, (values, forms) in enumerate(zip(ws.iter_rows(), wf.iter_rows(), strict=False), 1):
-        rows.append([cell_text(c.value, c.number_format) for c in values])
-        for col, (c, f) in enumerate(zip(values, forms, strict=False), 1):
+    for r, cells in enumerate(_xlsx_cells(ws, wf), 1):
+        rows.append([cell_text(value, fmt) for value, fmt, _ in cells])
+        for col, (value, fmt, form_type) in enumerate(cells, 1):
             ref = f"{get_column_letter(col)}{r}"
-            if f.data_type == "f" and c.value is None:
+            if form_type == "f" and value is None:
                 missing.append(ref)
-            if _numeric(c.value) and display_scale(c.number_format):
-                (ignored if too_precise(c.number_format) else scaled).append(ref)
+            if _numeric(value) and conditional_format(fmt):
+                ignored.append(ref)
+            elif _numeric(value) and display_scale(fmt):
+                (ignored if too_precise(fmt) else scaled).append(ref)
     return _trimmed(rows), missing, scaled, ignored
 
 
@@ -307,27 +317,43 @@ def _workbook(cached: Workbook, formulas: Workbook) -> Prepared:
     )
 
 
+# Fail-open only at openpyxl calls (decision 0002), including lazy cell access.
+_XLSX_ERRORS = (
+    InvalidFileException,
+    BadZipFile,
+    KeyError,
+    IndexError,
+    ValueError,
+    OSError,
+    SyntaxError,
+    zlib.error,
+)
+
+
+def _load_xlsx(path: Path, data_only: bool) -> Workbook:
+    try:
+        return load_workbook(path, read_only=True, data_only=data_only)
+    except _XLSX_ERRORS as exc:
+        raise UnreadableError(f"openpyxl could not read the workbook: {exc}") from exc
+
+
+def _xlsx_cells(ws: Worksheet, wf: Worksheet) -> list[list[tuple[object, str, str]]]:
+    try:
+        return [
+            [(c.value, c.number_format, f.data_type) for c, f in zip(values, forms, strict=False)]
+            for values, forms in zip(ws.iter_rows(), wf.iter_rows(), strict=False)
+        ]
+    except _XLSX_ERRORS as exc:
+        raise UnreadableError(f"openpyxl could not read the workbook: {exc}") from exc
+
+
 def read_xlsx(path: Path) -> Prepared:
     """Every sheet's stored values (formula results as cached, never recalculated)."""
-    try:
-        with (
-            closing(load_workbook(path, read_only=True, data_only=True)) as cached,
-            closing(load_workbook(path, read_only=True, data_only=False)) as formulas,
-        ):
-            return _workbook(cached, formulas)
-    # Fail-open per file (decision record 0002): openpyxl lets damaged-package errors escape as
-    # zlib.error, KeyError or the XML parser's ParseError (a SyntaxError subclass; importing
-    # xml.etree only for its name would trip bandit B405). Each is listed as unreadable.
-    except (
-        InvalidFileException,
-        BadZipFile,
-        KeyError,
-        ValueError,
-        OSError,
-        SyntaxError,
-        zlib.error,
-    ) as exc:
-        raise UnreadableError(f"openpyxl could not read the workbook: {exc}") from exc
+    with (
+        closing(_load_xlsx(path, True)) as cached,
+        closing(_load_xlsx(path, False)) as formulas,
+    ):
+        return _workbook(cached, formulas)
 
 
 def read_image(path: Path) -> Prepared:
@@ -419,7 +445,7 @@ def slug(name: str) -> str:
 
 def prepared_name(entry: dict[str, Any]) -> str:
     """`prepared/<content hash>-<path hash>-<slug>.txt`: a copy at another path is its own file."""
-    where = hashlib.sha256(entry["path"].encode("utf-8", "surrogatepass")).hexdigest()[:8]
+    where = hashlib.sha256(entry["path"].encode("utf-8", "surrogatepass")).hexdigest()[:16]
     return f"prepared/{entry['sha256'][:16]}-{where}-{slug(Path(entry['path']).name)}.txt"
 
 
@@ -586,7 +612,10 @@ def run_command(args: argparse.Namespace) -> int:
     for r in index["files"]:
         for sheet, refs in r["format_not_applied"].items():
             what = f"{r['path']} sheet {sheet}: {', '.join(refs)}"
-            print(f"number format not applied (read as stored): {what}")
+            print(
+                f"number format not applied (read as stored): {what}; "
+                "conditional format not applied or too many decimal places"
+            )
     for note in index["portfolio_notes"]:
         print(f"portfolio: {note}")
     found = ", ".join(p["portfolio_id"] for p in index["portfolios"]) or "none"
