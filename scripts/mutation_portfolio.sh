@@ -38,23 +38,25 @@ cp "$here"/rbot/{rules.json,catalog.json,canon.md} "$work"/
 cp -R "$here/rbot/scripts/rbotlib" "$work/src/"
 mkdir "$work/tests" && cp -R "$here"/tests/{conftest.py,builders.py,fixtures} "$work/tests/"
 mkdir "$work/tests/corpus" && cp -R "$here"/tests/corpus/{corpus.json,synthetic} "$work/tests/corpus/"
-cp "$here"/tests/test_{portfolio,portfolio_properties,portfolio_exact,portfolio_fixes,portfolio_fix2}.py "$work/tests/"
-cp "$here"/tests/test_{prepare,prepare_fixes,prepare_fix1,prepare_fix2,sheets}.py "$work/tests/"
+cp "$here"/tests/test_{portfolio,portfolio_properties,portfolio_exact,portfolio_fixes,portfolio_fix2,portfolio_fix3}.py "$work/tests/"
+cp "$here"/tests/test_{prepare,prepare_fixes,prepare_fix1,prepare_fix2,prepare_fix3,prepare_boundary,sheets,cli,inventory}.py "$work/tests/"
 cat > "$work/pyproject.toml" <<TOML
 [tool.pytest.ini_options]
 pythonpath = ["src", "tests"]
 markers = ["corpus: local corpus"]
 [tool.mutmut]
-source_paths = ["src/rbotlib/portfolio.py", "src/rbotlib/prepare.py"]
+source_paths = ["src/rbotlib/portfolio.py", "src/rbotlib/prepare.py", "src/rbotlib/inventory.py", "src/rbotlib/cli.py"]
 pytest_add_cli_args_test_selection = ["tests/"]
 also_copy = ["src/rbotlib", "rules.json", "catalog.json", "canon.md", "tests"]
 pytest_add_cli_args = ["-p", "no:cacheprovider", "-m", "not corpus"]
 TOML
 # every function of portfolio.py, and the sheet, cell, anchor and PDF-warning functions of prepare.py
 prepare_fns="clean_cell cell_text display_scale _scaled_text _section _numeric _trimmed _places
-  too_precise _sheet_rows _workbook _sheet_pages _drop_surrogates _join_pair
-  anchored_text prepared_name read_pdf _sheet_portfolios"
+  too_precise conditional_format _load_xlsx _xlsx_cells read_xlsx _sheet_rows _workbook _sheet_pages _drop_surrogates _join_pair
+  anchored_text prepared_name read_pdf _sheet_portfolios _drop_orphan _sweep write"
 names=("rbotlib.portfolio.*")
 for fn in $prepare_fns; do names+=("rbotlib.prepare.x_${fn}__mutmut_*"); done
+names+=("rbotlib.inventory.x_output_path__mutmut_*" "rbotlib.inventory.x_write__mutmut_*"
+  "rbotlib.cli.x__log__mutmut_*" "rbotlib.cli.x_main__mutmut_*")
 cd "$work" && uv run --frozen --project "$here" mutmut run "${names[@]}"
 uv run --frozen --project "$here" mutmut results

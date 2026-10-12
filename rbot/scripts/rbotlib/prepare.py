@@ -38,7 +38,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 from pypdf import PdfReader
 
 from rbotlib import portfolio
-from rbotlib.inventory import RunError, pypdf_warnings, write_atomic
+from rbotlib.inventory import RunError, output_path, pypdf_warnings, write_atomic
 from rbotlib.rules import Rules, load_rules
 
 SCHEMA = "rbot-prepared/1"
@@ -486,7 +486,7 @@ def prepare_file(run: Path, pack: Path, entry: dict[str, Any]) -> dict[str, Any]
         return record
     name = prepared_name(entry)
     pages, dropped = _drop_surrogates(result.pages)
-    write_atomic(run / name, anchored_text(pages))
+    write_atomic(output_path(run, name), anchored_text(pages))
     first = pages[0] if pages else ""
     record |= {
         "prepared": name,
@@ -549,17 +549,17 @@ def _drop_orphan(run: Path, old: dict[str, Any] | None, new: dict[str, Any]) -> 
     if not old or not old.get("prepared") or old["prepared"] == new["prepared"]:
         return
     own = prepared_name({"sha256": str(old.get("sha256", "")), "path": str(old["path"])})
-    path, folder = (run / old["prepared"]).resolve(), (run / "prepared").resolve()
+    path, folder = run / old["prepared"], output_path(run, "prepared")
     if old["prepared"] == own and path.parent == folder:
-        path.unlink(missing_ok=True)
+        output_path(run, own).unlink(missing_ok=True)
 
 
 def _sweep(run: Path, kept: dict[str, dict[str, Any]]) -> None:
     """After a full prepare, delete every prepared text no record points to."""
     used = {r["prepared"] for r in kept.values()}
-    for text in (run / "prepared").glob("*.txt"):
+    for text in output_path(run, "prepared").glob("*.txt"):
         if f"prepared/{text.name}" not in used:
-            text.unlink()
+            output_path(run, f"prepared/{text.name}").unlink()
 
 
 def write(run: Path, rules: Rules, only: str | None = None) -> dict[str, Any]:
@@ -570,8 +570,12 @@ def write(run: Path, rules: Rules, only: str | None = None) -> dict[str, Any]:
     entries = [e for e in inventory["files"] if only is None or e["path"] == only]
     if only is not None and not entries:
         raise RunError(f"{only}: not in inventory.json")
-    (run / "prepared").mkdir(exist_ok=True)
-    index_path = run / "prepared" / "index.json"
+    folder = output_path(run, "prepared")
+    folder.mkdir(exist_ok=True)
+    index_path = output_path(run, "prepared/index.json")
+    output_path(run, "prepared/portfolios")
+    for text in folder.glob("*.txt"):
+        output_path(run, f"prepared/{text.name}")
     if only is not None and not index_path.is_file():
         raise RunError(f"{index_path}: no index; run rbot prepare first")
     kept = _old_index(index_path) if only is not None else {}

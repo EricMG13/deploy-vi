@@ -25,7 +25,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from rbotlib.inventory import write_atomic
+from rbotlib.inventory import output_path, write_atomic
 from rbotlib.rules import Rules
 
 SCHEMA = "rbot-portfolio/1"
@@ -545,8 +545,10 @@ def to_json(p: Portfolio, rules: Rules) -> dict[str, Any]:
 
 
 def write_all(run: Path, found: dict[str, Portfolio], rules: Rules) -> list[dict[str, str]]:
-    folder = run / "prepared" / "portfolios"
+    folder = output_path(run, "prepared/portfolios")
     folder.mkdir(parents=True, exist_ok=True)
+    for existing in folder.glob("*.json"):
+        output_path(run, f"prepared/portfolios/{existing.name}")
     written = []
     for portfolio_id in sorted(found):
         p = found[portfolio_id]
@@ -555,10 +557,10 @@ def write_all(run: Path, found: dict[str, Portfolio], rules: Rules) -> list[dict
         data = to_json(p, rules)
         name = f"prepared/portfolios/{portfolio_id}.json"
         text = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
-        write_atomic(run / name, text)
+        write_atomic(output_path(run, name), text)
         written.append({"portfolio_id": portfolio_id, "json": name})
     kept = {f"{w['portfolio_id']}.json".casefold() for w in written}  # APFS folds case
     for stale in folder.glob("*.json"):  # a portfolio that is no longer in the pack
         if stale.name.casefold() not in kept:
-            stale.unlink()
+            output_path(run, f"prepared/portfolios/{stale.name}").unlink()
     return written

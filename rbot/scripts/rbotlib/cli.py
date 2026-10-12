@@ -70,9 +70,10 @@ def _check(args: argparse.Namespace) -> int:
 
 def _log(run: Path, argv: list[str], code: int) -> None:
     """One line per command in <RUN>/log/rbot.log: time, command, exit (spec section 8.1)."""
-    (run / "log").mkdir(exist_ok=True)
+    destination = inventory.output_path(run, "log/rbot.log")
+    destination.parent.mkdir(exist_ok=True)
     stamp = datetime.now(UTC).isoformat(timespec="seconds")
-    with (run / "log" / "rbot.log").open("a", encoding="utf-8") as log:
+    with destination.open("a", encoding="utf-8") as log:
         log.write(f"{stamp}\t{' '.join(argv)}\t{code}\n")
 
 
@@ -96,11 +97,20 @@ def main(argv: list[str] | None = None) -> int:
     prepare.add_command(sub)
     brief.add_command(sub)
     args = parser.parse_args(argv)
+    run_dir = getattr(args, "run_dir", None)
+    log_run = Path(run_dir) if run_dir and Path(run_dir).is_dir() else None
+    if log_run is not None:
+        try:
+            inventory.output_path(log_run, "log/rbot.log")
+        except (inventory.RunError, OSError) as exc:
+            return _fail(log_run, exc)
     result = 1  # what the log records when the command raises
     try:
         result = int(args.run(args))
     finally:
-        run_dir = getattr(args, "run_dir", None)
-        if run_dir and Path(run_dir).is_dir():
-            _log(Path(run_dir), sys.argv[1:] if argv is None else argv, result)
+        if log_run is not None:
+            try:
+                _log(log_run, sys.argv[1:] if argv is None else argv, result)
+            except (inventory.RunError, OSError) as exc:
+                result = _fail(log_run, exc)
     return result

@@ -94,6 +94,21 @@ def pypdf_warnings() -> Iterator[list[str]]:
         log.propagate = propagate
 
 
+def output_path(run: Path, relative: str) -> Path:
+    """An output below the resolved run, with no symlink in its destination path."""
+    parts = Path(relative)
+    if parts.is_absolute() or ".." in parts.parts:
+        raise RunError(f"output path is outside the run folder: {relative}")
+    target = run
+    for part in parts.parts:
+        target /= part
+        if target.is_symlink():
+            raise RunError(f"output path is a symlink: {target}")
+    if not target.resolve().is_relative_to(run.resolve()):
+        raise RunError(f"output path is outside the run folder: {relative}")
+    return target
+
+
 def write_atomic(path: Path, text: str) -> None:
     """Write to a unique temp file beside the target, fsync, then `os.replace`: a failed write
     never leaves half a file, and two writers never share a temp name."""
@@ -249,11 +264,12 @@ def write(run: Path) -> dict[str, Any]:
     pack = pack_root(run)
     if not pack.is_dir():
         raise RunError(f"{pack}: no such Source Pack")
+    destination = output_path(run, "inventory.json")
     inventory = build(pack, run)
     if not inventory["files"]:
         raise RunError(f"{pack}: the Source Pack has no files")
     text = json.dumps(inventory, indent=2, ensure_ascii=False) + "\n"
-    (run / "inventory.json").write_text(text, encoding="utf-8")
+    destination.write_text(text, encoding="utf-8")
     return inventory
 
 
