@@ -1,6 +1,6 @@
 # Corpus regression — Plan 02 (intake and corpus)
 
-Re-run at branch `build/02h-final` (commit `645382d`) with `RBOT_REQUIRE_CORPUS=1` and `RBOT_CORPUS_ROOTS` set to caos-databricks `qualification/` (caos-databricks at `d0cf49e0`) and `TEST-Issuer Data`. Everything below is copied from the saved stdout of that run; nothing is carried over from earlier records. Plan 02 adds no module and no Pathway, so there is no proxy-run scorecard and no A/B.
+Measured again on 2026-10-12 in the integrated `plan-02` worktree, repair diff based on `d153e37`. `RBOT_REQUIRE_CORPUS=1` and `RBOT_CORPUS_ROOTS` point to the owner's caos-databricks `qualification/` and `TEST-Issuer Data`. Results below come from this final repair tree, including the ordinary-copy control added during mutation review. Evidence: scratchpad `p02-repairs-codex/{gates.json,required-full.txt,required-corpus.txt,verify.txt,proxy.txt,corpus-observed.json}`. Plan 02 adds no module or Pathway; there is no proxy-run scorecard or A/B.
 
 ## Registry
 
@@ -21,9 +21,11 @@ Re-run at branch `build/02h-final` (commit `645382d`) with `RBOT_REQUIRE_CORPUS=
 | `test_step_1_on_the_primary_pack` | 1 |
 | `test_brief_citations_anchor_in_the_primary_pack` | 1 |
 
-`czr-2026q2-primary` expectations file: 38 values, 37 with a source and 1 with a rule.
+The existing expectation/citation tests remain included in the 110 passing corpus cases.
 
-Full suite with the corpus required (`RBOT_REQUIRE_CORPUS=1 pytest`): 529 passed, total coverage 97.98%.
+Full suite with the corpus required (`RBOT_REQUIRE_CORPUS=1 uv run pytest`): **847 passed**, zero skipped, total coverage **98.39%**. The ordinary local run passed **737**, skipped the 110 corpus cases and collected **847**. Integrated baseline `d153e37`: 781 collected, 671 passed + 110 skipped, 98.35%. The repair adds 66 cases; no original test case was removed.
+
+Historical count correction: the earlier “617 passed” ledger claim was **617 collected: 507 passed + 110 skipped**. It was not 617 passes plus another 110 corpus skips. With `RBOT_REQUIRE_CORPUS=synthetic` and external roots unset, this registry skips all 110 corpus cases (its synthetic primary pack also contains registered external files); the command exits 0. The separately required owner-corpus run above exercised all 110.
 
 ## Observed on `czr-2026q2-primary`
 
@@ -35,4 +37,4 @@ Full suite with the corpus required (`RBOT_REQUIRE_CORPUS=1 pytest`): 529 passed
 - Step 1: `inventory.json: 30 file(s), 0 skipped`; `prepared/index.json: 30 file(s), 0 unreadable`; `portfolios: TEST_CLO_I`. From the run folder: 30 inventory files, 0 skipped; 30 index files, 0 unreadable, 1 `image_read`, 76 pages; `log/rbot.log` has `inventory` and `prepare`, each exit 0.
 - Step 5 prints: `python rbot/scripts/rbot.py approve --run <run> --pathway FULL_CREDIT_ASSESSMENT --depth full --primary yes --analyst proxy-run --deep-research yes --prior-case no`.
 
-`Not verified:` Copilot behaviour, GPT models and fetch (no module runs in Plan 02); proxy steps 2–4 and the scorecard (Plan 06); Image-Read of the screenshot by a model (Plan 05); what the entity-trap and citation tests assert beyond passing (this record shows their results, not their contents).
+`Not verified:` dynamic hostile filesystem replacement after static preflight; remaining mutation diagnostic/old-contract coverage gaps (see scratchpad `p02-repairs-codex/mutation-report.md`); Copilot behaviour, GPT models and fetch (no module runs in Plan 02); proxy steps 2–4 and the scorecard (Plan 06); Image-Read of the screenshot by a model (Plan 05); what the entity-trap and citation tests assert beyond passing (this record shows their results, not their contents).

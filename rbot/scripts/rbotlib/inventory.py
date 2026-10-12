@@ -106,6 +106,8 @@ def output_path(run: Path, relative: str) -> Path:
             raise RunError(f"output path is a symlink: {target}")
     if not target.resolve().is_relative_to(run.resolve()):
         raise RunError(f"output path is outside the run folder: {relative}")
+    if target.is_file() and target.stat().st_nlink > 1:
+        raise RunError(f"output path is a hard link: {target}")
     return target
 
 
@@ -269,7 +271,7 @@ def write(run: Path) -> dict[str, Any]:
     if not inventory["files"]:
         raise RunError(f"{pack}: the Source Pack has no files")
     text = json.dumps(inventory, indent=2, ensure_ascii=False) + "\n"
-    destination.write_text(text, encoding="utf-8")
+    write_atomic(destination, text)
     return inventory
 
 
@@ -281,8 +283,8 @@ def load(run: Path) -> dict[str, Any]:
 def run_command(args: argparse.Namespace) -> int:
     try:
         inventory = write(Path(args.run_dir))
-    except RunError as exc:
-        print(exc)
+    except (RunError, OSError) as exc:
+        print(f"inventory: {exc}")
         return 1
     n, s = len(inventory["files"]), len(inventory["skipped"])
     print(f"inventory.json: {n} file(s), {s} skipped")

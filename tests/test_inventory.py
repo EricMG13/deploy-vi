@@ -240,8 +240,7 @@ def test_a_raising_command_is_still_logged(tmp_path: Path, monkeypatch: pytest.M
         raise OSError("disk gone")
 
     monkeypatch.setattr(inventory_module, "write", boom)
-    with pytest.raises(OSError, match="disk gone"):
-        main(["inventory", "--run", str(run)])
+    assert main(["inventory", "--run", str(run)]) == 1
     assert (run / "log" / "rbot.log").read_text(encoding="utf-8").endswith("\t1\n")
 
 

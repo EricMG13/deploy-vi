@@ -232,6 +232,11 @@ def _tables(rows: list[list[str]]) -> list[tuple[str, int]]:
     return found
 
 
+def _meta_cells(row: list[str]) -> list[str]:
+    """Metadata ignores empty padding consistently in parsing and refusal checks."""
+    return [c for c in row if c]
+
+
 def _meta(
     rows: list[list[str]], notes: list[str], source: str
 ) -> tuple[dict[str, str], dict[str, list[str]]]:
@@ -239,7 +244,7 @@ def _meta(
     found: dict[str, str] = {}
     extras: dict[str, list[str]] = {}
     for row in rows:
-        cells = [c for c in row if c]
+        cells = _meta_cells(row)
         if not cells or _norm(cells[0]) not in META:
             continue
         key = META[_norm(cells[0])]
@@ -362,9 +367,16 @@ def _link(
 ONE_TABLE = "more than one table in this sheet; put each portfolio table on its own sheet or file"
 
 
+def _repeated_column(row: list[str], kind: str) -> bool:
+    """A repeated recognized column would silently overwrite another value."""
+    recognized = POSITION_COLUMNS if kind == "positions" else LIMITS
+    columns = [_norm(c) for c in row if _norm(c) in recognized]
+    return len(columns) != len(set(columns))
+
+
 def _identity_problem(rows: list[list[str]]) -> str | None:
     for label in ("portfolio id", "as of"):
-        matches = [r for r in rows if r and _norm(r[0]) == label]
+        matches = [c for r in rows if (c := _meta_cells(r)) and _norm(c[0]) == label]
         if len(matches) > 1:
             return f"more than one {label.title()} row; sheet refused"
         if label == "portfolio id" and matches and len([c for c in matches[0][1:] if c]) != 1:
@@ -394,8 +406,9 @@ def _table_tail_problem(rows: list[list[str]], kind: str, start: int, bad: dict[
 def _unit_rows(rows: list[list[str]], p: Portfolio) -> None:
     heads = _tables(rows)
     start = heads[0][1] if heads else -1
-    for n, row in enumerate(rows):
-        if not any(row):
+    for n, raw in enumerate(rows):
+        row = _meta_cells(raw)
+        if not row:
             continue
         label = _norm(row[0])
         if label == "unit":
@@ -421,7 +434,8 @@ def _unit_hint(label: str, row: list[str]) -> bool:
 def _refused(
     source: str, rows: list[list[str]], found: dict[str, Portfolio], note: str
 ) -> list[str]:
-    ids = {r[1] for r in rows if len(r) == 2 and _norm(r[0]) == "portfolio id" and r[1]}
+    cells = [_meta_cells(r) for r in rows]
+    ids = {r[1] for r in cells if len(r) == 2 and _norm(r[0]) == "portfolio id"}
     for who in ids:
         if not _id_problem(who, found):
             p = found.setdefault(who, Portfolio())
@@ -442,6 +456,8 @@ def read_sheet(
     if len(heads) > 1:
         note = f"{source}: {ONE_TABLE} (header rows {', '.join(str(i + 1) for _, i in heads)})"
         return _refused(source, rows, found, note)
+    if heads and _repeated_column(rows[heads[0][1]], heads[0][0]):
+        return _refused(source, rows, found, f"{source}: repeated column; sheet refused")
     if heads and _table_tail_problem(rows, *heads[0], bad):
         return _refused(source, rows, found, f"{source}: {ONE_TABLE}")
     if problem := _identity_problem(rows):

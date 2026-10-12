@@ -151,8 +151,8 @@ def test_a_registry_entry_cannot_escape_its_root(tmp_path: Path, entry: str) -> 
     name = str(outside) if entry == "OUTSIDE_ABSOLUTE" else entry
     registry = load_registry(_registry(tmp_path, {}, {name: _sha(data)}))
     roots = resolve_roots(registry, _roots_env(tmp_path))
-    problems = verify(registry, registry.pack("p1"), roots)
-    assert [(p.code, "escapes root" in p.message) for p in problems] == [(MISSING, True)]
+    with pytest.raises(CorpusError, match="escapes root"):
+        verify(registry, registry.pack("p1"), roots)
     with pytest.raises(CorpusError, match="escapes root"):
         materialise(registry, registry.pack("p1"), roots, tmp_path / "copy")
 
@@ -287,11 +287,8 @@ def test_a_root_value_or_external_path_cannot_leave_the_repo_or_be_absolute(
     body["packs"][0]["files"][0]["external"] = "ext//etc/hosts"
     path.write_text(json.dumps(body), encoding="utf-8")
     registry = load_registry(path)
-    (problem,) = verify(
-        registry, registry.pack("p1"), resolve_roots(registry, _roots_env(tmp_path / "b"))
-    )
-    assert "absolute path not allowed" in problem.message
-    assert problem.in_repo
+    with pytest.raises(CorpusError, match="absolute path not allowed"):
+        verify(registry, registry.pack("p1"), resolve_roots(registry, _roots_env(tmp_path / "b")))
 
 
 def test_a_registry_that_is_an_array_or_lacks_pack_keys_is_named(tmp_path: Path) -> None:

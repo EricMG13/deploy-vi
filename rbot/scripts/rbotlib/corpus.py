@@ -69,7 +69,19 @@ class Problem:
     message: str
 
 
+def _shape(value: object, kind: type, where: str) -> None:
+    """Refuse malformed registry containers and scalars at their named location."""
+    if not isinstance(value, kind):
+        raise CorpusError(f"{where}: expected {kind.__name__}, got {type(value).__name__}")
+
+
+def _fields(raw: dict[str, Any], kinds: dict[str, type], where: str) -> None:
+    for key, kind in kinds.items():
+        _shape(raw[key], kind, f"{where}: {key}")
+
+
 def _need(raw: dict[str, Any], keys: tuple[str, ...], where: str) -> list[Any]:
+    _shape(raw, dict, where)
     missing = [k for k in keys if k not in raw]
     if missing:
         raise CorpusError(f"{where}: missing {missing[0]}")
@@ -79,12 +91,24 @@ def _need(raw: dict[str, Any], keys: tuple[str, ...], where: str) -> list[Any]:
 def _file(raw: dict[str, Any], where: str) -> CorpusFile:
     keys = ("path", "sha256", "class", "document_type", "entity")
     path, sha, cls, kind, entity = _need(raw, keys, where)
+    _fields(raw, dict.fromkeys(keys, str), where)
+    for key, expected in (("external", str), ("pages", int)):
+        if raw.get(key) is not None:
+            _shape(raw[key], expected, f"{where}: {key}")
     return CorpusFile(path, sha, cls, kind, entity, raw.get("external"), raw.get("pages"))
 
 
 def _pack(raw: dict[str, Any], where: str) -> Pack:
     keys = ("id", "root", "path", "files", "pathways", "issuer", "period")
     pack_id, root, path, files = _need(raw, keys, where)[:4]
+    _fields(raw, dict.fromkeys(("id", "root", "path", "period"), str), where)
+    _fields(raw, {"files": list, "pathways": list, "issuer": dict}, where)
+    _need(raw["issuer"], ("id", "name"), f"{where}: issuer")
+    _fields(raw["issuer"], {"id": str, "name": str}, f"{where}: issuer")
+    for i, pathway in enumerate(raw["pathways"]):
+        location = f"{where}: pathway {i}"
+        _need(pathway, ("id", "depth", "fit"), location)
+        _fields(pathway, {"id": str, "depth": str, "fit": str}, location)
     parsed = tuple(_file(f, f"{where}: file {i}") for i, f in enumerate(files))
     return Pack(pack_id, root, path, parsed, raw)
 
@@ -99,6 +123,10 @@ def load_registry(path: Path = REGISTRY) -> Registry:
     if data.get("schema") != "rbot-corpus/1":
         raise CorpusError(f"{path}: schema is {data.get('schema')!r}, expected 'rbot-corpus/1'")
     top = _need(data, ("roots", "packs"), str(path))
+    _shape(top[0], dict, f"{path}: roots")
+    _shape(top[1], list, f"{path}: packs")
+    for name, value in top[0].items():
+        _shape(value, str, f"{path}: root {name!r}")
     packs = tuple(_pack(p, f"{path}: pack {i}") for i, p in enumerate(top[1]))
     return Registry(path, dict(top[0]), packs)
 
@@ -191,7 +219,7 @@ def _unresolved(
 def _check_file(pack: Pack, f: CorpusFile, where: Path, root: Path) -> str | None:
     """The problem text for one located file, or None when it is the registered bytes."""
     if not where.resolve().is_relative_to(root.resolve()):
-        return f"{pack.id}: {f.path}: escapes root {_root_name(pack, f)!r} ({where})"
+        raise CorpusError(f"{pack.id}: {f.path}: escapes root {_root_name(pack, f)!r} ({where})")
     if not where.is_file():
         return f"{pack.id}: {f.path}: missing at {where}"
     actual = sha256_file(where)
@@ -213,7 +241,7 @@ def _check(
         where = locate(pack, f, roots)
         if f.external and (f.external.startswith("/") or "//" in f.external):
             text = f"{pack.id}: {f.path}: absolute path not allowed in {f.external!r}"
-            problems.append(Problem(MISSING, True, text))
+            raise CorpusError(text)
         elif where is None:
             lost.setdefault(_root_name(pack, f), []).append(f)
         elif message := _check_file(pack, f, where, roots[_root_name(pack, f)]):
@@ -233,10 +261,14 @@ def materialise(registry: Registry, pack: Pack, roots: Mapping[str, Path], dest:
     problems, found = _check(registry, pack, roots)
     if problems:
         raise CorpusError("; ".join(p.message for p in problems))
-    for name, source in found.items():
+    for name in found:
         target = dest / name
         if not target.resolve().is_relative_to(dest.resolve()):
             raise CorpusError(f"{pack.id}: {name}: would be written outside the destination")
+        if target.is_file() and target.stat().st_nlink > 1:
+            raise CorpusError(f"{pack.id}: {name}: destination is a hard link")
+    for name, source in found.items():
+        target = dest / name
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, target)
     return dest

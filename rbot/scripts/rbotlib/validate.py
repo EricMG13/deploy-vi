@@ -226,7 +226,7 @@ def _parts(excerpt: str) -> list[str]:
     return [n for n in (normalise(p) for p in re.split(r"\.\.\.|\u2026", excerpt)) if n]
 
 
-_SIGNED = re.compile(r"(?:us\$|[$\u00a3\u20ac\u00a5])?\d")
+_SIGNED = re.compile(r"(?:us\$|[$\u00a3\u20ac\u00a5])?\s*\d")
 _CUT_AFTER = r"(?!\s?(?:%|x\b|bps?\b))(?!-\d)"
 
 
@@ -244,11 +244,38 @@ def _needle(text: str) -> re.Pattern[str]:
     return re.compile(before + re.escape(text) + after)
 
 
+_SIGN_PREFIX = re.compile(r"(?<!\w)-\s*(?:us\$|[$£€¥])?\s*$")
+_RANGE_PREFIX = re.compile(r"\d\s+-\s*$")
+_ACCOUNT_PREFIX = re.compile(r"\(\s*(?:us\$|[$£€¥])?\s*$")
+
+
+def _cut_sign(haystack: str, start: int, needle: str) -> bool:
+    """A numeric excerpt cannot discard the source amount's sign/currency prefix.
+
+    Normalized whitespace is one character; eight preceding characters cover a
+    sign, optional US$ currency and their spaces, including the range boundary.
+    """
+    if not _SIGNED.match(needle):
+        return False
+    prefix = haystack[max(0, start - 8) : start]
+    return bool(
+        (_SIGN_PREFIX.search(prefix) and not _RANGE_PREFIX.search(prefix))
+        or (")" not in needle and _ACCOUNT_PREFIX.search(prefix))
+    )
+
+
 def excerpt_found(text: str, excerpt: str) -> bool:
     """Every part of the excerpt (split at an ellipsis) appears in the text, in order."""
     haystack, at = normalise(text), 0
     for needle in _parts(excerpt):
-        hit = _needle(needle).search(haystack, at)
+        hit = next(
+            (
+                m
+                for m in _needle(needle).finditer(haystack, at)
+                if not _cut_sign(haystack, m.start(), needle)
+            ),
+            None,
+        )
         if hit is None:
             return False
         at = hit.end()

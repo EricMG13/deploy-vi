@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import re
 import zipfile
 from collections.abc import Callable
@@ -172,8 +173,13 @@ def test_i5_lone_surrogates_from_pdf_text_are_dropped_and_counted(tmp_path: Path
 def test_i5_the_prepared_text_is_written_atomically(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    def fail(*_: object) -> None:
-        raise OSError("disk full")
+    replace = os.replace
+
+    def fail(source: Path, target: Path) -> None:
+        if target.name == "inventory.json":
+            replace(source, target)
+        else:
+            raise OSError("disk full")
 
     monkeypatch.setattr("rbotlib.inventory.os.replace", fail)
     run, _, code = _prep(tmp_path, {"a.txt": b"some text\n"})
