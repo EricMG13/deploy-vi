@@ -8,7 +8,14 @@ from test_portfolio_fixes import AMOUNT, LIM, POS, _json
 
 @pytest.mark.parametrize(
     "footer",
-    ["Portfolio ID,P2", "Note,other table", "Unit,USD", "Total NAV,7", "Total NAV,Label,1,1%"],
+    [
+        "Portfolio ID,P2",
+        "Note,other table",
+        "Unit,USD",
+        "Total NAV,7",
+        "Total NAV,Label,1,1%",
+        "Unit:,USD,1,1%",
+    ],
 )
 def test_footer_refuses_sheet(tmp_path: Path, footer: str) -> None:
     data, notes = _json(tmp_path, {"p.csv": POS.format(unit="") + footer + "\nB,Beta,2,2%\n"})

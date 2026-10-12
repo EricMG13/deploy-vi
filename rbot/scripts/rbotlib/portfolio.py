@@ -380,8 +380,10 @@ def _table_tail_problem(rows: list[list[str]], kind: str, start: int, bad: dict[
             continue
         item = dict(zip(header, row, strict=False))
         identifiers = required[:2] if kind == "positions" else required[:3]
+        label = _norm(row[0])
         if (
-            _norm(row[0]) in META
+            label in META
+            or _unit_hint(label, row)
             or not all(item.get(c, "") for c in identifiers)
             or (n not in bad and len(row) <= max(header.index(c) for c in required))
         ):
