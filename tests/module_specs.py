@@ -281,7 +281,7 @@ TABLES["CP-1D"] = [
         "cp1d.addback_assessment",
         0,  # amended (rest review I4): an empty CP-1 bridge gives an empty assessment
         (
-            "addback_id* period_id* amount* currency* unit*:unit category* "
+            "addback_id* period_id* amount currency* unit*:unit category* "
             "house_realization_status*:realization_status verdict*:addback_verdict rationale* "
             "recurrence* cite*"
         ),

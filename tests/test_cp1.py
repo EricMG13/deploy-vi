@@ -197,3 +197,49 @@ def test_an_empty_cp1_bridge_gives_an_empty_assessment_that_validates_and_runs(
     (run / "handoffs" / "CP-1.md").write_text(cp1, encoding="utf-8")
     (run / "handoffs" / "CP-1D.md").write_text(cp1d, encoding="utf-8")
     assert main(["model", "--run", str(run)]) == 0
+
+
+def _followup_null(text: str, table_id: str, column: str, value: str) -> str:
+    table = parse(text).tables[table_id]
+    old = list(table.rows[0])
+    new = list(old)
+    new[table.columns.index(column)] = value
+    return text.replace("| " + " | ".join(old) + " |", "| " + " | ".join(new) + " |", 1)
+
+
+def test_cp1d_can_carry_a_null_amount_with_a_gap(tmp_path: Path) -> None:
+    from rbotlib.model.house_inputs import assessments
+    from rbotlib.rules import load_rules
+
+    rules = load_rules()
+    cp1 = (FIXTURES / "handoffs/CP-1.md").read_text("utf-8")
+    cp1 = _followup_null(cp1, "cp1.adjusted_ebitda_bridge", "value", "—")
+    cp1d = (FIXTURES / "handoffs/CP-1D.md").read_text("utf-8")
+    cp1d = _followup_null(cp1d, "cp1d.addback_assessment", "amount", "—")
+    cp1d = cp1d.replace(
+        "## Gaps", "## Gaps\n\n- The first add-back amount is not disclosed; it is not zero."
+    )
+    for module, text in (("CP-1", cp1), ("CP-1D", cp1d)):
+        contract = load_contract(RBOT_ROOT / "modules" / module / "contract.json", rules)
+        assert check(text, contract, rules) == (0, [])
+    h = parse(cp1d)
+    assert h.tables["cp1d.addback_assessment"].rows[0][2] == "—"
+    assert len(assessments(h.tables)) > 0
+    from test_fit import _run
+
+    from rbotlib.cli import main
+
+    folder = _run(tmp_path)
+    for module, text in (("CP-1", cp1), ("CP-1D", cp1d)):
+        (folder / "handoffs" / f"{module}.md").write_text(text, "utf-8")
+    assert main(["model", "--run", str(folder)]) == 0
+    data = json.loads((folder / "model.json").read_text())
+    bridge = parse(cp1).tables["cp1.adjusted_ebitda_bridge"]
+    first = dict(zip(bridge.columns, bridge.rows[0], strict=True))
+    row = next(
+        line for line in data["lines"] if line["line_id"] == "addback:" + first["addback_id"]
+    )
+    cell = next(
+        cell for cell in row["cells"] if cell["column_id"].endswith(":" + first["period_id"])
+    )
+    assert (cell["value"], cell["reason"]) == (None, "NOT_STATED")
