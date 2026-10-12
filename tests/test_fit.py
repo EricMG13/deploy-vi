@@ -417,7 +417,9 @@ def test_fit_arithmetic_test_clo_i(prepared_run: Callable[[str], Path], tmp_path
     assert ("CEI-TLB", "C-10") not in rows
     assert rows[("CEI-TLB", "C-02")]["status"] == "From file"
     assert "- TEST_CLO_I CEI-RCF: missing or unreadable rating, counted toward C-04" in h.body
-    assert "row 8: minimum limit" in h.body  # the WAR floor "≥ Caa1" is a minimum, Gaps only
+    assert (
+        "SYNTHETIC_TEST_CLO_I_Limits_2026-10-02.csv row 9: minimum limit" in h.body
+    )  # the WAR floor "≥ Caa1" is a minimum, Gaps only
 
 
 @pytest.mark.corpus
