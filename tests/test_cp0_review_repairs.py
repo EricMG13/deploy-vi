@@ -123,7 +123,8 @@ def test_approval_names_undecodable_input(
     (run / name).write_bytes(b"\xff")
     capsys.readouterr()
     assert _approve(root, run) == 1
-    assert f"{run / name}: no readable" in capsys.readouterr().out
+    captured = capsys.readouterr()
+    assert f"{run / name}: no readable" in captured.out + captured.err
     assert run.is_dir() and not (run / ".approve.lock").exists()
 
 

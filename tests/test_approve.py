@@ -12,9 +12,11 @@ import pytest
 import rbotlib.approve as ap
 from conftest import FIXTURES
 from rbotlib.approve import ApprovalError, new_name
+from rbotlib.bootstrap import QualifiedCP0
 from rbotlib.cli import main
 from rbotlib.handoff import Handoff, parse
 from rbotlib.rules import Rules
+from rbotlib.runs import _bootstrap
 from rbotlib.validate import run_findings
 from spec_fixture import SOURCES, build_tree
 from test_grade import FILES, _acme, _graded
@@ -50,8 +52,7 @@ def root(tmp_path: Path, rules: Rules) -> Path:
 
 def _seed(run: Path) -> None:
     """The pre-Approval run-state.json that `rbot new-run` (Plan 06) or proxy step 1 writes."""
-    state: dict[str, Any] = {"schema": "rbot-run-state/1", "run_id": run.name}
-    state |= {"pack_root": str(run.parents[1]), "plan": [], "steps": {}}
+    state = _bootstrap(run, run.parents[1], None, None)
     (run / "run-state.json").write_text(json.dumps(state), encoding="utf-8")
 
 
@@ -228,7 +229,7 @@ REFUSALS = [
     (None, ["--pathway", "NOPE"], "unknown Pathway 'NOPE'; graded: FULL_CREDIT_ASSESSMENT"),
     ("objective", [], "the Run Brief still has gaps: objective"),
     ("brief", [], "run-brief.md changed after rbot grade; run rbot grade again"),
-    ("run-state", [], "run-state.json; the run was not created with rbot new-run"),
+    ("run-state", [], "state must be an existing regular file"),
     ("grading", [], "grading.json; run rbot grade first"),
     (None, ["--primary", "yes"], "a Primary run needs a new tranche"),
     (None, ["--untick", "RQ-9"], "no research question RQ-9"),
@@ -251,7 +252,8 @@ def test_refused_approvals_exit_1(
         (run / f"{change}.json").unlink()
     capsys.readouterr()
     assert _approve(root, run, *extra) == 1
-    assert message in capsys.readouterr().out
+    captured = capsys.readouterr()
+    assert message in captured.out + captured.err
     assert run.is_dir()
 
 
@@ -348,7 +350,7 @@ def test_a_concurrent_approve_is_refused_by_the_lock(
     inside, done = threading.Event(), threading.Event()
     real = ap._cp0_step
 
-    def slow(run: Path, root: Path, rules: Rules) -> dict[str, Any]:
+    def slow(run: Path, root: Path, rules: Rules) -> QualifiedCP0:
         inside.set()
         assert done.wait(10)
         return real(run, root, rules)
@@ -406,15 +408,16 @@ def test_the_approving_analyst_is_checked(
     argv += ["FULL_CREDIT_ASSESSMENT", "--depth", "full", "--primary", "no", "--analyst", analyst]
     capsys.readouterr()
     assert main(argv) == 1
-    assert message in capsys.readouterr().out
+    captured = capsys.readouterr()
+    assert message in captured.out + captured.err
     assert "brief.approval" not in (run / "run-brief.md").read_text(encoding="utf-8")
 
 
 BAD_FILES = [
     ("grading.json", "{}", "grading.json is not a grading record"),
     ("grading.json", "[]", "grading.json is not a grading record"),
-    ("run-state.json", "[]", "run-state.json is not a run state"),
-    ("run-state.json", '{"steps": []}', "run-state.json is not a run state"),
+    ("run-state.json", "[]", "run-state.json: expected an object"),
+    ("run-state.json", '{"steps": []}', "run-state.json.schema"),
 ]
 
 
@@ -427,7 +430,8 @@ def test_malformed_run_files_are_named(
     (run / name).write_text(content, encoding="utf-8")
     capsys.readouterr()
     assert _approve(root, run) == 1
-    assert message in capsys.readouterr().out
+    captured = capsys.readouterr()
+    assert message in captured.out + captured.err
     assert "brief.approval" not in (run / "run-brief.md").read_text(encoding="utf-8")
 
 
@@ -492,14 +496,16 @@ def test_grade_refuses_an_approved_run(
     assert (run.parent / TARGET / "grading.json").read_bytes() == graded
 
 
-def test_only_cp0_survives_from_the_pre_approval_steps(root: Path, tmp_path: Path) -> None:
+def test_unapproved_analysis_steps_cannot_be_carried_into_approval(
+    root: Path, tmp_path: Path
+) -> None:
     run = _ready(root, tmp_path)
     state = _state(run)
     state["steps"]["FIT"] = {"kind": "host", "status": "accepted", "reason": ""}
     (run / "run-state.json").write_text(json.dumps(state), encoding="utf-8")
-    assert _approve(root, run) == 0
-    fit = _state(run.parent / TARGET)["steps"]["FIT"]
-    assert (fit["status"], fit["reason"]) == ("skipped", "no portfolio context")
+    original = (run / "run-state.json").read_bytes()
+    assert _approve(root, run) == 1
+    assert (run / "run-state.json").read_bytes() == original
 
 
 def test_an_issuer_id_without_a_slug_is_refused(tmp_path: Path) -> None:

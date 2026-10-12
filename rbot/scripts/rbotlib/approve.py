@@ -30,14 +30,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from rbotlib import bootstrap
 from rbotlib import brief as rb
+from rbotlib import state as rs
 from rbotlib.catalog import load_catalog
-from rbotlib.contract import load_contract
 from rbotlib.fsio import write_atomic
 from rbotlib.grade import BLOCKED, GRADING, SCHEMA, contracts_sha256
-from rbotlib.handoff import HandoffError, parse
+from rbotlib.handoff import HandoffError
+from rbotlib.inventory import RunError
 from rbotlib.rules import Rules, load_rules
-from rbotlib.validate import EXIT_BLOCKED, EXIT_VALID, check
 
 STATE = "run-state.json"
 LOCK = ".approve.lock"
@@ -183,16 +184,8 @@ def new_name(run: Path, issuer_id: str, pathway: str) -> Path:
     return candidate
 
 
-def _cp0_step(run: Path, root: Path, rules: Rules) -> dict[str, Any]:
-    text = (run / rb.CP0).read_text(encoding="utf-8")
-    contract = load_contract(root / "modules" / "CP-0" / "contract.json", rules)
-    code, _ = check(text, contract, rules, run)
-    if code not in (EXIT_VALID, EXIT_BLOCKED):
-        raise ApprovalError(f"{rb.CP0} no longer validates (exit {code}); run rbot grade")
-    qa = parse(text).front_matter.get("qa_status", "")
-    status = "accepted" if code == EXIT_VALID else "blocked"
-    record = {"kind": "module", "status": status, "qa_status": qa, "handoff": rb.CP0}
-    return record | {"sha256": _sha(run / rb.CP0), "validate_exit": code, "attempts": 1}
+def _cp0_step(run: Path, root: Path, rules: Rules) -> bootstrap.QualifiedCP0:
+    return bootstrap.checked_cp0(run, root, rules, rs.read(run))
 
 
 def _steps(
@@ -288,7 +281,10 @@ def _new_state(
 def prepare(run: Path, root: Path, rules: Rules, choice: Choice) -> Commit:
     """Read and check everything, and compute every file Approval writes; write nothing."""
     grading = _grading(run / GRADING)
-    state = _state(run / STATE)
+    try:
+        state = rs.read(run)
+    except UnicodeDecodeError as exc:
+        raise ApprovalError(f"{run / STATE}: no readable run state ({exc})") from exc
     _checked(run, root, grading)
     graded = _graded(grading, choice)
     pathway = load_catalog(root).pathway(choice.pathway)
@@ -305,11 +301,32 @@ def prepare(run: Path, root: Path, rules: Rules, choice: Choice) -> Commit:
     brief.approval[0][1] = brief.fields["analyst"].analyst_value
     text = rb.render(brief)
     state = dict(state, steps={**state.get("steps", {})})
-    state["steps"].setdefault("CP-0", _cp0_step(run, root, rules))
+    qualified = _cp0_step(run, root, rules)
+    if (
+        not rules.is_placeholder(qualified.issuer_id)
+        and qualified.issuer_id != brief.fields["issuer_id"].value
+    ):
+        raise ApprovalError(
+            "CP-0 issuer identity differs from the confirmed Run Brief; use the completion owner"
+        )
+    if (
+        qualified.step["sha256"] != grading["cp0_sha256"]
+        or _sha(run / rb.CP0) != qualified.step["sha256"]
+    ):
+        raise ApprovalError(f"{rb.CP0} changed during Approval; run rbot grade again")
+    state["steps"]["CP-0"] = qualified.step
+    state["cp0_lineage"] = {
+        "pending_run_id": qualified.run_id,
+        "issuer_id": qualified.issuer_id,
+        "sha256": state["steps"]["CP-0"]["sha256"],
+    }
     new = _new_state(state, brief, choice, graded)
     new["run_brief_sha256"] = hashlib.sha256(text.encode("utf-8")).hexdigest()
     new |= {"plan": list(plan), "steps": _steps(plan, state, brief, choice, rules)}
-    return Commit(target, text, json.dumps(new, indent=2, ensure_ascii=False) + "\n")
+    rs.validate(new, target)
+    return Commit(
+        target, text, json.dumps(new, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
+    )
 
 
 @contextmanager
@@ -392,7 +409,7 @@ def approve(run: Path, root: Path, rules: Rules, choice: Choice) -> Path:
 
 
 def plan_lines(state: dict[str, Any]) -> list[str]:
-    if not state.get("plan"):
+    if not state.get("plan") or ("approval" in state and state["approval"] is None):
         raise ApprovalError("the run is not approved yet; rbot approve sets its plan")
     try:
         return _plan_lines(state)
@@ -428,7 +445,7 @@ def approve_command(args: argparse.Namespace) -> int:
     )
     try:
         target = approve(run, args.root, load_rules(args.root), choice)
-    except (ApprovalError, rb.BriefError, HandoffError, OSError) as exc:
+    except (ApprovalError, rb.BriefError, HandoffError, RunError, OSError) as exc:
         print(exc)
         return 1
     args.run_dir = str(target)  # the command's log line goes to the renamed folder

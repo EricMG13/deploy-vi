@@ -87,6 +87,7 @@ def _step(step: str, record: object) -> None:
         "sha256": _sha,
         "started_at": _stamp,
         "finished_at": _stamp,
+        "validated_at": _stamp,
         "reason": lambda v: isinstance(v, str),
         "model": _text,
     }
@@ -163,6 +164,32 @@ def validate(record: Record, run: Path) -> None:
         f"{STATE}.report",
     )
     _approval(record)
+    _lineage(record)
+
+
+def _lineage(record: Record) -> None:
+    if "cp0_lineage" not in record:
+        return
+    lineage = _fields(
+        record["cp0_lineage"],
+        {
+            "pending_run_id": lambda v: (
+                isinstance(v, str) and re.fullmatch(r"\d{8}-.+-pending(?:-\d+)?", v) is not None
+            ),
+            "issuer_id": _text,
+            "sha256": _sha,
+        },
+        f"{STATE}.cp0_lineage",
+    )
+    cp0 = record["steps"].get("CP-0", {})
+    if (
+        set(lineage) != {"pending_run_id", "issuer_id", "sha256"}
+        or record["approval"] is None
+        or lineage["pending_run_id"] == record["run_id"]
+        or cp0.get("status") not in ("accepted", "blocked")
+        or lineage["sha256"] != cp0.get("sha256")
+    ):
+        raise RunError(f"{STATE}.cp0_lineage: requires approved, hash-bound pending CP-0")
 
 
 def _approval(record: Record) -> None:
