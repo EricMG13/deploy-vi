@@ -20,7 +20,11 @@ Interfaces spec section 12.7. A rewritten module ships only when its B side does
 | D6 | No framework, score or label that does not change the conclusion. |
 | G | Each gap names the missing data, its cause, its effect on the output and the source that would lift it; no filler. |
 
-Script-measured on B (`ab_grade.py measure`): **C** = anchored citations ÷ citations (`rbot validate --run`), and **F** = filled critical cells ÷ the critical cells the pack's `expectations` say the Front Page tables the module owns should hold (`expected_rows` rows of every critical column; a row the module did not write counts as unfilled; no F for a module that owns no Front Page table). A writes no Deploy VI citations table, so C(A) is not measured and the citation bar is C(B) ≥ 0.95. C is the validator's own anchoring, so it can fail only for a Handoff the validator already refuses (B must exit 0 or 3 under `--run` before it is scored); the owner may drop the line. `score` requires `--f-b` for a module that owns Front Page tables.
+Measure **C(A)** with `ab_grade.py measure-a --handoff <AB>/A.md --run <RUN> --evidence <AB>/A-evidence.json` and **C(B)** with `ab_grade.py measure`. Both use shared prepared-source/page/excerpt anchoring. A’s map is an internal qualification artifact that projects actual native Source Registry filenames and Evidence Trace references from the frozen r14 six sections; it imposes no universal native table schema and invents no evidence.
+
+The controller records actual column names in `source_registry` (`id`, `file`) and `evidence_trace` (`id`, `sources`), and one `citations` entry (`evidence_id`, `source_id`, `locator`, `excerpt`) for every actual Evidence Trace source reference, including multiple references on one record. Source lists use comma/semicolon-separated IDs (optional brackets). Every entry must identify declared locator/excerpt text. Missing, duplicate, malformed, unknown or undeclared maps are named errors and cannot qualify. Prose or extra references outside configured records cannot be certified; preserve the native content and resolve an explicit mapping before scoring. A faithfully mapped actual citation that fails anchoring lowers C(A) with findings; never replace it with a better quotation. Absent or unverifiable C(A) cannot become zero.
+
+**F(B)** = filled critical cells divided by expected cells. Configured expected identities must match uniquely: duplicate, wrong or missing rows cannot cover an expected identity, and one physical row cannot count twice. CP-6 requires all three Strategies. Without configured identities shared table keys still reject duplicate coverage. `score` requires measured `--c-a` and `--c-b`, plus `--f-b` when Front Page tables apply. There is no owner waiver of the comparative citation bar.
 
 ## Grader prompt
 
@@ -43,10 +47,10 @@ Reply with one Markdown table, columns: criterion | X | Y | reason (one line per
 
 ## Resolution and pass bar
 
-`uv run python scripts/ab_grade.py steps --module <ID> --folder <r14 skill folder> --order <AB>/order.json --out <AB>` writes `steps-X.md` and `steps-Y.md` before grading, and `uv run python scripts/ab_grade.py score --order <AB>/order.json --sheets <AB>/grader-1.md <AB>/grader-2.md --module <ID> --expectations <pack expectations> --c-b <C(B)> [--f-b <F(B)>]` maps X and Y back to A and B. Two graders that differ by more than one point on any criterion need a third (exit 3; the same prompt, a fresh subagent), and the median of three decides; otherwise the mean of two.
+`uv run python scripts/ab_grade.py steps --module <ID> --folder <r14 skill folder> --order <AB>/order.json --out <AB>` writes `steps-X.md` and `steps-Y.md` before grading, and `uv run python scripts/ab_grade.py score --order <AB>/order.json --sheets <AB>/grader-1.md <AB>/grader-2.md --module <ID> --expectations <pack expectations> --c-a <C(A)> --c-b <C(B)> [--f-b <F(B)>]` maps X and Y back to A and B. Two graders that differ by more than one point on any criterion need a third (exit 3; the same prompt, a fresh subagent), and the median of three decides; otherwise the mean of two.
 
 B passes when every line holds: ΣD(B) ≥ ΣD(A); no criterion with D(B) < D(A) − 1; C(B) ≥ max(0.95, C(A)); G(B) ≥ G(A); F(B) ≥ 0.90 where F applies (exit 0; 1 when a line fails).
 
 ## Record
 
-`docs/ab/<YYYY-MM-DD>-<ID>-<pack>.md`: the pack, the run folder, both sides' model labels and wall times, the order drawn, every grader sheet verbatim, the resolved scores, C(B) and F(B), each pass-bar line and the verdict. A module that fails is revised (its contract's `process`), re-rendered and re-run; every round's record is kept.
+`docs/ab/<YYYY-MM-DD>-<ID>-<pack>.md`: the pack, the run folder, both sides' model labels and wall times, the order drawn, every grader sheet verbatim, the resolved scores, C(A), C(B) and F(B), the checked A map, each pass-bar line and the verdict. A module that fails is revised (its contract's `process`), re-rendered and re-run; every round's record is kept.

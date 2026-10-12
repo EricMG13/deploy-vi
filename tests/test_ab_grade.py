@@ -21,7 +21,14 @@ from rbotlib.handoff import parse
 AB = FIXTURES / "ab"
 SHEETS = [AB / f"grader-{n}.md" for n in (1, 2, 3)]
 EXPECTATIONS = FIXTURES.parent / "corpus" / "expectations" / "czr-2026q2-primary.json"
-WHO = ["--module", "CP-1", "--expectations", str(EXPECTATIONS)]  # CP-1 owns no Front Page table
+WHO = [
+    "--c-a",
+    "0.95",
+    "--module",
+    "CP-1",
+    "--expectations",
+    str(EXPECTATIONS),
+]  # CP-1 owns no Front Page table
 
 
 def _order(tmp_path: Path, x: str) -> Path:
@@ -98,19 +105,17 @@ def test_a_third_grader_is_needed_then_the_median_decides(
 
 @pytest.mark.parametrize(
     ("c_b", "c_a", "f_b", "passes"),
-    [("0.96", None, None, True), ("0.94", None, None, False), ("0.96", "0.98", None, False)],
+    [("0.96", "0.95", None, True), ("0.94", "0.95", None, False), ("0.96", "0.98", None, False)],
 )
 def test_the_citation_and_front_page_bars(
-    c_b: str, c_a: str | None, f_b: str | None, passes: bool
+    c_b: str, c_a: str, f_b: str | None, passes: bool
 ) -> None:
     from decimal import Decimal
 
     even = {c: Fraction(2) for c in ab_grade.CRITERIA}
-    verdict = ab_grade.verdict(
-        {"A": even, "B": even}, Decimal(c_b), Decimal(c_a) if c_a else None, None
-    )
+    verdict = ab_grade.verdict({"A": even, "B": even}, Decimal(c_b), Decimal(c_a), None)
     assert verdict["pass"] is passes
-    low = ab_grade.verdict({"A": even, "B": even}, Decimal(1), None, Decimal("0.89"))
+    low = ab_grade.verdict({"A": even, "B": even}, Decimal(1), Decimal(1), Decimal("0.89"))
     assert low["lines"]["front_page"] is False
 
 
@@ -211,7 +216,17 @@ def test_score_refuses_a_missing_f_for_a_module_that_owns_front_page_tables(
 ) -> None:
     """I11: the dry run never passed --f-b, and a missing one passed silently."""
     order = str(_order(tmp_path, "A"))
-    args = ["score", "--order", order, "--sheets", *map(str, SHEETS[:2]), "--c-b", "1"]
+    args = [
+        "score",
+        "--order",
+        order,
+        "--sheets",
+        *map(str, SHEETS[:2]),
+        "--c-b",
+        "1",
+        "--c-a",
+        "1",
+    ]
     cp3 = ["--module", "CP-3", "--expectations", str(EXPECTATIONS)]
     assert ab_grade.main([*args, *cp3]) == 2
     assert "--f-b is required: CP-3 owns Front Page tables (snapshot.instrument_levels" in (

@@ -29,6 +29,13 @@ from rbotlib.rules import Rules
 
 EXIT_VALID, EXIT_USAGE, EXIT_MALFORMED, EXIT_BLOCKED, EXIT_IDENTITY = 0, 1, 2, 3, 4
 MAX_HANDOFF_BYTES = 98_304
+ROW_KEYS = {
+    "snapshot.recommendation": ("strategy",),
+    "snapshot.instrument_recommendation": ("facility_id",),
+    "snapshot.instrument_levels": ("facility_id",),
+    "snapshot.relative_value": ("block", "name"),
+    "snapshot.strengths_weaknesses": ("kind", "label"),
+}
 
 
 @dataclass(frozen=True)
@@ -119,7 +126,36 @@ def _table(spec: TableSpec, h: Handoff, rules: Rules) -> list[Finding]:
         found.append(
             Finding("too_few_rows", f"{spec.id} has {len(table.rows)} rows, needs {spec.min_rows}")
         )
-    return found + _cell_findings(spec, table, rules, blocked)
+    return found + _cell_findings(spec, table, rules, blocked) + _row_keys(spec, table, rules)
+
+
+def _row_keys(spec: TableSpec, table: Table, rules: Rules) -> list[Finding]:
+    keys = ROW_KEYS.get(spec.id, ())
+    columns = [c.casefold() for c in table.columns]
+    if not keys or not all(k in columns for k in keys):
+        return []
+    positions = [columns.index(k) for k in keys]
+    seen: Counter[tuple[str, ...]] = Counter()
+    for row in table.rows:
+        if len(row) != len(columns):
+            continue
+        key = _identity_key(row, positions, rules)
+        if _unknown_key(key, rules):
+            continue
+        seen[key] += 1
+    return [
+        Finding("duplicate_row_key", f"{spec.id}: {keys} {k} appears {n} times")
+        for k, n in seen.items()
+        if n > 1
+    ]
+
+
+def _identity_key(row: list[str], positions: list[int], rules: Rules) -> tuple[str, ...]:
+    return tuple("" if rules.is_placeholder(row[i]) else normalise(row[i]) for i in positions)
+
+
+def _unknown_key(key: tuple[str, ...], rules: Rules) -> bool:
+    return any(not k or rules.is_placeholder(k) for k in key)
 
 
 def _tags(h: Handoff, contract: Contract) -> list[Finding]:

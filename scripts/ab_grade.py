@@ -20,10 +20,10 @@ the controller's; this script does the mechanical parts:
   references for A, the module's MODULE.md for B), so the graders can score D1 and cannot tell
   which side is the rewrite from the file names.
 - `score --order <order.json> --sheets <g1.md> <g2.md> [<g3.md>] --module <ID> --expectations
-  <json> --c-b <ratio> [--c-a <ratio>] [--f-b <ratio>]`: maps the grader tables back to A and B,
+  <json> --c-b <ratio> --c-a <ratio> [--f-b <ratio>]`: maps the grader tables back to A and B,
   resolves them (the mean of two; the median of three, needed when two differ by more than 1 on
   a criterion), and applies the pass bar. `--f-b` is required when the module owns Front Page
-  tables, and a missing `--c-a` counts as 0 (A writes no Deploy VI citations table). Exit 0
+  tables, and `--c-a` must be measured from A's checked native evidence map. Exit 0
   pass, 1 fail, 2 bad input, 3 when a third grader is needed.
 """
 
@@ -42,10 +42,13 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "rbot" / "scripts"))
 
+from ab_evidence import ABError as ABError
+from ab_evidence import measure_a as measure_a
+
 from rbotlib.contract import Contract, load_contract
 from rbotlib.handoff import Handoff, HandoffError, Table, cells, parse
 from rbotlib.rules import RBOT_ROOT, Rules, load_rules
-from rbotlib.validate import check, run_findings
+from rbotlib.validate import ROW_KEYS, check, normalise, run_findings
 
 CRITERIA = ("D1", "D2", "D3", "D4", "D5", "D6", "G")
 DEPTH = CRITERIA[:6]
@@ -95,10 +98,6 @@ R14_REGISTERS = {
 }
 
 
-class ABError(ValueError):
-    """An input the harness cannot read; the message names it."""
-
-
 # --- to-r14 ----------------------------------------------------------------------------------
 
 
@@ -126,6 +125,16 @@ def _tables(lines: list[str]) -> list[str]:
     return out
 
 
+def _evidence_trace(h: Handoff) -> list[str]:
+    """Lossless references for converted stand-ins, using their actual citation rows."""
+    table = h.tables.get("citations")
+    if table is None:
+        return []
+    shown = [["id", "source_id", "locator", "excerpt"], ["---"] * 4]
+    shown += [[r[0], r[0], r[2], r[3]] for r in table.rows if len(r) == 4]
+    return ["| " + " | ".join(c.replace("|", "\\|") for c in row) + " |" for row in shown]
+
+
 def to_r14(text: str) -> str:
     """The Handoff in r14's canonical Markdown form, its content unchanged."""
     h = parse(text)
@@ -148,7 +157,7 @@ def to_r14(text: str) -> str:
     parts = {
         "Audit Summary": [summary, f"Inputs: {fm.get('inputs', 'none')}."],
         "Analysis": analysis,
-        "Evidence Trace": ["Each `[C<n>]` marker resolves in the Source Registry."],
+        "Evidence Trace": _evidence_trace(h),
         "Source Registry": _tables(sections.get("Citations", [])),
         "Gaps & Conflicts": sections.get("Gaps", []),
     }
@@ -202,13 +211,48 @@ def write_steps(module_id: str, folder: str, order: dict[str, str], out: Path) -
 # --- measure ---------------------------------------------------------------------------------
 
 
-def _filled(table: Table | None, critical: set[str], rows: int, rules: Rules) -> int:
-    """Filled critical cells in the first `rows` rows of the table (none when it is absent)."""
+def _matches(record: dict[str, str], identity: dict[str, str]) -> bool:
+    return all(normalise(record.get(k.casefold(), "")) == normalise(v) for k, v in identity.items())
+
+
+def _expected_records(
+    records: list[dict[str, str]], expected: list[dict[str, str]]
+) -> list[dict[str, str]]:
+    matches = [[r for r in records if _matches(r, identity)] for identity in expected]
+    picked = [group[0] for group in matches if len(group) == 1]
+    return [r for r in picked if sum(r is p for p in picked) == 1]
+
+
+def _distinct_records(records: list[dict[str, str]], entry: dict[str, Any]) -> list[dict[str, str]]:
+    keys = ROW_KEYS.get(entry["table"], ())
+    identities = [tuple(normalise(r.get(k, "")) for k in keys) for r in records]
+    return [
+        r
+        for r, key in zip(records, identities, strict=True)
+        if not keys or identities.count(key) == 1
+    ][: entry["expected_rows"]]
+
+
+def _filled(table: Table | None, critical: set[str], entry: dict[str, Any], rules: Rules) -> int:
+    """Count only uniquely matched expected identities; duplicates do not cover a row."""
     if table is None:
         return 0
-    index = [i for i, c in enumerate(table.columns) if c in critical]
-    cells_ = [row[i] for row in table.rows[:rows] for i in index if i < len(row)]
-    return sum(1 for c in cells_ if c.strip() and not rules.is_placeholder(c))
+    records = [
+        dict(zip((c.casefold() for c in table.columns), r, strict=True))
+        for r in table.rows
+        if len(r) == len(table.columns)
+    ]
+    expected = entry.get("expected_identities")
+    picked = (
+        _expected_records(records, expected)
+        if expected is not None
+        else _distinct_records(records, entry)
+    )
+    return sum(
+        bool(r.get(c, "").strip()) and not rules.is_placeholder(r[c])
+        for r in picked
+        for c in critical
+    )
 
 
 def owned_front_page_tables(contract: Contract, expectations: Path) -> list[dict[str, Any]]:
@@ -220,10 +264,40 @@ def owned_front_page_tables(contract: Contract, expectations: Path) -> list[dict
     owned = {t.id for t in contract.tables}
     found = [s for page in pages.values() for s in page["supportable"] if s["table"] in owned]
     for entry in found:
-        rows = entry.get("expected_rows")
-        if not isinstance(rows, int) or isinstance(rows, bool) or rows < 1:
-            raise ABError(f"{expectations}: {entry['table']} needs expected_rows, a whole number")
+        _check_entry(entry, contract, expectations)
     return found
+
+
+def _check_entry(entry: dict[str, Any], contract: Contract, expectations: Path) -> None:
+    rows = entry.get("expected_rows")
+    if not isinstance(rows, int) or isinstance(rows, bool) or rows < 1:
+        raise ABError(f"{expectations}: {entry['table']} needs expected_rows, a whole number")
+    identities = entry.get("expected_identities")
+    if identities is None:
+        return
+    _check_identities(identities, rows, entry["table"])
+    table = next(t for t in contract.tables if t.id == entry["table"])
+    columns = {normalise(c.name) for c in table.columns}
+    if any(normalise(k) not in columns for identity in identities for k in identity):
+        raise ABError(f"{entry['table']}: expected identity uses an unknown column")
+
+
+def _check_identities(identities: object, rows: int, table: str) -> None:
+    if not isinstance(identities, list) or len(identities) != rows:
+        raise ABError(f"{table}: expected_identities must match expected_rows")
+    keys = []
+    for identity in identities:
+        if (
+            not isinstance(identity, dict)
+            or not identity
+            or not all(
+                isinstance(k, str) and isinstance(v, str) and k and v for k, v in identity.items()
+            )
+        ):
+            raise ABError(f"{table}: expected identities need nonempty text keys and values")
+        keys.append(tuple(sorted((normalise(k), normalise(v)) for k, v in identity.items())))
+    if len(set(keys)) != len(keys):
+        raise ABError(f"{table}: an expected identity is duplicated")
 
 
 def front_page_fill(contract: Contract, h: Handoff, expectations: Path, rules: Rules) -> str | None:
@@ -234,10 +308,7 @@ def front_page_fill(contract: Contract, h: Handoff, expectations: Path, rules: R
     if not entries:
         return None
     total = sum(e["expected_rows"] * len(critical[e["table"]]) for e in entries)
-    filled = sum(
-        _filled(h.tables.get(e["table"]), critical[e["table"]], e["expected_rows"], rules)
-        for e in entries
-    )
+    filled = sum(_filled(h.tables.get(e["table"]), critical[e["table"]], e, rules) for e in entries)
     return f"{filled}/{total}"
 
 
@@ -311,13 +382,13 @@ def resolve(sheets: list[dict[str, tuple[int, int]]], order: dict[str, str]) -> 
 
 
 def verdict(
-    scores: dict[str, dict[str, Fraction]], c_b: Decimal, c_a: Decimal | None, f_b: Decimal | None
+    scores: dict[str, dict[str, Fraction]], c_b: Decimal, c_a: Decimal, f_b: Decimal | None
 ) -> dict[str, Any]:
     a, b = scores["A"], scores["B"]
     lines = {
         "sum_depth": sum(b[c] for c in DEPTH) >= sum(a[c] for c in DEPTH),
         "no_criterion_below_a_minus_1": all(b[c] >= a[c] - 1 for c in DEPTH),
-        "citations": c_b >= max(Decimal("0.95"), c_a if c_a is not None else Decimal(0)),
+        "citations": c_b >= max(Decimal("0.95"), c_a),
         "gaps": b["G"] >= a["G"],
         "front_page": f_b is None or f_b >= Decimal("0.90"),
     }
@@ -347,6 +418,9 @@ def _contract(module_id: str) -> Contract:
 
 
 def _score(args: argparse.Namespace) -> int:
+    c_a = _ratio(args.c_a, "--c-a")
+    if c_a is None:
+        raise ABError("--c-a is required: A's checked anchored evidence references / references")
     order = json.loads(Path(args.order).read_text(encoding="utf-8"))
     sheets = [sheet(Path(p).read_text(encoding="utf-8")) for p in args.sheets]
     resolved = resolve(sheets, order)
@@ -361,7 +435,7 @@ def _score(args: argparse.Namespace) -> int:
     if owned and f_b is None:
         tables = ", ".join(e["table"] for e in owned)
         raise ABError(f"--f-b is required: {args.module} owns Front Page tables ({tables})")
-    result = verdict(resolved["scores"], c_b, _ratio(args.c_a, "--c-a"), f_b)
+    result = verdict(resolved["scores"], c_b, c_a, f_b)
     print(json.dumps(result, indent=2))
     return EXIT_PASS if result["pass"] else EXIT_FAIL
 
@@ -378,6 +452,10 @@ def _command(args: argparse.Namespace) -> int:
     if args.command == "steps":
         order = json.loads(Path(args.order).read_text(encoding="utf-8"))
         write_steps(args.module, args.folder, order, Path(args.out))
+        return 0
+    if args.command == "measure-a":
+        text = Path(args.handoff).read_text(encoding="utf-8")
+        print(json.dumps(measure_a(text, Path(args.run_dir), Path(args.evidence))))
         return 0
     if args.command == "measure":
         text = Path(args.handoff).read_text(encoding="utf-8")
@@ -401,6 +479,10 @@ def main(argv: list[str] | None = None) -> int:
     m.add_argument("--handoff", required=True)
     m.add_argument("--run", dest="run_dir", required=True)
     m.add_argument("--expectations")
+    a = sub.add_parser("measure-a")
+    a.add_argument("--handoff", required=True)
+    a.add_argument("--run", dest="run_dir", required=True)
+    a.add_argument("--evidence", required=True, help="checked internal r14 qualification map")
     t = sub.add_parser("steps")
     t.add_argument("--module", required=True)
     t.add_argument("--folder", required=True, help="the module's r14 skill folder")
@@ -417,7 +499,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         return _command(args)
-    except (ABError, OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+    except (ABError, HandoffError, OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
         print(f"ab_grade: {exc}")
         return 2
 
