@@ -273,3 +273,16 @@ def test_steps_give_the_graders_each_sides_method_without_naming_the_side(tmp_pa
 def test_steps_refuse_a_folder_outside_the_r14_skills(tmp_path: Path) -> None:
     assert _steps(tmp_path, "B", "../../rbot") == 2
     assert not (tmp_path / "steps-X.md").exists()
+
+
+def test_r14_conversion_names_the_registers_its_methods_read() -> None:
+    text = (FIXTURES / "handoffs" / "CP-1.md").read_text("utf-8")
+    converted = ab_grade.to_r14(text)
+    assert "#### T4.14 — Model Period Register" in converted
+    assert "<!-- table-id: cp1.model_period_register -->" in converted
+    assert "<!-- table-id: cp1.model_reconciliation_register -->" in converted
+    assert all(line in converted for line in text.splitlines() if line.startswith("|"))
+    cp3 = ab_grade.to_r14((FIXTURES / "handoffs" / "CP-3.md").read_text("utf-8"))
+    assert "<!-- table-id: T3.5 -->" in cp3
+    assert "#### T3.5 — RV Table" in cp3
+    assert "<!-- table-id: T3B.8 -->" in cp3

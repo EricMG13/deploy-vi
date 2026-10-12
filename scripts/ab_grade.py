@@ -5,8 +5,10 @@ the controller's; this script does the mechanical parts:
 
 - `to-r14 --in <handoff> --out <file>`: an upstream Handoff in r14's form for side A: r14's six
   H2 sections, `qa_status` Passed/Restricted/Blocked, each table under a heading with r14's
-  `<!-- table-id: <id> -->` comment (CP-1's Model tables keep the ids r14 used; other tables
-  keep their Deploy VI ids, which no r14 prompt names, so the heading gives the table's title).
+  `<!-- table-id: <id> -->` comment. Known upstream registers use their frozen r14 names
+  and headings;
+  tables without an r14 counterpart retain their explicit Deploy VI id. Columns and rows
+  are preserved without inventing the fields a different r14 schema would require.
 - `order --out <order.json> [--x A|B]`: draws which of A and B the graders see as X (`--x`
   fixes it, for dry runs only).
 - `measure --module <ID> --handoff <B.md> --run <RUN> [--expectations <json>]`: C (anchored
@@ -58,6 +60,40 @@ R14_SECTIONS = (
 EXIT_PASS, EXIT_FAIL, EXIT_THIRD = 0, 1, 3
 _TAG = re.compile(r"^<!-- table: (\S+) -->$")
 
+# Register names are from the frozen r14 SKILL/schema references. Mapping changes the
+# label only: source columns and rows remain lossless, including extra Deploy VI fields.
+R14_REGISTERS = {
+    "cp1.model_period_register": ("cp1.model_period_register", "T4.14 — Model Period Register"),
+    "cp1.model_account_register": ("cp1.model_account_register", "T4.15 — Model Account Register"),
+    "cp1.segment_revenue_schedule": (
+        "cp1.segment_revenue_schedule",
+        "T4.16 — Segment Revenue Schedule",
+    ),
+    "cp1.adjusted_ebitda_bridge": ("cp1.adjusted_ebitda_bridge", "T4.17 — Adjusted EBITDA Bridge"),
+    "cp1.debt_facility_register": ("cp1.debt_facility_register", "T4.18 — Debt Facility Register"),
+    "cp1.reconciliation_checks": (
+        "cp1.model_reconciliation_register",
+        "T4.19 — Model Reconciliation Register",
+    ),
+    "cp1b.period_comparison": (
+        "cp1b.model_comparator_register",
+        "T4.12 — Model Comparator Register",
+    ),
+    "cp1b.variance_drivers": ("T4.6", "T4.6 — Variance Register"),
+    "cp1b.kpi_changes": ("T4.5", "T4.5 — KPI Dashboard"),
+    "cp1b.guidance_vs_delivery": ("T4.8", "T4.8 — Comparative Evaluation"),
+    "cp1b.signals": ("T4.10", "T4.10 — Monitoring Assessment"),
+    "cp1d.cash_conversion": ("T1D.5", "T1D.5 — Cash Conversion Test"),
+    "cp1d.debt_like_items": ("T1E.2", "T1E.2 — Debt-Like Assessment"),
+    "cp2.drivers": ("T2.10", "T2.10 — Materiality Filter"),
+    "cp2.watch_items": ("T2.12", "T2.12 — Monitoring Triggers"),
+    "snapshot.relative_value": ("T3.5", "T3.5 — RV Table"),
+    "cp3.compensation": ("T3B.7", "T3B.7 — Compensation Cross-Check"),
+    "cp3.security_preference": ("T3B.8", "T3B.8 — Preference Decision Table"),
+    "cp5.findings": ("T5.9", "T5.9 — Issue Log"),
+    "cp5.module_status": ("T5.1", "T5.1 — Input Module Register"),
+}
+
 
 class ABError(ValueError):
     """An input the harness cannot read; the message names it."""
@@ -83,7 +119,8 @@ def _tables(lines: list[str]) -> list[str]:
     for line in lines:
         tag = _TAG.match(line.strip())
         if tag:
-            out += [f"#### {tag.group(1)}", "", f"<!-- table-id: {tag.group(1)} -->"]
+            register, title = R14_REGISTERS.get(tag.group(1), (tag.group(1), tag.group(1)))
+            out += [f"#### {title}", "", f"<!-- table-id: {register} -->"]
         else:
             out.append(line)
     return out

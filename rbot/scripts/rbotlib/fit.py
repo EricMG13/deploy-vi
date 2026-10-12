@@ -6,8 +6,8 @@ currency and unit, `cp1.debt_facility_register`, `cp1.instrument_identity`),
 `handoffs/CP-1A.md` when present (`snapshot.company_profile`: sector and country) and
 `handoffs/CP-3.md`, which must validate against CP-3's contract (exit 0, or 3 when Blocked).
 Writes `fit/<portfolio_id>.json` (the rows and every intermediate) and `handoffs/FIT.md` with
-`snapshot.portfolio_fit` and `fit.limit_headroom`. Exit 1 names the missing or malformed
-input and writes nothing; every fit is computed before the first file is written (each atomically,
+`snapshot.portfolio_fit` and `fit.limit_headroom`. A missing or malformed input exits 1
+and writes nothing; every fit is computed before the first file is written (each atomically,
 `FIT.md` last, files of portfolios no longer attached removed). Paths that leave the run folder,
 a symlinked `fit/` or `handoffs/`, and portfolio ids that are not file names are refused. With no
 portfolio the Handoff is written with empty tables and `qa_status` Restricted. A portfolio whose
@@ -433,8 +433,8 @@ def _folder(run: Path, name: str) -> Path:
 
 
 def _write_all(run: Path, per_portfolio: Mapping[str, str], handoff_text: str) -> None:
-    """Every output at once, after every fit succeeded: JSON files, then `FIT.md` last; the
-    JSON of portfolios no longer attached is removed."""
+    """Publish precomputed outputs atomically per file: JSON files, then `FIT.md` last;
+    stale JSON is removed. An I/O failure can interrupt this multi-file publication."""
     fit_dir, handoffs = _folder(run, "fit"), _folder(run, "handoffs")
     fit_dir.mkdir(exist_ok=True)
     for old in fit_dir.glob("*.json"):

@@ -399,13 +399,13 @@ TABLES["CP-1"] = [
             "period_id* fiscal_year* fiscal_quarter period_type*:period_type start_date* end_date*"
             " day_count* currency* unit*:unit component_period_ids"
         ),
-        "MODEL CP-1B CP-2G CP-5",
+        "MODEL CP-1B CP-2G CP-5 FIT CP-1D CP-2",
     ),
     TableSpec(
         "cp1.model_account_register",
         1,
         "metric_id* period_id* value calculation_status* source_id source_locator",
-        "MODEL CP-1B CP-1D CP-4 CP-2D CP-5",
+        "MODEL CP-1B CP-1D CP-4 CP-2D CP-5 CP-2",
     ),
     TableSpec(
         "cp1.adjusted_ebitda_bridge",
@@ -415,7 +415,7 @@ TABLES["CP-1"] = [
             "realization_status*:realization_status display_priority* period_id* value source_id "
             "source_locator"
         ),
-        "MODEL CP-1D CP-4",
+        "MODEL CP-1D CP-4 CP-2",
     ),
     TableSpec(
         "cp1.segment_revenue_schedule",
@@ -424,7 +424,7 @@ TABLES["CP-1"] = [
             "segment_id* segment_name* segment_type*:segment_type display_priority* period_id* "
             "revenue source_id source_locator"
         ),
-        "MODEL CP-1B CP-2G",
+        "MODEL CP-1B CP-2G CP-2",
     ),
     TableSpec(
         "cp1.operating_kpi_schedule",
@@ -433,7 +433,7 @@ TABLES["CP-1"] = [
             "kpi_id* kpi_label* display_priority* period_id* value unit* value_type*:value_type "
             "source_id source_locator"
         ),
-        "MODEL CP-1B",
+        "MODEL CP-1B CP-2",
     ),
     TableSpec(
         "cp1.debt_facility_register",
@@ -444,7 +444,7 @@ TABLES["CP-1"] = [
             "lease_classification* rate_type reference_rate spread_bps floor_bps fixed_rate "
             "annual_amortisation source_id source_locator"
         ),
-        "MODEL CP-3 CP-4 CP-2E CP-3C CP-3D CP-4C CP-2D FIT",
+        "MODEL CP-3 CP-4 CP-2E CP-3C CP-3D CP-4C CP-2D FIT CP-1D CP-2",
     ),
     TableSpec(
         "cp1.pro_forma_adjustment_register",

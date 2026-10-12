@@ -128,3 +128,28 @@ def test_cp1b_builds_no_ltm_figure_of_its_own(rules: Rules) -> None:
     text = (FOLDERS / "CP-1B" / "MODULE.md").read_text(encoding="utf-8")
     assert "never build an LTM by hand" in text
     assert "prior-year comparable stub" not in text
+
+
+def test_cp3_omits_an_image_read_only_instrument_with_a_named_gap() -> None:
+    text = (FOLDERS / "CP-3" / "MODULE.md").read_text("utf-8")
+    assert "Image-Read-only instrument has no priced row" in text
+    assert "name the instrument and the missing usable level under" in text
+
+
+def test_cp1d_recurrence_evidence_reaches_the_addback_verdict() -> None:
+    text = (FOLDERS / "CP-1D" / "MODULE.md").read_text("utf-8")
+    assert "Carry the named prior periods and recurrence evidence into" in text
+    assert "never treat a recurring cost as a supported non-recurring add-back" in text
+
+
+def test_cp1_consumers_include_the_real_register_readers(rules: Rules) -> None:
+    tables = {t.id: set(t.consumers) for t in contract("CP-1", rules).tables}
+    assert {"FIT", "CP-1D", "CP-2"} <= tables["cp1.model_period_register"]
+    assert {"CP-1D", "CP-2"} <= tables["cp1.debt_facility_register"]
+    for table_id in (
+        "cp1.model_account_register",
+        "cp1.adjusted_ebitda_bridge",
+        "cp1.segment_revenue_schedule",
+        "cp1.operating_kpi_schedule",
+    ):
+        assert "CP-2" in tables[table_id]

@@ -28,7 +28,7 @@ For one portfolio (`prepared/portfolios/<id>.json`) and one instrument:
    that is `Not computed` leaves `max_size` an upper bound (`Fit.uncomputed_hard`).
 4. `verdict`: `Breaches` when a Hard limit has negative headroom or `max_size` is 0; `Watch`
    when a Soft limit has negative headroom, `max_size` is under 1% of NAV, a touched limit is
-   `Not computed`, a Hard book statistic is already breached in the file, a position or limit
+   `Not computed`, a position or limit
    row of the portfolio could not be read (`unparsed`), or an exposure matched by name only;
    otherwise `Fits`.
 5. `recommendation_cap`: `Breaches` -> `Avoid`, `Watch` -> `3 - MW`, `Fits` -> `1 - Strong OW`
@@ -468,12 +468,13 @@ def verdict(
 
     `concerns` are further reasons for Watch (an unreadable row, an exposure matched by name).
     """
-    hard_breach = [r for r in rows if r.status == BREACHED and r.limit["limit_kind"] == "Hard"]
+    negative = [r for r in rows if r.headroom is not None and r.headroom < 0]
+    hard_breach = [r for r in negative if r.limit["limit_kind"] == "Hard"]
     if hard_breach:
         return BREACHES, f"hard limit {hard_breach[0].limit['limit_id']} has negative headroom"
     if max_size is not None and max_size == 0:
         return BREACHES, "no size fits the hard limits"
-    soft_breach = [r for r in rows if r.status == BREACHED]
+    soft_breach = negative
     if soft_breach:
         return WATCH, f"soft limit {soft_breach[0].limit['limit_id']} has negative headroom"
     if (
@@ -504,21 +505,17 @@ def _with_own_words(instrument: Instrument, held: Held) -> Instrument:
 
 
 def concerns(portfolio: Portfolio, held: Held, rows: Sequence[Headroom]) -> list[str]:
-    """Reasons for Watch that are not a limit row: unreadable rows, an id mismatch, a breach
-    already in the file."""
+    """Reasons for Watch that are not a limit row: unreadable rows and an id mismatch."""
     found = [
         f"{u['row']} could not be read ({u['reason']})"
         for u in portfolio.unparsed
         if u.get("kind", "limit") in WATCH_KINDS
     ]
+    if held.count == 0:
+        found.append("exposure not determined: no position matches the issuer id or name")
     if held.by_name_only:
         ids = ", ".join(held.by_name_only)
         found.append(f"positions {ids} matched the issuer by name only; the ids disagree")
-    found += [
-        f"hard limit {r.limit['limit_id']} is already breached in the file ({r.headroom})"
-        for r in rows
-        if r.status == FROM_FILE and r.limit["limit_kind"] == "Hard" and (r.headroom or 0) < 0
-    ]
     if portfolio.nav is None or portfolio.par is None:
         found.append("the portfolio's NAV or par is not a positive figure")
     return found

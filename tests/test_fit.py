@@ -111,7 +111,7 @@ def test_rbot_fit_writes_the_handoff_and_the_json(tmp_path: Path) -> None:
     fits = _fits(run)
     assert len(fits) == 12
     tlb = fits["CEI-TLB"]
-    assert (tlb["max_size"], tlb["binding_limit"], tlb["verdict"]) == ("15.7725", "C-01", "Fits")
+    assert (tlb["max_size"], tlb["binding_limit"], tlb["verdict"]) == ("15.7725", "C-01", "Watch")
     assert (tlb["current_exposure"], tlb["current_exposure_pct_nav_pct"]) == ("0", "0.0%")
     notes = fits["CEI-SN-2029"]
     assert (notes["max_size"], notes["binding_limit"], notes["verdict"]) == (
@@ -198,7 +198,7 @@ def test_one_bad_portfolio_does_not_stop_the_others(tmp_path: Path) -> None:
     h = parse((run / "handoffs" / "FIT.md").read_text(encoding="utf-8"))
     rows = [r for r in _rows(h, "snapshot.portfolio_fit") if r["facility_id"] == "CEI-TLB"]
     by_portfolio = {r["portfolio_id"]: r["verdict"] for r in rows}
-    assert by_portfolio == {"TEST_CLO_I": "Fits", "BAD_NAV": "Watch"}
+    assert by_portfolio == {"TEST_CLO_I": "Watch", "BAD_NAV": "Watch"}
 
 
 def test_an_unreadable_limit_row_lowers_the_verdict_end_to_end(tmp_path: Path) -> None:

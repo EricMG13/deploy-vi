@@ -39,7 +39,7 @@
         {"name": "day_count", "critical": true}, {"name": "currency", "critical": true},
         {"name": "unit", "critical": true, "scale": "unit"}, {"name": "component_period_ids"}
       ],
-      "consumers": ["MODEL", "CP-1B", "CP-5"]
+      "consumers": ["MODEL", "CP-1B", "CP-5", "FIT", "CP-1D", "CP-2"]
     },
     {
       "id": "cp1.model_account_register",
@@ -50,7 +50,7 @@
         {"name": "value"}, {"name": "calculation_status", "critical": true}, {"name": "source_id"},
         {"name": "source_locator"}
       ],
-      "consumers": ["MODEL", "CP-1B", "CP-1D", "CP-5"]
+      "consumers": ["MODEL", "CP-1B", "CP-1D", "CP-5", "CP-2"]
     },
     {
       "id": "cp1.adjusted_ebitda_bridge",
@@ -63,7 +63,7 @@
         {"name": "display_priority", "critical": true}, {"name": "period_id", "critical": true},
         {"name": "value"}, {"name": "source_id"}, {"name": "source_locator"}
       ],
-      "consumers": ["MODEL", "CP-1D"]
+      "consumers": ["MODEL", "CP-1D", "CP-2"]
     },
     {
       "id": "cp1.segment_revenue_schedule",
@@ -75,7 +75,7 @@
         {"name": "display_priority", "critical": true}, {"name": "period_id", "critical": true},
         {"name": "revenue"}, {"name": "source_id"}, {"name": "source_locator"}
       ],
-      "consumers": ["MODEL", "CP-1B"]
+      "consumers": ["MODEL", "CP-1B", "CP-2"]
     },
     {
       "id": "cp1.operating_kpi_schedule",
@@ -88,7 +88,7 @@
         {"name": "value_type", "critical": true, "scale": "value_type"}, {"name": "source_id"},
         {"name": "source_locator"}
       ],
-      "consumers": ["MODEL", "CP-1B"]
+      "consumers": ["MODEL", "CP-1B", "CP-2"]
     },
     {
       "id": "cp1.debt_facility_register",
@@ -106,7 +106,7 @@
         {"name": "fixed_rate"}, {"name": "annual_amortisation"}, {"name": "source_id"},
         {"name": "source_locator"}
       ],
-      "consumers": ["MODEL", "CP-3", "FIT"]
+      "consumers": ["MODEL", "CP-3", "FIT", "CP-1D", "CP-2"]
     },
     {
       "id": "cp1.pro_forma_adjustment_register",

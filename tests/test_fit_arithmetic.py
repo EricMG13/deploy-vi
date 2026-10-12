@@ -601,16 +601,13 @@ def test_a_position_matched_by_issuer_name_alone_is_counted_and_a_watch() -> Non
     )
 
 
-def test_a_breached_hard_book_statistic_is_at_least_a_watch() -> None:
+def test_a_breached_hard_book_statistic_avoids() -> None:
     """I7: a Hard limit shown From file that is already negative still counts."""
     book = limit("C-30", "other", "12.0", "pct_nav", "Hard", current_value="12.5")
     f = fa.fit(portfolio(book), loan(), RUN)
     assert f.rows[0].status == "From file"
-    assert (f.verdict, f.max_size) == (
-        "Watch",
-        None,
-    )
-    assert f.reason == "hard limit C-30 is already breached in the file (-0.5)"
+    assert (f.verdict, f.max_size, f.recommendation_cap) == ("Breaches", None, "Avoid")
+    assert f.reason == "hard limit C-30 has negative headroom"
 
 
 @pytest.mark.parametrize("nav", [Decimal(0), Decimal("-630.9"), None])
@@ -812,26 +809,26 @@ def test_the_portfolio_with_nothing_to_compute_is_still_a_watch_for_a_missing_na
 def test_the_one_percent_test_uses_the_nav_in_the_run_unit() -> None:
     thousands = portfolio(
         limit("C", "issuer", "2.5", "pct_nav", "Hard"),
-        positions=[],
+        positions=[{"issuer_id": "CZR", "par": "0"}],
         nav=Decimal(630900),
         par=Decimal(634000),
         unit="THOUSANDS",
     )
     f = fa.fit(thousands, loan(), RUN)
-    assert (f.max_size, f.verdict, f.positions_held) == (Decimal("15.7725"), "Fits", 0)
+    assert (f.max_size, f.verdict, f.positions_held) == (Decimal("15.7725"), "Fits", 1)
     held = fa.fit(portfolio(limit("C", "issuer", "5", "pct_nav", "Hard")), loan(), RUN)
     assert held.positions_held == 1
 
 
 @pytest.mark.parametrize(
     ("current", "verdict"),
-    [("12.5", "Watch"), ("12.0", "Fits"), ("11.5", "Fits"), ("11.99", "Fits")],
+    [("12.5", "Breaches"), ("12.0", "Fits"), ("11.5", "Fits"), ("11.99", "Fits")],
 )
 def test_only_a_negative_hard_book_statistic_is_a_concern(current: str, verdict: str) -> None:
     book = limit("C-30", "other", "12.0", "pct_nav", "Hard", current_value=current)
     assert fa.fit(portfolio(book), loan(), RUN).verdict == verdict
     soft = limit("C-31", "other", "12.0", "pct_nav", "Soft", current_value="12.5")
-    assert fa.fit(portfolio(soft), loan(), RUN).verdict == "Fits"  # a Soft statistic never binds
+    assert fa.fit(portfolio(soft), loan(), RUN).verdict == "Watch"  # never binds size
 
 
 def test_a_non_book_row_is_not_a_book_concern() -> None:
@@ -881,3 +878,18 @@ def test_an_unreadable_row_never_improves_the_verdict_and_is_never_a_fit(
     before = fa.fit(portfolio(*rows), loan(), RUN).verdict
     after = fa.fit(portfolio(*rows, unparsed=lost), loan(), RUN).verdict
     assert ORDER[after] >= ORDER[before] and after != "Fits"
+
+
+def test_unmatched_issuer_exposure_is_not_presented_as_a_fit() -> None:
+    f = fa.fit(
+        portfolio(
+            limit("C", "issuer", "2.5", "pct_nav", "Hard"),
+            positions=[{"issuer_id": "OTHER", "par": "2.0"}],
+        ),
+        loan(),
+        RUN,
+    )
+    assert f.current_exposure == 0
+    assert f.verdict == "Watch"
+    assert f.recommendation_cap == "3 - MW"
+    assert f.reason == "exposure not determined: no position matches the issuer id or name"
