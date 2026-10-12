@@ -24,7 +24,7 @@ def test_module_md_carries_the_contract_and_the_checked_rules(rules: Rules) -> N
     assert "Each citation id appears on exactly one row." in text
     assert "- No investment opinion." in text
     assert "- Write a literal pipe inside any cell, excerpts included, as `\\|`." in text
-    assert "rbot.py validate handoffs/CP-X.md --module CP-X" in text
+    assert "rbot.py validate <RUN>/handoffs/CP-X.md --module CP-X --run <RUN>" in text
     for placeholder in rules.placeholders:
         assert placeholder in text
 
