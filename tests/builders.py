@@ -36,3 +36,25 @@ def make_run(pack: Path, name: str = "20261011-test-pending") -> Path:
     run = pack / "rbot-runs" / name
     run.mkdir(parents=True)
     return run
+
+
+def prepared_pack(
+    root: Path, files: dict[str, str | bytes], name: str = "20261011-acme-pending"
+) -> Path:
+    """A Source Pack of `files` under `root/pack`, and a run with inventory and prepare done."""
+    from rbotlib.cli import main
+
+    pack = root / "pack"
+    pack.mkdir()
+    for path, content in files.items():
+        target = pack / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if isinstance(content, bytes):
+            target.write_bytes(content)
+        else:
+            target.write_text(content, encoding="utf-8")
+    run = make_run(pack, name)
+    for command in ("inventory", "prepare"):
+        if main([command, "--run", str(run)]) != 0:
+            raise RuntimeError(f"rbot {command} failed for {run}")
+    return run
