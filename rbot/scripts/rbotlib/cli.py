@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from rbotlib import (
+    accept,
     approve,
     attempts,
     brief,
@@ -150,6 +151,7 @@ def main(argv: list[str] | None = None) -> int:
     runs.add_command(sub)
     dispatch.add_command(sub)
     attempts.add_command(sub)
+    accept.add_command(sub)
     args = parser.parse_args(argv)
     run_dir = getattr(args, "run_dir", None)
     log_run = None
