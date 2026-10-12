@@ -74,7 +74,7 @@ def test_n1_the_other_files_of_the_pack_are_still_read(tmp_path: Path) -> None:
     pos = POS.format(unit="")
     data, notes = _json(tmp_path, {"two.csv": STACKED["repeated header"], "ok.csv": pos})
     assert list(data) == ["P1"] and data["P1"]["positions_file"] == "ok.csv"
-    assert len(notes) == 1 and "two.csv" in notes[0]
+    assert notes == [f"two.csv: {ONE} (header rows 7, 9)"]
 
 
 @pytest.mark.parametrize("cells", ["USD,millions", "USD,000s", "MILLIONS,USD"])
@@ -90,7 +90,7 @@ def test_c1_a_unit_row_with_several_values_makes_every_amount_limit_unparsed(
     assert d["limits"] == []
     reasons = [u["reason"] for u in d["unparsed"] if u["row"].startswith(order[1])]
     assert len(reasons) == 1 and reasons[0].startswith("ambiguous Unit row: ")
-    assert all(cell in reasons[0] for cell in cells.split(","))
+    assert reasons[0] == "ambiguous Unit row: " + cells.replace(",", ", ")
     assert d["unit"] == cells.replace(",", ", ")
 
 
@@ -140,8 +140,8 @@ def test_n4_a_total_row_with_more_than_two_cells_is_unparsed_never_its_first_gro
 ) -> None:
     d = _json(tmp_path, {"p.csv": POS.format(unit="").replace("630.9", total)})[0]["P1"]
     assert d["nav"] == "" and d["par"] == "634.0"
-    rows = [u for u in d["unparsed"] if u["row"] == "Total NAV"]
-    assert len(rows) == 1 and "more than one value" in rows[0]["reason"]
+    rows = [u["reason"] for u in d["unparsed"] if u["row"] == "Total NAV"]
+    assert rows == ["row has more than one value: " + total.replace(",", ", ")]
 
 
 def test_n4_a_quoted_total_with_thousands_groups_is_one_cell(tmp_path: Path) -> None:
@@ -151,7 +151,7 @@ def test_n4_a_quoted_total_with_thousands_groups_is_one_cell(tmp_path: Path) -> 
 
 def test_n5_numbers_longer_than_thirty_significant_digits_are_not_numbers() -> None:
     assert number("1" * 31) is None and number("0." + "1" * 31) is None
-    assert number("1" * 30) == ("1" * 30, "")
+    assert number("1" * 30) == ("1" * 30, "") and parse_limit(f"≤ {'1' * 30}% NAV")[1] == "pct_nav"
     assert number("0.000" + "1" * 30) == ("0.000" + "1" * 30, "")
     long = "1" * 31
     assert parse_limit(f"≤ {long}% NAV") == f"limit '≤ {long}% NAV' has more than 30 digits"
@@ -176,6 +176,7 @@ def test_i3_a_percent_with_a_thousands_group_is_ambiguous(text: str) -> None:
     assert number(text) is None
     why = "percent with a thousands separator is ambiguous"
     assert parse_limit(f"≤ {text} NAV") == f"limit '≤ {text} NAV': {why}"
+    assert parse_limit("≤ 7,500% par") == f"limit '≤ 7,500% par': {why}"
     row = _item("≤ 2.5% NAV", text)
     assert _limit_row(Table("t", [], 0, {}), 5, row, []) == (
         f"current value {text!r} is not a number ({why})"
@@ -208,3 +209,4 @@ def test_n5_i3_the_reason_of_a_position_names_the_refused_number() -> None:
         "par or % NAV is not a number (percent with a thousands separator is ambiguous)"
     )
     assert _position_values({"par": "5", "pct_nav": "x"}) == "par or % NAV is not a number"
+    assert _position_values({"par": "1" * 30, "pct_nav": "x"}) == "par or % NAV is not a number"

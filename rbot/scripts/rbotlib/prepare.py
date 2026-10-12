@@ -21,18 +21,17 @@ import json
 import math
 import re
 import zlib
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable
 from contextlib import closing
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import ROUND_HALF_UP, Context, Decimal
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import Any, NamedTuple, TypeGuard, TypeVar
+from typing import Any, TypeGuard
 from zipfile import BadZipFile
 
 from openpyxl import Workbook, load_workbook
-from openpyxl.cell import Cell, MergedCell
 from openpyxl.utils import get_column_letter
 from openpyxl.utils.exceptions import InvalidFileException
 from openpyxl.worksheet.worksheet import Worksheet
@@ -184,9 +183,7 @@ def clean_cell(value: object) -> str:
 
 _QUOTED = re.compile(r'"[^"]*"|\\.')
 _SCALING = re.compile(r"(?<=[0#?])(,+)(?![0#?,])")  # trailing commas: divide by 1000 each
-_CONDITION = re.compile(r"\[\s*(?:<=|>=|<>|<|>|=)")  # [>=1000]: which section applies depends
-MAX_PLACES = 20  # decimal places of a scaling format that are applied; more would need a rounding
-# precision no sheet needs
+MAX_PLACES = 20  # decimal places of a scaling format that are applied; more are read as stored
 
 
 def _numeric(value: object) -> TypeGuard[int | float]:
@@ -212,19 +209,15 @@ def _places(number_format: str | None) -> int:
     return len(fraction) - len(fraction.lstrip("0#?"))
 
 
-def format_problem(number_format: str | None) -> str | None:
-    """Why a number format is read as stored instead of as displayed; None when it is applied."""
-    if _CONDITION.search(_QUOTED.sub("", number_format or "")):
-        return "conditional format"
-    if display_scale(number_format) and _places(number_format) > MAX_PLACES:
-        return f"more than {MAX_PLACES} decimal places"
-    return None
+def too_precise(number_format: str | None) -> bool:
+    """True for a scaling format with more decimal places than are applied (read as stored)."""
+    return bool(display_scale(number_format)) and _places(number_format) > MAX_PLACES
 
 
 def _scaled_text(value: float, scale: int, number_format: str | None) -> str:
     """The number as a scaling format shows it: divided by 1000 per comma, rounded to its places."""
     places = _places(number_format)
-    ctx = Context(prec=400)
+    ctx = Context(prec=4400)  # an int cell has at most 4300 digits, a float 309, plus places
     shown = Decimal(repr(value)).scaleb(-3 * scale, ctx)
     return format(
         shown.quantize(Decimal(1).scaleb(-places), ROUND_HALF_UP, ctx).normalize(ctx), "f"
@@ -233,13 +226,14 @@ def _scaled_text(value: float, scale: int, number_format: str | None) -> str:
 
 def cell_text(value: object, number_format: str | None) -> str:
     """A cell as text, as the sheet displays it: a `%` format shows value x 100 with a `%`, and
-    trailing commas (`#,##0.0,,`) divide by 1000 each. Anything else, and a format that cannot
-    be applied (`format_problem`), is the stored value."""
-    if _numeric(value) and format_problem(number_format):
-        return clean_cell(value)
+    trailing commas (`#,##0.0,,`) divide by 1000 each. Anything else is the stored value."""
     if _numeric(value) and "%" in _QUOTED.sub("", number_format or ""):
         return format((Decimal(repr(value)) * 100).normalize(), "f") + "%"
-    if _numeric(value) and (scale := display_scale(number_format)):
+    if (
+        _numeric(value)
+        and (scale := display_scale(number_format))
+        and not too_precise(number_format)
+    ):
         return _scaled_text(value, scale, number_format)
     return clean_cell(value)
 
@@ -275,99 +269,65 @@ def read_csv(path: Path) -> Prepared:
     return result
 
 
-class SheetRead(NamedTuple):
-    rows: list[list[str]]  # cells as text
-    missing: list[str]  # cells whose formula has no stored value
-    scaled: list[str]  # cells read after display scaling
-    not_applied: list[str]  # `REF (reason)`: cells whose number format was not applied
-
-
-# Fail-open per file (decision record 0002): openpyxl lets damaged-package errors escape as
-# zlib.error, KeyError or the XML parser's ParseError (a SyntaxError subclass; importing
-# xml.etree only for its name would trip bandit B405). Each is listed as unreadable, but only
-# where openpyxl runs, so an error of RBOT's own is never turned into "unreadable".
-_OPENPYXL_ERRORS = (
-    InvalidFileException,
-    BadZipFile,
-    KeyError,
-    ValueError,
-    OSError,
-    SyntaxError,
-    zlib.error,
-)
-_Item = TypeVar("_Item")
-
-
-def _guarded(items: Iterable[_Item]) -> Iterator[_Item]:
-    """The items of an openpyxl iterator; a damaged package is an unreadable file."""
-    try:
-        yield from items
-    except _OPENPYXL_ERRORS as exc:
-        raise UnreadableError(f"openpyxl could not read the workbook: {exc}") from exc
-
-
-def _flag_cell(
-    out: SheetRead, ref: str, cached: Cell | MergedCell, formula: Cell | MergedCell
-) -> None:
-    if formula.data_type == "f" and cached.value is None:
-        out.missing.append(ref)
-    if not _numeric(cached.value):
-        return
-    if problem := format_problem(cached.number_format):
-        out.not_applied.append(f"{ref} ({problem})")
-    elif display_scale(cached.number_format):
-        out.scaled.append(ref)
-
-
-def _sheet_rows(ws: Worksheet, wf: Worksheet) -> SheetRead:
-    """The sheet's cells as text, and the cells that need a word (see `SheetRead`)."""
-    out = SheetRead([], [], [], [])
-    pairs = zip(_guarded(ws.iter_rows()), _guarded(wf.iter_rows()), strict=False)
-    for r, (values, forms) in enumerate(pairs, 1):
-        out.rows.append([cell_text(c.value, c.number_format) for c in values])
+def _sheet_rows(
+    ws: Worksheet, wf: Worksheet
+) -> tuple[list[list[str]], list[str], list[str], list[str]]:
+    """(rows as text, cells whose formula has no stored value, cells read after display scaling,
+    cells whose number format has too many decimal places to apply)."""
+    rows: list[list[str]] = []
+    missing: list[str] = []
+    scaled: list[str] = []
+    ignored: list[str] = []
+    for r, (values, forms) in enumerate(zip(ws.iter_rows(), wf.iter_rows(), strict=False), 1):
+        rows.append([cell_text(c.value, c.number_format) for c in values])
         for col, (c, f) in enumerate(zip(values, forms, strict=False), 1):
-            _flag_cell(out, f"{get_column_letter(col)}{r}", c, f)
-    return out._replace(rows=_trimmed(out.rows))
+            ref = f"{get_column_letter(col)}{r}"
+            if f.data_type == "f" and c.value is None:
+                missing.append(ref)
+            if _numeric(c.value) and display_scale(c.number_format):
+                (ignored if too_precise(c.number_format) else scaled).append(ref)
+    return _trimmed(rows), missing, scaled, ignored
 
 
-def _workbook(cached: list[Worksheet], formulas: list[Worksheet]) -> Prepared:
+def _workbook(cached: Workbook, formulas: Workbook) -> Prepared:
     """Stored values per sheet; a formula with no stored value is named, not read as blank."""
     sheets: list[Sheet] = []
     states: dict[str, str] = {}
     named: tuple[dict[str, list[str]], ...] = ({}, {}, {})  # uncached, scaled, not applied
-    for ws, wf in zip(cached, formulas, strict=True):
-        read = _sheet_rows(ws, wf)
-        sheets.append((ws.title, read.rows))
+    for ws, wf in zip(cached.worksheets, formulas.worksheets, strict=True):
+        rows, *found = _sheet_rows(ws, wf)
+        sheets.append((ws.title, rows))
         states[ws.title] = str(ws.sheet_state)
-        for found, refs in zip(named, read[1:], strict=True):
+        for into, refs in zip(named, found, strict=True):
             if refs:
-                found[ws.title] = refs
-    uncached, scaled, not_applied = named
+                into[ws.title] = refs
     pages = _sheet_pages(sheets).pages
     return Prepared(
-        pages,
-        sheets,
-        sheet_states=states,
-        uncached=uncached,
-        scaled=scaled,
-        not_applied=not_applied,
+        pages, sheets, sheet_states=states, uncached=named[0], scaled=named[1], not_applied=named[2]
     )
-
-
-def _open(path: Path, data_only: bool) -> Workbook:
-    try:
-        return load_workbook(path, read_only=True, data_only=data_only)
-    except _OPENPYXL_ERRORS as exc:
-        raise UnreadableError(f"openpyxl could not read the workbook: {exc}") from exc
 
 
 def read_xlsx(path: Path) -> Prepared:
     """Every sheet's stored values (formula results as cached, never recalculated)."""
-    with (
-        closing(_open(path, data_only=True)) as cached,
-        closing(_open(path, data_only=False)) as formulas,
-    ):
-        return _workbook(list(_guarded(cached.worksheets)), list(_guarded(formulas.worksheets)))
+    try:
+        with (
+            closing(load_workbook(path, read_only=True, data_only=True)) as cached,
+            closing(load_workbook(path, read_only=True, data_only=False)) as formulas,
+        ):
+            return _workbook(cached, formulas)
+    # Fail-open per file (decision record 0002): openpyxl lets damaged-package errors escape as
+    # zlib.error, KeyError or the XML parser's ParseError (a SyntaxError subclass; importing
+    # xml.etree only for its name would trip bandit B405). Each is listed as unreadable.
+    except (
+        InvalidFileException,
+        BadZipFile,
+        KeyError,
+        ValueError,
+        OSError,
+        SyntaxError,
+        zlib.error,
+    ) as exc:
+        raise UnreadableError(f"openpyxl could not read the workbook: {exc}") from exc
 
 
 def read_image(path: Path) -> Prepared:
@@ -526,9 +486,7 @@ def _sheet_portfolios(
             notes.append(f"{label}: {state} sheet not read for portfolios")
             continue
         bad = {int(re.sub(r"\D", "", ref)): ref for ref in result.uncached.get(name, [])}
-        uncertain = result.scaled.get(name, []) + [
-            ref.split()[0] for ref in result.not_applied.get(name, [])
-        ]
+        uncertain = result.scaled.get(name, []) + result.not_applied.get(name, [])
         notes += portfolio.read_sheet(label, rows, found, bad, uncertain)
     return notes
 

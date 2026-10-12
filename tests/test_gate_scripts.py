@@ -78,8 +78,19 @@ def test_pr_size_ignores_the_corpus_synthetic_packs(tmp_path: Path) -> None:
     assert (result.returncode, result.stdout) == (0, b"10 changed lines (limit 800)\n")
 
 
-def test_the_mutation_script_refuses_to_delete_outside_a_temp_directory() -> None:
+def test_the_mutation_script_refuses_a_folder_that_is_not_a_plain_one_under_a_temp_root() -> None:
     script = Path(__file__).parents[1] / "scripts" / "mutation_portfolio.sh"
-    for target in ("/", str(Path.home() / "x"), str(script.parents[1]), "/tmp/../etc/x"):
+    temp = os.environ.get("TMPDIR", "/tmp")
+    targets = ["/", "", ".", str(Path.home() / "x"), str(script.parents[1]), "/tmp/../etc/x"]
+    targets += [
+        "/tmp",
+        "/tmp/",
+        "/tmp//",
+        "/private/tmp///",
+        "/var/folders",
+        "/private/var/folders/",
+    ]
+    targets += [temp, temp + "//", "/tmp/no-such-folder-for-rbot", str(script.parents[1] / "tests")]
+    for target in targets:
         done = subprocess.run(["bash", str(script), target], capture_output=True)
-        assert done.returncode == 2 and b"refusing" in done.stderr
+        assert done.returncode == 2 and b"refusing" in done.stderr, target
