@@ -10,7 +10,8 @@ tranche field is a Run Brief field too: `brief.run_brief_fields` lists it as
 rebuild. Source wins (design D8): a
 Sourced value stays and the edit is kept as `analyst_value`; a gap or an earlier assertion
 takes the edit as Analyst-asserted. Pathway, depth and Primary are confirmed by
-`rbot approve` (Plan 04), which also writes the approval table. The file is
+`rbot approve` (`rbotlib.approve`), which also writes the `brief.approval` table; an
+approved brief takes no further edit (a changed brief is a new run). The file is
 Handoff-format with module id RUN_BRIEF.
 """
 
@@ -119,6 +120,18 @@ COLUMNS = {
     ),
     "brief.research_questions": ("question_id", "question", "consumer_module", "approved"),
     "brief.prior_case": ("file", "report_date", "run_id", "accepted"),
+    "brief.approval": (
+        "approved_at",
+        "analyst",
+        "pathway",
+        "depth",
+        "primary",
+        "deep_research",
+        "prior_case",
+        "pathway_grade",
+        "acknowledged_blocked_modules",
+        "brief_sha256",
+    ),
 }
 
 
@@ -142,6 +155,7 @@ class Brief:
     portfolios: list[list[str]] = field(default_factory=list)
     questions: list[list[str]] = field(default_factory=list)
     prior: list[list[str]] = field(default_factory=list)
+    approval: list[list[str]] = field(default_factory=list)
     citations: list[list[str]] = field(default_factory=list)
     cp0_sha256: str = ""
 
@@ -276,11 +290,27 @@ def from_cp0(run: Path, cp0_text: str, rules: Rules) -> Brief:
     return brief
 
 
+def approval(run: Path) -> dict[str, str] | None:
+    """The `brief.approval` row of the Run Brief, or None before Approval."""
+    if not (run / BRIEF).is_file():
+        return None
+    h = parse(_read(run / BRIEF))
+    rows = _rows(h.tables.get("brief.approval"), COLUMNS["brief.approval"])
+    return rows[0] if rows else None
+
+
+def refuse_if_approved(run: Path) -> None:
+    """BriefError once Approval has been given: one Run Brief per run (design D11)."""
+    if approved := approval(run):
+        done = f"{approved['pathway']} at {approved['depth']} depth on {approved['approved_at']}"
+        raise BriefError(f"{BRIEF} was approved ({done}); a changed Run Brief needs a new run")
+
+
 def previous(run: Path) -> dict[str, Entry]:
     """The fields of the Run Brief as last written (empty when there is none yet)."""
     if not (run / BRIEF).is_file():
         return {}
-    h = parse((run / BRIEF).read_text(encoding="utf-8"))
+    h = parse(_read(run / BRIEF))
     rows = _rows(h.tables.get("brief.run_brief_fields"), COLUMNS["brief.run_brief_fields"])
     return {
         r["field"]: Entry(r["value"] or MISSING, r["status"], r["analyst_value"], r["cite"])
@@ -341,9 +371,15 @@ def _analysis(brief: Brief) -> str:
         f"Run Brief pre-filled from the CP-0 Handoff: {sourced} field(s) sourced, {asserted}"
         f" analyst-asserted; {len(brief.tranches)} new tranche(s), {len(brief.portfolios)}"
         f" portfolio(s), {len(brief.questions)} research question(s), {len(brief.prior)}"
-        " earlier Report(s). Pathway, depth and Primary are confirmed at Approval"
-        " (`rbot approve`)."
-    )
+        " earlier Report(s). "
+    ) + _approval_summary(brief)
+
+
+def _approval_summary(brief: Brief) -> str:
+    if not brief.approval:
+        return "Pathway, depth and Primary are confirmed at Approval (`rbot approve`)."
+    at, analyst, pathway, depth, primary = brief.approval[0][:5]
+    return f"Approved {at} by {analyst}: {pathway} at {depth} depth, Primary {primary}."
 
 
 def _tranche_gaps(brief: Brief) -> list[str]:
@@ -386,6 +422,7 @@ def render(brief: Brief) -> str:
             *_table("brief.portfolios", brief.portfolios),
             *_table("brief.research_questions", brief.questions),
             *_table("brief.prior_case", brief.prior),
+            *(_table("brief.approval", brief.approval) if brief.approval else []),
             *("## Gaps", "", *(gap_lines or ["None."]), "", "## Citations", ""),
             *_table("citations", [r for r in brief.citations if r and r[0] in used]),
         ]
@@ -411,6 +448,7 @@ def build(
 ) -> Brief:
     """Pre-fill from the CP-0 Handoff, carry earlier edits, then apply the new edits in order."""
     brief = from_cp0(run, _read(source), rules)
+    prefilled_tranches = bool(brief.tranches)
     brief.cp0_sha256 = hashlib.sha256(source.read_bytes()).hexdigest()
     carry(previous(run), brief)
     for assignment in edits:
@@ -422,7 +460,7 @@ def build(
         apply_edit(brief.fields[name], normalise_value(name, value, rules))
     for tranche_id, assignment in tranche_edits or []:
         _edit_tranche(brief, tranche_id, assignment, rules)
-    if brief.tranches and brief.fields["primary"].value != "Yes":
+    if prefilled_tranches and brief.fields["primary"].value != "Yes":
         raise BriefError(
             f"CP-0 lists new tranche(s) {', '.join(sorted(brief.tranches))} but primary is "
             f"{brief.fields['primary'].value!r}; the transaction summary is for a Primary run"
@@ -538,6 +576,7 @@ def _write(run: Path, args: argparse.Namespace) -> int:
     if args.source and (run / args.source).resolve() != source.resolve():
         raise BriefError(f"--from must be {CP0} in the run; later edits rebuild from it")
     state = _state(run)
+    refuse_if_approved(run)
     if _approved(run, state):
         raise BriefError("the brief is approved; re-run rbot approve to change it")
     brief = build(run, source, args.set or [], load_rules(args.root), args.set_tranche)

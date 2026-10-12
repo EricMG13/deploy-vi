@@ -1,0 +1,320 @@
+from __future__ import annotations
+
+import json
+import shutil
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from conftest import FIXTURES
+from rbotlib.approve import ApprovalError, new_name
+from rbotlib.cli import main
+from rbotlib.handoff import Handoff, parse
+from rbotlib.rules import Rules
+from rbotlib.validate import run_findings
+from spec_fixture import SOURCES, build_tree
+from test_grade import FILES, _acme, _graded
+
+FCA_FULL = (
+    "CP-0 CP-1 CP-1A CP-DR CP-1B CP-1D MODEL CP-1C CP-2 CP-2A CP-2E CP-4 CP-2D CP-2G "
+    "PROJECTION CP-2H CP-3D CP-3C CP-4C CP-3 FIT CP-5 CP-6 CP-8"
+).split()
+QUESTION = "| RQ-1 | Is demand recovering? | Sets the Sector Outlook | CP-2 | Industry data |"
+PRIOR = (
+    "| old/report.html | 2026-07-15 | 20260715-acme-earnings-update"
+    " | EARNINGS_UPDATE | full | Yes |"
+)
+OTHER = (
+    "| old/other.html | 2026-07-15 | 20260715-zeta-earnings-update | EARNINGS_UPDATE | full | No |"
+)
+REPORT = (
+    "<html><body><h1>RBOT Report</h1></body>"
+    '<script type="application/json" id="rbot-run">{}</script></html>\n'
+)
+REPORTS = {"old/report.html": REPORT, "old/other.html": REPORT}
+REPORT_CLASSES = {
+    "old/report.html": ("issuer", "RBOT Report", "Acme Holdings, Inc.", "Yes"),
+    "old/other.html": ("issuer", "RBOT Report", "Zeta Corp", "No"),
+}
+
+
+@pytest.fixture
+def root(tmp_path: Path, rules: Rules) -> Path:
+    (tmp_path / "rbot").mkdir()
+    return build_tree(tmp_path / "rbot", rules, SOURCES)
+
+
+def _seed(run: Path) -> None:
+    """The pre-Approval run-state.json that `rbot new-run` (Plan 06) or proxy step 1 writes."""
+    state: dict[str, Any] = {"schema": "rbot-run-state/1", "run_id": run.name}
+    state |= {"pack_root": str(run.parents[1]), "plan": [], "steps": {}}
+    (run / "run-state.json").write_text(json.dumps(state), encoding="utf-8")
+
+
+def _ready(
+    root: Path,
+    tmp_path: Path,
+    *,
+    rows: str = "",
+    tranche: bool = False,
+    objective: bool = True,
+) -> Path:
+    """A graded Acme run with objective and analyst set; optionally a question with the
+    Prior Case `rows` (the pack then holds two earlier RBOT Reports) and a new tranche."""
+    run = _acme(tmp_path, REPORTS if rows else None)
+    _graded(root, run, FILES | (REPORT_CLASSES if rows else {}))
+    if rows:
+        cp0 = run / "handoffs" / "CP-0.md"
+        text = cp0.read_text(encoding="utf-8")
+        text = text.replace(
+            "evidence_needed |\n|---|---|---|---|---|\n",
+            f"evidence_needed |\n|---|---|---|---|---|\n{QUESTION}\n",
+        )
+        text = text.replace(
+            "offered |\n|---|---|---|---|---|---|\n",
+            f"offered |\n|---|---|---|---|---|---|\n{rows}\n",
+        )
+        cp0.write_text(text, encoding="utf-8")
+        assert main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"]) == 0
+    edits = ["--set", "analyst=A. Analyst"] + (["--set", "objective=Annual review"] * objective)
+    if tranche:
+        edits += ["--set-tranche", "NEW-1", "instrument=Term Loan B"]
+    assert main(["brief", "--run", str(run), *edits]) == 0
+    assert main(["--root", str(root), "grade", "--run", str(run)]) == 0
+    _seed(run)
+    return run
+
+
+def _approve(root: Path, run: Path, *extra: str, pathway: str = "FULL_CREDIT_ASSESSMENT") -> int:
+    argv = ["--root", str(root), "approve", "--run", str(run), "--pathway", pathway]
+    return main([*argv, "--depth", "full", "--primary", "no", "--analyst", "B. Approver", *extra])
+
+
+def _state(run: Path) -> dict[str, Any]:
+    state: dict[str, Any] = json.loads((run / "run-state.json").read_text(encoding="utf-8"))
+    return state
+
+
+def _brief(run: Path) -> Handoff:
+    return parse((run / "run-brief.md").read_text(encoding="utf-8"))
+
+
+def test_approve_records_the_choice_and_renames_the_run(
+    root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = _ready(root, tmp_path)
+    capsys.readouterr()
+    assert _approve(root, run) == 0
+    target = run.parent / "20261011-acme-full-credit-assessment"
+    assert not run.exists() and target.is_dir()
+    out = capsys.readouterr().out
+    assert out.startswith(f"approved: {target}\n")
+    assert "  1  CP-0        module  accepted\n" in out
+    assert " 21  FIT         host    skipped (no portfolio context)\n" in out
+    state = _state(target)
+    assert state["run_id"] == target.name and state["plan"] == FCA_FULL
+    assert (state["pathway"], state["depth"], state["primary"]) == (
+        "FULL_CREDIT_ASSESSMENT",
+        "full",
+        False,
+    )
+    assert state["deep_research"] is False
+    assert state["prior_case"] == {"offered": False, "accepted": False, "report": None}
+    assert state["approval"]["pathway_grade"] == "With limitations"
+    assert state["approval"]["limitations_shown"] == ["FIT: no portfolio in the Portfolio Context"]
+    steps = state["steps"]
+    assert steps["CP-0"]["status"] == "accepted" and steps["CP-0"]["qa_status"] == "Restricted"
+    assert steps["CP-DR"] == {"kind": "module", "status": "skipped", "reason": "not approved"}
+    assert steps["CP-8"]["reason"] == "no prior case" and steps["MODEL"]["kind"] == "host"
+    assert steps["PROJECTION"]["status"] == "pending"
+    h = _brief(target)
+    approval = dict(
+        zip(h.tables["brief.approval"].columns, h.tables["brief.approval"].rows[0], strict=True)
+    )
+    assert (approval["analyst"], approval["pathway_grade"], approval["primary"]) == (
+        "B. Approver",
+        "With limitations",
+        "No",
+    )
+    assert h.front_matter["run_id"] == target.name and h.front_matter["qa_status"] == "Pass"
+    header = dict(
+        zip(
+            h.tables["snapshot.run_header"].columns,
+            h.tables["snapshot.run_header"].rows[0],
+            strict=True,
+        )
+    )
+    assert (header["run_id"], header["pathway"], header["depth"], header["analyst"]) == (
+        target.name,
+        "FULL_CREDIT_ASSESSMENT",
+        "full",
+        "B. Approver",
+    )
+    assert state["run_brief_sha256"] != approval["brief_sha256"]
+    log = (target / "log" / "rbot.log").read_text(encoding="utf-8").splitlines()
+    assert log[-1].endswith(
+        f"approve --run {run} --pathway FULL_CREDIT_ASSESSMENT --depth full"
+        " --primary no --analyst B. Approver\t0"
+    )
+
+
+def test_plan_prints_the_steps_after_approval(
+    root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = _ready(root, tmp_path)
+    assert main(["plan", "--run", str(run)]) == 1
+    assert "not approved yet" in capsys.readouterr().out
+    _approve(root, run)
+    target = run.parent / "20261011-acme-full-credit-assessment"
+    capsys.readouterr()
+    assert main(["plan", "--run", str(target)]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0] == (
+        "20261011-acme-full-credit-assessment: FULL_CREDIT_ASSESSMENT at full depth;"
+        " Primary No, Deep Research No, Prior Case No"
+    )
+    assert len(lines) == 1 + len(FCA_FULL)
+    assert lines[24] == " 24  CP-8        module  skipped (no prior case)"
+
+
+def test_questions_prior_case_and_primary_follow_the_approval(root: Path, tmp_path: Path) -> None:
+    run = _ready(root, tmp_path, rows=PRIOR, tranche=True)
+    assert _approve(root, run, "--prior-case", "yes", "--primary", "yes") == 0
+    target = run.parent / "20261011-acme-full-credit-assessment"
+    state = _state(target)
+    assert (state["primary"], state["deep_research"]) == (True, True)
+    assert state["prior_case"] == {"offered": True, "accepted": True, "report": "old/report.html"}
+    assert state["steps"]["CP-DR"]["status"] == "pending"
+    assert state["steps"]["CP-8"]["status"] == "pending"
+    h = _brief(target)
+    assert h.tables["brief.prior_case"].rows[0][-1] == "Yes"
+    assert h.tables["brief.research_questions"].rows[0][-1] == "Yes"
+    fields = {r[0]: r[1:] for r in h.tables["brief.run_brief_fields"].rows}
+    assert fields["primary"] == ["Yes", "Analyst-asserted", "Yes", "—"]
+
+
+def test_an_unticked_question_switches_deep_research_off(root: Path, tmp_path: Path) -> None:
+    run = _ready(root, tmp_path, rows=PRIOR)
+    assert _approve(root, run, "--untick", "RQ-1") == 0
+    state = _state(run.parent / "20261011-acme-full-credit-assessment")
+    assert state["deep_research"] is False
+    assert state["steps"]["CP-DR"]["reason"] == "not approved"
+    assert state["steps"]["CP-8"]["reason"] == "no prior case"
+
+
+def test_a_blocked_pathway_needs_the_acknowledgement(
+    root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = _ready(root, tmp_path)
+    capsys.readouterr()
+    argv = ["--root", str(root), "approve", "--run", str(run), "--pathway", "PORTFOLIO_DECISION"]
+    argv += ["--depth", "quick", "--primary", "no", "--analyst", "B. Approver"]
+    assert main(argv) == 1
+    assert "PORTFOLIO_DECISION at quick depth is Blocked by FIT: FIT: no portfolio" in (
+        capsys.readouterr().out
+    )
+    assert main([*argv, "--acknowledge-blocked"]) == 0
+    state = _state(run.parent / "20261011-acme-portfolio-decision")
+    assert state["approval"]["acknowledged_blocked_modules"] == ["FIT"]
+    assert state["approval"]["pathway_grade"] == "Blocked"
+    assert state["steps"]["FIT"]["reason"] == "no portfolio context"
+
+
+REFUSALS = [
+    (None, ["--pathway", "NOPE"], "unknown Pathway 'NOPE'; graded: FULL_CREDIT_ASSESSMENT"),
+    ("objective", [], "the Run Brief still has gaps: objective"),
+    ("brief", [], "run-brief.md changed after rbot grade; run rbot grade again"),
+    ("run-state", [], "run-state.json; the run was not created with rbot new-run"),
+    ("grading", [], "grading.json; run rbot grade first"),
+    (None, ["--primary", "yes"], "a Primary run needs a new tranche"),
+    (None, ["--untick", "RQ-9"], "no research question RQ-9"),
+    (None, ["--prior-case", "yes"], "no Prior Case was offered"),
+]
+
+
+@pytest.mark.parametrize("case", REFUSALS)
+def test_refused_approvals_exit_1(
+    root: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    case: tuple[str | None, list[str], str],
+) -> None:
+    change, extra, message = case
+    run = _ready(root, tmp_path, objective=change != "objective")
+    if change == "brief":
+        (run / "run-brief.md").write_text((run / "run-brief.md").read_text() + "\n")
+    elif change in ("run-state", "grading"):
+        (run / f"{change}.json").unlink()
+    capsys.readouterr()
+    assert _approve(root, run, *extra) == 1
+    assert message in capsys.readouterr().out
+    assert run.is_dir()
+
+
+def test_an_approved_brief_takes_no_edit_or_second_approval(
+    root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = _ready(root, tmp_path)
+    _approve(root, run)
+    target = run.parent / "20261011-acme-full-credit-assessment"
+    capsys.readouterr()
+    assert main(["brief", "--run", str(target), "--set", "objective=Other"]) == 1
+    assert "run-brief.md was approved (FULL_CREDIT_ASSESSMENT at full depth on" in (
+        capsys.readouterr().out
+    )
+    assert _approve(root, target) == 1
+    assert "a changed Run Brief needs a new run" in capsys.readouterr().out
+
+
+def test_the_new_name_counts_up_and_needs_a_pending_folder(tmp_path: Path) -> None:
+    run = tmp_path / "20261011-acme-pending-2"
+    (tmp_path / "20261011-acme-relative-value").mkdir()
+    assert new_name(run, "ACME", "RELATIVE_VALUE").name == "20261011-acme-relative-value-2"
+    assert new_name(run, "Six Flags/SIX", "EARNINGS_UPDATE").name == (
+        "20261011-six-flags-six-earnings-update"
+    )
+    with pytest.raises(ApprovalError, match="not a pending run folder"):
+        new_name(tmp_path / "acme", "ACME", "RELATIVE_VALUE")
+
+
+@pytest.mark.corpus
+def test_approval_on_the_primary_pack(
+    prepared_run: Callable[[str], Path], tmp_path: Path, rules: Rules
+) -> None:
+    run = tmp_path / "rbot-runs" / "20261011-czr-pending"
+    shutil.copytree(prepared_run("czr-2026q2-primary"), run)
+    (tmp_path / "rbot").mkdir()
+    root = build_tree(tmp_path / "rbot", rules, SOURCES)
+    (run / "handoffs").mkdir(exist_ok=True)
+    shutil.copy(FIXTURES / "handoffs" / "CP-0.md", run / "handoffs" / "CP-0.md")
+    assert main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"]) == 0
+    edits = ["--set", "objective=New issue review", "--set", "analyst=A. Analyst"]
+    assert main(["brief", "--run", str(run), *edits]) == 0
+    assert main(["--root", str(root), "grade", "--run", str(run)]) == 0
+    grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
+    assert grading["primary_pretick"] is True and grading["tranches"] == ["NEW-1"]
+    _seed(run)
+    assert _approve(root, run, "--primary", "yes") == 0
+    target = run.parent / "20261011-czr-full-credit-assessment"
+    state = _state(target)
+    assert state["approval"]["pathway_grade"] == "Available"
+    assert {s: state["steps"][s]["status"] for s in ("CP-0", "CP-DR", "FIT", "CP-8")} == {
+        "CP-0": "accepted",
+        "CP-DR": "pending",
+        "FIT": "pending",
+        "CP-8": "skipped",
+    }
+    h = _brief(target)
+    assert run_findings(h, target) == []
+    assert h.tables["snapshot.transaction_summary"].rows[0][0] == "NEW-1"
+
+
+def test_a_report_cp0_did_not_offer_cannot_be_accepted(
+    root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = _ready(root, tmp_path, rows=OTHER)
+    capsys.readouterr()
+    assert _approve(root, run, "--prior-case", "yes") == 1
+    assert "no Prior Case was offered" in capsys.readouterr().out
