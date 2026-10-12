@@ -52,12 +52,27 @@ def _identity(run: Path, text: str, rules: Rules, record: state.Record) -> tuple
     return front["run_id"], front["issuer_id"]
 
 
+def _accept_evidence(run: Path, record: state.Record) -> None:
+    from rbotlib import attempts
+
+    current = record["steps"].get("CP-0", {})
+    if "accept_history" in current:
+        events = attempts.read_history(run, "CP-0", current)
+        if (
+            not events
+            or events[-1]["event"] != "validation"
+            or current["status"] not in ("accepted", "blocked")
+        ):
+            raise RunError("CP-0 has reported dispatch evidence; run accept before Approval")
+
+
 def checked_cp0(run: Path, root: Path, rules: Rules, record: state.Record) -> QualifiedCP0:
     """Qualify actual bytes and return CP-0 metadata; no publication or lock acquisition.
 
     The caller must hold the shared writer lock to publish this result. Read-only
     callers receive an observation, not a lease against later filesystem changes.
     """
+    _accept_evidence(run, record)
     path = output_path(run, CP0)
     if not path.is_file():
         raise RunError(f"{path}: CP-0 Handoff must be an existing regular file")

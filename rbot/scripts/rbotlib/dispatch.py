@@ -275,6 +275,22 @@ def _sources(
     return classes, permissions, limitations
 
 
+def _retry_findings(run: Path, module: str, data: dict[str, Any]) -> bool:
+    """Only a registered running slot2 resend may reuse immutable slot1 findings.
+
+    Partial retry output need not equal failed slot1 bytes; arbitrary pre-ledger
+    findings still require the current Handoff hash and grant no retry entitlement.
+    """
+    from rbotlib import attempts
+
+    step = state.read(run)["steps"].get(module, {})
+    if step.get("attempts") != 2 or step["status"] != "running" or not step.get("accept_history"):
+        return False
+    events = attempts.read_history(run, module, step)
+    validations = [e for e in events if e["event"] == "validation"]
+    return bool(validations and validations[-1]["slot"] == 1 and validations[-1]["result"] == data)
+
+
 def _findings(run: Path, module: str, name: str | None) -> dict[str, Any] | None:
     if name is None:
         return None
@@ -294,7 +310,9 @@ def _findings(run: Path, module: str, name: str | None) -> dict[str, Any] | None
     at = data.get("at")
     if not isinstance(at, str) or datetime.fromisoformat(at).utcoffset() is None:
         raise RunError(f"{path}: validation timestamp required")
-    if data.get("sha256") != _sha(_file(run, f"handoffs/{module}.md")):
+    if not _retry_findings(run, module, data) and data.get("sha256") != _sha(
+        _file(run, f"handoffs/{module}.md")
+    ):
         raise RunError(f"{path}: findings sha256 differs from this module's current Handoff")
     return {k: data[k] for k in ("exit", "findings", "sha256", "at")}
 
@@ -388,6 +406,35 @@ def _root(root: Path) -> Path:
         raise RunError(f"cannot resolve selected root: {root} ({exc})") from exc
 
 
+def qualified_message(
+    run: Path, root: Path, module: str, record: state.Record, findings: str | None = None
+) -> str:
+    """Pure current input qualification reused under the shared lock by evidence owners."""
+    for name in (
+        "rules.json",
+        "catalog.json",
+        "canon.md",
+        "scripts/rbot.py",
+        f"modules/{module}/MODULE.md",
+    ):
+        _file(root, name)
+    for path in (root / "modules").glob("*/contract.json"):
+        _file(root, str(path.relative_to(root)))
+    rules = load_rules(root)
+    contract = load_contract(_file(root, f"modules/{module}/contract.json"), rules)
+    if contract.module_id != module:
+        raise RunError("selected contract has wrong module identity")
+    rows = _prepared(run, record)
+    classified = _context(run, root, record, rules) if record["approval"] is not None else {}
+    return _message(
+        run,
+        root,
+        contract,
+        record,
+        (rows, _findings(run, module, findings), rules, classified),
+    )
+
+
 def prepare_message(run: Path, root: Path, module: str, findings: str | None = None) -> str:
     """Bounded library seam: qualify, atomically persist and return identical message bytes."""
     run, root = state.run_path(run), _root(root)
@@ -413,29 +460,7 @@ def prepare_message(run: Path, root: Path, module: str, findings: str | None = N
             )
         if record["approval"] is None and module != "CP-0":
             raise RunError("analyst Approval required before analysis dispatch")
-        for name in (
-            "rules.json",
-            "catalog.json",
-            "canon.md",
-            "scripts/rbot.py",
-            f"modules/{module}/MODULE.md",
-        ):
-            _file(root, name)
-        for path in (root / "modules").glob("*/contract.json"):
-            _file(root, str(path.relative_to(root)))
-        rules = load_rules(root)
-        contract = load_contract(_file(root, f"modules/{module}/contract.json"), rules)
-        if contract.module_id != module:
-            raise RunError("selected contract has wrong module identity")
-        rows = _prepared(run, record)
-        classified = _context(run, root, record, rules) if record["approval"] is not None else {}
-        text = _message(
-            run,
-            root,
-            contract,
-            record,
-            (rows, _findings(run, module, findings), rules, classified),
-        )
+        text = qualified_message(run, root, module, record, findings)
         path = _target(run, f"dispatch/{module}.md")
         path.parent.mkdir(exist_ok=True)
         write_atomic(_target(run, f"dispatch/{module}.md"), text)

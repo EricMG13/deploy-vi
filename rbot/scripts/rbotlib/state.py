@@ -297,8 +297,14 @@ def read(run: Path) -> Record:
     return record
 
 
-def update(run: Path, change: Callable[[Record], None]) -> Record:
-    """Read/change/check/publish under Approval's lock; callbacks must not publish files."""
+def update(
+    run: Path, change: Callable[[Record], None], publish: Callable[[], None] | None = None
+) -> Record:
+    """Change is pure; optional guarded evidence publication precedes state under the lock.
+
+    Evidence owners must detect a published orphan if state publication is interrupted.
+    This is not a multi-file crash transaction; no evidence is deleted on failure.
+    """
     run = run_path(run)
     lock = output_path(run, LOCK)
     try:
@@ -317,6 +323,9 @@ def update(run: Path, change: Callable[[Record], None]) -> Record:
         write_atomic(
             stage, json.dumps(record, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
         )
+        _destination(run)  # preflight before related evidence publication
+        if publish is not None:
+            publish()
         os.replace(stage, _destination(run))
         return record
     finally:

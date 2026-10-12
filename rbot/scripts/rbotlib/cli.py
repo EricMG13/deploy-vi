@@ -13,6 +13,7 @@ from pathlib import Path
 
 from rbotlib import (
     approve,
+    attempts,
     brief,
     calc,
     corpus,
@@ -148,6 +149,7 @@ def main(argv: list[str] | None = None) -> int:
     state.add_command(sub)
     runs.add_command(sub)
     dispatch.add_command(sub)
+    attempts.add_command(sub)
     args = parser.parse_args(argv)
     run_dir = getattr(args, "run_dir", None)
     log_run = None
