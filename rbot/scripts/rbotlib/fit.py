@@ -374,6 +374,11 @@ def _gaps(
     """Limits RBOT does not size against, limits it could not compute, uncapped rows, and what
     the exposure and the ratings rest on."""
     lines = [f"- {pid}: {u['row']}: {u['reason']}" for pid, rows in unparsed.items() for u in rows]
+    missing_par = {f.portfolio.portfolio_id for f in fits if f.portfolio.par is None}
+    lines += [
+        f"- {p}: total par is missing or not positive; only pct_par limits require it."
+        for p in sorted(missing_par)
+    ]
     lines += _not_computed(fits)
     lines += _exposure_gaps(fits, run)
     lines += [f"- {f.portfolio.portfolio_id} {n}" for f in fits for n in f.notes]

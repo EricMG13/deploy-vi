@@ -416,7 +416,7 @@ def test_fit_arithmetic_test_clo_i(prepared_run: Callable[[str], Path], tmp_path
     assert rows[("CEI-SN-2029", "C-10")]["headroom"] == "9.39"  # 2nd lien / unsecured
     assert ("CEI-TLB", "C-10") not in rows
     assert rows[("CEI-TLB", "C-02")]["status"] == "From file"
-    assert "- TEST_CLO_I CEI-RCF: no readable rating, counted toward C-04" in h.body
+    assert "- TEST_CLO_I CEI-RCF: missing or unreadable rating, counted toward C-04" in h.body
     assert "row 8: minimum limit" in h.body  # the WAR floor "≥ Caa1" is a minimum, Gaps only
 
 

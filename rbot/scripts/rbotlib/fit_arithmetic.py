@@ -183,15 +183,16 @@ class Fit:
 def rating_bucket(ratings: Sequence[str]) -> str:
     """The lowest bucket over the agencies' ratings (IG, BB, B, CCC).
 
-    `Unrated` when there is no rating (or only NR / WR); `Unreadable` when RBOT can read none.
+    `Unrated` when there is no rating (or only NR / WR); `Unreadable` when any non-NR
+    agency rating cannot be read.
     """
     written = [r for r in ratings if r.strip().casefold() not in _NOT_RATED]
     if not written:
         return UNRATED
-    found = [b for b in (_bucket(r) for r in written) if b is not None]
-    if not found:
+    found = [_bucket(r) for r in written]
+    if any(b is None for b in found):
         return UNREADABLE
-    return max(found, key=BUCKETS.index)
+    return max((b for b in found if b is not None), key=BUCKETS.index)
 
 
 def _bucket(rating: str) -> str | None:
@@ -516,14 +517,15 @@ def concerns(portfolio: Portfolio, held: Held, rows: Sequence[Headroom]) -> list
     if held.by_name_only:
         ids = ", ".join(held.by_name_only)
         found.append(f"positions {ids} matched the issuer by name only; the ids disagree")
-    if portfolio.nav is None or portfolio.par is None:
-        found.append("the portfolio's NAV or par is not a positive figure")
+    if portfolio.nav is None:
+        found.append("the portfolio's NAV is not a positive figure")
     return found
 
 
 def _notes(instrument: Instrument, rows: Sequence[Headroom]) -> tuple[str, ...]:
     return tuple(
-        f"{instrument.facility_id}: no readable rating, counted toward {r.limit['limit_id']}"
+        f"{instrument.facility_id}: missing or unreadable rating, "
+        f"counted toward {r.limit['limit_id']}"
         for r in rows
         if counted_as_ccc(r.limit, instrument)
     )

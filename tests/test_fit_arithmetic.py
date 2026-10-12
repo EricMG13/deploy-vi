@@ -523,7 +523,7 @@ def test_provisional_watch_and_structured_ratings_are_read(ratings: tuple[str, .
         (("NR",), "Unrated"),
         (("WR", ""), "Unrated"),
         (("Zz9",), "Unreadable"),
-        (("Zz9", "BB"), "BB"),
+        (("Zz9", "BB"), "Unreadable"),
     ],
 )
 def test_no_rating_is_unrated_and_an_unreadable_one_is_unreadable(
@@ -543,7 +543,7 @@ def test_an_unrated_or_unreadable_instrument_counts_toward_the_ccc_bucket(
     ccc["largest"] = False
     f = fa.fit(portfolio(ccc), loan(ratings=ratings), RUN)
     assert (f.max_size, f.verdict) == (Decimal("0.88326"), "Watch")
-    assert f.notes == ("TLB: no readable rating, counted toward C-04",)
+    assert f.notes == ("TLB: missing or unreadable rating, counted toward C-04",)
     assert fa.fit(portfolio(ccc), loan(ratings=("B2",)), RUN).rows == ()  # a rated B is not in it
 
 
@@ -798,9 +798,9 @@ def test_a_small_positive_nav_or_par_is_a_figure() -> None:
     assert fa.fit(portfolio(zero_par, par=Decimal(0)), loan(), RUN).rows[0].status == "Not computed"
 
 
-def test_the_portfolio_with_nothing_to_compute_is_still_a_watch_for_a_missing_nav_or_par() -> None:
-    reason = "the portfolio's NAV or par is not a positive figure"
-    for nav, par in ((None, Decimal(634)), (NAV, None), (None, None)):
+def test_the_portfolio_with_nothing_to_compute_is_still_a_watch_for_a_missing_nav() -> None:
+    reason = "the portfolio's NAV is not a positive figure"
+    for nav, par in ((None, Decimal(634)), (None, None)):
         f = fa.fit(portfolio(nav=nav, par=par), loan(), RUN)
         assert (f.verdict, f.reason) == ("Watch", reason)
     assert fa.fit(portfolio(), loan(), RUN).verdict == "Fits"
