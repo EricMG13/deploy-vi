@@ -399,3 +399,54 @@ def test_a_calc_output_replaces_the_old_file_whole(tmp_path: Path) -> None:
     )
     assert json.loads(out.read_text("utf-8")) == compute(_input())
     assert [p.name for p in tmp_path.iterdir()] == ["out.json"]  # no temp file left
+
+
+# --- mutation review: the bracket ends of the yield solver and the new checks' edges -----------
+
+
+@pytest.mark.parametrize(
+    ("divisor", "expected"),
+    [("0.75", "-50.000000"), ("3.5", "500.000000")],  # the value at exactly -50% and +500%
+)
+def test_the_solver_brackets_include_their_end_points(divisor: str, expected: str) -> None:
+    """A zero coupon one period from settlement priced to 38 digits at the bracket's end."""
+    flows = ba.cashflows(Decimal(0), date(2026, 8, 15), date(2027, 2, 15), Decimal(100))
+    price = ba.CONTEXT.divide(Decimal(100), Decimal(divisor))
+    solved = ba.solve_yield(flows, price)
+    assert solved is not None and ba.pct(solved) == expected
+
+
+def test_a_floor_of_exactly_the_least_floor_and_a_reference_of_exactly_the_least_is_valid() -> None:
+    row = one(one_loan_item() | {"floor_bps": "5"}, reference_rate_pct="0.2")
+    assert row["floor_benefit_bps"] == "0.00"  # 5 bps less 20 bps of rate: no benefit
+    row = one(one_loan_item() | {"floor_bps": "5"}, reference_rate_pct="-0.2")
+    assert row["floor_benefit_bps"] == "25.00"
+
+
+def test_the_refusal_messages_are_exact() -> None:
+    expected = {
+        (("kind", "bond"), ("key", "floor_bps")): (
+            "instruments[0].floor_bps: a bond has a fixed coupon; a floating-rate note is not "
+            "priced as a bond (give it as a loan, or leave it unpriced and say so under Gaps)"
+        ),
+        (("kind", "loan"), ("key", "floor_pct")): (
+            "instruments[0].floor_pct: unknown field for a loan (reads facility_id, kind, price, "
+            "margin_bps, floor_bps, maturity_date)"
+        ),
+    }
+    for (kind, key), message in expected.items():
+        base = {"loan": one_loan_item(), "bond": _bond()}[kind[1]]
+        with pytest.raises(CalcError) as caught:
+            compute({"as_of": AS_OF, "instruments": [base | {key[1]: "5"}]})
+        assert str(caught.value) == message
+    with pytest.raises(CalcError) as caught:
+        compute({"as_of": AS_OF, "instruments": [one_loan_item()], "ref": "1"})
+    assert (
+        str(caught.value)
+        == "input.ref: unknown field (reads as_of, reference_rate_pct, instruments)"
+    )
+    with pytest.raises(CalcError) as caught:
+        compute({"as_of": AS_OF, "reference_rate_pct": "0.042", "instruments": [one_loan_item()]})
+    assert str(caught.value) == (
+        "input.reference_rate_pct: 0.042 is below 0.2 percent; a percent, not a fraction?"
+    )
