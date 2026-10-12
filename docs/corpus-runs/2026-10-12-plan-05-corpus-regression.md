@@ -1,6 +1,6 @@
 # Corpus regression — Plan 05 (core modules), 2026-10-12
 
-Run during Plan 05's verification on the full corpus (`RBOT_CORPUS_ROOTS` set to caos-databricks `qualification/` and `TEST-Issuer Data`), `RBOT_REQUIRE_CORPUS=1`. Plan 05 adds eight modules (CP-1, CP-1A, CP-1B, CP-1D, CP-2, CP-3, CP-5, CP-6), the bond-analytics calculator, Portfolio Fit, the `FULL_CREDIT_ASSESSMENT` Pathway list and the A/B harness. The modules run from fixture Handoffs written by hand for `czr-2026q2-primary`; the proxy runs and A/B with model-written Handoffs are the controller's (Task 32 Steps 4–10) and are recorded in their own scorecards.
+Run during Plan 05's verification on the full corpus (`RBOT_CORPUS_ROOTS` set to caos-databricks `qualification/` and `TEST-Issuer Data`), `RBOT_REQUIRE_CORPUS=1`. Plan 05 adds eight modules (CP-1, CP-1A, CP-1B, CP-1D, CP-2, CP-3, CP-5, CP-6), the bond-analytics calculator, Portfolio Fit, the `FULL_CREDIT_ASSESSMENT` Pathway list and the A/B harness. The modules run from fixture Handoffs written by hand for `czr-2026q2-primary`; the proxy runs and A/B with model-written Handoffs are the controller's (Task 34 Steps 4–10) and are recorded in their own scorecards.
 
 ## Registry
 
@@ -20,7 +20,7 @@ Plans 02–04's 151 checks pass unchanged. Plan 05 adds:
 | `test_full_credit_assessment_grades_on_the_corpus[pack]` | 34 | `rbot grade` with the real contracts gives the hand-checked grade, blocking and limited modules on every registry pack |
 | `test_measure_on_the_cp3_fixture` | 1 | `ab_grade measure` on the CP-3 fixture: C 25/25, F 129/129 from uniquely matched expected identities (11 supported loan peer/index rows; HY rows require spreads the source lacks, and the pack has no TRACE file), 6 gaps |
 
-Full suite with the corpus required: 1388 passed, coverage 97.79%.
+Full suite with the corpus required: 1414 passed, coverage 97.84%.
 
 ## Money code
 
@@ -80,9 +80,15 @@ The actual Model integration keeps addback:impairment FY:FY2023 null with NOT_ST
 
 Required confidence-review and inline capped rewrite-tournament completed before the local review commits. Plan05 publication records the separate deterministic block replay against the unchanged frozen m0 tree.
 
+## Scoped native-fidelity closure
+
+The map now explicitly selects complete native locator/excerpt columns, with lossless per-source selectors for different citations on a multi-source record. Only cell-edge whitespace is trimmed; numbers, signs, units, page scope and quotation content remain unchanged. Shortening, substitution, absent selectors and malformed selectors refuse qualification. Full poor native quotations remain invalid citations, not mapping errors. Ratios require finite components, positive denominator and 0 <= numerator <= denominator before division. The narrow re-review observed 12 RED/8 positive controls and now passes 68 focused cases/10 corpus skips.
+
+Read-only controls bind the actual final02 validator9e65cd9 and verify positive/full bad quote/wrong page/sign-currency/accounting/global-error behavior without changing m0. Standalone final02 lacks P05 ROW_KEYS, so these controls prove actual A anchoring and the shared B guard seam, not complete rebased B execution. Required confidence review and capped inline tournament are complete; money code and its prior mutation evidence are unchanged.
+
 ## The A/B harness on stand-in Handoffs
 
-The dry run of Task 32 Step 2 (fixtures as side B, their `to-r14` conversion as side A, the stand-in grader sheets): no model runs, so it proves the commands and the pass-bar arithmetic, not the modules. Both C(A) and C(B) are actual prepared-source measurements; all eight stand-in comparative bars pass. A valid mapped bad citation lowers C(A) with findings, while missing/duplicate/malformed/unverifiable maps fail qualification by name rather than receiving a fabricated ratio.
+The dry run of Task 34 Step 2 (fixtures as side B, their `to-r14` conversion as side A, the stand-in grader sheets): no model runs, so it proves the commands and the pass-bar arithmetic, not the modules. Both C(A) and C(B) are actual prepared-source measurements; all eight stand-in comparative bars pass. A valid mapped bad citation lowers C(A) with findings, while missing/duplicate/malformed/unverifiable maps fail qualification by name rather than receiving a fabricated ratio.
 
 ```text
 model exit 0
@@ -123,4 +129,4 @@ CP-3 score without --f-b exit 2
 V 27/27 missed 0
 ```
 
-Not verified: the modules written by a model, their A/B against r14, Copilot behaviour, GPT models and fetch (Task 32 Steps 4–10).
+Not verified: the modules written by a model, their A/B against r14, Copilot behaviour, GPT models and fetch (Task 34 Steps 4–10).
