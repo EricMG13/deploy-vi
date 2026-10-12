@@ -244,3 +244,50 @@ def test_a_marker_inside_fenced_code_does_not_cite(
 ) -> None:
     text = handoff_text.replace("[C1]", "\n```\n[C1]\n```\n", 1)
     assert "unused_citation" in codes(text, contract, rules)[1]
+# --- the up-front review of Plan 05 (rest, I1): a Blocked Handoff can be written -------------
+
+
+def _blocked(text: str) -> str:
+    return text.replace("qa_status: Pass", "qa_status: Blocked")
+
+
+def test_a_blocked_handoff_may_leave_critical_cells_empty(
+    handoff_text: str, contract: Contract, rules: Rules
+) -> None:
+    """Every module's Blocked gate writes `—` in the critical cells it could not fill."""
+    text = _blocked(handoff_text).replace("| revenue | 100 | — |", "| revenue | — | — |")
+    assert codes(text, contract, rules) == (EXIT_BLOCKED, set())
+
+
+def test_a_blocked_handoff_may_have_no_rows(
+    handoff_text: str, contract: Contract, rules: Rules
+) -> None:
+    text = _blocked(handoff_text).replace("| revenue | 100 | — |\n", "")
+    assert codes(text, contract, rules) == (EXIT_BLOCKED, set())
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        ("<!-- table: snapshot.view -->", "<!-- table: snapshot.other -->", "table_missing"),
+        ("| 3 - Fair | Stable |", "| 3 - Fair | Flat |", "off_scale"),
+        ("| revenue | 100 | — |", "| revenue | 100 |", "row_shape"),
+        ("| fact | value | note |", "| fact | amount | note |", "column_missing"),
+        ("[C1]", "[C2]", "unresolved_citation"),
+    ],
+)
+def test_a_blocked_handoff_still_needs_its_tables_columns_and_scales(
+    handoff_text: str, contract: Contract, rules: Rules, case: tuple[str, str, str]
+) -> None:
+    old, new, code = case
+    exit_code, found = codes(_blocked(handoff_text).replace(old, new, 1), contract, rules)
+    assert exit_code == EXIT_MALFORMED and code in found
+
+
+@pytest.mark.parametrize("status", ["Pass", "Restricted"])
+def test_only_a_blocked_handoff_is_excused_its_critical_cells(
+    handoff_text: str, contract: Contract, rules: Rules, status: str
+) -> None:
+    text = handoff_text.replace("qa_status: Pass", f"qa_status: {status}")
+    text = text.replace("| revenue | 100 | — |", "| revenue | — | — |")
+    assert codes(text, contract, rules) == (EXIT_MALFORMED, {"critical_placeholder"})

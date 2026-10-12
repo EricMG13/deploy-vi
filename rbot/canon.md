@@ -49,7 +49,7 @@ Under `## Gaps`, each gap names the missing data, why it matters, what it limits
 Set `qa_status`:
 - **Pass** — your reader question is answered from the evidence.
 - **Restricted** — it is answered with limitations you name under `## Gaps`.
-- **Blocked** — it cannot be answered; say exactly what is missing. A Blocked Handoff still carries every table your contract requires, with `—` and gaps where values are missing.
+- **Blocked** — it cannot be answered; say exactly what is missing. A Blocked Handoff still carries every table your contract requires and every column, with `—` in the critical cells you cannot fill (a table may then have fewer rows than its minimum, or none), no citation, and the gaps under `## Gaps`; the checker then exits 3, not 2.
 
 ## Scope
 

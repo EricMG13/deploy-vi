@@ -7,6 +7,7 @@ Primary pack, so every citation names a pack file and its excerpt is in that fil
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from pathlib import Path
 
@@ -16,6 +17,7 @@ from conftest import FIXTURES
 from module_specs import INPUTS, TABLES, handoff_inputs, present_consumers
 from rbotlib.catalog import load_catalog
 from rbotlib.contract import Contract, load_contract
+from rbotlib.handoff import cells
 from rbotlib.render import render_module
 from rbotlib.rules import RBOT_ROOT, Rules
 from rbotlib.validate import check
@@ -75,3 +77,37 @@ def test_handoff_fixtures_validate(
 ) -> None:
     run = prepared_run("czr-2026q2-primary")
     assert check(fixture(module_id), contract(module_id, rules), rules, run) == (0, [])
+
+
+def _blocked(text: str, c: Contract) -> str:
+    """The fixture as a Blocked module writes it: critical cells `—`, no citation, Blocked."""
+    critical = {t.id: {col.name.casefold() for col in t.columns if col.critical} for t in c.tables}
+    out, table_id, seen = [], "", 0  # `seen`: rows of the current table so far (header first)
+    for line in text.splitlines():
+        tag = re.match(r"<!-- table: (\S+) -->", line)
+        if tag:
+            table_id, seen, header = tag.group(1), 0, []
+        elif line.startswith("|"):
+            seen += 1
+            if seen == 1:
+                header = [h.casefold() for h in cells(line)]
+            elif seen > 2 and table_id == "citations":
+                continue  # a Blocked module cites nothing
+            elif seen > 2 and table_id in critical:
+                row = [
+                    "—" if h in critical[table_id] else cell
+                    for h, cell in zip(header, cells(line), strict=True)
+                ]
+                line = "| " + " | ".join(cell.replace("|", "\\|") for cell in row) + " |"
+        out.append(line)
+    blocked = re.sub(r" ?\[C\d+\]", "", "\n".join(out)) + "\n"
+    return re.sub(r"qa_status: \w+", "qa_status: Blocked", blocked, count=1)
+
+
+@pytest.mark.parametrize("module_id", [m for m in MODULES if m != "CP-0"])  # CP-0: Plan 04's checks
+def test_a_blocked_module_can_write_a_handoff_that_exits_3(module_id: str, rules: Rules) -> None:
+    """Rest review I1: every module's Blocked gate must be reachable through the checker."""
+    c = contract(module_id, rules)
+    blocked = _blocked(fixture(module_id), c)
+    assert "qa_status: Blocked" in blocked and "—" in blocked
+    assert check(blocked, c, rules) == (3, [])

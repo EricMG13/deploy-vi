@@ -2,7 +2,9 @@
 
 Exit codes follow Deploy V: 0 valid, 2 malformed, 3 blocked (valid but
 qa_status Blocked), 4 identity mismatch. A Handoff over the upstream cap
-(spec section 7, caos MAX_UPSTREAM_HANDOFF_BYTES) is malformed: `too_large`.
+(spec section 7, caos MAX_UPSTREAM_HANDOFF_BYTES) is malformed: `too_large`. A Blocked
+Handoff (qa_status Blocked) keeps every table, column and scale but may leave critical cells at
+`—` and tables short of `min_rows`: that is how a module that cannot proceed says so.
 With a run folder, a citation whose source is not in the run (`source_unknown`) or
 whose excerpt is not in that source's prepared text, on the cited page when the
 locator names one (`citation_unanchored`), is malformed too. A citation of an
@@ -74,19 +76,20 @@ def _sections(h: Handoff, rules: Rules) -> list[Finding]:
     return [Finding("sections", f"H2 sections are {h.sections}, expected {expected}")]
 
 
-def _cell(column: Column, cell: str, where: str, rules: Rules) -> Finding | None:
+def _cell(column: Column, cell: str, where: str, rules: Rules, blocked: bool) -> Finding | None:
     # A scale value is valid even when it reads like a placeholder ("N/A" is a
     # Recommendation); only then do the placeholder and scale rules apply.
     if column.scale and cell in rules.scales[column.scale]:
         return None
     if rules.is_placeholder(cell):
-        return Finding("critical_placeholder", f"{where}: {cell!r}") if column.critical else None
+        critical = column.critical and not blocked
+        return Finding("critical_placeholder", f"{where}: {cell!r}") if critical else None
     if column.scale:
         return Finding("off_scale", f"{where}: {cell!r}")
     return None
 
 
-def _cell_findings(spec: TableSpec, table: Table, rules: Rules) -> list[Finding]:
+def _cell_findings(spec: TableSpec, table: Table, rules: Rules, blocked: bool) -> list[Finding]:
     found: list[Finding] = []
     index = {name.casefold(): i for i, name in enumerate(table.columns)}
     present = [(c, index[c.name.casefold()]) for c in spec.columns if c.name.casefold() in index]
@@ -95,7 +98,7 @@ def _cell_findings(spec: TableSpec, table: Table, rules: Rules) -> list[Finding]
             found.append(Finding("row_shape", f"{spec.id} row {n} has {len(row)} cells"))
             continue
         for column, i in present:
-            finding = _cell(column, row[i], f"{spec.id} row {n} {column.name}", rules)
+            finding = _cell(column, row[i], f"{spec.id} row {n} {column.name}", rules, blocked)
             if finding:
                 found.append(finding)
     return found
@@ -111,11 +114,12 @@ def _table(spec: TableSpec, h: Handoff, rules: Rules) -> list[Finding]:
         for c in spec.columns
         if c.name.casefold() not in have
     ]
-    if len(table.rows) < spec.min_rows:
+    blocked = h.front_matter.get("qa_status") == "Blocked"
+    if len(table.rows) < spec.min_rows and not blocked:
         found.append(
             Finding("too_few_rows", f"{spec.id} has {len(table.rows)} rows, needs {spec.min_rows}")
         )
-    return found + _cell_findings(spec, table, rules)
+    return found + _cell_findings(spec, table, rules, blocked)
 
 
 def _tags(h: Handoff, contract: Contract) -> list[Finding]:

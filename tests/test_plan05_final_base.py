@@ -2,9 +2,10 @@
 
 from pathlib import Path
 
+from test_cp1 import _model
+
 from conftest import FIXTURES
 from rbotlib.handoff import parse
-from test_cp1 import _model
 
 
 def test_cp5_closed_ltm_finding_matches_the_actual_model(tmp_path: Path) -> None:

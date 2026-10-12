@@ -3,10 +3,10 @@
 from typing import Any
 
 import pytest
+from test_portfolio_exact import _table
 
 from rbotlib.portfolio import Portfolio, read_sheet, to_json
 from rbotlib.rules import Rules
-from test_portfolio_exact import _table
 
 
 @pytest.mark.parametrize(
