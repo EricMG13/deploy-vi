@@ -57,6 +57,7 @@ def test_a_limit_row_with_only_the_required_columns_has_empty_defaults() -> None
         "parameter": "",
         "scope": "other",
         "scope_value": None,
+        "largest": False,
         "limit_value": "2",
         "unit": "pct_nav",
         "limit_kind": "Soft",
@@ -160,6 +161,7 @@ def test_mixed_units_in_a_position_are_unparsed() -> None:
             {
                 "row": "p.csv row 4",
                 "reason": f"par {par!r} must be a plain amount and % NAV {pct!r} a percent",
+                "kind": "position",
             }
         ]
 
@@ -211,10 +213,10 @@ def test_the_json_of_a_bare_portfolio_has_exact_defaults(rules: Rules) -> None:
         "positions": [],
         "limits": [],
         "unparsed": [
-            {"row": "Total NAV", "reason": "missing or not a number"},
-            {"row": "Total PAR", "reason": "missing or not a number"},
-            {"row": "As of", "reason": "'' is not a date I can read as yyyy-mm-dd"},
-            {"row": "Strategy", "reason": "None is not a Strategy"},
+            {"row": "Total NAV", "reason": "missing or not a number", "kind": "meta"},
+            {"row": "Total PAR", "reason": "missing or not a number", "kind": "meta"},
+            {"row": "As of", "reason": "'' is not a date I can read as yyyy-mm-dd", "kind": "meta"},
+            {"row": "Strategy", "reason": "None is not a Strategy", "kind": "meta"},
         ],
         "notes": [],
     }
@@ -238,9 +240,11 @@ def test_a_limits_only_portfolio_and_a_bad_as_of_report_exactly(rules: Rules) ->
     read_sheet("l.csv", rows, found, {})
     data = to_json(found["P1"], rules)
     assert (data["positions_file"], data["limits_file"], data["as_of"]) == ("", "l.csv", "")
-    assert {"row": "As of", "reason": "'05/29/2026' is not a date I can read as yyyy-mm-dd"} in (
-        data["unparsed"]
-    )
+    assert {
+        "row": "As of",
+        "reason": "'05/29/2026' is not a date I can read as yyyy-mm-dd",
+        "kind": "meta",
+    } in (data["unparsed"])
 
 
 def test_the_portfolio_folder_names_are_exact(tmp_path: Path, rules: Rules) -> None:

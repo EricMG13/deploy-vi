@@ -231,7 +231,9 @@ def test_i7_totals_of_one_and_less_than_one_are_read_and_reasons_are_exact(tmp_p
         )
     text = POS.format(unit="").replace("630.9", "0")
     unparsed = _json(tmp_path / "z", {"p.csv": text})[0]["P1"]["unparsed"]
-    assert unparsed == [{"row": "Total NAV", "reason": "'0' is not a plain amount above zero"}]
+    assert unparsed == [
+        {"row": "Total NAV", "reason": "'0' is not a plain amount above zero", "kind": "meta"}
+    ]
 
 
 def test_i7_conflicting_units_are_named_in_the_reason(tmp_path: Path) -> None:

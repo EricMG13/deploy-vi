@@ -11,7 +11,9 @@ amount limit is read only with exactly one explicit unscaled Unit row (USD,
 EUR, GBP, units), no unreadable unit evidence and no cell was display-scaled; decided after
 all tables are linked, never by file order. Rows RBOT cannot use are kept under `unparsed`
 with the reason, never dropped. A `%` current value cannot tell pct_nav from pct_par; the
-limit's unit decides.
+limit's unit decides. Unparsed rows carry `kind`: position/limit losses lower Portfolio Fit
+to Watch; minimum/info/meta rows remain explicit gaps. Largest-bucket limits carry
+`largest: true` with no `scope_value`, so they bind every bucket.
 """
 
 from __future__ import annotations
@@ -54,6 +56,7 @@ POSITION_COLUMNS = {
     "seniority": "seniority",
     "asset type": "asset_type",
 }
+_LARGEST = re.compile(r"\blargest\b", re.I)
 _NUM = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?"  # commas only as thousands groups
 _LIMIT = re.compile(
     r"^(?P<op>≤|<=|<|≥|>=|>)?\s*(?P<cur>\$)?(?P<num>" + _NUM + r")\s*"
@@ -180,6 +183,8 @@ def iso_date(text: str) -> str | None:
 def parse_limit(text: str, parameter: str = "") -> tuple[str, str] | str:
     """(`limit_value`, `unit`) for a maximum limit, or the reason it cannot be sized against."""
     match = _LIMIT.match(text.strip())
+    if not match and text.strip().startswith(("≥", ">=", ">")):
+        return "minimum limit: Portfolio Fit sizes against maximum limits only"
     if not match:
         return _not_a_number("limit", text) + " with a unit"
     if match["op"] in ("≥", ">=", ">"):
@@ -263,12 +268,12 @@ def _meta(
     return found, extras
 
 
-def _uncached(t: Table, n: int, p: Portfolio) -> bool:
+def _uncached(t: Table, n: int, p: Portfolio, kind: str) -> bool:
     """True (and the row recorded as unparsed) when the row holds a formula with no stored value."""
     if n not in t.bad:
         return False
     reason = f"formula {t.bad[n]} has no stored value"
-    p.unparsed.append({"row": f"{t.source} row {n}", "reason": reason})
+    p.unparsed.append({"row": f"{t.source} row {n}", "reason": reason, "kind": kind})
     return True
 
 
@@ -285,12 +290,12 @@ def _position_values(item: dict[str, str]) -> tuple[str, str] | str:
 def _positions(t: Table, p: Portfolio) -> None:
     columns = [POSITION_COLUMNS.get(_norm(c)) for c in t.rows[t.start]]
     for n, row in enumerate(t.rows[t.start + 1 :], t.start + 2):
-        if not any(row) or _uncached(t, n, p):
+        if not any(row) or _uncached(t, n, p, "position"):
             continue
         item = {key: cell for key, cell in zip(columns, row, strict=False) if key}
         values = _position_values(item)
         if isinstance(values, str):
-            p.unparsed.append({"row": f"{t.source} row {n}", "reason": values})
+            p.unparsed.append({"row": f"{t.source} row {n}", "reason": values, "kind": "position"})
         else:
             p.positions.append(item | {"par": values[0], "pct_nav": values[1]})
 
@@ -311,7 +316,9 @@ def _limit_row(t: Table, n: int, item: dict[str, str], notes: list[str]) -> dict
     if problem := _unit_problem("current value", text, parsed[1], current[1]):
         return problem
     category = item.get("constraint category", "")
-    scope, scope_value = _scope(category, item.get("parameter", ""))
+    parameter = item.get("parameter", "")
+    scope, scope_value = _scope(category, parameter)
+    largest = bool(_LARGEST.search(parameter))
     if scope == "rating_bucket" and scope_value is None:
         notes.append(f"{t.source} row {n}: Rating limit {category!r} names no bucket")
     return {
@@ -319,7 +326,8 @@ def _limit_row(t: Table, n: int, item: dict[str, str], notes: list[str]) -> dict
         "category": category,
         "parameter": item.get("parameter", ""),
         "scope": scope,
-        "scope_value": scope_value,
+        "scope_value": None if largest else scope_value,
+        "largest": largest,
         "limit_value": parsed[0],
         "unit": parsed[1],
         "limit_kind": kind,
@@ -331,11 +339,14 @@ def _limit_row(t: Table, n: int, item: dict[str, str], notes: list[str]) -> dict
 def _limits(t: Table, p: Portfolio) -> None:
     header = [_norm(c) for c in t.rows[t.start]]
     for n, row in enumerate(t.rows[t.start + 1 :], t.start + 2):
-        if not any(row) or _uncached(t, n, p):
+        if not any(row) or _uncached(t, n, p, "limit"):
             continue
         result = _limit_row(t, n, dict(zip(header, row, strict=False)), p.notes)
         if isinstance(result, str):
-            p.unparsed.append({"row": f"{t.source} row {n}", "reason": result})
+            kind = "minimum" if result.startswith("minimum limit") else "limit"
+            if result == "no Hard or Soft breach type (info only)":
+                kind = "info"
+            p.unparsed.append({"row": f"{t.source} row {n}", "reason": result, "kind": kind})
         else:
             p.limits.append(result)
 
@@ -502,7 +513,7 @@ def _total(meta: dict[str, str], key: str, p: Portfolio, unparsed: list[dict[str
         reason = "missing or not a number" + _comma(text)
     else:
         reason = f"{text!r} is not a plain amount above zero"
-    unparsed.append({"row": f"Total {key.upper()}", "reason": reason})
+    unparsed.append({"row": f"Total {key.upper()}", "reason": reason, "kind": "meta"})
     return ""
 
 
@@ -530,7 +541,11 @@ def _amount_limits(p: Portfolio) -> tuple[list[dict[str, Any]], list[dict[str, s
     if reason is None:
         return p.limits, []
     kept = [x for x in p.limits if x["unit"] != "amount"]
-    return kept, [{"row": x["source"], "reason": reason} for x in p.limits if x["unit"] == "amount"]
+    return kept, [
+        {"row": x["source"], "reason": reason, "kind": "limit"}
+        for x in p.limits
+        if x["unit"] == "amount"
+    ]
 
 
 def to_json(p: Portfolio, rules: Rules) -> dict[str, Any]:
@@ -542,11 +557,15 @@ def to_json(p: Portfolio, rules: Rules) -> dict[str, Any]:
     as_of = None if "as_of" in p.extras else iso_date(meta.get("as_of", ""))
     if as_of is None:
         reason = f"{meta.get('as_of', '')!r} is not a date I can read as yyyy-mm-dd"
-        unparsed.append({"row": "As of", "reason": reason})
+        unparsed.append({"row": "As of", "reason": reason, "kind": "meta"})
     meta["as_of"] = as_of or ""
     if meta.get("strategy") not in rules.scales["strategy"]:
         unparsed.append(
-            {"row": "Strategy", "reason": f"{meta.get('strategy')!r} is not a Strategy"}
+            {
+                "row": "Strategy",
+                "reason": f"{meta.get('strategy')!r} is not a Strategy",
+                "kind": "meta",
+            }
         )
     data: dict[str, Any] = {"schema": SCHEMA}
     for key in ("portfolio_id", "portfolio_name", "strategy", "as_of", "nav", "par"):

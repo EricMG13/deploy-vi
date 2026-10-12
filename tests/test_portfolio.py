@@ -96,10 +96,8 @@ def test_minimum_and_wordy_limits_give_a_reason() -> None:
         parse_limit("≥ 90.0% NAV")
         == "minimum limit: Portfolio Fit sizes against maximum limits only"
     )
-    assert (
-        parse_limit("≥ Caa1 (numeric ≤ 17)")
-        == "limit '≥ Caa1 (numeric ≤ 17)' is not a number with a unit"
-    )
+    assert parse_limit("≥ Caa1 (numeric ≤ 17)") == MINIMUM
+    assert parse_limit("about 5") == "limit 'about 5' is not a number with a unit"
 
 
 def test_positions_and_limits_become_one_portfolio_json(tmp_path: Path) -> None:
@@ -136,7 +134,7 @@ def test_positions_and_limits_become_one_portfolio_json(tmp_path: Path) -> None:
     assert scopes == {
         "C-01": ("issuer", None),
         "C-04": ("rating_bucket", "CCC"),
-        "C-07": ("sector", "Commercial Support Services"),
+        "C-07": ("sector", None),
         "C-10": ("seniority", "2nd Lien / Unsecured"),
         "C-11": ("other", None),
         "C-17": ("sector", "Tobacco, Thermal Coal"),
@@ -145,13 +143,19 @@ def test_positions_and_limits_become_one_portfolio_json(tmp_path: Path) -> None:
     assert (first["limit_value"], first["unit"], first["limit_kind"]) == ("2.5", "pct_nav", "Hard")
     assert (first["current_value"], first["source"]) == ("2.37", "limits.csv row 5")
     assert data["unparsed"] == [
-        {"row": "limits.csv row 8", "reason": MINIMUM},
+        {"row": "limits.csv row 8", "reason": MINIMUM, "kind": "minimum"},
         {
             "row": "limits.csv row 11",
             "reason": "no Hard or Soft breach type (info only)",
+            "kind": "info",
         },
-        {"row": "positions.csv row 14", "reason": "par or % NAV is not a number"},
+        {
+            "row": "positions.csv row 14",
+            "reason": "par or % NAV is not a number",
+            "kind": "position",
+        },
     ]
+    assert {lim["limit_id"] for lim in data["limits"] if lim["largest"]} == {"C-01", "C-07"}
     index = load_index(run)
     assert index["portfolios"] == [
         {"portfolio_id": "TEST_CLO_I", "json": "prepared/portfolios/TEST_CLO_I.json"}
@@ -172,8 +176,12 @@ def test_an_unlinked_table_is_a_note_and_bad_totals_are_unparsed(
     )
     data = json.loads((run / "prepared" / "portfolios" / "TEST_CLO_I.json").read_text())
     assert data["nav"] == "" and data["limits"] == []
-    assert {"row": "Total NAV", "reason": "missing or not a number"} in data["unparsed"]
-    assert {"row": "Strategy", "reason": "'Hedge' is not a Strategy"} in data["unparsed"]
+    assert {"row": "Total NAV", "reason": "missing or not a number", "kind": "meta"} in data[
+        "unparsed"
+    ]
+    assert {"row": "Strategy", "reason": "'Hedge' is not a Strategy", "kind": "meta"} in data[
+        "unparsed"
+    ]
 
 
 @pytest.mark.parametrize("unsafe", ["../x", "a/b", ".hidden", ".."])

@@ -215,5 +215,5 @@ def test_uncached_data_row_keeps_its_row_number() -> None:
     found: dict[str, Portfolio] = {}
     assert read_sheet("p.csv", rows, found, {3: "D3"}) == []
     assert found["P1"].unparsed == [
-        {"row": "p.csv row 3", "reason": "formula D3 has no stored value"}
+        {"row": "p.csv row 3", "reason": "formula D3 has no stored value", "kind": "position"}
     ]
