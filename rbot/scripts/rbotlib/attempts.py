@@ -184,6 +184,11 @@ def _dispatch_slot(
 
 
 def _ordered(events: list[state.Record], step: state.Record) -> None:
+    from rbotlib.current import checked
+
+    step = checked(
+        step, events[0]["module"] if events else Path(step.get("handoff", "unstarted")).stem
+    )
     slot, validation = 0, None
     receipts: set[str] = set()
     dispatch_sequence = 0
@@ -376,6 +381,9 @@ def register_dispatch(run: Path, root: Path, module: str, receipt: DispatchRecei
     """
     run, root = state.run_path(run), dispatch._root(root)
     state.read(run)
+    from rbotlib.current import reconcile
+
+    reconcile(run, root)
     dispatch._target(run, "log/rbot.log")
     event: state.Record = {}
 

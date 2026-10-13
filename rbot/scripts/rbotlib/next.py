@@ -174,6 +174,9 @@ def select(run: Path, root: Path) -> state.Record:
     """One cooperating-writer transaction owns skips, selected bytes and checked state."""
     run, root = state.run_path(run), dispatch._root(root)
     state.read(run)
+    from rbotlib.current import reconcile
+
+    reconcile(run, root)
     dispatch._target(run, "log/rbot.log")
     selection: state.Record = {}
     message = ""

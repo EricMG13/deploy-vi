@@ -32,6 +32,7 @@ class QualifiedCP0:
     step: state.Record
     run_id: str
     issuer_id: str
+    raw: bytes
 
 
 def _identity(run: Path, text: str, rules: Rules, record: state.Record) -> tuple[str, str]:
@@ -88,20 +89,25 @@ def checked_cp0(run: Path, root: Path, rules: Rules, record: state.Record) -> Qu
         raise RunError(f"{CP0} no longer validates (exit {code}); run rbot grade: {detail}")
     front = parse(text).front_matter
     identity = _identity(run, text, rules, record)
+    if output_path(run, CP0).read_bytes() != raw:
+        raise RunError("Handoff changed during CP-0 completion; no completion published")
     sha = hashlib.sha256(raw).hexdigest()
     current = record["steps"].get("CP-0")
+    from rbotlib.current import result
+
+    observed = result(current) if current else {}
     if current is None or current["status"] not in ("pending", "running", "accepted", "blocked"):
         raise RunError(f"{CP0}: completion requires pending/running or qualified CP-0")
     if current["status"] in ("accepted", "blocked"):
         if (
             current["sha256"] != sha
-            or current["validate_exit"] != code
+            or observed.get("exit", current["validate_exit"]) != code
             or current["qa_status"] != front["qa_status"]
         ):
             raise RunError(
                 f"{CP0} changed after completion; use the CP-0 completion owner to revalidate"
             )
-        return QualifiedCP0(dict(current), *identity)
+        return QualifiedCP0(dict(current), *identity, raw)
     step = dict(current) | {
         "status": "accepted" if code == EXIT_VALID else "blocked",
         "qa_status": front["qa_status"],
@@ -110,7 +116,7 @@ def checked_cp0(run: Path, root: Path, rules: Rules, record: state.Record) -> Qu
         "validate_exit": code,
         "validated_at": datetime.now(UTC).isoformat(timespec="seconds"),
     }
-    return QualifiedCP0(step, *identity)
+    return QualifiedCP0(step, *identity, raw)
 
 
 def complete_cp0(run: Path, root: Path, rules: Rules) -> state.Record:
@@ -119,7 +125,12 @@ def complete_cp0(run: Path, root: Path, rules: Rules) -> state.Record:
     def change(record: state.Record) -> None:
         if record["approval"] is not None:
             raise RunError("CP-0 bootstrap is already approved; use the revalidation owner")
-        record["steps"]["CP-0"] = checked_cp0(run, root, rules, record).step
+        qualified = checked_cp0(run, root, rules, record)
+        record["steps"]["CP-0"] = qualified.step
+        if "completion_origin" not in record and not qualified.step.get("accept_history"):
+            from rbotlib.origins import capture
+
+            record["completion_origin"] = capture(qualified.raw, "CP-0", "completion")
 
     return state.update(run, change)
 

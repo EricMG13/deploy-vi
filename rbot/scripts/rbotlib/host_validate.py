@@ -11,6 +11,8 @@ from rbotlib.rules import load_rules
 
 
 def brief_shape(handoff: Handoff, record: state.Record) -> None:
+    from rbotlib.origins import cp0_anchor
+
     expected = {
         "module_id": "RUN_BRIEF",
         "run_id": record["run_id"],
@@ -21,7 +23,7 @@ def brief_shape(handoff: Handoff, record: state.Record) -> None:
     if (
         any(handoff.front_matter.get(k) != v for k, v in expected.items())
         or handoff.front_matter.get("qa_status") not in ("Pass", "Restricted")
-        or handoff.front_matter.get("cp0_sha256") != record["steps"]["CP-0"]["sha256"]
+        or handoff.front_matter.get("cp0_sha256") != cp0_anchor(record)
         or handoff.sections != ["Analysis", "Tables", "Gaps", "Citations"]
         or handoff.invalid_tags
         or handoff.orphan_tags
@@ -45,6 +47,9 @@ def brief_shape(handoff: Handoff, record: state.Record) -> None:
 
 def qualify(run: Path, root: Path, module: str, path: Path) -> None:
     run, root = state.run_path(run), dispatch._root(root)
+    from rbotlib.current import reconcile
+
+    reconcile(run, root)
     name = "run-brief.md" if module == "RUN_BRIEF" else f"handoffs/{module}.md"
     if path.absolute() != dispatch._file(run, name):
         raise RunError(f"{module}: expected the current registered host path {name}")

@@ -8,6 +8,7 @@ import pytest
 from test_host_fit import fit_run
 
 from rbotlib import cli, dispatch, state
+from rbotlib.inventory import RunError
 from rbotlib.rules import RBOT_ROOT
 
 
@@ -29,7 +30,11 @@ def test_actual_host_validate_and_forged_shape_refusal(tmp_path: Path, module: s
             current["sha256"] = dispatch._sha(path)
             current["outputs"][str(path.relative_to(run))] = current["sha256"]
 
-    state.update(run, forge)
+    if module == "RUN_BRIEF":
+        with pytest.raises(RunError, match="approved origin"):
+            state.update(run, forge)
+    else:
+        state.update(run, forge)
     assert cli.main(command) == 1
     assert cli.main(["validate", str(path), "--module", module]) == 1
 
@@ -40,7 +45,8 @@ def test_brief_header_origin_is_required_even_with_current_fingerprint(tmp_path:
     text = path.read_text()
     path.write_text(text.replace("| ACME | 2026-10-02 |", "| OTHER | 2026-10-02 |", 1))
     assert path.read_text() != text
-    state.update(run, lambda record: record.update(run_brief_sha256=dispatch._sha(path)))
+    with pytest.raises(RunError, match="approved origin"):
+        state.update(run, lambda record: record.update(run_brief_sha256=dispatch._sha(path)))
     assert cli.main(["validate", str(path), "--module", "RUN_BRIEF", "--run", str(run)]) == 1
 
 

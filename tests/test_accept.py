@@ -136,15 +136,17 @@ def test_io_one_is_terminal_and_missing_has_no_invented_hash(tmp_path: Path, mis
     assert (run / state.LOCK).exists()
 
 
-def test_terminal_edit_refuses_without_erasing_validation(tmp_path: Path) -> None:
+def test_terminal_valid_edit_retains_original_validation(tmp_path: Path) -> None:
     run = pending(tmp_path, RBOT_ROOT)
     send(run, RBOT_ROOT)
     assert accept(run) == 0
     own = run / "handoffs/CP-0.md"
     own.write_bytes(own.read_bytes() + b"\nchanged")
     before = (run / state.STATE).read_bytes(), (run / "validate/CP-0.json").read_bytes()
-    assert accept(run) == 1
-    assert before == ((run / state.STATE).read_bytes(), (run / "validate/CP-0.json").read_bytes())
+    assert accept(run) == 0
+    assert (run / state.STATE).read_bytes() != before[0]
+    assert (run / "validate/CP-0.json").read_bytes() == before[1]
+    assert state.read(run)["steps"]["CP-0"]["note"] == "edited"
 
 
 @pytest.mark.parametrize("target", ["MODEL", "CP-DR", "CP-8", "CP-1", "../CP-0"])

@@ -97,14 +97,18 @@ def test_public_fit_log_failure_cannot_accept(
 
 
 @pytest.mark.parametrize("name", ["handoffs/CP-1.md", "handoffs/CP-3.md", "run-brief.md"])
-def test_current_required_byte_change_refuses_before_attempt(tmp_path: Path, name: str) -> None:
+def test_valid_current_narrative_qualifies_before_first_attempt(tmp_path: Path, name: str) -> None:
     run = fit_run(tmp_path)
     path = run / name
+    before = state.read(run)["steps"]["FIT"]
     path.write_bytes(path.read_bytes() + b"\nchanged\n")
-    before = (run / state.STATE).read_bytes()
-    assert cli.main(["fit", "--run", str(run)]) == 1
-    assert (run / state.STATE).read_bytes() == before
-    assert not (run / "handoffs/FIT.md").exists()
+    assert before["status"] == "pending" and "attempts" not in before
+    assert cli.main(["fit", "--run", str(run)]) == 0
+    now = state.read(run)["steps"]["FIT"]
+    assert now["status"] == "accepted" and now["attempts"] == 1
+    inputs = now["host_execution"]["inputs"]
+    key = "RUN_BRIEF" if name == "run-brief.md" else Path(name).stem
+    assert inputs[key] == dispatch._sha(path)
 
 
 def test_prepared_portfolio_cannot_override_source_limit(tmp_path: Path) -> None:
@@ -237,9 +241,11 @@ def test_current_forged_or_partial_output_refuses_consumer(tmp_path: Path, name:
     state.update(run, forge)
     with pytest.raises(ValueError, match="origin"):
         qualify(run, RBOT_ROOT, state.read(run))
-    assert cli.main(["dispatch-message", "--run", str(run), "--module", "CP-5"]) == 1
+    assert cli.main(["dispatch-message", "--run", str(run), "--module", "CP-5"]) == 0
+    assert state.read(run)["steps"]["FIT"]["status"] == "failed"
+    assert "FIT: failed" in (run / "dispatch/CP-5.md").read_text()
     path.unlink()
-    assert cli.main(["dispatch-message", "--run", str(run), "--module", "CP-5"]) == 1
+    assert cli.main(["dispatch-message", "--run", str(run), "--module", "CP-5"]) == 0
 
 
 def test_unrelated_unreadable_source_does_not_prevent_fit(tmp_path: Path) -> None:
@@ -275,9 +281,9 @@ def test_qualified_blocked_profile_or_visible_exclusion(
         path.write_bytes(path.read_bytes() + b"\nchanged\n")
     assert cli.main(["fit", "--run", str(run)]) == 0
     hashes = json.loads((run / "fit/FUND.json").read_bytes())["inputs"]
-    assert hashes["CP-1A"] == (None if changed else dispatch._sha(path))
+    assert hashes["CP-1A"] == dispatch._sha(path)
     if changed:
-        assert "CP-1A: unqualified" in (run / "handoffs/FIT.md").read_text()
+        assert state.read(run)["steps"]["CP-1A"]["note"] == "edited"
 
 
 @pytest.mark.parametrize(

@@ -226,6 +226,7 @@ class Commit:
     target: Path
     brief: str
     state: str
+    inputs: dict[str, str]
 
 
 def _checked(run: Path, root: Path, grading: dict[str, Any]) -> None:
@@ -328,7 +329,14 @@ def prepare(run: Path, root: Path, rules: Rules, choice: Choice) -> Commit:
         or _sha(run / rb.CP0) != qualified.step["sha256"]
     ):
         raise ApprovalError(f"{rb.CP0} changed during Approval; run rbot grade again")
+    from rbotlib.origins import capture
+
     state["steps"]["CP-0"] = qualified.step
+    if "completion_origin" not in state and not qualified.step.get("accept_history"):
+        from rbotlib.current import original
+
+        if original(qualified.step)["sha256"] == qualified.step["sha256"]:
+            state["completion_origin"] = capture(qualified.raw, "CP-0", "completion")
     state["cp0_lineage"] = {
         "pending_run_id": qualified.run_id,
         "issuer_id": qualified.issuer_id,
@@ -337,9 +345,20 @@ def prepare(run: Path, root: Path, rules: Rules, choice: Choice) -> Commit:
     new = _new_state(state, brief, choice, graded)
     new["run_brief_sha256"] = hashlib.sha256(text.encode("utf-8")).hexdigest()
     new |= {"plan": list(plan), "steps": _steps(plan, state, brief, choice, rules)}
+    new["approved_origins"] = {
+        "CP-0": capture(qualified.raw, "CP-0", "approval"),
+        "RUN_BRIEF": capture(text.encode("utf-8"), "RUN_BRIEF", "approval"),
+    }
     rs.validate(new, target)
     return Commit(
-        target, text, json.dumps(new, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
+        target,
+        text,
+        json.dumps(new, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
+        {
+            rb.CP0: grading["cp0_sha256"],
+            rb.BRIEF: grading["brief_sha256"],
+            GRADING: _sha(run / GRADING),
+        },
     )
 
 
@@ -391,10 +410,16 @@ def _commit(run: Path, commit: Commit, where: list[Path], owner: rs._Locked) -> 
     ]
     published: list[tuple[Path, str]] = []
     with _staged(run, [commit.brief, commit.state]) as stages:
+        _inputs(run)
+        if any(_sha(output_path(run, name)) != sha for name, sha in commit.inputs.items()):
+            raise RunError("checked inputs changed during Approval; nothing published")
         operation = "publish Approval"
         try:
             for staged, (path, original) in zip(stages, originals, strict=True):
                 owner.owner.check()
+                if _sha(output_path(run, rb.CP0)) != commit.inputs[rb.CP0]:
+                    raise RunError("CP-0 changed during Approval; inspect partial publication")
+                output_path(run, path.name)
                 os.replace(staged, path)
                 published.append((path, original))
             operation = f"rename the run folder to {commit.target.name}"
@@ -412,6 +437,11 @@ def _commit(run: Path, commit: Commit, where: list[Path], owner: rs._Locked) -> 
                 " in the run folder and approve again"
             ) from exc
         where.append(commit.target)
+        rs.read(commit.target)
+        if (commit.target / rb.BRIEF).read_bytes() != commit.brief.encode() or _sha(
+            output_path(commit.target, rb.CP0)
+        ) != commit.inputs[rb.CP0]:
+            raise RunError("Approval readback differs; preserve evidence and pause")
 
 
 def _owned_run(run: Path) -> Path:

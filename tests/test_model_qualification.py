@@ -145,9 +145,21 @@ def test_current_required_input_refusal_cannot_compute(tmp_path: Path, cause: st
             raw.replace(b"qa_status: Blocked", b"qa_status: Pass") if cause == "qa" else raw + b"\n"
         )
         target.write_bytes(raw)
-    before = (run / state.STATE).read_bytes()
-    assert invoke(run) == 1 and (run / state.STATE).read_bytes() == before
-    assert not any((run / name).exists() for name in qualification.OUTPUTS)
+    original = state.read(run)["steps"]["CP-1"]
+    if cause == "stale":
+        assert invoke(run) == 0
+        assert state.read(run)["steps"]["CP-1"]["note"] == "edited"
+        assert state.read(run)["steps"]["MODEL"]["host_execution"]["inputs"][
+            "CP-1"
+        ] == dispatch._sha(target)
+    else:
+        assert invoke(run) == 1
+        current = state.read(run)["steps"]
+        assert current["CP-1"]["status"] == "failed"
+        assert current["CP-1"]["current_origin"] == original
+        assert current["MODEL"]["status"] == "skipped" and "CP-1" in current["MODEL"]["reason"]
+        assert "attempts" not in current["MODEL"]
+        assert not any((run / name).exists() for name in qualification.OUTPUTS)
 
 
 @pytest.mark.parametrize(
@@ -179,9 +191,12 @@ def test_corrupt_actual_accepted_pair_cannot_qualify_consumer(tmp_path: Path, ki
     else:
         path = run / "handoffs/MODEL.md"
         path.write_text(path.read_text() + "\nChanged origin\n")
-    before = (run / state.STATE).read_bytes()
+    before = state.read(run)["steps"]["MODEL"]
     assert cli.main(["dispatch-message", "--run", str(run), "--module", "CP-3"]) == 1
-    assert (run / state.STATE).read_bytes() == before
+    current = state.read(run)["steps"]["MODEL"]
+    assert current["status"] == "failed" and current["current_origin"] == before
+    assert current["host_execution"] == before["host_execution"]
+    assert current["host_exit"] == before["host_exit"] == 0
     with pytest.raises((RunError, ValueError), match=r"MODEL|identity"):
         qualification.qualify(run, RBOT_ROOT, state.read(run))
 

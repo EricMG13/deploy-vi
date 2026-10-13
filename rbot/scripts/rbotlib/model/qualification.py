@@ -11,7 +11,7 @@ import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 
-from rbotlib import attempts, dispatch, state
+from rbotlib import attempts, dispatch, origins, state
 from rbotlib import next as next_step
 from rbotlib.handoff import parse
 from rbotlib.inventory import RunError
@@ -67,7 +67,7 @@ def inputs(run: Path, root: Path, record: state.Record) -> Inputs:
     cp1 = _capture(run, "handoffs/CP-1.md", required["sha256"])
     if cp1.handoff.front_matter.get("analysis_date") != record["as_of_date"]:
         raise RunError("CP-1: analysis_date differs from approved state")
-    brief = _capture(run, "run-brief.md", record["run_brief_sha256"])
+    brief = _capture(run, "run-brief.md", origins.brief_digest(record))
     cp1d, missing = _optional(run, root, record, cp1)
     return Inputs(cp1, brief, cp1d, missing)
 

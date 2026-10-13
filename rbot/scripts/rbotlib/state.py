@@ -8,6 +8,7 @@ replacement and abrupt-crash consistency are not guaranteed by this path-based A
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import re
@@ -96,10 +97,16 @@ def _step(step: str, record: object) -> None:
     _fields(record, {k: checks[k] for k in checks if k in record}, label)
     if record["status"] in ("failed", "skipped"):
         _fields(record, {"reason": _text}, label)
+    from rbotlib.current import checked
+
+    checked(record, step)
     _completed(record, checks, label)
 
 
 def _completed(record: Record, checks: dict[str, Check], label: str) -> None:
+    from rbotlib.current import result
+
+    record = record | ({"validate_exit": result(record)["exit"]} if result(record) else {})
     if record["status"] in ("accepted", "blocked"):
         _fields(record, {"handoff": checks["handoff"], "sha256": _sha}, label)
         if record["kind"] == "module":
@@ -168,6 +175,9 @@ def validate(record: Record, run: Path) -> None:
     _approval(record)
     _lineage(record)
     _ownership(record)
+    from rbotlib.origins import validate as validate_origins
+
+    validate_origins(record)
 
 
 def _ownership(record: Record) -> None:
@@ -211,13 +221,18 @@ def _lineage(record: Record) -> None:
         },
         f"{STATE}.cp0_lineage",
     )
-    cp0 = record["steps"].get("CP-0", {})
+    from rbotlib.current import original
+
+    cp0 = original(record["steps"].get("CP-0", {}))
+    approved = record.get("approved_origins", {})
+    if not isinstance(approved, dict) or not isinstance(approved.get("CP-0", {}), dict):
+        raise RunError("approved origin: malformed CP-0 binding")
     if (
         set(lineage) != {"pending_run_id", "issuer_id", "sha256"}
         or record["approval"] is None
         or lineage["pending_run_id"] == record["run_id"]
         or cp0.get("status") not in ("accepted", "blocked")
-        or lineage["sha256"] != cp0.get("sha256")
+        or lineage["sha256"] != (approved.get("CP-0", {}).get("sha256", cp0.get("sha256")))
     ):
         raise RunError(f"{STATE}.cp0_lineage: requires approved, hash-bound pending CP-0")
 
@@ -381,12 +396,14 @@ def update(
     owner = _Locked(run)
     try:
         record = read(owner.run)
+        before = copy.deepcopy(record)
         change(record)
-        staged = owner.stage(record)
+        staged = owner.stage(record) if record != before else None
         if publish is not None:
             owner.owner.check()
             publish()
-        owner.commit(staged)
+        if staged is not None:
+            owner.commit(staged)
         return record
     finally:
         warnings = owner.close()

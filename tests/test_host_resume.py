@@ -350,7 +350,7 @@ def test_continuation_rechecks_origin_and_approved_inputs(tmp_path: Path, change
         if change == "approval":
             record["approval"]["analyst"] = "foreign approval"
             (run / state.STATE).write_text(json.dumps(record))
-            expected = "Approval/identity"
+            expected = "Approval"
         elif change == "backend":
             backend = root / "scripts/rbotlib/model/run.py"
             backend.write_text(backend.read_text() + "\n# changed installed backend\n")
@@ -358,7 +358,7 @@ def test_continuation_rechecks_origin_and_approved_inputs(tmp_path: Path, change
         else:
             path = run / "handoffs/CP-1.md"
             path.write_bytes(path.read_bytes() + b"\nforeign edit\n")
-            expected = "current Handoff is not qualified"
+            expected = "registered inputs"
         before = (run / state.STATE).read_bytes()
         result = command(run, "model", root)
         assert (
@@ -366,7 +366,14 @@ def test_continuation_rechecks_origin_and_approved_inputs(tmp_path: Path, change
             and "Traceback" not in result.stderr
             and expected in result.stderr
         ), result.stderr
-        assert (run / state.STATE).read_bytes() == before and not (run / "model.json").exists()
+        if change == "handoff":
+            current = state.read(run)
+            assert current["steps"]["MODEL"] == record["steps"]["MODEL"]
+            assert current["steps"]["CP-1"]["note"] == "edited"
+            assert current["steps"]["CP-1"]["current_origin"] == record["steps"]["CP-1"]
+        else:
+            assert (run / state.STATE).read_bytes() == before
+        assert not (run / "model.json").exists()
         with pytest.raises(ValueError, match=expected):
             next_step.select(run, root)
     finally:

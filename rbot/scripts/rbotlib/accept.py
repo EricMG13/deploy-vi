@@ -125,17 +125,40 @@ def _completion(step: state.Record, result: state.Record, event: state.Record) -
         step["finished_at_basis"] = "controller_validation"
 
 
+def _initial_completion(
+    run: Path, root: Path, module: str, record: state.Record, events: list[state.Record]
+) -> None:
+    step = record["steps"][module]
+    if not events and module == "CP-0" and step["status"] in ("accepted", "blocked"):
+        bootstrap.checked_cp0(run, root, load_rules(root), record)
+        observed, _, _ = _verified_observation(run, root, module, record)
+        raise attempts.Duplicate({"result": observed})
+    if not events:
+        raise RunError(f"{module}: acceptance requires reported dispatch evidence")
+
+
+def _current_duplicate(
+    step: state.Record, result: state.Record, observed: state.Record, module: str
+) -> None:
+    if observed and step["status"] in ("accepted", "blocked"):
+        if any(result[k] != observed[k] for k in ("exit", "findings", "sha256")):
+            raise RunError(f"{module}: current edited bytes changed during acceptance")
+        raise attempts.Duplicate({"result": observed})
+
+
 def _accept_event(run: Path, root: Path, module: str, record: state.Record) -> state.Record:
     step = attempts.target(record, module)
     events = attempts.read_history(run, module, step)
-    if not events:
-        raise RunError(f"{module}: acceptance requires reported dispatch evidence")
+    _initial_completion(run, root, module, record, events)
     if step["status"] == "skipped":
         raise RunError(f"{module}: skipped step cannot accept")
     # Shared source/context/dependency qualification guards the checker's transitive reads.
     dispatch.qualified_message(run, root, module, record)
     result, qa, raw = _verified_observation(run, root, module, record)
     latest = events[-1]
+    from rbotlib.current import result as current_result
+
+    _current_duplicate(step, result, current_result(step), module)
     if latest["event"] == "validation":
         if all(result[k] == latest["result"][k] for k in ("exit", "findings", "sha256")):
             raise attempts.Duplicate(latest)
@@ -171,6 +194,9 @@ def accept(run: Path, root: Path, module: str) -> state.Record:
     """Return latest prescribed result, publishing immutable event plus checked state."""
     run, root = state.run_path(run), dispatch._root(root)
     state.read(run)
+    from rbotlib.current import reconcile
+
+    reconcile(run, root)
     dispatch._target(run, "log/rbot.log")
     event: state.Record = {}
 

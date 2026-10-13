@@ -376,6 +376,17 @@ def _complete(
     return result
 
 
+def _current_before_host(owner: state._Locked, root: Path, module: str) -> None:
+    from rbotlib.current import _reconcile_owned
+
+    selected = state.read(owner.run)["steps"].get(module, {})
+    evidence = selected.get("host_execution", {})
+    invocations = evidence.get("invocations", []) if isinstance(evidence, dict) else []
+    persisted = any(isinstance(i, dict) and "failure" in i for i in invocations)
+    if selected.get("status") in ("pending", "running") and not persisted:
+        _reconcile_owned(owner, root)
+
+
 def execute(
     args: argparse.Namespace, argv: list[str], append_log: Appender, backend: Backend[C, W]
 ) -> int:
@@ -386,6 +397,7 @@ def execute(
     try:
         run, root = state.run_path(selected), dispatch._root(args.root)
         owner = state._Locked(run)
+        _current_before_host(owner, root, backend.step)
         generated_at = datetime.now(UTC).isoformat()
         captured = _register(owner, root, generated_at, token, backend)
         evidence = state.read(run)["steps"][backend.step]["host_execution"]

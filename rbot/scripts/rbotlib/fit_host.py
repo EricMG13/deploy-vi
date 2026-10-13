@@ -7,7 +7,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from rbotlib import attempts, dispatch, fit, portfolio, prepare, state
+from rbotlib import attempts, dispatch, fit, origins, portfolio, prepare, state
 from rbotlib import next as next_step
 from rbotlib.fit_arithmetic import Portfolio
 from rbotlib.inventory import RunError
@@ -110,7 +110,7 @@ class Fit:
             raise RunError("FIT requires analyst Approval")
         dispatch._context(run, root, record, rules)
         cp1, cp3 = (_module(run, root, record, name) for name in ("CP-1", "CP-3"))
-        brief = model._capture(run, "run-brief.md", record["run_brief_sha256"])
+        brief = model._capture(run, "run-brief.md", origins.brief_digest(record))
         from rbotlib.host_validate import brief_shape
 
         brief_shape(brief.handoff, record)

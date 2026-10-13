@@ -8,11 +8,12 @@ import shutil
 from pathlib import Path
 
 import pytest
+from test_accept import send
 from test_bootstrap import approve, pending, ready
 from test_dispatch import message
 
 from cp0_fixture import cp0_handoff
-from rbotlib import dispatch, state
+from rbotlib import accept, dispatch, state
 from rbotlib.cli import main
 from rbotlib.contract import load_contract
 from rbotlib.inventory import RunError
@@ -54,16 +55,8 @@ def blocked(run: Path, root: Path, module: str) -> None:
     )
     path = run / f"handoffs/{module}.md"
     path.write_text(text)
-    state.update(
-        run,
-        lambda r: r["steps"][module].update(
-            status="blocked",
-            handoff=f"handoffs/{module}.md",
-            sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
-            validate_exit=3,
-            qa_status="Blocked",
-        ),
-    )
+    send(run, root, module, f"native-{module}")
+    assert accept.accept(run, root, module)["exit"] == 3
 
 
 def test_qualified_optional_bytes_and_required_host_boundary(
@@ -133,7 +126,8 @@ def test_fetched_citation_is_rejected_before_linked_reader(
         record["steps"]["CP-0"].update(sha256=sha)
         record["cp0_lineage"].update(sha256=sha)
 
-    state.update(run, change)
+    with pytest.raises(RunError, match="cp0_lineage"):
+        state.update(run, change)
     reads: list[Path] = []
     original = Path.read_text
 
@@ -265,6 +259,7 @@ def test_matching_hash_does_not_replace_upstream_validation(
 ) -> None:
     run = approved(tmp_path, root)
     blocked(run, root, "CP-1")
+    before_dispatch = {p.name: p.read_bytes() for p in (run / "dispatch").iterdir()}
     path = run / "handoffs/CP-1.md"
     edits = {
         "run": (f"run_id: {run.name}", "run_id: unrelated"),
@@ -279,7 +274,8 @@ def test_matching_hash_does_not_replace_upstream_validation(
     )
     code, text = message(run, root, "CP-1A", capsys)
     assert code == 1 and "CP-1" in text
-    assert not (run / "dispatch").exists()
+    assert {p.name: p.read_bytes() for p in (run / "dispatch").iterdir()} == before_dispatch
+    assert not (run / "dispatch/CP-1A.md").exists()
 
 
 @pytest.mark.parametrize("field", ["primary", "as_of_date", "analyst"])
@@ -294,9 +290,15 @@ def test_approved_context_must_match_the_confirmed_brief(
         else:
             record[field] = True if field == "primary" else "2026-09-01"
 
-    state.update(run, change)
-    code, text = message(run, root, "CP-1", capsys)
-    assert code == 1 and "context" in text
+    if field in ("as_of_date", "analyst"):
+        with pytest.raises(
+            RunError, match="context" if field == "as_of_date" else "Approval facts"
+        ):
+            state.update(run, change)
+    else:
+        state.update(run, change)
+        code, text = message(run, root, "CP-1", capsys)
+        assert code == 1 and "context" in text
 
 
 @pytest.mark.parametrize("mutation", ["grant", "missing"])

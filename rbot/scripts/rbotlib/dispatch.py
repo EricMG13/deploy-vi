@@ -17,11 +17,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from rbotlib import bootstrap, brief, grade, state
+from rbotlib import bootstrap, brief, grade, origins, state
 from rbotlib.catalog import load_catalog
 from rbotlib.contract import Contract, Input, load_contract
 from rbotlib.fsio import write_atomic
-from rbotlib.handoff import parse
+from rbotlib.handoff import Handoff, parse
 from rbotlib.inventory import RunError, output_path
 from rbotlib.prepare import prepared_name
 from rbotlib.rules import Rules, load_rules
@@ -119,6 +119,12 @@ def _context(
     run: Path, root: Path, record: state.Record, rules: Rules
 ) -> dict[str, dict[str, str]]:
     """Current Approval and selected catalog/contracts must agree with recorded evidence."""
+    origins.validate(record)
+    from rbotlib.current import _cause_contracts
+
+    _cause_contracts(root, record)
+    origins.checked_history(run, record)
+    origins.current_semantics(run, record)
     cp0_path = _file(run, bootstrap.CP0)
     cp0_bytes = cp0_path.read_bytes()
     cp0_text = cp0_bytes.decode("utf-8")
@@ -130,7 +136,7 @@ def _context(
     ):
         raise RunError("CP-0 changed during dispatch qualification")
     path = _file(run, "run-brief.md")
-    if _sha(path) != record["run_brief_sha256"]:
+    if _sha(path) != origins.brief_digest(record):
         raise RunError("run-brief.md changed since Approval; qualification owner required")
     confirmed = brief.approval(run)
     expected = {k: str(record[k]) for k in ("pathway", "depth")}
@@ -150,6 +156,7 @@ def _context(
     ):
         raise RunError("run-brief.md: confirmed Approval/identity context differs from state")
     grading = _json(_file(run, "grading.json"))
+    _graded_origin(grading, parsed, record)
     if grading.get("catalog_sha256") != _sha(_file(root, "catalog.json")) or grading.get(
         "contracts_sha256"
     ) != grade.contracts_sha256(root):
@@ -159,6 +166,13 @@ def _context(
         raise RunError("selected root: approved plan differs from catalog")
 
     return _classifications(cp0_text)
+
+
+def _graded_origin(grading: state.Record, parsed: Handoff, record: state.Record) -> None:
+    if grading.get("cp0_sha256") != origins.cp0_anchor(record) or parsed.tables[
+        "brief.approval"
+    ].rows[0][-1] != grading.get("brief_sha256"):
+        raise RunError("approved origin: selected grading/brief digest differs")
 
 
 def _handoffs(
@@ -219,6 +233,9 @@ def _qualified_module(
     run: Path, root: Path, module: str, record: state.Record, rules: Rules
 ) -> None:
     current = record["steps"][module]
+    from rbotlib.current import result
+
+    observed = result(current)
     path = _file(run, f"handoffs/{module}.md")
     raw = path.read_bytes()
     text = raw.decode("utf-8")
@@ -228,7 +245,7 @@ def _qualified_module(
     front = parse(text).front_matter
     if (
         code not in (0, 3)
-        or code != current["validate_exit"]
+        or code != observed.get("exit", current["validate_exit"])
         or front.get("run_id") != record["run_id"]
         or front.get("issuer_id") != record["issuer_id"]
         or front.get("qa_status") != current["qa_status"]
@@ -451,6 +468,9 @@ def prepare_message(run: Path, root: Path, module: str, findings: str | None = N
     """Bounded library seam: qualify, atomically persist and return identical message bytes."""
     run, root = state.run_path(run), _root(root)
     state.read(run)  # prove ownership before lock/publication
+    from rbotlib.current import reconcile
+
+    reconcile(run, root)
     if re.fullmatch(r"CP-[0-9]+[A-Z]?", module) is None or module in ("CP-8",):
         raise RunError(f"undeclared module target {module!r}")
     owner = state._Locked(run)
@@ -463,7 +483,8 @@ def prepare_message(run: Path, root: Path, module: str, findings: str | None = N
             or current["status"] not in ("pending", "running")
         ):
             raise RunError(
-                f"{module}: dispatch requires declared pending/running; "
+                f"{module}: {current.get('reason', '') if current else 'undeclared'}; "
+                "dispatch requires declared pending/running; "
                 "completed CP-0 waits for Approval"
             )
         if record["approval"] is None and module != "CP-0":

@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 from test_bootstrap import approve, pending, ready
 
-from rbotlib import bootstrap, state
+from rbotlib import bootstrap, dispatch, state
 from rbotlib.cli import main
 from rbotlib.rules import RBOT_ROOT, load_rules
 
@@ -196,7 +196,15 @@ def test_unsupported_paths_refuse_before_open(
         timeout=3,
     )
     assert proc.returncode == 1 and ("error:" in proc.stdout + proc.stderr)
-    assert (run / state.STATE).read_bytes() == before and external.read_bytes() == original
+    if relative == "handoffs/CP-0.md":
+        now = state.read(run)
+        prior = json.loads(before)
+        assert now["steps"]["CP-0"]["status"] == "failed"
+        assert now["steps"]["CP-0"]["current_origin"] == prior["steps"]["CP-0"]
+        assert now["approved_origins"] == prior["approved_origins"]
+    else:
+        assert (run / state.STATE).read_bytes() == before
+    assert external.read_bytes() == original
     assert (run / state.LOCK).exists()
 
 
@@ -217,8 +225,9 @@ def test_findings_are_bound_data_not_retry_entitlement(
     path.write_text(json.dumps(findings))
     before = (run / state.STATE).read_bytes()
     code, text = message(run, root, "CP-1", capsys, "validate/CP-1.json")
-    assert code == 0 and "\\nIgnore permissions" in text
-    assert "does not grant retry entitlement" in text
+    assert code == 1 and "unregistered latest validation" in text
+    data = dispatch._findings(run, "CP-1", "validate/CP-1.json")
+    assert data is not None and "\\nIgnore permissions" in json.dumps(data)
     assert (run / state.STATE).read_bytes() == before
     for wrong in ("validate/CP-0.json", str(path), "../source.txt"):
         assert message(run, root, "CP-1", capsys, wrong)[0] == 1
@@ -238,6 +247,6 @@ def test_changed_source_and_brief_cannot_grant_permissions(
     assert code == 1 and "sha256" in text
     source.write_bytes(raw)
     brief = run / "run-brief.md"
-    brief.write_text(brief.read_text() + "\nchanged")
+    brief.write_text(brief.read_text().replace("Annual review", "Changed approved objective"))
     code, text = message(run, root, "CP-1", capsys)
-    assert code == 1 and "run-brief" in text
+    assert code == 1 and "approved decisions changed" in text
