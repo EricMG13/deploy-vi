@@ -85,6 +85,28 @@ def _observe(
     )
 
 
+def _verified_observation(
+    run: Path, root: Path, module: str, record: state.Record
+) -> tuple[state.Record, str | None, bytes | None]:
+    result, qa, raw = _observe(run, root, module, record)
+    # No bytes were validated: retain the attempted execution1 without another read.
+    if raw is None:
+        return result, qa, raw
+    path = dispatch._target(run, f"handoffs/{module}.md")
+    try:
+        current = path.read_bytes()
+    except OSError as exc:
+        # Retain the actual first snapshot, but failed verification cannot grant success.
+        result.update(
+            exit=1,
+            findings=[*result["findings"], asdict(Finding("execution_error", f"{path}: {exc}"))],
+        )
+        return result, None, raw
+    if current != raw:
+        raise RunError(f"{module}: Handoff changed during independent validation")
+    return result, qa, raw
+
+
 def _completion(step: state.Record, result: state.Record, event: state.Record) -> None:
     code = result["exit"]
     terminal = code != 2 or event["slot"] == 2
@@ -112,11 +134,7 @@ def _accept_event(run: Path, root: Path, module: str, record: state.Record) -> s
         raise RunError(f"{module}: skipped step cannot accept")
     # Shared source/context/dependency qualification guards the checker's transitive reads.
     dispatch.qualified_message(run, root, module, record)
-    result, qa, raw = _observe(run, root, module, record)
-    path = dispatch._target(run, f"handoffs/{module}.md")
-    current = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
-    if current != result["sha256"]:
-        raise RunError(f"{module}: Handoff changed during independent validation")
+    result, qa, raw = _verified_observation(run, root, module, record)
     latest = events[-1]
     if latest["event"] == "validation":
         if all(result[k] == latest["result"][k] for k in ("exit", "findings", "sha256")):
