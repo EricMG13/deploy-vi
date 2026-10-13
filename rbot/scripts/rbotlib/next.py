@@ -11,6 +11,7 @@ import argparse
 import json
 import shlex
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from rbotlib import attempts, bootstrap, dispatch, state
@@ -170,10 +171,21 @@ def _selection(run: Path, root: Path, record: state.Record) -> tuple[state.Recor
     return selection, message
 
 
+def _eligible(record: state.Record) -> None:
+    from rbotlib.runs import _clock
+
+    now = _clock(None)
+    created = datetime.fromisoformat(record["created_at"])
+    if created > now:
+        raise RunError("run created_at is in the future; resume refused")
+    if now - created > timedelta(days=30):
+        raise RunError("run older than 30 days; use new-run instead of resume")
+
+
 def select(run: Path, root: Path) -> state.Record:
     """One cooperating-writer transaction owns skips, selected bytes and checked state."""
     run, root = state.run_path(run), dispatch._root(root)
-    state.read(run)
+    _eligible(state.read(run))
     from rbotlib.current import reconcile
 
     reconcile(run, root)

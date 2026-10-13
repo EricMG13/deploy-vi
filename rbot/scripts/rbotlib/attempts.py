@@ -385,13 +385,12 @@ def register_dispatch(run: Path, root: Path, module: str, receipt: DispatchRecei
 
     reconcile(run, root)
     dispatch._target(run, "log/rbot.log")
-    event: state.Record = {}
-
-    def change(record: state.Record) -> None:
-        event.update(_receipt_event(run, root, module, record, receipt))
+    from rbotlib import resume
 
     try:
-        state.update(run, change, lambda: publish_event(run, module, event))
+        event = resume.publish(
+            run, root, module, lambda record: _receipt_event(run, root, module, record, receipt)
+        )
     except Duplicate as duplicate:
         return duplicate.event
     return event

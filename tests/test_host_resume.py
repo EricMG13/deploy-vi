@@ -191,7 +191,7 @@ def test_tampered_continuation_refuses_before_build(tmp_path: Path, change: str)
         elif change == "log":
             with (run / "log/rbot.log").open("ab") as stream:
                 stream.write(b"foreign\t0\n")
-            expected = "log prefix"
+            expected = "unregistered/ambiguous log suffix"
         else:
             evidence["invocations"][-1]["receipt"]["row"] = "666f72676564"
             expected = "receipt intent"
@@ -202,10 +202,7 @@ def test_tampered_continuation_refuses_before_build(tmp_path: Path, change: str)
         assert (
             result.returncode == 1
             and "Traceback" not in result.stderr
-            and (
-                expected in result.stderr
-                or (change == "log" and "unregistered/ambiguous log suffix" in result.stderr)
-            )
+            and expected in result.stderr
         ), result.stderr
         assert (
             "written; qa_status" not in result.stdout and (run / state.STATE).read_bytes() == before
@@ -367,10 +364,7 @@ def test_continuation_rechecks_origin_and_approved_inputs(tmp_path: Path, change
         assert (
             result.returncode == 1
             and "Traceback" not in result.stderr
-            and (
-                expected in result.stderr
-                or (change == "log" and "unregistered/ambiguous log suffix" in result.stderr)
-            )
+            and expected in result.stderr
         ), result.stderr
         if change == "handoff":
             current = state.read(run)

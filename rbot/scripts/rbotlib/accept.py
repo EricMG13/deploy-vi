@@ -198,13 +198,12 @@ def accept(run: Path, root: Path, module: str) -> state.Record:
 
     reconcile(run, root)
     dispatch._target(run, "log/rbot.log")
-    event: state.Record = {}
-
-    def change(record: state.Record) -> None:
-        event.update(_accept_event(run, root, module, record))
+    from rbotlib import resume
 
     try:
-        state.update(run, change, lambda: attempts.publish_event(run, module, event))
+        event = resume.publish(
+            run, root, module, lambda record: _accept_event(run, root, module, record)
+        )
     except attempts.Duplicate as duplicate:
         result: state.Record = duplicate.event["result"]
         return result

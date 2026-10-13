@@ -312,6 +312,9 @@ def _partial_approval(run: Path, record: state.Record) -> None:
 def _reconcile_owned(owner: state._Locked, root: Path) -> None:
     run = owner.run
     owner.owner.check()
+    from rbotlib.resume import recover
+
+    recover(owner, root)
     record = state.read(run)
     before = copy.deepcopy(record)
     for module, step in record["steps"].items():

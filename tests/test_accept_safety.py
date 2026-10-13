@@ -81,27 +81,30 @@ def test_state_hash_must_match_immutable_validation(tmp_path: Path) -> None:
     assert outcome_bytes(run) == before
 
 
-def test_interrupted_publication_preserves_orphan_and_refuses_retry(
+def test_interrupted_publication_preserves_exact_event_and_recovers(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run = pending(tmp_path, RBOT_ROOT)
     send(run, RBOT_ROOT)
     real = os.replace
-    before = outcome_bytes(run)
 
     def interrupted(source: Path, destination: Path) -> None:
-        if Path(destination).name == state.STATE:
-            raise OSError("fixture interruption at state publication")
+        if Path(destination).name == state.STATE and "module_publication" not in json.loads(
+            Path(source).read_text()
+        ):
+            raise OSError("fixture interruption at final state publication")
         real(source, destination)
 
     with monkeypatch.context() as patch:
         patch.setattr(os, "replace", interrupted)
         assert accept(run) == 1
     event = run / "validate/history/CP-0/000002.json"
-    assert event.exists() and outcome_bytes(run) == before
+    assert event.exists() and state.read(run)["steps"]["CP-0"]["status"] == "running"
+    assert "module_publication" in state.read(run)
     saved = event.read_bytes()
-    assert accept(run) == 1 and event.read_bytes() == saved
-    assert outcome_bytes(run) == before and (run / state.LOCK).exists()
+    assert accept(run) == 0 and event.read_bytes() == saved
+    assert state.read(run)["steps"]["CP-0"]["attempts"] == 1
+    assert (run / state.LOCK).exists()
 
 
 @pytest.mark.parametrize(
