@@ -13,10 +13,15 @@ from dataclasses import asdict, dataclass
 from datetime import date
 from typing import Any, cast
 
+from rbotlib.brief_schema import COLUMNS, FIELDS, TRANCHE
 from rbotlib.contract import Contract
 from rbotlib.rules import Rules
 
-SCHEMA = "rbot-isolation-input-shape/2"
+SCHEMA = "rbot-isolation-input-shape/3"
+TABLES = {
+    "transaction_summary": "snapshot.transaction_summary",
+    **{name: f"brief.{name}" for name in ("portfolios", "research_questions", "prior_case")},
+}
 
 
 class ManifestError(ValueError):
@@ -52,7 +57,7 @@ def _bounded(value: object, depth: int = 0, budget: list[int] | None = None) -> 
         for item in value:
             _bounded(item, depth + 1, budget)
     elif value is not None:
-        text = _text(value)
+        text = _cell(value)
         budget[1] -= len(text.encode("utf-8"))
         _require(budget[1] >= 0, "manifest text budget exceeded")
 
@@ -266,34 +271,124 @@ def _claim(value: object, context: dict[str, Any], rules: Rules) -> dict[str, An
     return claim
 
 
+def _cell(value: object) -> str:
+    # Native empty analyst/cite cells are meaningful; identities/basis stay nonempty.
+    if type(value) is str and value == "":
+        return value
+    return _text(value)
+
+
+def _table(value: object, table_id: str) -> list[list[str]]:
+    table = _object(value, {"table_id", "columns", "rows"})
+    _require(table["table_id"] == table_id, "wrong native table")
+    _require(table["columns"] == list(COLUMNS[table_id]), "wrong native columns")
+    _require(type(table["rows"]) is list, "rows must be list")
+    for row in table["rows"]:
+        _require(type(row) is list and len(row) == len(COLUMNS[table_id]), "ragged native row")
+        for cell in row:
+            _cell(cell)
+    return cast(list[list[str]], table["rows"])
+
+
+def _entry(row: list[str], rules: Rules) -> None:
+    _, value, status, _, cite = row
+    _require(status in rules.scales["brief_status"], "invalid brief status")
+    _require((status == "Gap") == (value == rules.gap_marker), "gap/value mismatch")
+    _text(value)
+    tokens = [] if cite in {"", rules.gap_marker} else cite.split()
+    _require(
+        all(re.fullmatch(r"\[C[1-9][0-9]{0,8}\]", token) for token in tokens), "invalid citation"
+    )
+    if status == "Sourced":
+        _require(bool(tokens), "sourced value requires citations")
+
+
+def _scales(row: list[str], table_id: str, rules: Rules) -> None:
+    cells = dict(zip(COLUMNS[table_id], row, strict=True))
+    scales = {
+        "strategy": "strategy",
+        "approved": "yes_no",
+        "accepted": "yes_no",
+        "status": "brief_status",
+        "debt_type": "debt_type",
+        "use_of_proceeds": "use_of_proceeds",
+        "talk_stage": "price_talk_stage",
+        "unit": "unit",
+    }
+    for field, scale in scales.items():
+        if field in cells and (
+            field in {"strategy", "approved", "accepted", "status"}
+            or cells[field] != rules.gap_marker
+        ):
+            _require(cells[field] in rules.scales[scale], "invalid native enum")
+    for field in ("as_of_date", "report_date", "maturity_date", "commitment_date"):
+        if field in cells and cells[field] not in {"", rules.gap_marker}:
+            _date(cells[field])
+
+
+def _transaction(tables: list[object], rules: Rules) -> None:
+    rows = _table(tables[0], TABLES["transaction_summary"])
+    companions = _table(tables[1], "brief.run_brief_fields")
+    ids = [row[0] for row in rows]
+    _require(len(set(ids)) == len(ids), "duplicate tranche identity")
+    _require(all(re.fullmatch(r"NEW-[1-9][0-9]*", t) for t in ids), "invalid tranche identity")
+    expected = {f"{t}.{field}" for t in ids for field in TRANCHE}
+    _require(
+        len(companions) == len(expected) and {row[0] for row in companions} == expected,
+        "companion identity mismatch",
+    )
+    values = {row[0]: row[1] for row in companions}
+    for row in companions:
+        _entry(row, rules)
+    for row in rows:
+        _scales(row, TABLES["transaction_summary"], rules)
+        _require(
+            all(row[i + 1] == values[f"{row[0]}.{field}"] for i, field in enumerate(TRANCHE)),
+            "companion value mismatch",
+        )
+
+
+def _scalar(name: str, table: object, rules: Rules) -> None:
+    rows = _table(table, "brief.run_brief_fields")
+    _require(len(rows) == 1 and rows[0][0] == name, "scalar identity mismatch")
+    _entry(rows[0], rules)
+    if name == "primary" and rows[0][2] != "Gap":
+        _require(rows[0][1] in rules.scales["yes_no"], "invalid native enum")
+
+
 def _brief(value: object, fields: set[str], rules: Rules) -> dict[str, Any]:
+    _require(fields <= set(FIELDS) | set(TABLES), "unsupported brief permission")
     brief = _object(value, fields)
-    for row in brief.values():
-        field = _object(row, {"value", "status", "basis", "citations"})
-        if field["value"] is not None:
-            _text(field["value"])
-        if field["basis"] is not None:
-            _text(field["basis"])
-        _require(_text(field["status"]) in rules.scales["brief_status"], "invalid brief status")
-        _require(type(field["citations"]) is list, "citations must be list")
-        for citation in field["citations"]:
-            _require(
-                re.fullmatch(r"\[C[1-9][0-9]{0,8}\]", _text(citation)) is not None,
-                "invalid citation",
-            )
-        _require(len(set(field["citations"])) == len(field["citations"]), "duplicate citation")
-        if field["status"] == "Gap":
-            _require(
-                field["value"] is None and field["basis"] is not None,
-                "gap requires null value/basis",
-            )
+    for name, raw in brief.items():
+        _require(type(raw) is dict, "brief claim must be object")
+        kind = raw.get("kind")
+        if kind == "missing":
+            _text(_object(raw, {"kind", "limitation"})["limitation"])
+            continue
+        claim = _object(raw, {"kind", "basis", "tables"})
+        _require(kind == ("scalar" if name in FIELDS else "table"), "wrong brief kind")
+        _text(claim["basis"])
+        tables = claim["tables"]
+        _require(
+            type(tables) is list and len(tables) == (2 if name == "transaction_summary" else 1),
+            "wrong brief table count",
+        )
+        if name == "transaction_summary":
+            _transaction(tables, rules)
+        elif name in FIELDS:
+            _scalar(name, tables[0], rules)
         else:
-            _require(
-                field["value"] is not None and field["basis"] is not None, "value requires basis"
-            )
-        if field["status"] == "Sourced":
-            _require(bool(field["citations"]), "sourced value requires citations")
+            for row in _table(tables[0], TABLES[name]):
+                _scales(row, TABLES[name], rules)
     return brief
+
+
+def _brief_identity(brief: dict[str, Any], context: dict[str, Any]) -> None:
+    for field, key in (("issuer_id", "issuer_id"), ("as_of_date", "analysis_date")):
+        if field in brief and brief[field]["kind"] == "scalar":
+            row = brief[field]["tables"][0]["rows"][0]
+            if row[2] != "Gap":
+                _require(row[1] == context[key], "brief identity mismatch")
 
 
 def validate(data: object, contract: Contract, rules: Rules) -> ShapeValidatedManifest:
@@ -338,14 +433,26 @@ def validate(data: object, contract: Contract, rules: Rules) -> ShapeValidatedMa
     )
     fields = {name for item in contract.inputs if item.kind == "run_brief" for name in item.values}
     brief = _brief(manifest["brief"], fields, rules)
-    for field, key in (("issuer_id", "issuer_id"), ("as_of_date", "analysis_date")):
-        if field in brief and brief[field]["value"] is not None:
-            _require(brief[field]["value"] == context[key], "brief identity mismatch")
+    _brief_identity(brief, context)
     normalized = dict(manifest, pack=pack, inputs=sorted(claims, key=lambda item: item["producer"]))
     normalized.pop("binding_sha256")
     rules_data = asdict(rules)
     rules_data["placeholders"] = sorted(rules.placeholders)
-    binding = _hash({"manifest": normalized, "contract": asdict(contract), "rules": rules_data})
+    schemas = {
+        name: COLUMNS["brief.run_brief_fields" if name in FIELDS else TABLES[name]]
+        for name in fields
+    }
+    if "transaction_summary" in fields:
+        schemas["transaction_companions"] = COLUMNS["brief.run_brief_fields"]
+    binding = _hash(
+        {
+            "manifest": normalized,
+            "contract": asdict(contract),
+            "rules": rules_data,
+            "brief_schemas": schemas,
+            "tranche_fields": TRANCHE if "transaction_summary" in fields else (),
+        }
+    )
     supplied = manifest["binding_sha256"]
     if supplied is not None:
         _require(_sha(supplied) == binding, "manifest binding mismatch")
