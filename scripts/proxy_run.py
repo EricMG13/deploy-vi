@@ -1,12 +1,10 @@
 """Proxy run on a corpus pack (interfaces spec section 12.6): steps 1 and 5 only.
 
-Step 1 (default): copy the pack into `corpus-runs/<pack_id>/pack/` (external files
-resolved), create the run folder `corpus-runs/<pack_id>/<YYYYMMDD>-<issuer>-pending/`
-with a pre-Approval `run-state.json`, then run `rbot inventory` and `rbot prepare`.
-Step 5 (`--approve`): print the `rbot approve` command the simulated Approval runs,
-from the pack's registry fields. Dispatch, accept and the scorecard (steps 2 to 4) and
-`rbot new-run`, `rbot next` and `rbot approve` themselves arrive with Plans 04 and 06;
-until then step 1 writes the run-state seed itself and step 5 prints the command only.
+Step 1 copies and hash-verifies the registered pack, then uses native new-run,
+inventory and prepare inside that copy. Native discovery and unfinished-run
+refusal govern the result; the removed --date option cannot override its clock.
+Step 5 (--approve) only prints a simulated Approval invocation. It does not
+establish readiness, execute Approval, dispatch Modules or produce a scorecard.
 Repo tooling: never installed with the skill.
 """
 
@@ -14,16 +12,14 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import shlex
 import sys
 import tomllib
-from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "rbot" / "scripts"))
 
+from rbotlib import runs, state
 from rbotlib.cli import main as rbot
 from rbotlib.corpus import (
     REGISTRY,
@@ -36,16 +32,7 @@ from rbotlib.corpus import (
     resolve_roots,
     sha256_file,
 )
-
-
-def run_id(base: Path, issuer_id: str, day: str) -> str:
-    """`<YYYYMMDD>-<issuer>-pending`, with -2, -3, ... when that folder exists (spec 8.1)."""
-    stem = f"{day}-{issuer_id.lower()}-pending"
-    n, candidate = 1, stem
-    while (base / candidate).exists():
-        n += 1
-        candidate = f"{stem}-{n}"
-    return candidate
+from rbotlib.inventory import RunError
 
 
 def _version(repo: Path) -> str:
@@ -63,34 +50,6 @@ def _load(path: Path) -> Registry:
         raise CorpusError(f"{path}: {exc}") from exc
 
 
-def _date(value: str) -> str:
-    """A `YYYYMMDD` day; anything else would put the run folder outside corpus-runs/."""
-    try:
-        valid = re.fullmatch(r"\d{8}", value) is not None and bool(
-            datetime.strptime(value, "%Y%m%d")
-        )
-    except ValueError:
-        valid = False
-    if not valid:
-        raise argparse.ArgumentTypeError(f"{value!r} is not a YYYYMMDD date")
-    return value
-
-
-def seed_state(run: Path, pack: Path, entry: Pack, args: argparse.Namespace, version: str) -> None:
-    now = datetime.now(UTC).isoformat(timespec="seconds")
-    state: dict[str, Any] = {"schema": "rbot-run-state/1", "rbot_version": version}
-    state |= {"run_id": run.name, "pack_root": str(pack), "created_at": now, "updated_at": now}
-    state |= {"run_brief": "run-brief.md", "run_brief_sha256": None}
-    state |= {"issuer_id": entry.data["issuer"]["id"], "as_of_date": entry.data["as_of"]}
-    state |= dict.fromkeys(
-        ("pathway", "depth", "primary", "deep_research", "prior_case", "approval")
-    )
-    state |= {"plan": [], "steps": {}}
-    state["report"] = {"written_at": None, "html_sha256": None, "md_sha256": None}
-    state["proxy"] = {"pack": entry.id, "pathway": args.pathway, "depth": args.depth}
-    (run / "run-state.json").write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
-
-
 def approve_command(run: Path, entry: Pack, args: argparse.Namespace) -> list[str]:
     """Step 5: the Approval a proxy run simulates (every Deep Research question approved)."""
     primary = args.primary or ("yes" if entry.data["primary"] else "no")
@@ -106,35 +65,13 @@ def _check_pathway(entry: Pack, pathway: str, depth: str) -> None:
         raise CorpusError(f"pack {entry.id} lists {listed}, not ({pathway!r}, {depth!r})")
 
 
-def _state(run: Path) -> dict[str, Any] | None:
-    try:
-        data = json.loads((run / "run-state.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    return data if isinstance(data, dict) else None
-
-
-def _age(run: Path) -> tuple[str, str, int]:
-    """Sort key for a run: creation time, then the day and suffix in its name."""
-    state = _state(run) or {}
-    day, _, rest = run.name.partition("-")
-    suffix = rest.rpartition("-")[2]
-    return str(state.get("created_at", "")), day, int(suffix) if suffix.isdigit() else 1
-
-
 def _latest_run(base: Path) -> Path:
-    runs = []
-    for p in base.glob("*-pending*"):
-        state = _state(p)
-        failed = state and any(
-            isinstance(s, dict) and s.get("status") == "failed"
-            for s in (state.get("steps") or {}).values()
-        )
-        if state is not None and not failed:
-            runs.append(p)
-    if not runs:
-        raise CorpusError(f"{base}: no pending proxy run; run step 1 first")
-    return max(runs, key=_age)
+    pack = base / "pack"
+    run = runs.discover_unfinished(pack) if pack.is_dir() else None
+    if run is None:
+        raise CorpusError(f"{base}: no unfinished native proxy run; run step 1 first")
+    state.write_guard(run)
+    return run
 
 
 def _verify_copy(entry: Pack, pack: Path) -> None:
@@ -148,23 +85,6 @@ def _verify_copy(entry: Pack, pack: Path) -> None:
         raise CorpusError(f"{pack}: not the registered files: {', '.join(bad)}")
 
 
-def _claim(base: Path, issuer_id: str, day: str) -> Path:
-    """Create the next free run folder; losing a race for a name takes the next suffix."""
-    while True:
-        run = base / run_id(base, issuer_id, day)
-        try:
-            run.mkdir(parents=True)
-        except FileExistsError:
-            continue
-        return run
-
-
-def _record_failure(run: Path, step: str, reason: str) -> None:
-    state = _state(run) or {}
-    state.setdefault("steps", {})[step] = {"kind": "host", "status": "failed", "reason": reason}
-    (run / "run-state.json").write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
-
-
 def start(registry: Registry, entry: Pack, args: argparse.Namespace, out: Path) -> Path:
     """Step 1: materialise the pack, create the run folder, inventory and prepare."""
     base = out / entry.id
@@ -172,13 +92,10 @@ def start(registry: Registry, entry: Pack, args: argparse.Namespace, out: Path) 
     if not pack.is_dir():
         materialise(registry, entry, resolve_roots(registry), pack)
     _verify_copy(entry, pack)
-    version = _version(repo_root(registry))
-    run = _claim(base, entry.data["issuer"]["id"], args.date)
-    seed_state(run, pack, entry, args, version)
+    _version(repo_root(registry))  # retain registry-project preflight; state version is native
+    run = runs.create_run(pack, entry.data["issuer"]["id"])
     for command in ("inventory", "prepare"):
         if rbot([command, "--run", str(run)]) != 0:
-            reason = f"rbot {command} exited 1"
-            _record_failure(run, command.upper(), reason)
             raise CorpusError(f"rbot {command} failed for {run}")
     return run
 
@@ -192,7 +109,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--approve", action="store_true", help="step 5: print the approval")
     parser.add_argument("--registry", default=str(REGISTRY))
     parser.add_argument("--out", help="the corpus-runs folder (default: <repo>/corpus-runs)")
-    parser.add_argument("--date", type=_date, default=datetime.now(UTC).strftime("%Y%m%d"))
     args = parser.parse_args(argv)
     try:
         registry = _load(Path(args.registry))
@@ -203,11 +119,11 @@ def main(argv: list[str] | None = None) -> int:
             print(shlex.join(approve_command(_latest_run(out / entry.id), entry, args)))
             return 0
         run = start(registry, entry, args, out)
-    except CorpusError as exc:
+    except (CorpusError, RunError, OSError, RecursionError) as exc:
         print(exc)
         return 1
     print(f"run folder: {run}")
-    print("next: CP-0 (dispatch arrives with Plan 06: rbot next)")
+    print(f"next: CP-0; use rbot next --run {run}")
     return 0
 
 
