@@ -75,7 +75,7 @@ def test_qualified_optional_bytes_and_required_host_boundary(
     assert code == 0 and json.dumps(str(run / "handoffs/CP-1.md")) in text
     blocked(run, root, "CP-1A")
     code, text = message(run, root, "CP-2", capsys)
-    assert code == 1 and "NEEDS_CONTEXT" in text and "MODEL" in text
+    assert code == 1 and "required input MODEL: pending" in text
     path = run / "handoffs/CP-1.md"
     path.write_text(path.read_text() + "\nchanged")
     assert message(run, root, "CP-1A", capsys)[0] == 1

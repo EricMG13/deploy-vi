@@ -180,7 +180,7 @@ def _handoff_permission(
     module = need.values[0]
     current = record["steps"].get(module)
     status = current["status"] if current else "missing"
-    if module in rules.host_producers and need.required:
+    if module in rules.host_producers and module != "MODEL" and need.required:
         raise RunError(
             f"NEEDS_CONTEXT: required host input {module} ({status}) needs host qualification"
         )
@@ -188,6 +188,11 @@ def _handoff_permission(
         if need.required:
             raise RunError(f"required input {module}: {status}; dependency owner required")
         return "", f"{module}: {status}"
+    if module == "MODEL":
+        from rbotlib.model.qualification import qualify
+
+        qualify(run, root, record)
+        return str(_file(run, "handoffs/MODEL.md")), ""
     if module in rules.host_producers:
         return "", f"{module}: host qualification unavailable"
     if module != "CP-0":

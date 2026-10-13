@@ -70,7 +70,9 @@ def _skip(record: state.Record, module: str, required: tuple[str, ...]) -> None:
     current = steps[module]
     failed = next((n for n in required if steps[n]["status"] in ("failed", "skipped")), None)
     if failed is not None:
-        if current["status"] == "running" and current.get("accept_history"):
+        if current["status"] == "running" and (
+            current.get("accept_history") or current.get("host_execution")
+        ):
             raise RunError(
                 f"{module}: required input {failed} is {steps[failed]['status']}; "
                 "registered running evidence requires the revalidation/recovery owner"

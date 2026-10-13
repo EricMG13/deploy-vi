@@ -6,9 +6,7 @@ A command given `--run <RUN>` appends one line to `<RUN>/log/rbot.log`.
 from __future__ import annotations
 
 import argparse
-import json
 import sys
-from datetime import UTC, datetime
 from pathlib import Path
 
 from rbotlib import (
@@ -23,6 +21,7 @@ from rbotlib import (
     grade,
     inventory,
     prepare,
+    runlog,
     runs,
     state,
 )
@@ -88,23 +87,13 @@ def _check(args: argparse.Namespace) -> int:
 
 
 def _log_path(run: Path) -> Path:
-    """Refuse pre-existing unsupported log kinds without opening or creating anything."""
-    destination = inventory.output_path(run, "log/rbot.log")
-    if destination.parent.exists() and not destination.parent.is_dir():
-        raise inventory.RunError(f"{destination.parent}: log parent must be a directory")
-    if destination.exists() and not destination.is_file():
-        raise inventory.RunError(f"{destination}: log must be a regular file")
-    return destination
+    """Refuse pre-existing unsupported log kinds before command execution."""
+    return runlog.path(run)
 
 
-def _log(run: Path, argv: list[str], code: int) -> None:
-    """One line per command in <RUN>/log/rbot.log: time, command, exit (spec section 8.1)."""
-    destination = _log_path(run)
-    destination.parent.mkdir(exist_ok=True)
-    stamp = datetime.now(UTC).isoformat(timespec="seconds")
-    command = json.dumps(" ".join(argv), ensure_ascii=True)[1:-1]
-    with destination.open("a", encoding="utf-8") as log:
-        log.write(f"{stamp}\t{command}\t{code}\n")
+def _log(run: Path, argv: list[str], code: int, *, receipt: runlog.Receipt | None = None) -> None:
+    """Actual logger seam; an owned receipt avoids recursively acquiring its lock."""
+    runlog.append(run, argv, code, receipt)
 
 
 def _finish_log(
@@ -124,6 +113,22 @@ def _finish_log(
         except (inventory.RunError, OSError) as exc:
             result = _fail(log_run, exc)
     return result
+
+
+def _managed_model(args: argparse.Namespace, argv: list[str] | None) -> int | None:
+    from rbotlib.model import host, qualification
+
+    try:
+        if not qualification.managed(Path(args.run_dir)):
+            return None
+    except (OSError, ValueError, RecursionError) as exc:
+        return _fail(Path(args.run_dir), exc)
+    actual = sys.argv[1:] if argv is None else argv
+
+    def append_log(receipt: runlog.Receipt, code: int) -> None:
+        _log(receipt.run, actual, code, receipt=receipt)
+
+    return host.run(args, actual, append_log)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -157,8 +162,11 @@ def main(argv: list[str] | None = None) -> int:
     accept.add_command(sub)
     next_step.add_command(sub)
     args = parser.parse_args(argv)
+    if args.command == "model":
+        if (managed_result := _managed_model(args, argv)) is not None:
+            return managed_result
     run_dir = getattr(args, "run_dir", None)
-    log_run = None
+    log_run: Path | None = None
     if run_dir:
         selected = Path(run_dir)
         try:
