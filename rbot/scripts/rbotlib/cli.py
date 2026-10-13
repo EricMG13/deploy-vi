@@ -23,6 +23,7 @@ from rbotlib import (
     prepare,
     runlog,
     runs,
+    runtime,
     state,
 )
 from rbotlib import (
@@ -163,6 +164,10 @@ def _arguments(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="rbot")
     parser.add_argument("--root", type=Path, default=RBOT_ROOT, help="the RBOT folder")
     sub = parser.add_subparsers(dest="command", required=True)
+    version = sub.add_parser(
+        "version", help="verify installed bytes and print immutable build identity"
+    )
+    version.set_defaults(run=runtime.command)
     v = sub.add_parser("validate", help="check a Handoff against its module contract")
     v.add_argument("handoff")
     v.add_argument("--module", required=True)
