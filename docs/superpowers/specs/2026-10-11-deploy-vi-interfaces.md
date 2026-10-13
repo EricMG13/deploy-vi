@@ -693,7 +693,7 @@ Prepared portfolio JSON (`"schema": "rbot-portfolio/1"`):
 
 | Path | Written by | Content |
 |---|---|---|
-| `run-state.json` | every command | §8.2 |
+| `run-state.json` | every command | §8.2, including bounded original-artifact and current-observation evidence; no separate origin file |
 | `run-brief.md` | `rbot brief`, `rbot approve` | §3.1 |
 | `inventory.json` | `rbot inventory` | every file: relative path, size, sha256, extension, detected kind (pdf, xlsx, csv, txt, md, html, image), page count, `rbot_report` flag (file holds `id="rbot-run"`) |
 | `prepared/index.json` | `rbot prepare` | per file: prepared text path, pages, first-page excerpt (400 chars), detected entity names and dates, sheet names and states, `image_read` flag, `unreadable` reason, `encoding` when not UTF-8, `uncached_formulas`, `display_scaled`, `format_not_applied`, `dropped_surrogates`; top level `portfolio_notes` (amended 2026-10-12) |
@@ -739,6 +739,10 @@ Existing stateful runs without checked process-ownership entitlement remain read
 
 `status` ∈ `pending` | `running` | `accepted` | `blocked` | `failed` | `skipped`. `qa_status` is copied from the Handoff (`Pass`, `Restricted`, `Blocked`).
 
+Original-artifact evidence is bounded inline state: version and observation basis, artifact id and legal relative path, exact SHA256 and decoded byte count, canonical base64 of the validated UTF-8 bytes, run/issuer identity and actual observation time. Bind it to the corresponding original completion or Approval facts; a registered validation source also names its checked immutable event. Validate recognized evidence keys, types, size/encoding/hash, Handoff identity/QA and cross-links even when current artifacts are unchanged. Use the existing Handoff bound for CP-0 and a supported generated-brief bound without truncation. Hash consistency is not provider authentication.
+
+First CP-0 completion and the CP-0 selected at Approval are distinct observations. Preserve the first completion bytes and immutable execution history; Approval freezes the currently qualified CP-0 matching `grading.cp0_sha256` and the final rendered approved Run Brief matching `run_brief_sha256`. `cp0_lineage.sha256` and approved brief front matter bind the selected CP-0, which may differ after a valid pre-Approval edit. The graded pre-Approval brief hash in the Approval row remains separate from the final approved brief hash. Current edit evidence records attributable present-day validation and an explicitly derived projection without rewriting originals, Approval, grading, attempts, provider labels, receipts or historical times.
+
 ### 8.3 Transitions
 
 | Event | New status | Note |
@@ -759,6 +763,10 @@ Existing stateful runs without checked process-ownership entitlement remain read
 
 `/rbot` in a folder whose newest `rbot-runs/*/run-state.json` has `report.written_at` null resumes it: no re-approval; the orchestrator runs `rbot next`, which returns the first step whose status is `pending` or `running` (a `running` module is re-dispatched; its attempts counter is kept). `failed` and `skipped` steps are not retried on resume. Before continuing, `rbot next` re-hashes every accepted Handoff; a hash mismatch re-validates the file: valid → the new hash is recorded with `note: edited`; invalid → status `failed` with the findings (the analyst's edit broke it). A run older than 30 days is not resumed; `rbot new-run` is offered instead.
 
+Fresh entitled runs retain exact CP-0 bytes at receipt-free completion and exact selected CP-0/final brief bytes at Approval, within their existing checked state publication. Receipt-backed acceptance retains its checked immutable validation snapshot. Pure check/read-only observations publish nothing. Resolve and validate original evidence before applying current edits. Valid post-Approval CP-0 narrative edits also require unchanged entire front matter and parsed tables, including citations, relative to the approved original; changed approved decisions/classifications refuse with a named cause and new-run requirement. RUN_BRIEF narrative edits use its precise host shape/context checks and unchanged approved front matter/tables. Required-consumer invalidation names its actual producer/cause while preserving genuine running/terminal execution evidence; optional inputs retain their contract limitations. Changed input digests can invalidate MODEL/FIT without rewriting their registered inputs or retrying terminal hosts.
+
+For an already-entitled uncaptured record, original bytes may be observed now only from fully checked registered validation evidence, guarded current/restored bytes matching the sealed original digest, or complete deterministic reconstruction matching that exact digest. Record the true present-day basis/time; never infer old prose/classifications, a worker send or backdated capture. If no exact approved CP-0 candidate exists, preserve Approval, current file and history and pause visibly: `frozen approved CP0 bytes unavailable; cannot establish unchanged approved decisions`. Exact restoration permits later capture. This limitation never exempts fresh runs from prospective capture and never grants entitlement to an unentitled run.
+
 The resume/edit protocol above applies to freshly provisioned runs with checked process-ownership entitlement. Every unentitled legacy stateful run refuses automatic adoption, resume and mutation regardless of pending/running/terminal status, before any run-local write; discovery remains available with the visible compatibility limitation. No elapsed-time, missing-file, status or log0 guess supplies retrospective ownership. Host continuation additionally requires acquisition of its registered process-held owner. A busy owner preserves state and pauses. An interrupted entitled host preserves its calculation token/attempt and original input/time seed, while recording each actual continuation invocation and checking current origin/publication/log evidence. Terminal outcomes are never automatically retried. This bounds compatibility without weakening new-run recovery or analytical checks (Task06.9 corrected legacy-overlap diagnosis, 2026-10-13).
 
 ---
@@ -768,6 +776,8 @@ The resume/edit protocol above applies to freshly provisioned runs with checked 
 Exit codes unless stated: 0 success, 1 failure with a message naming the cause. `--root` (Plan 01) applies to every command. All paths absolute or relative to the current directory; `--run <RUN>` names the run folder.
 
 Stateful mutation requires checked ownership before command execution or logging (§8.1); this includes direct publication helpers. Unentitled legacy refusal writes no log row. Supported read-only legacy inspection bypasses logging; corrupt/unsafe state entries refuse rather than falling back to standalone execution.
+
+Native receipt-free bootstrap completion and Approval completing pending/running CP-0 are supported controller validation observations with attempts0. Capture exact completion/approved origins as above without inventing dispatch/validation receipts or provider/timing facts. Receipt-backed `accept` retains its genuine event sequence; ordinary Module initial acceptance still requires the reported dispatch flow in §10.1. Approval stages original evidence and the step together under the existing owner, rechecks graded/current bytes before publication, and preserves the existing pending CP-0 identity after rename. Staged or mismatched partial evidence grants no acceptance; interruption of existing brief/state replacement or rename preserves original evidence and refuses/pauses rather than silently reapproving.
 
 | Command | Arguments | Inputs | Outputs | Exit codes | Plan |
 |---|---|---|---|---|---|
@@ -832,6 +842,8 @@ rbot render --run <RUN>
 On `accept` exit codes: 0 → continue; 3 → continue (Blocked recorded); 2 → `rbot next` re-dispatches once with `--findings`; a second 2 or a 4 → `failed`, continue. The orchestrator never asks the analyst anything after Approval (D13). When `rbot next` reports `kind: module` for a step the plan says is `skipped`, it is not dispatched (`next` never returns such a step).
 
 An execution error recorded by the managed host remains terminal and permits normal named dependency propagation. Ownership contention, legacy refusal or uncertain publication does not authorize the caller to issue a synthetic failure transition. `next` error/refusal likewise preserves current ownership and pauses; it is never treated as a successful selection or an ordinary retry.
+
+Missing or inconsistent frozen-origin evidence likewise preserves execution/Approval history and pauses with its named evidence limitation; it is not a new worker failure, retry or reapproval. A completed receipt-free CP-0 can be idempotently qualified through its checked original/current observations without manufacturing an attempt event.
 
 ### 10.4 Finish
 
