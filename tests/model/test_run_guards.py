@@ -261,18 +261,23 @@ def test_a_publish_failure_exits_one_and_cleans_remaining_temporary_files(
     assert main(["model", "--run", str(run)]) == 0
     capsys.readouterr()
     before = _snapshot(run)
+    prefix = (run / "log/rbot.log").read_bytes()
     replace_file = os.replace
     calls = []
 
     def failed(source: Path, target: Path) -> None:
-        calls.append(target.name)
-        if len(calls) == 2:
-            raise OSError("publication refused")
+        if target.name in ("model.json", "MODEL.md"):
+            calls.append(target.name)
+            if len(calls) == 2:
+                raise OSError("publication refused")
         replace_file(source, target)
 
     monkeypatch.setattr(os, "replace", failed)
     assert main(["model", "--run", str(run)]) == 1
     assert _error(capsys) == "model: cannot write the outputs: publication refused\n"
     assert calls == ["model.json", "MODEL.md"]
+    log = (run / "log/rbot.log").read_bytes()
+    assert log.startswith(prefix) and len(log[len(prefix) :].splitlines()) == 1
+    assert log.endswith(b"\t1\n")
     assert (run / "handoffs" / "MODEL.md").read_bytes() == before["handoffs/MODEL.md"]
     assert not list(run.glob(".*")) and not list((run / "handoffs").glob(".*"))

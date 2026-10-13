@@ -111,6 +111,40 @@ def _phase(run: Path, root: Path, record: state.Record, rules: Rules) -> None:
         dispatch._context(run, root, record, rules)
 
 
+def _continuation_inputs(
+    run: Path, root: Path, record: state.Record, module: str, evidence: state.Record
+) -> None:
+    from rbotlib.fit_host import Fit
+    from rbotlib.host_evidence import context
+    from rbotlib.model.host import Model
+
+    backend = Model() if module == "MODEL" else Fit()
+    captured = backend.inputs(run, root, record)
+    from rbotlib.host_evidence import match_inputs
+
+    match_inputs(evidence, captured.hashes(), captured.missing, context(root, record))
+
+
+def _host_command(run: Path, root: Path, record: state.Record, module: str) -> str:
+    if record["steps"][module]["status"] == "running":
+        from rbotlib.host_evidence import checked, observe
+
+        evidence = checked(record, module, f"host-{module.lower()}/1")
+        observe(run, evidence["invocations"][-1])
+        if not any("failure" in i for i in evidence["invocations"]):
+            _continuation_inputs(run, root, record, module, evidence)
+    argv = [
+        sys.executable,
+        str(root / "scripts/rbot.py"),
+        "--root",
+        str(root),
+        module.lower(),
+        "--run",
+        str(run),
+    ]
+    return shlex.join(argv)
+
+
 def _selection(run: Path, root: Path, record: state.Record) -> tuple[state.Record, str]:
     rules = load_rules(dispatch._file(root, "rules.json").parent)
     required = _dependencies(root, record, rules)
@@ -126,16 +160,7 @@ def _selection(run: Path, root: Path, record: state.Record) -> tuple[state.Recor
     selection: state.Record = dict(step=module, kind=kind, command=None, dispatch=None)
     message = ""
     if kind == "host" and module is not None:
-        argv = [
-            sys.executable,
-            str(root / "scripts/rbot.py"),
-            "--root",
-            str(root),
-            module.lower(),
-            "--run",
-            str(run),
-        ]
-        selection["command"] = shlex.join(argv)
+        selection["command"] = _host_command(run, root, record, module)
     elif kind == "module" and module is not None:
         validations = [e for e in histories[module] if e["event"] == "validation"]
         findings = f"validate/{module}.json" if validations else None

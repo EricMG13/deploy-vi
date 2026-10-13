@@ -12,7 +12,8 @@ import json
 import os
 import re
 import tempfile
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -352,6 +353,21 @@ def write_guard(run: Path) -> Record | None:
         if ownership.existing(run, name) != protocol[key]:
             raise RunError(f"{name}: owned lock identity/protocol changed; publication refused")
     return record
+
+
+@contextmanager
+def publication(run: Path) -> Iterator[Callable[[], None]]:
+    """Direct publishers retain the same state owner as host/state writers."""
+    owner = _Locked(run) if write_guard(run) is not None else None
+    try:
+        yield owner.owner.check if owner is not None else lambda: None
+        if owner is not None:
+            owner.owner.check()
+    finally:
+        if owner is not None:
+            warnings = owner.close()
+            if warnings:
+                raise RunError("; ".join(warnings))
 
 
 def update(

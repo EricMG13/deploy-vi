@@ -20,7 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
@@ -445,6 +445,15 @@ def _folder(run: Path, name: str) -> Path:
 def _write_all(run: Path, per_portfolio: Mapping[str, str], handoff_text: str) -> None:
     from rbotlib import state
 
+    with state.publication(run) as check:
+        return _owned_write_all(run, per_portfolio, handoff_text, check)
+
+
+def _owned_write_all(
+    run: Path, per_portfolio: Mapping[str, str], handoff_text: str, check: Callable[[], None]
+) -> None:
+    from rbotlib import state
+
     state.write_guard(run)
     """Publish precomputed outputs atomically per file: JSON files, then `FIT.md` last;
     stale JSON is removed. An I/O failure can interrupt this multi-file publication."""
@@ -453,13 +462,21 @@ def _write_all(run: Path, per_portfolio: Mapping[str, str], handoff_text: str) -
     handoffs.mkdir(exist_ok=True)
     files = {fit_dir / f"{pid}.json": body.encode() for pid, body in per_portfolio.items()}
     files[handoffs / "FIT.md"] = handoff_text.encode()
-    writer.write_all(files)
+    writer.write_all(files, check)
     for old in fit_dir.glob("*.json"):
         if old not in files:
+            check()
             old.unlink()
 
 
 def run_fit(run: Path, root: Path) -> list[Fit]:
+    from rbotlib import state
+
+    with state.publication(run) as check:
+        return _ownedrun_fit(run, root, check)
+
+
+def _ownedrun_fit(run: Path, root: Path, check: Callable[[], None]) -> list[Fit]:
     from rbotlib import state
 
     state.write_guard(run)
@@ -476,7 +493,7 @@ def run_fit(run: Path, root: Path) -> list[Fit]:
     bodies = {
         Path(name).stem: raw.decode() for name, raw in files.items() if name.endswith(".json")
     }
-    _write_all(run, bodies, files["handoffs/FIT.md"].decode())
+    _owned_write_all(run, bodies, files["handoffs/FIT.md"].decode(), check)
     return list(written.fits)
 
 

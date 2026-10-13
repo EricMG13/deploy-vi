@@ -15,7 +15,7 @@ import json
 import logging
 import os
 import tempfile
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -262,6 +262,13 @@ def build(pack: Path, run: Path) -> dict[str, Any]:
 def write(run: Path) -> dict[str, Any]:
     from rbotlib import state
 
+    with state.publication(run) as check:
+        return _ownedwrite(run, check)
+
+
+def _ownedwrite(run: Path, check: Callable[[], None]) -> dict[str, Any]:
+    from rbotlib import state
+
     state.write_guard(run)
     run = run.resolve()
     if not run.is_dir():
@@ -274,6 +281,7 @@ def write(run: Path) -> dict[str, Any]:
     if not inventory["files"]:
         raise RunError(f"{pack}: the Source Pack has no files")
     text = json.dumps(inventory, indent=2, ensure_ascii=False) + "\n"
+    check()
     write_atomic(destination, text)
     return inventory
 

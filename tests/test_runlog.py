@@ -60,3 +60,28 @@ def test_state_owned_stage_is_serialized_before_publication_and_cleanup_is_separ
     owner.commit(staged)
     assert state.read(run)["extension"] == "staged"
     assert owner.close() == []
+
+
+def test_failed_receipt_destination_does_not_retain_state_owner(tmp_path: Path) -> None:
+    run = approved(tmp_path, RBOT_ROOT)
+    destination = run / "log/rbot.log"
+    destination.unlink()
+    destination.mkdir()
+    receipt = object.__new__(runlog.Receipt)
+    with pytest.raises(RunError, match="regular file"):
+        runlog.Receipt.__init__(receipt, run, ["ordinary"])
+    try:
+        owner = state._Locked(run)
+        assert owner.close() == []
+    finally:
+        # Retain the failing owner's handle only to avoid poisoning later RED controls.
+        held = getattr(receipt, "state_owner", None)
+        if held is not None:
+            import os
+
+            try:
+                os.fstat(held.owner.fd)
+            except OSError:
+                pass
+            else:
+                held.close()

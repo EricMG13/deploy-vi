@@ -476,6 +476,15 @@ def _drop_surrogates(pages: list[str]) -> tuple[list[str], int]:
 def prepare_file(run: Path, pack: Path, entry: dict[str, Any]) -> dict[str, Any]:
     from rbotlib import state
 
+    with state.publication(run) as check:
+        return _ownedprepare_file(run, pack, entry, check)
+
+
+def _ownedprepare_file(
+    run: Path, pack: Path, entry: dict[str, Any], check: Callable[[], None]
+) -> dict[str, Any]:
+    from rbotlib import state
+
     state.write_guard(run)
     record: dict[str, Any] = {"path": entry["path"], "sha256": entry["sha256"]}
     record |= {"kind": entry["kind"], "prepared": None, "pages": 0, "excerpt": ""}
@@ -489,6 +498,7 @@ def prepare_file(run: Path, pack: Path, entry: dict[str, Any]) -> dict[str, Any]
         return record
     name = prepared_name(entry)
     pages, dropped = _drop_surrogates(result.pages)
+    check()
     write_atomic(output_path(run, name), anchored_text(pages))
     first = pages[0] if pages else ""
     record |= {
@@ -520,7 +530,13 @@ def _sheet_portfolios(
     return notes
 
 
-def _portfolios(run: Path, pack: Path, files: list[dict[str, Any]], rules: Rules) -> dict[str, Any]:
+def _portfolios(
+    run: Path,
+    pack: Path,
+    files: list[dict[str, Any]],
+    rules: Rules,
+    check: Callable[[], None] | None = None,
+) -> dict[str, Any]:
     """Every portfolio found in the pack's visible sheets, written to prepared/portfolios/."""
     found: dict[str, portfolio.Portfolio] = {}
     notes: list[str] = []
@@ -530,6 +546,8 @@ def _portfolios(run: Path, pack: Path, files: list[dict[str, Any]], rules: Rules
         except UnreadableError:
             continue  # already listed as unreadable in index.json
         notes += _sheet_portfolios(entry, result, found)
+    if check is not None:
+        check()
     return {"portfolios": portfolio.write_all(run, found, rules), "portfolio_notes": notes}
 
 
@@ -568,6 +586,15 @@ def _sweep(run: Path, kept: dict[str, dict[str, Any]]) -> None:
 def write(run: Path, rules: Rules, only: str | None = None) -> dict[str, Any]:
     from rbotlib import state
 
+    with state.publication(run) as check:
+        return _ownedwrite(run, rules, only, check)
+
+
+def _ownedwrite(
+    run: Path, rules: Rules, only: str | None, check: Callable[[], None]
+) -> dict[str, Any]:
+    from rbotlib import state
+
     state.write_guard(run)
     try:
         inventory = json.loads((run / "inventory.json").read_text(encoding="utf-8"))
@@ -587,14 +614,20 @@ def write(run: Path, rules: Rules, only: str | None = None) -> dict[str, Any]:
     kept = _old_index(index_path) if only is not None else {}
     pack = Path(inventory["pack_root"])
     for entry in entries:
-        old, kept[entry["path"]] = kept.get(entry["path"]), prepare_file(run, pack, entry)
+        old, kept[entry["path"]] = (
+            kept.get(entry["path"]),
+            _ownedprepare_file(run, pack, entry, check),
+        )
+        check()
         _drop_orphan(run, old, kept[entry["path"]])
     if only is None:
+        check()
         _sweep(run, kept)
     index: dict[str, Any] = {"schema": SCHEMA}
     index["generated_at"] = datetime.now(UTC).isoformat(timespec="seconds")
     index["files"] = [kept[p] for p in sorted(kept)]
-    index |= _portfolios(run, pack, inventory["files"], rules)
+    index |= _portfolios(run, pack, inventory["files"], rules, check)
+    check()
     write_atomic(index_path, json.dumps(index, indent=2, ensure_ascii=False) + "\n")
     return index
 

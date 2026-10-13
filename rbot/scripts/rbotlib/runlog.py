@@ -64,11 +64,21 @@ class Receipt:
                 raise RunError("log: borrowed state owner belongs to another run")
             state_owner.owner.check()
         destination = path(run)
-        destination.parent.mkdir(exist_ok=True)
-        self.lock = output_path(run, LOCK)
-        self.owner = (
-            ownership.Owner(run, LOCK, expected) if expected is not None else _StandaloneOwner(run)
+        self.state_owner = (
+            state._Locked(run) if expected is not None and state_owner is None else None
         )
+        self.lock = output_path(run, LOCK)
+        try:
+            destination.parent.mkdir(exist_ok=True)
+            self.owner = (
+                ownership.Owner(run, LOCK, expected)
+                if expected is not None
+                else _StandaloneOwner(run)
+            )
+        except BaseException:
+            if self.state_owner is not None:
+                self.state_owner.close()
+            raise
         self.identity = (
             os.fstat(self.owner.fd)
             if isinstance(self.owner, ownership.Owner)
@@ -96,12 +106,18 @@ class Receipt:
         actual = path(self.run).read_bytes() if path(self.run).exists() else b""
         if actual != self.prefix:
             raise RunError("log: original prefix changed; append refused")
+        if self.state_owner is not None:
+            from rbotlib.host_evidence import following
+
+            following(self.state_owner, self, code)
         self.state = f"candidate{code}"
-        with path(self.run).open("ab") as handle:
-            suffix = self.row + f"{code}\n".encode()
-            handle.write(suffix)
-            handle.flush()
-            os.fsync(handle.fileno())
+        suffix = self.row + f"{code}\n".encode()
+        staged = stage_file(path(self.run), self.prefix + suffix)
+        try:
+            self.owner.check()
+            os.replace(staged, path(self.run))
+        finally:
+            staged.unlink(missing_ok=True)
         if path(self.run).read_bytes() != self.prefix + suffix:
             raise RunError("log: appended row readback differs")
         self.state = f"row{code}"
@@ -124,6 +140,10 @@ class Receipt:
         self.state = {b"": "missing", candidates[0]: "row0", candidates[1]: "row1"}.get(
             suffix, "partial"
         )
+        if self.state_owner is not None:
+            from rbotlib.host_evidence import following
+
+            following(self.state_owner, self, 1)
         staged = stage_file(destination, self.prefix + self.row + b"1\n")
         try:
             self.owner.check()
@@ -136,7 +156,13 @@ class Receipt:
         self.state = "row1"
 
     def close(self) -> None:
-        self.owner.close()
+        try:
+            self.owner.close()
+        finally:
+            if self.state_owner is not None:
+                warnings = self.state_owner.close()
+                if warnings:
+                    raise RunError("; ".join(warnings))
 
 
 def append(run: Path, argv: list[str], code: int, receipt: Receipt | None = None) -> None:

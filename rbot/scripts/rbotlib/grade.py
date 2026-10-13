@@ -403,11 +403,12 @@ def run_command(args: argparse.Namespace) -> int:
     try:
         from rbotlib import state
 
-        state.write_guard(run)
-        grading = grade_run(run, args.root, load_rules(args.root))
-        write_atomic(
-            output_path(run, GRADING), json.dumps(grading, indent=2, ensure_ascii=False) + "\n"
-        )
+        with state.publication(run) as check:
+            grading = grade_run(run, args.root, load_rules(args.root))
+            check()
+            write_atomic(
+                output_path(run, GRADING), json.dumps(grading, indent=2, ensure_ascii=False) + "\n"
+            )
     except (GradeError, RunError, OSError) as exc:
         print(exc)
         return 1

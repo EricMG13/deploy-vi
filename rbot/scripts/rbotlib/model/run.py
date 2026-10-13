@@ -21,6 +21,7 @@ import hashlib
 import os
 import sys
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -120,7 +121,7 @@ def stage_file(target: Path, data: bytes) -> Path:
             staged.unlink(missing_ok=True)
 
 
-def write_all(files: dict[Path, bytes]) -> None:
+def write_all(files: dict[Path, bytes], check: Callable[[], None] | None = None) -> None:
     """Stage every file, then replace each target (a link is replaced, not
     followed); no temporary file is left behind."""
     staged: list[tuple[Path, Path]] = []
@@ -131,6 +132,8 @@ def write_all(files: dict[Path, bytes]) -> None:
         for target, data in files.items():
             staged.append((stage_file(target, data), target))
         for temporary, target in staged:
+            if check is not None:
+                check()
             os.replace(temporary, target)
     finally:
         for temporary, _ in staged:
@@ -282,6 +285,13 @@ def build(
 
 
 def run_model(run: Path, generated_at: str) -> Written:
+    from rbotlib import state
+
+    with state.publication(run) as check:
+        return _ownedrun_model(run, generated_at, check)
+
+
+def _ownedrun_model(run: Path, generated_at: str, check: Callable[[], None]) -> Written:
     """Build the Model for the run folder and write its two files."""
     from rbotlib import state
 
@@ -293,7 +303,7 @@ def run_model(run: Path, generated_at: str) -> Written:
     cp1d_path = run / "handoffs" / "CP-1D.md"
     cp1d = read_handoff(cp1d_path) if cp1d_path.exists() else None
     written, files = build(cp1, brief, cp1d, generated_at)
-    write_all({run / name: raw for name, raw in files.items()})
+    write_all({run / name: raw for name, raw in files.items()}, check)
     return written
 
 

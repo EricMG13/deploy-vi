@@ -174,16 +174,19 @@ def test_i5_the_prepared_text_is_written_atomically(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     replace = os.replace
+    refused: list[Path] = []
 
     def fail(source: Path, target: Path) -> None:
-        if target.name == "inventory.json":
-            replace(source, target)
-        else:
+        if target.parent.name == "prepared" and target.suffix == ".txt":
+            refused.append(target)
             raise OSError("disk full")
+        replace(source, target)
 
     monkeypatch.setattr("rbotlib.inventory.os.replace", fail)
     run, _, code = _prep(tmp_path, {"a.txt": b"some text\n"})
-    assert code == 1 and not list((run / "prepared").iterdir())
+    assert code == 1 and len(refused) == 1 and not list((run / "prepared").iterdir())
+    rows = (run / "log/rbot.log").read_bytes().splitlines()
+    assert len(rows) == 2 and rows[0].endswith(b"\t0") and rows[1].endswith(b"\t1")
 
 
 def test_i5_write_atomic_uses_a_unique_temp_name_and_syncs(
