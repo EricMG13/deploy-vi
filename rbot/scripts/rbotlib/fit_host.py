@@ -211,12 +211,16 @@ def qualify(run: Path, root: Path, record: state.Record) -> None:
         )
     ):
         raise RunError("FIT: accepted checked host execution required")
+    from rbotlib.host_evidence import accepted
+
+    accepted(record, "FIT", "host-fit/1", run, root)
     captured = Fit.inputs(run, root, record)
     files = {name: dispatch._file(run, name).read_bytes() for name in Fit.outputs(captured)}
     written = Fit.validate(files, captured, record, evidence["generated_at"])
     hashes = model._hashes(files)
     if (
         evidence.get("inputs") != captured.hashes()
+        or evidence.get("optional_exclusion") != captured.missing
         or current.get("outputs") != hashes
         or current.get("sha256") != hashes[Fit.handoff]
         or current.get("handoff") != Fit.handoff

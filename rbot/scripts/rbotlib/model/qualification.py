@@ -1,7 +1,7 @@
 """Managed MODEL execution owns attempts and validates the entire published pair.
 
-Registration and completion use separate checked cooperating-writer transactions.
-A running token refuses re-execution; interrupted completion requires recovery.
+The checked process owner spans registration through completion. Prospective
+interrupted invocations retain their calculation token and deterministic seed.
 Standalone Model computation remains available when no state entry exists.
 """
 
@@ -176,8 +176,14 @@ def qualify(run: Path, root: Path, record: state.Record) -> None:
         or not state._stamp(evidence.get("generated_at"))
     ):
         raise RunError("MODEL: accepted checked host execution required")
+    from rbotlib.host_evidence import accepted
+
+    accepted(record, "MODEL", "host-model/1", run, root)
     captured = inputs(run, root, record)
-    if evidence.get("inputs") != captured.hashes():
+    if (
+        evidence.get("inputs") != captured.hashes()
+        or evidence.get("optional_exclusion") != captured.missing
+    ):
         raise RunError("MODEL: current inputs differ from its execution")
     files = {name: dispatch._file(run, name).read_bytes() for name in OUTPUTS}
     written = validate(files, captured, record, evidence["generated_at"])

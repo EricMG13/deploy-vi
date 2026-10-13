@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -9,7 +10,7 @@ from pathlib import Path
 import pytest
 from test_model_host import eligible
 
-from rbotlib import cli, runlog, state
+from rbotlib import cli, host_evidence, runlog, state
 from rbotlib.model import qualification
 from rbotlib.model import run as writer
 from rbotlib.rules import RBOT_ROOT
@@ -145,7 +146,19 @@ def test_state_failure_does_not_leave_accepted_public_one_or_log_zero(
         assert current["status"] == "running" and current["host_execution"]["token"]
         assert "failure attribution refused" in capsys.readouterr().err
         before = (run / state.STATE).read_bytes()
-        assert invoke(run) == 1 and (run / state.STATE).read_bytes() == before
+        assert invoke(run) == 1
+        again = state.read(run)["steps"]["MODEL"]
+        assert (
+            again["attempts"] == 1
+            and again["host_execution"]["token"] == current["host_execution"]["token"]
+        )
+        if mode == "persistent":
+            assert (run / state.STATE).read_bytes() == before
+        else:
+            assert (
+                "persisted terminal failure"
+                in again["host_execution"]["invocations"][-1]["failure"]
+            )
     else:
         assert "state" in failed(run, prefix)["reason"]
     raw = (run / "log/rbot.log").read_bytes()
@@ -164,7 +177,8 @@ def test_state_replace_oserror_after_log_zero_corrects_exact_row(
         nonlocal calls
         if target == run / state.STATE:
             calls += 1
-            if calls == 2:  # registration is the first; accepted publication is the second
+            candidate = json.loads(source.read_text())
+            if candidate["steps"]["MODEL"]["status"] == "accepted":
                 assert (run / "log/rbot.log").read_bytes().endswith(b"\t0\n")
                 raise OSError("actual accepted state replace denied")
         replace(source, target)
@@ -172,7 +186,7 @@ def test_state_replace_oserror_after_log_zero_corrects_exact_row(
     monkeypatch.setattr(os, "replace", once)
     assert invoke(run) == 1
     assert "replace denied" in failed(run, prefix)["reason"]
-    assert calls == 3
+    assert calls == 6
 
 
 def test_failed_log_correction_exposes_actual_integrity_failure(
@@ -308,3 +322,62 @@ def test_uncorrectable_partial_log_retains_observed_partial_state(
     assert current["status"] == "failed"
     assert current["completion_failure"]["log_state"] == "partial"
     assert "actual correction replace denied" in current["reason"]
+
+
+def test_forged_current_receipt_cannot_commit_acceptance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run = eligible(tmp_path, RBOT_ROOT)
+    logger = cli._log
+    prefix = (run / "log/rbot.log").read_bytes()
+
+    def forged(
+        selected: Path, argv: list[str], code: int, *, receipt: runlog.Receipt | None = None
+    ) -> None:
+        assert receipt is not None
+        receipt.row = b"forged timestamp\tforeign command\t"
+        logger(selected, argv, code, receipt=receipt)
+
+    monkeypatch.setattr(cli, "_log", forged)
+    assert invoke(run) == 1
+    assert "receipt" in failed(run, prefix)["reason"]
+
+
+@pytest.mark.parametrize("change", ["input", "output", "owner-after-proof"])
+def test_current_publication_proof_precedes_exact_commit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, change: str
+) -> None:
+    run = eligible(tmp_path, RBOT_ROOT)
+    prefix = (run / "log/rbot.log").read_bytes()
+    logger, proof = cli._log, host_evidence.accepted
+
+    def altered(
+        selected: Path, argv: list[str], code: int, *, receipt: runlog.Receipt | None = None
+    ) -> None:
+        logger(selected, argv, code, receipt=receipt)
+        if code == 0 and change == "input":
+            target = run / "handoffs/CP-1.md"
+            target.write_bytes(target.read_bytes() + b"\nchanged current input\n")
+        if code == 0 and change == "output":
+            (run / "model.json").write_bytes(b'{"schema":"foreign current output"}\n')
+
+    def proof_boundary(
+        record: state.Record, module: str, origin: str, selected: Path, root: Path
+    ) -> None:
+        proof(record, module, origin, selected, root)
+        target = run / runlog.LOCK
+        target.rename(run / "displaced-log-owner")
+        target.write_bytes((run / "displaced-log-owner").read_bytes())
+
+    monkeypatch.setattr(cli, "_log", altered)
+    if change == "owner-after-proof":
+        monkeypatch.setattr(host_evidence, "accepted", proof_boundary)
+    assert invoke(run) == 1
+    current = state.read(run)["steps"]["MODEL"]
+    assert current["status"] == "failed" and current["attempts"] == 1
+    if change != "owner-after-proof":
+        failed(run, prefix)
+    else:
+        assert (
+            "identity" in current["reason"] and current["completion_failure"]["log_state"] == "row0"
+        )

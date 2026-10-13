@@ -56,7 +56,11 @@ def test_build_time_interleavings_preserve_fresh_authority(
     code = invoke(run)
     current = state.read(run)
     assert code == 0 and current["steps"]["MODEL"]["attempts"] == 1
-    assert current["steps"]["MODEL"]["host_execution"] == changed["host_execution"]
+    completed = current["steps"]["MODEL"]["host_execution"]
+    assert {k: v for k, v in completed.items() if k != "invocations"} == {
+        k: v for k, v in changed["host_execution"].items() if k != "invocations"
+    }
+    assert len(completed["invocations"]) == 1 and completed["invocations"][0]["exit"] == 0
     assert "extension" not in current
     rows = (run / "log/rbot.log").read_bytes().splitlines()
     assert rows[-1].endswith(b"\t0")
