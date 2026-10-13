@@ -1,8 +1,8 @@
 # Plan06.5 executed accept source/test replay
 
-Approved predecessor: `6fa314d6b8edb786aa1dbeba65f5a350a811930f`, tree `6733ba323f00b8b69621ddf965a483842e2a0e45`. This document records locally executed05 awaiting fresh ordinary/sensitive reviews. Exact binary/full-index per-boundary patches/tree/lock/cap proof are in main staging task-05-proof.json. These complete AST-parsable blocks match current source bytes; the patches replay integration without inferred manual edits.
+Approved predecessor: `6fa314d6b8edb786aa1dbeba65f5a350a811930f`, tree `6733ba323f00b8b69621ddf965a483842e2a0e45`. This document records repaired locally executed05 awaiting NEW ordinary/sensitive reviews; the rejected53d12fb/tree69a21fff history remains retained. Repair1 proof/evidence is task-05-fix-proof.json; old task-05-proof.json describes only rejected-tree history. Exact binary/full-index per-boundary patches/tree/lock/cap proof are in main staging task-05-proof.json. These complete AST-parsable blocks match current source bytes; the patches replay integration without inferred manual edits.
 
-Consume the existing checked state/Approval lock and Task04 pure qualification, actual selected-root contracts/rules/catalog/source context, and reported dispatch events. Preparation never sends. Receipts are trusted caller reports, not signed/network proof. attempts counts validation slots1/2; distinct reported interruption resends remain individually attributable within a slot. Latest validation retains the prescribed four fields; immutable relative history keeps exact messages and raw-byte Handoff snapshots plus code/QA/receipt links. Strict base64 length/canonical decode/hash checks are local encoding checks, not authenticity. Missing bytes have null hash; unknown worker/model evidence stays unknown. Approved CP0 uses only registered pending lineage. Orphan/latest mismatch refuses for owner09. Python3.11 primary base64 docs were read after selection before commit;3.11/Windows remain unexercised.
+Consume the existing checked state/Approval lock and Task04 pure qualification, actual selected-root contracts/rules/catalog/source context, and reported dispatch events. Preparation never sends. Receipts are trusted caller reports, not signed/network proof. attempts counts validation slots1/2; distinct reported interruption resends remain individually attributable within a slot. Latest validation retains the prescribed four fields; immutable relative history keeps exact messages and raw-byte Handoff snapshots plus code/QA/receipt links. Strict base64 length/canonical decode/hash checks are local encoding checks, not authenticity. Missing/unreadable first-observation bytes have null hash/body/length; verification I/O1 retains actually observed first bytes and prior findings with QA None, never a verified current hash; unknown worker/model evidence stays unknown. Approved CP0 uses only registered pending lineage. Orphan/latest mismatch refuses for owner09. Python3.11 primary base64 docs were read after selection before commit;3.11/Windows remain unexercised.
 
 ## `rbot/scripts/rbotlib/accept.py`
 
@@ -95,6 +95,28 @@ def _observe(
     )
 
 
+def _verified_observation(
+    run: Path, root: Path, module: str, record: state.Record
+) -> tuple[state.Record, str | None, bytes | None]:
+    result, qa, raw = _observe(run, root, module, record)
+    # No bytes were validated: retain the attempted execution1 without another read.
+    if raw is None:
+        return result, qa, raw
+    path = dispatch._target(run, f"handoffs/{module}.md")
+    try:
+        current = path.read_bytes()
+    except OSError as exc:
+        # Retain the actual first snapshot, but failed verification cannot grant success.
+        result.update(
+            exit=1,
+            findings=[*result["findings"], asdict(Finding("execution_error", f"{path}: {exc}"))],
+        )
+        return result, None, raw
+    if current != raw:
+        raise RunError(f"{module}: Handoff changed during independent validation")
+    return result, qa, raw
+
+
 def _completion(step: state.Record, result: state.Record, event: state.Record) -> None:
     code = result["exit"]
     terminal = code != 2 or event["slot"] == 2
@@ -122,11 +144,7 @@ def _accept_event(run: Path, root: Path, module: str, record: state.Record) -> s
         raise RunError(f"{module}: skipped step cannot accept")
     # Shared source/context/dependency qualification guards the checker's transitive reads.
     dispatch.qualified_message(run, root, module, record)
-    result, qa, raw = _observe(run, root, module, record)
-    path = dispatch._target(run, f"handoffs/{module}.md")
-    current = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
-    if current != result["sha256"]:
-        raise RunError(f"{module}: Handoff changed during independent validation")
+    result, qa, raw = _verified_observation(run, root, module, record)
     latest = events[-1]
     if latest["event"] == "validation":
         if all(result[k] == latest["result"][k] for k in ("exit", "findings", "sha256")):
