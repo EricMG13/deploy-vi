@@ -16,7 +16,7 @@ from typing import Any, cast
 from rbotlib.contract import Contract
 from rbotlib.rules import Rules
 
-SCHEMA = "rbot-isolation-input-shape/1"
+SCHEMA = "rbot-isolation-input-shape/2"
 
 
 class ManifestError(ValueError):
@@ -181,8 +181,48 @@ def _context(value: object, pack: dict[str, Any]) -> dict[str, Any]:
     return context
 
 
+def _cp0_lineage(claim: dict[str, Any], context: dict[str, Any]) -> None:
+    """Bind a native CP-0 lineage declaration, without reading/qualifying its state.
+
+    Native lineage.sha256 names the selected Approval origin, not necessarily
+    today's bytes. A different current hash requires the same state proof that
+    declares the checked edit projection. B must verify both against native state.
+    """
+    original, proofs = claim["original"], claim["proofs"]
+    lineage = claim["cp0_lineage"]
+    if lineage is None:
+        _require(original["run_id"] == context["run_id"], "original run_id mismatch")
+        return
+    lineage = _object(lineage, {"pending_run_id", "issuer_id", "sha256", "current_sha256", "proof"})
+    _require(claim["producer"] == "CP-0", "lineage requires CP-0 producer")
+    pending = _id(lineage["pending_run_id"])
+    _require(
+        re.fullmatch(r"[0-9]{8}-.+-pending(?:-[0-9]+)?", pending) is not None
+        and pending != context["run_id"]
+        and pending == original["run_id"],
+        "CP-0 pending identity mismatch",
+    )
+    _require(lineage["issuer_id"] == original["issuer_id"], "CP-0 lineage issuer mismatch")
+    _sha(lineage["sha256"])
+    _sha(lineage["current_sha256"])
+    _require(lineage["current_sha256"] == original["sha256"], "CP-0 current digest mismatch")
+    _reference(lineage["proof"])
+    _require(
+        original["path"] == "handoffs/CP-0.md"
+        and lineage["proof"]["path"] == "run-state.json"
+        and lineage["proof"] == proofs["run"],
+        "CP-0 lineage requires matching native state proof",
+    )
+    _require(
+        lineage["sha256"] == lineage["current_sha256"] or proofs["current"] == lineage["proof"],
+        "CP-0 edited bytes require matching current state proof",
+    )
+
+
 def _claim(value: object, context: dict[str, Any], rules: Rules) -> dict[str, Any]:
-    claim = _object(value, {"producer", "availability", "limitation", "original", "proofs"})
+    claim = _object(
+        value, {"producer", "availability", "limitation", "original", "proofs", "cp0_lineage"}
+    )
     _id(claim["producer"])
     _require(_text(claim["availability"]) in {"present", "missing"}, "invalid availability")
     if claim["limitation"] is not None:
@@ -194,6 +234,7 @@ def _claim(value: object, context: dict[str, Any], rules: Rules) -> dict[str, An
     if claim["availability"] == "missing":
         _require(
             claim["original"] is None
+            and claim["cp0_lineage"] is None
             and claim["limitation"] is not None
             and all(ref is None for ref in proofs.values()),
             "missing claim requires limitation and no original/proofs",
@@ -213,13 +254,15 @@ def _claim(value: object, context: dict[str, Any], rules: Rules) -> dict[str, An
         },
     )
     _require(original["producer"] == claim["producer"], "producer mismatch")
-    for key in ("run_id", "issuer_id", "analysis_date", "provenance"):
+    for key in ("issuer_id", "analysis_date", "provenance"):
         _require(original[key] == context[key], f"original {key} mismatch")
+    _id(original["run_id"])
     _id(original["issuer_id"])
     _date(original["analysis_date"])
     _path(original["path"])
     _sha(original["sha256"])
     _require(_text(original["qa_status"]) in rules.qa_status, "invalid QA claim")
+    _cp0_lineage(claim, context)
     return claim
 
 
