@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 
 import pytest
+from state_receipt_assertions import outcome_bytes
 from test_accept import accept, send
 from test_bootstrap import pending, ready
 
@@ -27,7 +28,7 @@ def test_qa_and_hash_use_same_snapshot_and_changed_bytes_refuse(
     run = pending(tmp_path, RBOT_ROOT)
     send(run, RBOT_ROOT)
     own = run / "handoffs/CP-0.md"
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     from rbotlib.validate import check
 
     real = check
@@ -41,7 +42,7 @@ def test_qa_and_hash_use_same_snapshot_and_changed_bytes_refuse(
 
     monkeypatch.setattr(owner, "check", changed)
     assert accept(run) == 1
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
     assert len(list((run / "validate/history/CP-0").iterdir())) == 1
 
 
@@ -65,9 +66,9 @@ def test_malformed_existing_history_is_not_trusted(
             1, hashlib.sha256(target.read_bytes()).hexdigest()
         ),
     )
-    before = (run / state.STATE).read_bytes(), target.read_bytes()
+    before = outcome_bytes(run), target.read_bytes()
     assert accept(run) == 1
-    assert before == ((run / state.STATE).read_bytes(), target.read_bytes())
+    assert before == (outcome_bytes(run), target.read_bytes())
 
 
 def test_state_hash_must_match_immutable_validation(tmp_path: Path) -> None:
@@ -75,9 +76,9 @@ def test_state_hash_must_match_immutable_validation(tmp_path: Path) -> None:
     send(run, RBOT_ROOT)
     assert accept(run) == 0
     state.update(run, lambda record: record["steps"]["CP-0"].update(sha256="0" * 64))
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     assert accept(run) == 1
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
 
 
 def test_interrupted_publication_preserves_orphan_and_refuses_retry(
@@ -86,7 +87,7 @@ def test_interrupted_publication_preserves_orphan_and_refuses_retry(
     run = pending(tmp_path, RBOT_ROOT)
     send(run, RBOT_ROOT)
     real = os.replace
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
 
     def interrupted(source: Path, destination: Path) -> None:
         if Path(destination).name == state.STATE:
@@ -97,10 +98,10 @@ def test_interrupted_publication_preserves_orphan_and_refuses_retry(
         patch.setattr(os, "replace", interrupted)
         assert accept(run) == 1
     event = run / "validate/history/CP-0/000002.json"
-    assert event.exists() and (run / state.STATE).read_bytes() == before
+    assert event.exists() and outcome_bytes(run) == before
     saved = event.read_bytes()
     assert accept(run) == 1 and event.read_bytes() == saved
-    assert (run / state.STATE).read_bytes() == before and (run / state.LOCK).exists()
+    assert outcome_bytes(run) == before and (run / state.LOCK).exists()
 
 
 @pytest.mark.parametrize(
@@ -133,9 +134,9 @@ def test_unsafe_accept_paths_preserve_state_sources_and_history(
         target.mkdir()
     else:
         os.mkfifo(target)
-    before = (run / state.STATE).read_bytes(), other.read_bytes()
+    before = outcome_bytes(run), other.read_bytes()
     assert accept(run) == 1
-    assert before == ((run / state.STATE).read_bytes(), other.read_bytes())
+    assert before == (outcome_bytes(run), other.read_bytes())
     assert (run / state.LOCK).exists()
 
 
@@ -211,10 +212,10 @@ def test_library_unsafe_log_refuses_before_evidence_publication(tmp_path: Path) 
     other = tmp_path / "other"
     target.rename(other)
     target.symlink_to(other)
-    before = (run / state.STATE).read_bytes(), other.read_bytes()
+    before = outcome_bytes(run), other.read_bytes()
     with pytest.raises(ValueError):
         owner.accept(run, RBOT_ROOT, "CP-0")
-    assert before == ((run / state.STATE).read_bytes(), other.read_bytes())
+    assert before == (outcome_bytes(run), other.read_bytes())
 
 
 @pytest.mark.parametrize(
@@ -233,8 +234,8 @@ def test_step_attribution_must_match_recorded_result(
     send(run, RBOT_ROOT)
     assert accept(run) == 0
     state.update(run, lambda record: record["steps"]["CP-0"].update({field: value}))
-    before = (run / state.STATE).read_bytes()
-    assert accept(run) == 1 and (run / state.STATE).read_bytes() == before
+    before = outcome_bytes(run)
+    assert accept(run) == 1 and outcome_bytes(run) == before
 
 
 def test_safe_io_log_records_failure_and_shared_lock_stays_owned(tmp_path: Path) -> None:
@@ -243,9 +244,9 @@ def test_safe_io_log_records_failure_and_shared_lock_stays_owned(tmp_path: Path)
     lock = run / state.LOCK
     original_lock = lock.read_bytes()
     lock.write_text("fixture owner")
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     assert accept(run) == 1
-    assert lock.read_text() == "fixture owner" and (run / state.STATE).read_bytes() == before
+    assert lock.read_text() == "fixture owner" and outcome_bytes(run) == before
     lock.write_bytes(original_lock)
     (run / "handoffs/CP-0.md").unlink()
     assert accept(run) == 1
@@ -270,7 +271,7 @@ def test_approval_requires_current_registered_acceptance_when_receipts_exist(
             patch.setattr(os, "replace", interrupted)
             assert accept(run) == 1
     ready(run, RBOT_ROOT)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     args = [
         "approve",
         "--run",
@@ -285,7 +286,7 @@ def test_approval_requires_current_registered_acceptance_when_receipts_exist(
         "Fixture",
     ]
     assert main(args) == 1
-    assert run.exists() and (run / state.STATE).read_bytes() == before
+    assert run.exists() and outcome_bytes(run) == before
     assert (run / state.LOCK).exists()
 
 
@@ -311,9 +312,9 @@ def test_persisted_snapshot_is_strictly_decoded_and_bound(tmp_path: Path, change
             step["qa_status"] = "Pass"
 
     state.update(run, forged)
-    before = (run / state.STATE).read_bytes(), target.read_bytes()
+    before = outcome_bytes(run), target.read_bytes()
     assert accept(run) == 1
-    assert before == ((run / state.STATE).read_bytes(), target.read_bytes())
+    assert before == (outcome_bytes(run), target.read_bytes())
 
 
 def test_oversize_failed_snapshot_keeps_all_bytes_and_checker_cap(tmp_path: Path) -> None:
@@ -379,6 +380,6 @@ def test_immutable_event_bytes_hash_is_not_advisory(tmp_path: Path) -> None:
     assert accept(run) == 0
     target = run / "validate/history/CP-0/000001.json"
     target.write_bytes(target.read_bytes() + b"\n ")
-    before = (run / state.STATE).read_bytes(), target.read_bytes()
+    before = outcome_bytes(run), target.read_bytes()
     assert accept(run) == 1
-    assert before == ((run / state.STATE).read_bytes(), target.read_bytes())
+    assert before == (outcome_bytes(run), target.read_bytes())

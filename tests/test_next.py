@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from state_receipt_assertions import outcome_bytes
 from test_accept import send
 from test_bootstrap import approve, pending, ready
 
@@ -88,12 +89,12 @@ def test_checked_readiness_waits_with_no_done(
     own.write_text(own.read_text().replace("qa_status: Restricted", f"qa_status: {qa}"))
     send(run, RBOT_ROOT)
     assert accept.accept(run, RBOT_ROOT, "CP-0")["exit"] in (0, 3)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     capsys.readouterr()
     assert main(["next", "--run", str(run)]) == 1
     out = capsys.readouterr()
     assert not out.out and "waiting for analyst Approval" in out.err
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
 
 
 @pytest.mark.parametrize("status", ["failed", "skipped"])
@@ -232,10 +233,10 @@ def test_refusal_has_no_false_selection_or_state_publication(tmp_path: Path, uns
         history = run / "validate/history/CP-1"
         history.mkdir(parents=True)
         (history / "000001.json").write_text("{}")
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     with pytest.raises((OSError, ValueError, KeyError, TypeError)):
         next_step.select(run, root)
-    assert (run / state.STATE).read_bytes() == before and other.read_text() == "preserve"
+    assert outcome_bytes(run) == before and other.read_text() == "preserve"
     assert (run / state.LOCK).exists()
     if unsafe not in ("symlink", "hardlink", "directory", "fifo"):
         assert not target.exists()
@@ -297,10 +298,10 @@ def test_context_refusal_preserves_evidence_and_owned_lock(tmp_path: Path, cause
         target = run / "log/rbot.log"
         target.rename(tmp_path / "external log")
         target.hardlink_to(tmp_path / "external log")
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     with pytest.raises((OSError, ValueError)):
         next_step.select(run, RBOT_ROOT)
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
     assert not (run / "dispatch/CP-1.md").exists()
     if cause == "lock":
         assert (run / state.LOCK).read_text() == "other owner"
@@ -351,8 +352,8 @@ def test_actual_exit_sequences_preserve_terminal_and_retry_lifetime(
             assert code == 2 and step["attempts"] == 1
             assert next_step.select(run, RBOT_ROOT)["step"] == "CP-0"
         else:
-            before = (run / state.STATE).read_bytes()
+            before = outcome_bytes(run)
             with pytest.raises(RunError, match="readiness"):
                 next_step.select(run, RBOT_ROOT)
-            assert (run / state.STATE).read_bytes() == before
+            assert outcome_bytes(run) == before
         assert attempts.read_history(run, "CP-0", state.read(run)["steps"]["CP-0"]) == events

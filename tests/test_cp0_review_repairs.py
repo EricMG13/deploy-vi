@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from state_receipt_assertions import artifact_bytes
 from test_approve import TARGET, _approve, _ready
 
 import rbotlib.approve as ap
@@ -36,7 +37,7 @@ def test_second_publication_failure_restores_both_files_and_allows_retry(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     run = _ready(root, tmp_path)
-    before = {name: (run / name).read_bytes() for name in ("run-brief.md", "run-state.json")}
+    before = {name: artifact_bytes(run, name) for name in ("run-brief.md", "run-state.json")}
     real = os.replace
     failed = False
 
@@ -53,7 +54,7 @@ def test_second_publication_failure_restores_both_files_and_allows_retry(
     assert _approve(root, run) == 1
     assert capsys.readouterr().out.startswith("could not publish Approval (")
     assert failed
-    assert before == {name: (run / name).read_bytes() for name in before}
+    assert before == {name: artifact_bytes(run, name) for name in before}
     assert not [p for p in run.iterdir() if p.name.startswith(".approve-")]
     monkeypatch.undo()
     assert _approve(root, run) == 0
@@ -64,7 +65,7 @@ def test_second_staging_failure_publishes_nothing_and_allows_retry(
     root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run = _ready(root, tmp_path)
-    before = {name: (run / name).read_bytes() for name in ("run-brief.md", "run-state.json")}
+    before = {name: artifact_bytes(run, name) for name in ("run-brief.md", "run-state.json")}
     real, calls = write_atomic, 0
 
     def fail_second(path: Path, text: str) -> None:
@@ -78,7 +79,7 @@ def test_second_staging_failure_publishes_nothing_and_allows_retry(
     monkeypatch.setattr(ap, "write_atomic", fail_second)
     assert _approve(root, run) == 1
     assert calls == 2
-    assert before == {name: (run / name).read_bytes() for name in before}
+    assert before == {name: artifact_bytes(run, name) for name in before}
     assert not [p for p in run.iterdir() if p.name.startswith(".approve-")]
     monkeypatch.undo()
     assert _approve(root, run) == 0
@@ -321,9 +322,9 @@ def test_both_stages_are_synced_before_first_publication(
     monkeypatch.setattr(os, "fsync", sync)
     monkeypatch.setattr(os, "replace", publish)
     assert _approve(root, run) == 0
-    assert len(synced) == 3
+    assert len(synced) == 5  # two Approval stages, ordinary intent, row, verified observation
     logged = (run.parent / TARGET / "log/rbot.log").stat()
-    assert synced[-1] == (logged.st_dev, logged.st_ino)
+    assert synced[3] == (logged.st_dev, logged.st_ino)
 
 
 @pytest.mark.parametrize(

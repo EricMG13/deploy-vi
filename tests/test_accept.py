@@ -8,6 +8,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+from state_receipt_assertions import outcome_bytes
 from test_bootstrap import approve, pending, ready
 
 from rbotlib import attempts, dispatch, state
@@ -54,8 +55,8 @@ def test_accept_exact_current_bytes_and_cp0_approval_lineage(
     latest = json.loads((run / "validate/CP-0.json").read_text())
     assert set(latest) == {"exit", "findings", "sha256", "at"} and latest["exit"] == code
     history = {p.name: p.read_bytes() for p in (run / "validate/history/CP-0").iterdir()}
-    before = (run / state.STATE).read_bytes()
-    assert accept(run, root) == code and (run / state.STATE).read_bytes() == before
+    before = outcome_bytes(run)
+    assert accept(run, root) == code and outcome_bytes(run) == before
     ready(run, root)
     target = approve(run, root)
     assert state.read(target)["steps"]["CP-0"] == step
@@ -68,11 +69,11 @@ def test_accept_exact_current_bytes_and_cp0_approval_lineage(
 def test_no_reported_dispatch_or_seeded_attempts_cannot_accept(tmp_path: Path) -> None:
     run = pending(tmp_path, RBOT_ROOT)
     dispatch.prepare_message(run, RBOT_ROOT, "CP-0")
-    before = (run / state.STATE).read_bytes()
-    assert accept(run) == 1 and (run / state.STATE).read_bytes() == before
+    before = outcome_bytes(run)
+    assert accept(run) == 1 and outcome_bytes(run) == before
     state.update(run, lambda record: record["steps"]["CP-0"].update(status="running", attempts=1))
-    before = (run / state.STATE).read_bytes()
-    assert accept(run) == 1 and (run / state.STATE).read_bytes() == before
+    before = outcome_bytes(run)
+    assert accept(run) == 1 and outcome_bytes(run) == before
     assert not (run / "validate").exists()
 
 
@@ -83,8 +84,8 @@ def test_malformed_retry_survives_resends_and_duplicate_accept(tmp_path: Path) -
     own.write_text("DONE 0")
     assert accept(run) == 2
     first = (run / "validate/CP-0.json").read_bytes()
-    before = (run / state.STATE).read_bytes()
-    assert accept(run) == 2 and (run / state.STATE).read_bytes() == before
+    before = outcome_bytes(run)
+    assert accept(run) == 2 and outcome_bytes(run) == before
     assert (run / "validate/CP-0.json").read_bytes() == first
     send(run, RBOT_ROOT, name="fixture-retry", retry=True)
     send(run, RBOT_ROOT, name="fixture-retry-interrupted", retry=True)
@@ -142,9 +143,9 @@ def test_terminal_valid_edit_retains_original_validation(tmp_path: Path) -> None
     assert accept(run) == 0
     own = run / "handoffs/CP-0.md"
     own.write_bytes(own.read_bytes() + b"\nchanged")
-    before = (run / state.STATE).read_bytes(), (run / "validate/CP-0.json").read_bytes()
+    before = outcome_bytes(run), (run / "validate/CP-0.json").read_bytes()
     assert accept(run) == 0
-    assert (run / state.STATE).read_bytes() != before[0]
+    assert outcome_bytes(run) != before[0]
     assert (run / "validate/CP-0.json").read_bytes() == before[1]
     assert state.read(run)["steps"]["CP-0"]["note"] == "edited"
 
@@ -152,6 +153,6 @@ def test_terminal_valid_edit_retains_original_validation(tmp_path: Path) -> None
 @pytest.mark.parametrize("target", ["MODEL", "CP-DR", "CP-8", "CP-1", "../CP-0"])
 def test_unsupported_or_unplanned_accept_is_preflight_refusal(tmp_path: Path, target: str) -> None:
     run = pending(tmp_path, RBOT_ROOT)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     assert accept(run, module=target) == 1
-    assert (run / state.STATE).read_bytes() == before and not (run / "validate").exists()
+    assert outcome_bytes(run) == before and not (run / "validate").exists()

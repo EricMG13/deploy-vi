@@ -8,6 +8,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from state_receipt_assertions import outcome_bytes
 
 from cp0_fixture import cp0_handoff
 from rbotlib import bootstrap, state
@@ -131,10 +132,10 @@ def test_invalid_handoff_cannot_complete(
     run = pending(tmp_path, root)
     cp0 = run / "handoffs/CP-0.md"
     cp0.write_text(change(cp0.read_text()))
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     with pytest.raises(RunError, match=match):
         bootstrap.complete_cp0(run, root, load_rules(root))
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
 
 
 def test_io_failure_and_shared_lock_refuse_without_changing_state(
@@ -142,18 +143,18 @@ def test_io_failure_and_shared_lock_refuse_without_changing_state(
 ) -> None:
 
     run = pending(tmp_path, root)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     owner = state._Locked(run)
     try:
         with pytest.raises(RunError, match="holds"):
             bootstrap.complete_cp0(run, root, load_rules(root))
-        assert (run / state.STATE).read_bytes() == before
+        assert outcome_bytes(run) == before
     finally:
         assert owner.close() == []
     (run / "prepared/index.json").unlink()
     with pytest.raises(RunError, match="exit 1"):
         bootstrap.complete_cp0(run, root, load_rules(root))
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
 
 
 def test_accepted_metadata_preserved_and_stale_hash_requires_owner(
@@ -264,10 +265,10 @@ def test_linked_handoff_never_becomes_accepted(root: Path, tmp_path: Path, kind:
         cp0.symlink_to(other)
     else:
         cp0.hardlink_to(other)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     with pytest.raises(RunError):
         bootstrap.complete_cp0(run, root, load_rules(root))
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
 
 
 @pytest.mark.parametrize("status", ["failed", "skipped"])
@@ -277,12 +278,12 @@ def test_terminal_cp0_cannot_be_resurrected_by_approval(
 
     run = pending(tmp_path, root)
     state.set_status(run, "CP-0", status, "observed refusal")
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     with pytest.raises(RunError, match="completion requires"):
         bootstrap.complete_cp0(run, root, load_rules(root))
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
     ready(run, root)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     args = [
         "--root",
         str(root),
@@ -293,7 +294,7 @@ def test_terminal_cp0_cannot_be_resurrected_by_approval(
         "FULL_CREDIT_ASSESSMENT",
     ]
     assert main([*args, "--depth", "full", "--primary", "no", "--analyst", "Approver"]) == 1
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
 
 
 def test_wrong_known_issuer_and_unanchored_citation_refuse(root: Path, tmp_path: Path) -> None:
@@ -366,7 +367,7 @@ def test_fifo_handoff_refuses_before_opening_and_releases_writer_lock(
     cp0 = run / "handoffs/CP-0.md"
     cp0.unlink()
     os.mkfifo(cp0)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     code = (
         "from pathlib import Path; from rbotlib.bootstrap import complete_cp0; "
         "from rbotlib.rules import load_rules; import sys\n"
@@ -387,7 +388,7 @@ def test_fifo_handoff_refuses_before_opening_and_releases_writer_lock(
             process.kill()
             process.communicate()
     assert process.returncode == 1 and "regular file" in out and not err
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
     assert (run / state.LOCK).exists()
 
 
@@ -396,8 +397,8 @@ def test_undecodable_handoff_names_the_input_and_preserves_state(
 ) -> None:
     run = pending(tmp_path, root)
     (run / "handoffs/CP-0.md").write_bytes(b"\xff")
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     with pytest.raises(RunError, match=r"CP-0.md.*readable"):
         bootstrap.complete_cp0(run, root, load_rules(root))
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
     assert (run / state.LOCK).exists()

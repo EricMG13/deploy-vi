@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 
 import pytest
+from state_receipt_assertions import outcome_bytes
 from test_accept import send
 from test_model_completion import invoke
 from test_model_host import eligible
@@ -299,9 +300,9 @@ def test_legacy_three_output_receipt_requires_recovery_without_migration(tmp_pat
         ).hexdigest()
 
     state.update(run, legacy_receipt)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     with pytest.raises(RunError, match="current outputs/hash/QA differ"):
         qualification.qualify(run, RBOT_ROOT, state.read(run))
     assert cli.main(["dispatch-message", "--run", str(run), "--module", "CP-3"]) == 1
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
     assert legacy.read_bytes() == b"retired workbook"

@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from state_receipt_assertions import outcome_bytes
 from test_bootstrap import approve, pending, ready
 
 from rbotlib import bootstrap, state
@@ -25,7 +26,7 @@ def test_front_issuer_cannot_override_source_backed_readiness(root: Path, tmp_pa
     cp0 = run / "handoffs/CP-0.md"
     cp0.write_text(cp0.read_text().replace("issuer_id: ACME", "issuer_id: OTHER"))
     ready(run, root)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     with pytest.raises(RunError, match="identity"):
         bootstrap.complete_cp0(run, root, load_rules(root))
     command = [
@@ -44,7 +45,7 @@ def test_front_issuer_cannot_override_source_backed_readiness(root: Path, tmp_pa
         "Approver",
     ]
     assert main(command) == 1
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
 
 
 def test_unknown_readiness_stays_honest_then_analyst_supplies_identity(
@@ -79,7 +80,7 @@ def test_confirmed_known_issuer_change_needs_the_completion_owner(
     ready(run, root)
     assert main(["brief", "--run", str(run), "--set", "issuer_id=OTHER"]) == 0
     assert main(["--root", str(root), "grade", "--run", str(run)]) == 0
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     command = [
         "--root",
         str(root),
@@ -96,4 +97,4 @@ def test_confirmed_known_issuer_change_needs_the_completion_owner(
         "Approver",
     ]
     assert main(command) == 1
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before

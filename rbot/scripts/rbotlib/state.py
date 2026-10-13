@@ -178,6 +178,9 @@ def validate(record: Record, run: Path) -> None:
     from rbotlib.origins import validate as validate_origins
 
     validate_origins(record)
+    from rbotlib.command_receipts import checked as checked_receipts
+
+    checked_receipts(record)
 
 
 def _ownership(record: Record) -> None:

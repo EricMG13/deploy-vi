@@ -93,12 +93,14 @@ def checked(record: state.Record, module: str, origin: str) -> state.Record:
     return evidence
 
 
-def _frontier(raw: bytes, intent: state.Record, identifier: str) -> str:
+def _frontier(
+    raw: bytes, intent: state.Record, identifier: str, codes: tuple[int, ...] = (0, 1)
+) -> str:
     if (
         not isinstance(intent, dict)
         or intent.get("invocation") != identifier
         or type(intent.get("code")) is not int
-        or intent.get("code") not in (0, 1)
+        or intent.get("code") not in codes
         or type(intent.get("prefix_size")) is not int
         or intent["prefix_size"] < 0
         or not state._sha(intent.get("prefix_sha256"))
@@ -113,7 +115,7 @@ def _frontier(raw: bytes, intent: state.Record, identifier: str) -> str:
         or hashlib.sha256(prefix).hexdigest() != intent["prefix_sha256"]
         or len(row.split(b"\t")) != 3
         or not row.endswith(b"\t")
-        or suffix not in (b"", row + b"0\n", row + b"1\n")
+        or suffix not in (b"", *(row + f"{code}\n".encode() for code in codes))
     ):
         raise RunError("host: receipt prefix/row changed; evidence preserved")
     return "missing row" if not suffix else f"candidate{suffix[-2:-1].decode()}; exit unknown"
@@ -140,7 +142,7 @@ def observe(run: Path, invocation: state.Record) -> str:
         observation = "no persisted receipt intent"
     for index, receipt in enumerate(receipts):
         frontier = raw[: receipts[index + 1]["prefix_size"]] if index + 1 < len(receipts) else raw
-        _frontier(frontier, receipt, invocation["id"])
+        _frontier(frontier, receipt, invocation["id"], tuple(range(5)))
     return observation
 
 

@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
+from state_receipt_assertions import outcome_bytes
 
 from rbotlib.cli import main
 from rbotlib.fsio import write_atomic
@@ -115,9 +116,9 @@ def test_public_state_cannot_forge_acceptance_or_resurrect_steps(
     tmp_path: Path, assignment: str
 ) -> None:
     run, _ = seeded(tmp_path)
-    before = (run / "run-state.json").read_bytes()
+    before = outcome_bytes(run)
     assert invoke(run, "--set", assignment, "--reason", "manual claim") == 1
-    assert (run / "run-state.json").read_bytes() == before
+    assert outcome_bytes(run) == before
 
 
 @pytest.mark.parametrize(
@@ -137,11 +138,11 @@ def test_bad_schema_is_named_without_state_or_source_mutation(
     run, data = seeded(tmp_path)
     data[field] = value
     (run / "run-state.json").write_text(json.dumps(data), encoding="utf-8")
-    before = (run / "run-state.json").read_bytes()
+    before = outcome_bytes(run)
     assert invoke(run) == 1
     captured = capsys.readouterr()
     assert field in captured.out + captured.err
-    assert (run / "run-state.json").read_bytes() == before
+    assert outcome_bytes(run) == before
     assert (run.parent.parent / "source.md").read_bytes() == b"unaltered source evidence\n"
 
 
@@ -199,7 +200,7 @@ def test_shared_lock_refuses_overlap_then_reads_the_latest_state(tmp_path: Path)
             timeout=10,
             check=False,
         )
-        assert child.returncode == 1 and ".approve.lock" in child.stdout
+        assert child.returncode == 1 and "holds this run" in child.stdout + child.stderr
     finally:
         release.set()
         thread.join(10)
@@ -294,10 +295,10 @@ def test_public_terminal_transitions_are_absorbing(terminal: str, target: str) -
         data["steps"]["MODEL"].update(
             status=terminal, reason="recorded result", handoff="handoffs/MODEL.md", sha256="a" * 64
         )
-        before = json.dumps(data).encode()
-        (run / "run-state.json").write_bytes(before)
+        (run / "run-state.json").write_bytes(json.dumps(data).encode())
+        before = outcome_bytes(run)
         assert invoke(run, "--set", f"MODEL={target}", "--reason", "manual retry") == 1
-        assert (run / "run-state.json").read_bytes() == before
+        assert outcome_bytes(run) == before
 
 
 def test_bootstrap_prior_case_cannot_hide_an_invalid_shape(tmp_path: Path) -> None:
@@ -394,8 +395,8 @@ def test_nonregular_state_refuses_promptly_in_real_process(tmp_path: Path, kind:
 
 def test_valid_run_failed_command_retains_honest_log(tmp_path: Path) -> None:
     run, _ = seeded(tmp_path)
-    before = (run / "run-state.json").read_bytes()
+    before = outcome_bytes(run)
     assert invoke(run, "--set", "NOPE=failed", "--reason", "host failed") == 1
-    assert (run / "run-state.json").read_bytes() == before
+    assert outcome_bytes(run) == before
     log = (run / "log/rbot.log").read_text().splitlines()
     assert len(log) == 1 and "NOPE=failed" in log[0] and log[0].endswith("\t1")

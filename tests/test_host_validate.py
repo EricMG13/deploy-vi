@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from state_receipt_assertions import outcome_bytes
 from test_host_fit import fit_run
 
 from rbotlib import cli, dispatch, state
@@ -110,6 +111,6 @@ def test_corrupt_receipt_refuses_public_validation(
     if location == "execution" and field != "invocations":
         execution["binding"] = host_evidence.binding(execution)
     (run / state.STATE).write_text(json.dumps(record))
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     assert cli.main(command) == 1
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before

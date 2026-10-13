@@ -398,6 +398,9 @@ def execute(
         run, root = state.run_path(selected), dispatch._root(args.root)
         owner = state._Locked(run)
         _current_before_host(owner, root, backend.step)
+        from rbotlib.command_receipts import settle
+
+        settle(owner)
         generated_at = datetime.now(UTC).isoformat()
         captured = _register(owner, root, generated_at, token, backend)
         evidence = state.read(run)["steps"][backend.step]["host_execution"]

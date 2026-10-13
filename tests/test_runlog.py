@@ -16,9 +16,15 @@ from rbotlib.rules import RBOT_ROOT
 def test_owned_receipt_correction_preserves_bytes_and_cardinality(
     tmp_path: Path, suffix: str
 ) -> None:
-    run = approved(tmp_path, RBOT_ROOT)
+    from rbotlib import runs
+
+    pack = tmp_path / "pack"
+    pack.mkdir()
+    run = runs.create_run(
+        pack
+    )  # a native initial opaque prefix; no prior registered row is adopted
     path = run / "log/rbot.log"
-    prefix = path.read_bytes() + b"uninterpreted prior bytes\xff\r\n"
+    prefix = b"uninterpreted prior bytes\xff\r\n"
     path.write_bytes(prefix)
     receipt = runlog.Receipt(run, ["model", "quoted ' argument\n"])
     try:

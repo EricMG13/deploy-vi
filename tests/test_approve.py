@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from state_receipt_assertions import outcome_bytes
 
 import rbotlib.approve as ap
 from builders import make_run
@@ -323,7 +324,7 @@ def test_a_failed_rename_leaves_the_run_unapproved_and_retryable(
     root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run = _ready(root, tmp_path)
-    brief, state = (run / "run-brief.md").read_bytes(), (run / "run-state.json").read_bytes()
+    brief, state = (run / "run-brief.md").read_bytes(), outcome_bytes(run)
 
     def in_use(self: Path, target: object) -> Path:
         raise PermissionError(13, "The process cannot access the file", str(self))
@@ -338,7 +339,7 @@ def test_a_failed_rename_leaves_the_run_unapproved_and_retryable(
     )
     monkeypatch.undo()
     assert (run / "run-brief.md").read_bytes() == brief
-    assert (run / "run-state.json").read_bytes() == state
+    assert outcome_bytes(run) == state
     assert sorted(p.name for p in run.iterdir() if p.name.startswith(".")) == [".approve.lock"]
     assert _approve(root, run) == 0
     assert (run.parent / TARGET / "run-state.json").is_file()
@@ -365,7 +366,8 @@ def test_a_concurrent_approve_is_refused_by_the_lock(
     done.set()
     first.join()
     assert codes == {"fca": 0, "eu": 1}
-    assert "holds this run" in capsys.readouterr().out
+    captured = capsys.readouterr()
+    assert "holds this run" in captured.out + captured.err
     assert [p.name for p in run.parent.iterdir()] == [TARGET]
     state = _state(run.parent / TARGET)
     assert (state["pathway"], state["run_id"]) == ("FULL_CREDIT_ASSESSMENT", TARGET)
@@ -505,9 +507,9 @@ def test_unapproved_analysis_steps_cannot_be_carried_into_approval(
     state = _state(run)
     state["steps"]["FIT"] = {"kind": "host", "status": "accepted", "reason": ""}
     (run / "run-state.json").write_text(json.dumps(state), encoding="utf-8")
-    original = (run / "run-state.json").read_bytes()
+    original = outcome_bytes(run)
     assert _approve(root, run) == 1
-    assert (run / "run-state.json").read_bytes() == original
+    assert outcome_bytes(run) == original
 
 
 def test_an_issuer_id_without_a_slug_is_refused(tmp_path: Path) -> None:

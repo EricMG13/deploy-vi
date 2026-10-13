@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 import pytest
+from state_receipt_assertions import artifact_bytes, outcome_bytes
 from test_accept import send
 from test_bootstrap import approve, pending, ready
 
@@ -43,9 +44,9 @@ def test_native_origins_and_multiple_narrative_edits(tmp_path: Path, route: str,
         assert now["steps"]["CP-0"]["attempts"] == before["steps"]["CP-0"]["attempts"]
         assert accept.accept(run, RBOT_ROOT, "CP-0")["exit"] == (3 if qa == "Blocked" else 0)
         assert dispatch.prepare_message(run, RBOT_ROOT, "CP-1")
-        frozen = (run / state.STATE).read_bytes()
+        frozen = outcome_bytes(run)
         selection.select(run, RBOT_ROOT)
-        assert (run / state.STATE).read_bytes() == frozen
+        assert outcome_bytes(run) == frozen
 
 
 @pytest.mark.parametrize("route", ["complete", "receipt"])
@@ -90,10 +91,10 @@ def test_changed_approved_semantics_refuse_without_publication(tmp_path: Path, c
     old, new = substitutions[change]
     assert old in text
     path.write_text(text.replace(old, new))
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     with pytest.raises(RunError, match=r"decisions|classification|validat|origin"):
         selection.select(run, RBOT_ROOT)
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
 
 
 @pytest.mark.parametrize("damage", ["hash", "base64", "size", "identity", "extra"])
@@ -114,10 +115,10 @@ def test_unchanged_artifacts_still_validate_origin_envelopes(tmp_path: Path, dam
         }[damage]
         origin[key] = value
     (run / state.STATE).write_text(json.dumps(record))
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     with pytest.raises(RunError, match=r"origin|lineage"):
         selection.select(run, RBOT_ROOT)
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
 
 
 @pytest.mark.parametrize("route", ["direct", "receipt"])
@@ -139,11 +140,11 @@ def test_uncaptured_requires_exact_candidate_and_restoration(
     (run / state.STATE).write_text(json.dumps(record))
     if changed:
         (run / bootstrap.CP0).write_bytes(original + b"\nChanged narrative.\n")
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     if changed and route == "direct":
         with pytest.raises(RunError, match="frozen approved CP0 bytes unavailable"):
             selection.select(run, RBOT_ROOT)
-        assert (run / state.STATE).read_bytes() == before
+        assert outcome_bytes(run) == before
         (run / bootstrap.CP0).write_bytes(original)
     assert selection.select(run, RBOT_ROOT)["step"] == "CP-1"
     origin = state.read(run)["approved_origins"]["CP-0"]
@@ -169,11 +170,11 @@ def test_uncaptured_brief_reconstruction_is_exact(tmp_path: Path, change: str) -
         if change == "narrative"
         else text.replace("Annual review", "Changed objective")
     )
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     if change == "objective":
         with pytest.raises(RunError, match="origin cannot be reconstructed"):
             selection.select(run, RBOT_ROOT)
-        assert (run / state.STATE).read_bytes() == before
+        assert outcome_bytes(run) == before
     else:
         assert selection.select(run, RBOT_ROOT)["step"] == "CP-1"
         assert state.read(run)["approved_origins"]["RUN_BRIEF"]["basis"] == "reconstructed"
@@ -210,10 +211,10 @@ def test_current_lineage_corruption_refuses(tmp_path: Path, damage: str) -> None
     else:
         (run / "validate/history/CP-1/000002.json").write_text("{}")
     (run / state.STATE).write_text(json.dumps(record))
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     with pytest.raises(RunError):
         selection.select(run, RBOT_ROOT)
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
 
 
 @pytest.mark.parametrize("boundary", ["stage", "brief", "state", "rename"])
@@ -228,7 +229,7 @@ def test_approval_publication_interruptions_preserve_bound_evidence(
 
     run = pending(tmp_path, RBOT_ROOT)
     ready(run, RBOT_ROOT)
-    before = {name: (run / name).read_bytes() for name in ("run-brief.md", state.STATE)}
+    before = {name: artifact_bytes(run, name) for name in ("run-brief.md", state.STATE)}
     target = approval.new_name(run, "ACME", "FULL_CREDIT_ASSESSMENT")
     script = """
 import os, sys
@@ -288,7 +289,7 @@ sys.exit(cli.main(sys.argv[3:]))
     assert process.returncode == (73 if abrupt else 1), process.stdout + process.stderr
     assert not target.exists()
     if not abrupt or boundary == "stage":
-        assert {name: (run / name).read_bytes() for name in before} == before
+        assert {name: artifact_bytes(run, name) for name in before} == before
         assert state.read(run)["approval"] is None
     else:
         with pytest.raises(RunError):
@@ -326,7 +327,7 @@ def test_approval_readback_precedes_publication(
 
     run = pending(tmp_path, RBOT_ROOT)
     ready(run, RBOT_ROOT)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     staged = approval._staged
 
     @contextmanager
@@ -342,14 +343,14 @@ def test_approval_readback_precedes_publication(
     )
     with pytest.raises(RunError, match="changed during Approval"):
         approval.approve(run, RBOT_ROOT, load_rules(RBOT_ROOT), choice)
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
 
 
 def test_completion_readback_binds_captured_bytes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     run = pending(tmp_path, RBOT_ROOT)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     from rbotlib.contract import Contract
     from rbotlib.rules import Rules
     from rbotlib.validate import Finding, check
@@ -365,7 +366,7 @@ def test_completion_readback_binds_captured_bytes(
     monkeypatch.setattr(bootstrap, "check", changed)
     with pytest.raises(RunError, match="changed during CP-0 completion"):
         bootstrap.complete_cp0(run, RBOT_ROOT, load_rules(RBOT_ROOT))
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
 
 
 def test_registered_latest_is_checked_before_origin_recovery(tmp_path: Path) -> None:
@@ -378,10 +379,10 @@ def test_registered_latest_is_checked_before_origin_recovery(tmp_path: Path) -> 
     record.pop("approved_origins")
     (run / state.STATE).write_text(json.dumps(record))
     (run / "validate/CP-0.json").write_text("{}")
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     with pytest.raises(RunError, match="latest validation mismatch"):
         selection.select(run, RBOT_ROOT)
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
 
 
 def test_repeated_selection_preserves_state_after_clock_advances(
@@ -393,7 +394,7 @@ def test_repeated_selection_preserves_state_after_clock_advances(
     ready(run, RBOT_ROOT)
     run = approve(run, RBOT_ROOT)
     selection.select(run, RBOT_ROOT)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     later = datetime.now(UTC) + timedelta(hours=1)
 
     class Clock(datetime):
@@ -411,4 +412,4 @@ def test_repeated_selection_preserves_state_after_clock_advances(
 
     monkeypatch.setattr(state, "datetime", Clock)
     selection.select(run, RBOT_ROOT)
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before

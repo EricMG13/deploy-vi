@@ -8,6 +8,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+from state_receipt_assertions import outcome_bytes
 from test_accept import send
 from test_bootstrap import approve, pending, ready
 from test_dispatch import message
@@ -218,11 +219,11 @@ def test_own_handoff_permission_never_grants_unsupported_target(
         own.mkdir()
     else:
         os.mkfifo(own)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     code, text = message(run, root, "CP-1", capsys)
     assert code == 1 and "CP-1.md" in text
     assert external.read_text() == "protected bytes"
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
     assert not (run / "dispatch").exists()
 
 
@@ -323,7 +324,7 @@ def test_classifications_cannot_change_after_cp0_qualification(
     ready(run, root)
     run = approve(run, root)
     cp0 = run / "handoffs/CP-0.md"
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     original = bootstrap.checked_cp0
 
     def replace_after(
@@ -339,5 +340,5 @@ def test_classifications_cannot_change_after_cp0_qualification(
     monkeypatch.setattr(bootstrap, "checked_cp0", replace_after)
     code, text = message(run, root, "CP-1", capsys)
     assert code == 1 and "CP-0" in text
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
     assert not (run / "dispatch").exists()

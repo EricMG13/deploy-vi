@@ -8,6 +8,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+from state_receipt_assertions import artifact_bytes, outcome_bytes
 from test_next import approved, blocked
 
 from rbotlib import dispatch, state
@@ -114,9 +115,13 @@ def test_unsupported_extra_contract_refuses_before_content_read(
     external_bytes = target.read_bytes()
     external.write_bytes(external_bytes)
     target = replace_contract(target, external, kind)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     sources = {p: p.read_bytes() for p in run.parent.parent.iterdir() if p.is_file()}
-    evidence = {p: p.read_bytes() for p in run.rglob("*") if p.is_file() and "log" not in p.parts}
+    evidence = {
+        p: artifact_bytes(run, p.relative_to(run))
+        for p in run.rglob("*")
+        if p.is_file() and "log" not in p.parts
+    }
     reads: list[Path] = []
     actual_read = Path.read_bytes
 
@@ -140,8 +145,8 @@ def test_unsupported_extra_contract_refuses_before_content_read(
                     next_step.select(run, root)
         finally:
             assert not reads, "contract content reached before safe regular-file refusal"
-    assert (run / state.STATE).read_bytes() == before
-    assert all(p.read_bytes() == data for p, data in evidence.items())
+    assert outcome_bytes(run) == before
+    assert all(artifact_bytes(run, p.relative_to(run)) == data for p, data in evidence.items())
     assert {p for p in run.rglob("*") if p.is_file() and "log" not in p.parts} == set(evidence)
     assert (run / state.LOCK).exists()
     assert all(p.read_bytes() == data for p, data in sources.items())

@@ -10,6 +10,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+from state_receipt_assertions import artifact_bytes, outcome_bytes
 from test_accept import accept, send
 from test_bootstrap import pending
 
@@ -109,20 +110,20 @@ def test_attempted_owned_read_failure_is_terminal_and_immutable(
         _assert_evidence(run, result, receipt, raw, observation)
         assert reads == (1 if observation == "first" else 2)
         preserved = {
-            str(p.relative_to(run)): real(p)
+            str(p.relative_to(run)): outcome_bytes(run) if p.name == state.STATE else real(p)
             for p in [run / state.STATE, *(run / "validate").rglob("*.json")]
         }
         assert invoke() == result
-        assert preserved == {name: real(run / name) for name in preserved}
+        assert preserved == {name: artifact_bytes(run, name) for name in preserved}
         assert (run / state.LOCK).exists()
     assert own.read_bytes() == raw
     with pytest.raises(RunError, match="validated bytes changed"):
         library_accept(run, root, "CP-0")
     assert accept(run, root) == 1
-    assert preserved == {name: real(run / name) for name in preserved}
+    assert preserved == {name: artifact_bytes(run, name) for name in preserved}
     with pytest.raises(RunError, match="pending/running"):
         send(run, root, name="fixture-illegal-retry", retry=True)
-    assert preserved == {name: real(run / name) for name in preserved}
+    assert preserved == {name: artifact_bytes(run, name) for name in preserved}
     assert (run / state.LOCK).exists()
     assert {p.name: p.read_bytes() for p in run.parent.parent.iterdir() if p.is_file()} == sources
     if public:
@@ -162,7 +163,7 @@ def test_verification_unsafe_replacement_is_preflight_refusal(
     own = run / "handoffs/CP-0.md"
     external = tmp_path / "external"
     external.write_bytes(own.read_bytes())
-    before = (run / state.STATE).read_bytes(), external.read_bytes()
+    before = outcome_bytes(run), external.read_bytes()
     real = check
 
     def linked(
@@ -175,7 +176,7 @@ def test_verification_unsafe_replacement_is_preflight_refusal(
 
     monkeypatch.setattr(owner, "check", linked)
     assert accept(run) == 1
-    assert before == ((run / state.STATE).read_bytes(), external.read_bytes())
+    assert before == (outcome_bytes(run), external.read_bytes())
     assert len(list((run / "validate/history/CP-0").iterdir())) == 1
     assert (run / state.LOCK).exists()
 
@@ -289,10 +290,10 @@ def test_verification_io_retains_already_observed_findings_and_snapshot(
         assert result["sha256"] == original["sha256"]
         assert base64.b64decode(event["handoff_base64"], validate=True) == raw
         assert step["validated_at"] == step["finished_at"] == result["at"]
-        before = (run / state.STATE).read_bytes(), (run / "validate/CP-0.json").read_bytes()
+        before = outcome_bytes(run), (run / "validate/CP-0.json").read_bytes()
         assert library_accept(run, RBOT_ROOT, "CP-0") == result
         assert before == (
-            (run / state.STATE).read_bytes(),
+            outcome_bytes(run),
             (run / "validate/CP-0.json").read_bytes(),
         )
     assert (run / state.LOCK).exists()

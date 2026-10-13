@@ -192,6 +192,18 @@ def _arguments(argv: list[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _preflight(log_run: Path | None) -> int | None:
+    if log_run is None:
+        return None
+    from rbotlib.command_receipts import preflight
+
+    try:
+        preflight(log_run)
+    except (OSError, ValueError, RecursionError) as exc:
+        return _fail(log_run, exc)
+    return None
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _arguments(argv)
     run_dir = getattr(args, "run_dir", None)
@@ -214,6 +226,8 @@ def main(argv: list[str] | None = None) -> int:
                 log_run = selected
         except (OSError, ValueError, RecursionError) as exc:
             return _fail(selected, exc)
+    if (refusal := _preflight(log_run)) is not None:
+        return refusal
     result = 1  # what the log records when the command raises
     try:
         result = int(args.run(args))

@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from state_receipt_assertions import outcome_bytes
 from test_state import seeded
 
 
@@ -145,10 +146,10 @@ def test_valid_run_normalized_spellings_preserve_state_and_log_once(
             selected += "/child/.."
     elif spelling == "relative child":
         selected = str(run.relative_to(tmp_path)) + "/child/.."
-    before = (run / "run-state.json").read_bytes()
+    before = outcome_bytes(run)
     result = call(selected, tmp_path if spelling in ("relative", "relative child") else None)
     assert result.returncode == 0
-    assert (run / "run-state.json").read_bytes() == before
+    assert outcome_bytes(run) == before
     assert (run.parent.parent / "source.md").read_bytes() == b"unaltered source evidence\n"
     lines = (run / "log/rbot.log").read_text().splitlines()
     assert len(lines) == 1 and lines[0].endswith("\t0")

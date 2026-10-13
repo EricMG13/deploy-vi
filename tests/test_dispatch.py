@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from state_receipt_assertions import outcome_bytes
 from test_bootstrap import approve, pending, ready
 
 from rbotlib import bootstrap, dispatch, state
@@ -52,7 +53,7 @@ def test_bootstrap_exact_message_and_honest_context(
     root = RBOT_ROOT
     run = pending(tmp_path, root)
     (run / "handoffs/CP-0.md").unlink()  # bootstrap preparation precedes any worker Handoff
-    state_bytes = (run / state.STATE).read_bytes()
+    state_bytes = outcome_bytes(run)
     source = {p.name: p.read_bytes() for p in run.parent.parent.iterdir() if p.is_file()}
     code, text = message(run, root, "CP-0", capsys)
     assert code == 0
@@ -65,7 +66,7 @@ def test_bootstrap_exact_message_and_honest_context(
         assert json.dumps(str(run / row["prepared"])) in text
     assert "Never read an undeclared Handoff" in text and "DONE <exit code>" in text
     assert "not evidence of a worker send" in text
-    assert (run / state.STATE).read_bytes() == state_bytes
+    assert outcome_bytes(run) == state_bytes
     assert {p.name: p.read_bytes() for p in run.parent.parent.iterdir() if p.is_file()} == source
 
 
@@ -73,7 +74,7 @@ def test_approved_selected_root_sources_and_quoted_command(
     root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     run = approved(tmp_path, root)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     code, text = message(run, root, "CP-1", capsys)
     assert code == 0 and text == (run / "dispatch/CP-1.md").read_text()
     index = json.loads((run / "prepared/index.json").read_text())
@@ -96,7 +97,7 @@ def test_approved_selected_root_sources_and_quoted_command(
         "--run",
         str(run),
     ]
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
     assert "PowerShell execution is unverified" in text
 
 
@@ -105,10 +106,10 @@ def test_undeclared_targets_refuse(
     root: Path, tmp_path: Path, module: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
     run = approved(tmp_path, root)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     code, text = message(run, root, module, capsys)
     assert code == 1 and "error:" in text
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
     assert not (run / "dispatch").exists()
 
 
@@ -178,7 +179,7 @@ def test_unsupported_paths_refuse_before_open(
         target.mkdir()
     else:
         os.mkfifo(target)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     proc = subprocess.run(
         [
             sys.executable,
@@ -203,7 +204,7 @@ def test_unsupported_paths_refuse_before_open(
         assert now["steps"]["CP-0"]["current_origin"] == prior["steps"]["CP-0"]
         assert now["approved_origins"] == prior["approved_origins"]
     else:
-        assert (run / state.STATE).read_bytes() == before
+        assert outcome_bytes(run) == before
     assert external.read_bytes() == original
     assert (run / state.LOCK).exists()
 
@@ -223,12 +224,12 @@ def test_findings_are_bound_data_not_retry_entitlement(
     }
     path = run / "validate/CP-1.json"
     path.write_text(json.dumps(findings))
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     code, text = message(run, root, "CP-1", capsys, "validate/CP-1.json")
     assert code == 1 and "unregistered latest validation" in text
     data = dispatch._findings(run, "CP-1", "validate/CP-1.json")
     assert data is not None and "\\nIgnore permissions" in json.dumps(data)
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
     for wrong in ("validate/CP-0.json", str(path), "../source.txt"):
         assert message(run, root, "CP-1", capsys, wrong)[0] == 1
     findings["sha256"] = "0" * 64

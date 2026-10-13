@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from state_receipt_assertions import artifact_bytes
 from test_approval_authority import args
 from test_bootstrap import pending, ready
 
@@ -24,7 +25,7 @@ def command(run: Path) -> list[str]:
 
 def snapshot(run: Path, excluded: str) -> dict[str, bytes]:
     return {
-        str(p.relative_to(run)): p.read_bytes()
+        str(p.relative_to(run)): artifact_bytes(run, p.relative_to(run))
         for p in run.rglob("*")
         if p.is_file() and str(p.relative_to(run)) not in (excluded, "log/rbot.log")
     }

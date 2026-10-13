@@ -6,6 +6,7 @@ import json
 import os
 from datetime import UTC, datetime
 from pathlib import Path
+from uuid import uuid4
 
 from rbotlib import ownership, state
 from rbotlib.inventory import RunError, output_path
@@ -58,6 +59,7 @@ class Receipt:
         self, run: Path, argv: list[str], state_owner: state._Locked | None = None
     ) -> None:
         self.run = run
+        self.invocation = uuid4().hex
         expected = _entitlement(run)
         if state_owner is not None:
             if state_owner.run != run:
@@ -110,6 +112,9 @@ class Receipt:
             from rbotlib.host_evidence import following
 
             following(self.state_owner, self, code)
+            from rbotlib.command_receipts import begin
+
+            begin(self.state_owner, self, code)
         self.state = f"candidate{code}"
         suffix = self.row + f"{code}\n".encode()
         staged = stage_file(path(self.run), self.prefix + suffix)
@@ -121,6 +126,13 @@ class Receipt:
         if path(self.run).read_bytes() != self.prefix + suffix:
             raise RunError("log: appended row readback differs")
         self.state = f"row{code}"
+        if self.state_owner is not None:
+            from rbotlib.command_receipts import finish
+
+            finish(self.state_owner, self)
+            self.owner.check()
+            if path(self.run).read_bytes() != self.prefix + self.row + f"{code}\n".encode():
+                raise RunError("log: final row readback differs")
 
     def fail(self) -> None:
         """Never append blindly after an ambiguous write or alter another row."""
@@ -144,6 +156,9 @@ class Receipt:
             from rbotlib.host_evidence import following
 
             following(self.state_owner, self, 1)
+            from rbotlib.command_receipts import begin
+
+            begin(self.state_owner, self, 1)
         staged = stage_file(destination, self.prefix + self.row + b"1\n")
         try:
             self.owner.check()
@@ -154,6 +169,13 @@ class Receipt:
         if path(self.run).read_bytes() != self.prefix + self.row + b"1\n":
             raise RunError("log: correction readback differs")
         self.state = "row1"
+        if self.state_owner is not None:
+            from rbotlib.command_receipts import finish
+
+            finish(self.state_owner, self)
+            self.owner.check()
+            if path(self.run).read_bytes() != self.prefix + self.row + b"1\n":
+                raise RunError("log: final correction readback differs")
 
     def close(self) -> None:
         try:

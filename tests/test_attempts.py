@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from state_receipt_assertions import outcome_bytes
 from test_bootstrap import pending
 
 from rbotlib import attempts, dispatch, state
@@ -30,18 +31,18 @@ def receipt(run: Path, root: Path, name: str = "fixture-send") -> state.Record:
 
 def test_preparation_is_not_dispatch_and_receipt_is_idempotent(tmp_path: Path) -> None:
     run = pending(tmp_path, RBOT_ROOT)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     text = dispatch.prepare_message(run, RBOT_ROOT, "CP-0")
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
     event = receipt(run, RBOT_ROOT)
     step = state.read(run)["steps"]["CP-0"]
     assert step["status"] == "running" and step["attempts"] == 1
     assert event["slot"] == 1 and event["reporter"] == "fixture-controller"
     assert event["message_sha256"] == hashlib.sha256(text.encode()).hexdigest()
     assert event["model"] is None and event["worker_started_at"] is None
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     assert receipt(run, RBOT_ROOT) == event
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
     other = receipt(run, RBOT_ROOT, "fixture-interruption-resend")
     assert other["slot"] == 1 and state.read(run)["steps"]["CP-0"]["attempts"] == 1
     assert len(attempts.read_history(run, "CP-0", state.read(run)["steps"]["CP-0"])) == 2
@@ -49,7 +50,7 @@ def test_preparation_is_not_dispatch_and_receipt_is_idempotent(tmp_path: Path) -
 
 def test_receipt_requires_current_qualified_exact_message(tmp_path: Path) -> None:
     run = pending(tmp_path, RBOT_ROOT)
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     with pytest.raises(RunError, match=r"CP-0\.md"):
         attempts.register_dispatch(
             run, RBOT_ROOT, "CP-0", attempts.DispatchReceipt("id", "controller", "0" * 64)
@@ -63,7 +64,7 @@ def test_receipt_requires_current_qualified_exact_message(tmp_path: Path) -> Non
             "CP-0",
             attempts.DispatchReceipt("id", "controller", hashlib.sha256(text.encode()).hexdigest()),
         )
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
     assert (run / state.LOCK).exists()
 
 
@@ -84,9 +85,9 @@ def test_public_receipt_command_and_duplicate_conflict(tmp_path: Path) -> None:
         hashlib.sha256(text.encode()).hexdigest(),
     ]
     assert main(argv) == 0
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     assert main([*argv, "--model", "fixture-model"]) == 1
-    assert (run / state.STATE).read_bytes() == before
+    assert outcome_bytes(run) == before
 
 
 @settings(deadline=None)
@@ -125,10 +126,10 @@ def test_receipt_refuses_changed_context_or_unsafe_publication(
         target.hardlink_to(other)
     else:
         state.set_status(run, "CP-0", "failed", "actual named executor failure")
-    before = (run / state.STATE).read_bytes()
+    before = outcome_bytes(run)
     with pytest.raises(ValueError):
         attempts.register_dispatch(run, root, "CP-0", item)
-    assert (run / state.STATE).read_bytes() == before and (run / state.LOCK).exists()
+    assert outcome_bytes(run) == before and (run / state.LOCK).exists()
 
 
 def test_claimed_model_and_worker_time_are_attributed_only_to_receipt(tmp_path: Path) -> None:
