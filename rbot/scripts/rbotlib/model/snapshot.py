@@ -359,6 +359,8 @@ def _unsecured(view: HouseView) -> Cell:
     """Every position that is not senior secured, so that senior secured plus
     unsecured foots to the positions (finance leases, `Not stated` and the
     debt adjustments included)."""
+    if not view.positions:
+        return Cell(None, "NOT_SOURCED")
     parts = [(p.outstanding, 1) for p in view.positions if p.line.rank not in SECURED_RANKS]
     with localcontext(CONTEXT):
         return calc(parts)

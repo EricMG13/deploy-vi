@@ -32,6 +32,7 @@ from rbotlib.model.history import BALANCE_METRICS, FLOW_METRICS
 from rbotlib.model.house import HouseView, house_view, with_debt_like_lines
 from rbotlib.model.house_inputs import (
     HouseInputs,
+    _ltm_judgments,
     assessment_limitations,
     assessments,
     brief_fields,
@@ -72,22 +73,33 @@ class Written:
     limitations: tuple[Limitation, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class Options:
+    missing: str = ""
+    managed: bool = False
+
+
 def read_handoff(path: Path) -> Read:
     if not path.exists():
         raise ModelInputError(f"{path.name}: missing; the Model needs it")
     try:
-        text = path.read_text(encoding="utf-8")
+        return captured_handoff(path.read_text(encoding="utf-8").encode("utf-8"), path.name)
     except (OSError, UnicodeDecodeError) as exc:
         raise ModelInputError(f"{path.name}: {exc}") from exc
+
+
+def captured_handoff(raw: bytes, label: str) -> Read:
+    """Parse the exact captured bytes; their digest is never newline-normalized."""
     try:
-        handoff = parse(text)
-    except HandoffError as exc:
-        raise ModelInputError(f"{path.name}: {exc}") from exc
-    for table_id in (*handoff.orphan_tags, *handoff.invalid_tags):
-        raise ModelInputError(f"{path.name}: table {table_id} is tagged but malformed")
-    for table_id in handoff.duplicate_tags:
-        raise ModelInputError(f"{path.name}: table {table_id} tagged twice")
-    return Read(handoff, hashlib.sha256(text.encode("utf-8")).hexdigest())
+        handoff = parse(raw.decode("utf-8"))
+    except (UnicodeDecodeError, HandoffError) as exc:
+        raise ModelInputError(f"{label}: {exc}") from exc
+    malformed = handoff.orphan_tags or handoff.invalid_tags
+    if malformed:
+        raise ModelInputError(f"{label}: table {malformed[0]} is tagged but malformed")
+    if handoff.duplicate_tags:
+        raise ModelInputError(f"{label}: table {handoff.duplicate_tags[0]} tagged twice")
+    return Read(handoff, hashlib.sha256(raw).hexdigest())
 
 
 def stage_file(target: Path, data: bytes) -> Path:
@@ -199,14 +211,31 @@ def _rows(table: Table) -> list[dict[str, str]]:
     return [dict(zip(table.columns, row, strict=True)) for row in table.rows]
 
 
-def run_model(run: Path, generated_at: str) -> Written:
-    """Build the Model for the run folder and write its three files."""
-    if not (run / "handoffs").resolve().is_relative_to(run.resolve()):
-        raise ModelInputError("handoffs resolves outside the run folder")
-    cp1 = read_handoff(run / "handoffs" / "CP-1.md")
-    brief = read_handoff(run / "run-brief.md")
-    cp1d_path = run / "handoffs" / "CP-1D.md"
-    cp1d = read_handoff(cp1d_path) if cp1d_path.exists() else None
+def _judgment_limits(regs: Cp1Registers, inputs: HouseInputs) -> list[Limitation]:
+    latest = _ltm_judgments(regs, inputs.assessments)
+    newest = max(
+        (p.end_date for p in regs.periods if p.period_type == "LTM" and p.end_date is not None),
+        default=None,
+    )
+    return [
+        Limitation(
+            "CP1D_CURRENT_JUDGMENT_MISSING",
+            f"{addback}: no CP-1D judgment for newest registered LTM {newest or 'unavailable'}; "
+            "conservative exact-period fallback retained",
+        )
+        for addback in sorted({b.addback_id for b in regs.addbacks} - latest.keys())
+    ]
+
+
+def build(
+    cp1: Read,
+    brief: Read,
+    cp1d: Read | None,
+    generated_at: str,
+    missing: str | Options = "",
+) -> tuple[Written, dict[str, bytes]]:
+    """Render qualified captured inputs without reading or publishing files."""
+    options = missing if isinstance(missing, Options) else Options(missing)
     inputs, regs, model = _inputs(cp1, brief, cp1d)
     mixed = assessment_limitations(regs, inputs.assessments)
     view = house_view(model, regs, inputs)
@@ -222,8 +251,10 @@ def run_model(run: Path, generated_at: str) -> Written:
         *uncited_figures(model, citations),
     ]
     if cp1d is None:
-        why = "no CP-1D Handoff: add-backs keep CP-1's realization status"
+        why = options.missing or "no CP-1D Handoff: add-backs keep CP-1's realization status"
         limitations.append(Limitation("CP1D_NOT_READ", why))
+    if options.managed and cp1d is not None:
+        limitations.extend(_judgment_limits(regs, inputs))
     tables["model.limitations"] = limitation_rows(
         (x.code, x.message, x.line_id, x.column_id) for x in limitations
     )
@@ -251,14 +282,24 @@ def run_model(run: Path, generated_at: str) -> Written:
     workbook_bytes = workbook(
         data, _rows(tables["model.house"]), _rows(tables["snapshot.financials"])
     )
-    write_all(
-        {
-            run / "model.json": dumps(data).encode("utf-8"),
-            run / "model.xlsx": workbook_bytes,
-            run / "handoffs" / "MODEL.md": markdown.encode("utf-8"),
-        }
-    )
-    return Written(qa_status(limitations), tuple(limitations))
+    return Written(qa_status(limitations), tuple(limitations)), {
+        "model.json": dumps(data).encode("utf-8"),
+        "model.xlsx": workbook_bytes,
+        "handoffs/MODEL.md": markdown.encode("utf-8"),
+    }
+
+
+def run_model(run: Path, generated_at: str) -> Written:
+    """Build the Model for the run folder and write its three files."""
+    if not (run / "handoffs").resolve().is_relative_to(run.resolve()):
+        raise ModelInputError("handoffs resolves outside the run folder")
+    cp1 = read_handoff(run / "handoffs" / "CP-1.md")
+    brief = read_handoff(run / "run-brief.md")
+    cp1d_path = run / "handoffs" / "CP-1D.md"
+    cp1d = read_handoff(cp1d_path) if cp1d_path.exists() else None
+    written, files = build(cp1, brief, cp1d, generated_at)
+    write_all({run / name: raw for name, raw in files.items()})
+    return written
 
 
 def run_command(args: argparse.Namespace) -> int:

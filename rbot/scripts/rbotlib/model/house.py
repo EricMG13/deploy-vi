@@ -413,6 +413,8 @@ def cumulative(view: HouseView, rank: str) -> Cell:
 
 
 def secured(view: HouseView) -> Cell:
+    if not view.positions:
+        return Cell(None, "NOT_SOURCED")
     return _sum((p.outstanding, 1) for p in view.positions if p.line.rank in SECURED_RANKS)
 
 

@@ -382,3 +382,54 @@ def add_command(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> Non
     parser.add_argument("--set", metavar="STEP=STATUS")
     parser.add_argument("--reason")
     parser.set_defaults(run=state_command, log_run_guard=log_run_path)
+
+
+class _Locked:
+    """Private host completion boundary; caller keeps state ownership through failures.
+
+    Staging is separate from evidence publication and replacement. Cleanup is
+    reported independently so a committed host outcome cannot be downgraded.
+    """
+
+    def __init__(self, run: Path) -> None:
+        self.run = run_path(run)
+        self.lock = output_path(self.run, LOCK)
+        try:
+            descriptor = os.open(self.lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError as exc:
+            raise RunError("another state update or Approval holds this run") from exc
+        self.identity = os.fstat(descriptor)
+        os.close(descriptor)
+        self.stages: list[Path] = []
+
+    def stage(self, record: Record) -> Path:
+        record["updated_at"] = datetime.now(UTC).isoformat(timespec="seconds")
+        validate(record, self.run)
+        fd, name = tempfile.mkstemp(dir=self.run, prefix=".state-")
+        os.close(fd)
+        staged = Path(name)
+        self.stages.append(staged)
+        write_atomic(
+            staged, json.dumps(record, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
+        )
+        _destination(self.run)
+        return staged
+
+    def commit(self, staged: Path) -> None:
+        os.replace(staged, _destination(self.run))
+
+    def close(self) -> list[str]:
+        warnings = []
+        for staged in self.stages:
+            try:
+                staged.unlink(missing_ok=True)
+            except OSError as exc:
+                warnings.append(f"state stage cleanup: {exc}")
+        try:
+            observed = output_path(self.run, LOCK).lstat()
+            if (observed.st_dev, observed.st_ino) != (self.identity.st_dev, self.identity.st_ino):
+                raise RunError("owned state lock identity changed; cleanup refused")
+            self.lock.unlink()
+        except (OSError, ValueError) as exc:
+            warnings.append(f"state lock cleanup: {exc}")
+        return warnings
