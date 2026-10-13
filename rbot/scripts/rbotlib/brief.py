@@ -28,6 +28,9 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
+from rbotlib.brief_schema import COLUMNS as COLUMNS
+from rbotlib.brief_schema import FIELDS as FIELDS
+from rbotlib.brief_schema import TRANCHE as TRANCHE
 from rbotlib.fsio import write_atomic
 from rbotlib.handoff import Handoff, HandoffError, Table, markers, parse
 from rbotlib.rules import Rules, load_rules
@@ -46,36 +49,7 @@ EDITABLE = (
     "morningstar_issuer_id",
     "ssim_ev_multiple",
 )
-FIELDS = (
-    "issuer",
-    "issuer_id",
-    "as_of_date",
-    "objective",
-    "analyst",
-    "primary",
-    "pathway",
-    "depth",
-    "morningstar_issuer_id",
-    "ssim_ev_multiple",
-)
 REQUIRED = ("issuer", "issuer_id", "as_of_date", "objective", "analyst")
-TRANCHE = (
-    "borrower",
-    "bloomberg_id",
-    "instrument",
-    "debt_type",
-    "use_of_proceeds",
-    "size",
-    "currency",
-    "unit",
-    "price_talk",
-    "talk_stage",
-    "oid",
-    "maturity_date",
-    "expected_ratings",
-    "cr_score",
-    "commitment_date",
-)
 TRANCHE_OPTIONAL = frozenset(
     {"bloomberg_id", "oid", "expected_ratings", "cr_score", "commitment_date"}
 )
@@ -90,49 +64,6 @@ TRANCHE_DATES = ("maturity_date", "commitment_date")
 CURRENCY = re.compile(r"[A-Z]{3}")
 PLAIN_DECIMAL = re.compile(r"\d+(\.\d+)?")
 CONTROL = re.compile(r"[\x00-\x1f\x7f\u2028\u2029]")
-COLUMNS = {
-    "snapshot.run_header": (
-        "run_id",
-        "issuer",
-        "issuer_id",
-        "as_of_date",
-        "objective",
-        "analyst",
-        "pathway",
-        "depth",
-        "primary",
-        "currency",
-        "unit",
-        "morningstar_issuer_id",
-        "ssim_ev_multiple_x",
-        "report_date",
-    ),
-    "snapshot.transaction_summary": ("tranche_id", *TRANCHE, "status", "analyst_value", "cite"),
-    "brief.run_brief_fields": ("field", "value", "status", "analyst_value", "cite"),
-    "brief.portfolios": (
-        "portfolio_id",
-        "portfolio_name",
-        "strategy",
-        "positions_file",
-        "limits_file",
-        "as_of_date",
-        "prepared_json",
-    ),
-    "brief.research_questions": ("question_id", "question", "consumer_module", "approved"),
-    "brief.prior_case": ("file", "report_date", "run_id", "accepted"),
-    "brief.approval": (
-        "approved_at",
-        "analyst",
-        "pathway",
-        "depth",
-        "primary",
-        "deep_research",
-        "prior_case",
-        "pathway_grade",
-        "acknowledged_blocked_modules",
-        "brief_sha256",
-    ),
-}
 
 
 class BriefError(ValueError):
