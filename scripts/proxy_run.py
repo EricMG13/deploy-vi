@@ -1,4 +1,4 @@
-"""Proxy run on a corpus pack (interfaces spec section 12.6): steps 1 and 5 only.
+"""Proxy run on a corpus pack (interfaces spec section 12.6): native continuation.
 
 Step 1 copies and hash-verifies the registered pack, then uses native new-run,
 inventory and prepare inside that copy. Native discovery and unfinished-run
@@ -22,6 +22,8 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "rbot" / "scripts"))
+
+import proxy_continue
 
 from rbotlib import bootstrap, brief, command_receipts, current, runs, state
 from rbotlib.catalog import load_catalog
@@ -196,6 +198,20 @@ def start(registry: Registry, entry: Pack, args: argparse.Namespace, out: Path) 
     return run
 
 
+def _transport_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--continue", dest="continuing", action="store_true")
+    parser.add_argument("--run", help="explicit existing renamed run; requires --continue")
+    parser.add_argument("--module", help="isolated Module (requires a future native import seam)")
+    parser.add_argument("--model-label", help="requested caller label; never provider proof")
+    parser.add_argument("--fetch", action="store_true", help="request unavailable Plan10 fetch")
+    parser.add_argument("--reported-module", help="genuine controller dispatch report target")
+    parser.add_argument("--receipt")
+    parser.add_argument("--reporter")
+    parser.add_argument("--message-sha256")
+    parser.add_argument("--worker-started-at")
+    parser.add_argument("--accept-module", help="explicit controller request to accept own output")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="proxy_run", description=__doc__.splitlines()[0])
     parser.add_argument("--pack", required=True)
@@ -203,6 +219,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--depth", required=True, choices=["full", "quick"])
     parser.add_argument("--primary", choices=["yes", "no"], help="override the pack's flag")
     parser.add_argument("--approve", action="store_true", help="step 5: simulate native Approval")
+    _transport_options(parser)
     parser.add_argument("--set", action="append", default=[], help="simulated brief FIELD=VALUE")
     parser.add_argument("--set-tranche", action="append", nargs=2, default=[])
     parser.add_argument(
@@ -211,21 +228,29 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--registry", default=str(REGISTRY))
     parser.add_argument("--out", help="the corpus-runs folder (default: <repo>/corpus-runs)")
     args = parser.parse_args(argv)
+    _usage(parser, args)
     if not args.approve and (args.set or args.set_tranche or args.acknowledge_blocked):
         parser.error("simulated edits/acknowledgement require --approve")
     try:
+        proxy_continue.check_options(args)
         registry = _load(Path(args.registry))
         entry = registry.pack(args.pack)
         _check_pathway(entry, args.pathway, args.depth)
         out = Path(args.out) if args.out else repo_root(registry) / "corpus-runs"
-        if args.approve:
+        if args.approve or args.continuing:
             pack = _copy_path(registry, entry, out)
-            run = _latest_run(pack.parent)
+            run = proxy_continue.existing(pack, args.run, args.pathway, args.depth)
+            if run is None:
+                run = _latest_run(pack.parent)
+                proxy_continue.existing(pack, str(run), args.pathway, args.depth)
             _verify_copy(entry, pack)
+            if args.continuing:
+                return _continue(run, args)
             run = approve(run, entry, args)
             print(f"run folder: {run}")
             return 0
         run = start(registry, entry, args, out)
+        proxy_continue.advance(run, args.model_label, _native)
     except NativeFailure as exc:
         print(exc)
         return exc.code
@@ -235,6 +260,43 @@ def main(argv: list[str] | None = None) -> int:
     print(f"run folder: {run}")
     print(f"next: CP-0; use rbot next --run {run}")
     return 0
+
+
+def _usage(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    reports = [args.reported_module, args.receipt, args.reporter, args.message_sha256]
+    provided = any(value is not None for value in reports)
+    if provided and not all(value and value.strip() for value in reports):
+        parser.error("dispatch report requires --reported-module/receipt/reporter/message-sha256")
+    if args.worker_started_at is not None and not all(reports):
+        parser.error("--worker-started-at requires a genuine dispatch report")
+    if (args.run is not None or provided or args.accept_module is not None) and not args.continuing:
+        parser.error("existing-run/dispatch-report/accept options require --continue")
+    if args.continuing and args.approve:
+        parser.error("--continue and --approve are separate native phases")
+    if any(value is not None and not value.strip() for value in (args.run, args.accept_module)):
+        parser.error("--run and --accept-module require nonempty values")
+
+
+def _continue(run: Path, args: argparse.Namespace) -> int:
+    print(f"run folder: {run}")
+    if args.receipt:
+        _native(run, "dispatch-receipt", proxy_continue.receipt_options(args))
+    code = 0
+    if args.accept_module:
+        try:
+            _native(run, "accept", ["--module", args.accept_module])
+        except NativeFailure as exc:
+            if exc.code not in (2, 3):
+                raise
+            code = exc.code
+        step = state.read(run)["steps"][args.accept_module]
+        if step["status"] in ("failed", "skipped"):
+            return code
+        if args.accept_module == "CP-0" and step["status"] in ("accepted", "blocked"):
+            print("CP-0 readiness completed; waiting for analyst Approval")
+            return code
+    proxy_continue.advance(run, args.model_label, _native)
+    return code
 
 
 if __name__ == "__main__":
