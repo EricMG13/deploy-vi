@@ -757,6 +757,8 @@ Source files are never modified; `rbot-runs/` is git-ignored in the repo and liv
 
 `/rbot` in a folder whose newest `rbot-runs/*/run-state.json` has `report.written_at` null resumes it: no re-approval; the orchestrator runs `rbot next`, which returns the first step whose status is `pending` or `running` (a `running` module is re-dispatched; its attempts counter is kept). `failed` and `skipped` steps are not retried on resume. Before continuing, `rbot next` re-hashes every accepted Handoff; a hash mismatch re-validates the file: valid → the new hash is recorded with `note: edited`; invalid → status `failed` with the findings (the analyst's edit broke it). A run older than 30 days is not resumed; `rbot new-run` is offered instead.
 
+Host continuation requires explicit recorded entitlement to the shared process-held ownership protocol and acquisition of that registered owner. A busy owner preserves state and pauses. An interrupted entitled host preserves its calculation token/attempt and original input/time seed, while recording each actual continuation invocation and checking current origin/publication/log evidence. Legacy already-running hosts without that entitlement refuse automatic takeover with a visible unresolved-owner limitation; no elapsed-time, missing-file or log0 guess supplies retrospective ownership. Terminal outcomes are never automatically retried. This bounds compatibility without weakening new-run recovery or analytical checks (Task06.9 causal diagnosis, 2026-10-13).
+
 ---
 
 ## 9. Command line (`python <RBOT>/scripts/rbot.py …`)
@@ -817,12 +819,15 @@ Repo-only tooling (not in `rbot.py`): `scripts/proxy_run.py` and `scripts/scorec
 loop:
   step = rbot next --run <RUN>
   if step.kind == "done": break
-  if step.kind == "host": run step.command; on exit 1: rbot state --set <step>=failed --reason "<message>"
+  if step.kind == "host": run step.command; managed host owns accepted/failed attribution
+    on exit 1: inspect the checked outcome; if still pending/running or uncommitted, preserve state and pause
   if step.kind == "module": dispatch the subagent with dispatch/<ID>.md; wait for "DONE"; rbot accept --run <RUN> --module <ID>
 rbot render --run <RUN>
 ```
 
 On `accept` exit codes: 0 → continue; 3 → continue (Blocked recorded); 2 → `rbot next` re-dispatches once with `--findings`; a second 2 or a 4 → `failed`, continue. The orchestrator never asks the analyst anything after Approval (D13). When `rbot next` reports `kind: module` for a step the plan says is `skipped`, it is not dispatched (`next` never returns such a step).
+
+An execution error recorded by the managed host remains terminal and permits normal named dependency propagation. Ownership contention, legacy refusal or uncertain publication does not authorize the caller to issue a synthetic failure transition. `next` error/refusal likewise preserves current ownership and pauses; it is never treated as a successful selection or an ordinary retry.
 
 ### 10.4 Finish
 
