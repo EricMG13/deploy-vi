@@ -358,7 +358,7 @@ All host files are Handoff-format (front matter, four H2 sections, tagged tables
 | `brief.prior_case` | `file*`, `report_date*`, `run_id*`, `accepted* (yes_no)` | 0 | From `cp0.prior_case` and `rbot approve --prior-case`. |
 | `brief.approval` | `approved_at*`, `analyst*`, `pathway*`, `depth*`, `primary* (yes_no)`, `deep_research* (yes_no)`, `prior_case* (yes_no)`, `pathway_grade* (readiness)`, `acknowledged_blocked_modules`, `brief_sha256*` | 1 | Written by `rbot approve`. |
 
-### 3.2 `MODEL` → `model.json`, `model.xlsx`, `handoffs/MODEL.md` (written by `rbot model`)
+### 3.2 `MODEL` → `model.json`, `handoffs/MODEL.md` (written by `rbot model`)
 
 | id | columns | min_rows | how produced |
 |---|---|---|---|
@@ -373,7 +373,7 @@ All host files are Handoff-format (front matter, four H2 sections, tagged tables
 | `model.maturity_wall` | `fiscal_year*`, `facility_id*`, `amount*`, `currency*`, `unit* (unit)`, `rank*` | 1 | Facility maturities by fiscal year from `cp1.debt_facility_register` (`maturity_date`) on the snapshot column; `amount` = outstanding. |
 | `model.limitations` | `code*`, `message*`, `line_id`, `column_id` | 0 | Model limitations and reconciliation faults (`<column_id>:<bridge>`). |
 
-### 3.3 `PROJECTION` → updates `model.json`, `model.xlsx`; writes `handoffs/PROJECTION.md` (`rbot model --projection`)
+### 3.3 `PROJECTION` → updates `model.json`; writes `handoffs/PROJECTION.md` (`rbot model --projection`)
 
 | id | columns | min_rows | how produced |
 |---|---|---|---|
@@ -571,7 +571,7 @@ Corpus packs per Pathway (ids from §12.2): `FULL_CREDIT_ASSESSMENT` full → `c
 
 ### 6.1 Port
 
-`rbot/scripts/rbotlib/model/` ports caos `caos/calculators/credit_model/` (`5c3cd52f`: `_cells`, `frame`, `history`, `statements`, `debt`, `metrics`, `layout`, `assemble`, `projection`) and `caos/calculators/cash_flow.py`, replacing `caos.methodology.model_inputs` with `rbotlib/model/inputs.py` (reads `rbotlib.handoff.Table`s; figure parser with caos `_exact` rules), `Refusal` with `ModelInputError(ValueError)` naming table, row and column, and `BoundaryText` with a 64-character NFC check. Pure Decimal (`prec 38`, `ROUND_HALF_EVEN`), no I/O, no rounding except in `model.xlsx` display formats. Property tests (hypothesis) and mutation tests (mutmut) are gates for this package (money).
+`rbot/scripts/rbotlib/model/` ports caos `caos/calculators/credit_model/` (`5c3cd52f`: `_cells`, `frame`, `history`, `statements`, `debt`, `metrics`, `layout`, `assemble`, `projection`) and `caos/calculators/cash_flow.py`, replacing `caos.methodology.model_inputs` with `rbotlib/model/inputs.py` (reads `rbotlib.handoff.Table`s; figure parser with caos `_exact` rules), `Refusal` with `ModelInputError(ValueError)` naming table, row and column, and `BoundaryText` with a 64-character NFC check. Pure Decimal (`prec 38`, `ROUND_HALF_EVEN`), no I/O, no arithmetic rounding; display formatting belongs to HTML/Markdown. Excel report exports are removed (owner, 2026-10-13). Property tests (hypothesis) and mutation tests (mutmut) are gates for this package (money).
 
 ### 6.2 `model.json` schema (`"schema": "rbot-model/1"`)
 
@@ -643,15 +643,15 @@ The earlier separate quality-adjusted EBITDA line is omitted: a Rejected add-bac
 | `CP-4` | Not read (caos reads no CP-4 table); covenant figures stay in `cp4.covenant_tests`. |
 | `RUN_BRIEF` | `ssim_ev_multiple_x`, `primary`, `transaction_summary.tranche_id` list (for labelling talk rows). |
 
-### 6.7 `model.xlsx` layout (values only, openpyxl, decision record 0002)
+### 6.7 Report outputs — amended 2026-10-13
 
-Sheets, in order: `Columns` (column_id, kind, label, period_id, fiscal_year, end_date, days, case), `01 Operating KPIs` … `12 Credit metrics` (one per band: row 1 column labels, column A line label, column B line_id, cells values with number formats by unit; a null cell is blank with its reason in the `Passport` sheet), `House` (the `model.house` items), `Snapshot` (the `snapshot.financials` grid), `Projection` (the `model.projection_summary` rows), `Passport` (sheet, row, column, line_id, column_id, basis, reason, source file, locator, excerpt). No formulas, no macros, no external links.
+Excel report/workbook exports are removed by the owner's scope amendment. The Model retains exact JSON and Markdown calculations, cell passports, limitations and sources for the HTML/Markdown Report. No model.xlsx generation, completion gate, package artifact or report download is required or shipped. XLSX ingestion of supplied market/portfolio source files remains supported; those inputs and frozen reference workbooks stay read-only.
 
 ### 6.8 `rbot model` behaviour
 
-`rbot model --run <RUN>`: reads `handoffs/CP-1.md` (required), `handoffs/CP-1D.md` (optional), `run-brief.md`; writes `model.json`, `model.xlsx`, `handoffs/MODEL.md`; exit 0 with limitations recorded, exit 1 when CP-1's registers are malformed (`ModelInputError` message names table, row, column). `rbot model --projection`: additionally reads `handoffs/CP-2G.md`, rewrites `model.json`/`model.xlsx` with projected columns and the forecast, writes `handoffs/PROJECTION.md`; exit 1 when CP-2G's tables are malformed. Both are idempotent: identical inputs give byte-identical `model.json` (`generated_at` excluded from the comparison in tests).
+`rbot model --run <RUN>`: reads `handoffs/CP-1.md` (required), `handoffs/CP-1D.md` (optional), `run-brief.md`; writes `model.json`, `handoffs/MODEL.md`; exit 0 with limitations recorded, exit 1 when CP-1's registers are malformed (`ModelInputError` message names table, row, column). `rbot model --projection`: additionally reads `handoffs/CP-2G.md`, rewrites `model.json` with projected columns and the forecast, writes `handoffs/PROJECTION.md`; exit 1 when CP-2G's tables are malformed. Both are idempotent: identical inputs give byte-identical `model.json` (`generated_at` excluded from the comparison in tests).
 
-For the historical Model, build and stage all three output representations, flush and fsync them before publishing any. A staging failure preserves the existing outputs. Each publication uses an atomic file replacement; a failure between replacements returns a named exit 1 and removes temporary files, but can leave a partially published set. This is the Plan 03 review fix's guarantee; simultaneous visibility, rollback and abrupt-crash consistency are not claimed (2026-10-12).
+For the historical Model, build and stage both output representations, flush and fsync them before publishing any. A staging failure preserves the existing outputs. Each publication uses an atomic file replacement; a failure between replacements returns a named exit 1 and removes temporary files, but can leave a partially published set. This is the Plan 03 review fix's guarantee; simultaneous visibility, rollback and abrupt-crash consistency are not claimed (2026-10-12).
 
 ---
 
@@ -704,7 +704,7 @@ Prepared portfolio JSON (`"schema": "rbot-portfolio/1"`):
 | `validate/<ID>.json` | `rbot accept` | `{exit, findings:[{code,message}], sha256, at}` |
 | `dispatch/<ID>.md` | `rbot dispatch-message` | the exact message sent to the subagent |
 | `calc/<ID>-<name>.json`, `calc/<ID>-<name>.out.json` | module scripts (`rbot calc`) | calculator inputs and outputs |
-| `model.json`, `model.xlsx` | `rbot model` | §6 |
+| `model.json` | `rbot model` | §6 |
 | `fit/<portfolio_id>.json` | `rbot fit` | §7 |
 | `grading.json` | `rbot grade` | per Pathway × depth: `status` (readiness), `blocking_modules`, `limited_modules`, `missing_document_types`, `lifting_sources` |
 | `prior/diff.json`, `prior/diff.md` | `rbot diff` | §11.6 |
@@ -779,7 +779,7 @@ Exit codes unless stated: 0 success, 1 failure with a message naming the cause. 
 | `dispatch-message` | `--run <RUN> --module <ID> [--findings validate/<ID>.json]` | state, contract, catalog | `dispatch/<ID>.md` (also stdout) | 0 | 06 |
 | `accept` | `--run <RUN> --module <ID>` | `handoffs/<ID>.md` | `validate/<ID>.json`, state updated | validate's code (0/2/3/4) | 06 |
 | `state` | `--run <RUN> [--set <step>=<status> --reason <text>]` | state | prints or updates | 0; 1 unknown step | 06 |
-| `model` | `--run <RUN> [--projection]` | §6.8 | `model.json`, `model.xlsx`, `handoffs/MODEL.md` / `handoffs/PROJECTION.md` | 0; 1 malformed input | 03; `--projection` 13 |
+| `model` | `--run <RUN> [--projection]` | §6.8 | `model.json`, `handoffs/MODEL.md` / `handoffs/PROJECTION.md` | 0; 1 malformed input | 03; `--projection` 13 |
 | `fit` | `--run <RUN>` | §7 | `handoffs/FIT.md`, `fit/*.json` | 0; 1 when `CP-3` is not accepted or blocked | 05 |
 | `calc` | `<name> --in <json> [--out <json>]` with `name` ∈ `bond_analytics`, `peer_statistics`, `liquidity_bridge`, `rate_fx_sensitivity`, `covenant_headroom`, `funding_gap`, `recovery_waterfall` | JSON input (schema in `rbot/scripts/rbotlib/calc/<name>.py` docstring; mirrors the owning table's input columns) | Markdown table rows on stdout (the owning table's columns) and the `--out` JSON | 0; 1 invalid input (field named) | `bond_analytics` 05; `peer_statistics`, `liquidity_bridge`, `rate_fx_sensitivity`, `covenant_headroom` 12; `funding_gap`, `recovery_waterfall` 13 |
 | `fetch` | `--run <RUN> --url <URL> [--question <id>]` | network (only when the host exposes it; otherwise exit 1 `no fetch tool`) | `fetched/<nn>-<host>.md` | 0; 1 | 10 |
@@ -877,7 +877,7 @@ If subagents cannot run the terminal: the dispatch message omits the validate st
 
 1. **Front Page** — the Pathway's Front Page (§4), blocks in order, each conditional block shown or replaced by one line naming the condition (`Transaction Summary: not a Primary run`).
 2. **Analysis** — one section per module in plan order: status chip (Pass / Restricted / Blocked / failed / skipped with reason), `## Analysis` prose with citations rendered, the module's charts (§11.4), its tables (each with a "Table" disclosure when it backs a chart), `## Gaps`.
-3. **Model** — collapsible bands 1–12, column toggles (historical, PF-LTM, Base, Downside), the chart strip, a click-through passport per cell (value, basis, reason, stated, note, sources with excerpts), `model.house` items, limitations; download link to `model.xlsx` (relative path).
+3. **Model** — collapsible bands 1–12, column toggles (historical, PF-LTM, Base, Downside), the chart strip, a click-through passport per cell (value, basis, reason, stated, note, sources with excerpts), `model.house` items, limitations; all calculations, passports and gaps remain available in the HTML/Markdown Report; no Excel download (owner, 2026-10-13).
 4. **Portfolio Fit** — per portfolio: `snapshot.portfolio_fit`, bullet charts per limit from `fit.limit_headroom`, `cp6.portfolio_recommendation`.
 5. **Deep Research** — `cpdr.questions`, `cpdr.answers`, `cpdr.evidence`, `cpdr.sector_view`; each fetched source listed with URL and retrieval date.
 6. **What changed** — `prior/diff.md` rendered (§11.6) then CP-8's tables.
@@ -1088,12 +1088,12 @@ For module `M` on its pack `P` (the `primary` pack of the first Pathway listing 
 
 ## 13. Plan breakdown (02 onward)
 
-Every plan: SDD (fresh `mx-*` implementer per task, task review, whole-branch review), gates exit 0, PRs ≤ 800 changed lines excluding lock files, `reference/**`, `tests/golden/**/documents/**` and `tests/corpus/synthetic/**`. Each plan adds the corpus checks §12.5 lists for it. Interface names below are those of §1–§12. A module plan ships each module's `contract.json`, generated `MODULE.md`, module scripts, a fixture Handoff under `tests/fixtures/handoffs/<ID>.md`, the A/B record (§12.7) and the `catalog.json` Pathway lists it completes.
+Every plan: fresh native implementer, confidence review and retained gates exit 0; mandatory independent reviews and rewrite tournaments are removed (owner, 2026-10-13). PRs ≤ 800 changed lines excluding lock files, `reference/**`, `tests/golden/**/documents/**` and `tests/corpus/synthetic/**`. Each plan adds the corpus checks §12.5 lists for it. Interface names below are those of §1–§12. A module plan ships each module's `contract.json`, generated `MODULE.md`, module scripts, a fixture Handoff under `tests/fixtures/handoffs/<ID>.md`, the A/B record (§12.7) and the `catalog.json` Pathway lists it completes.
 
 | Plan | Scope | Files (new or changed) | Depends on | Consumes | Produces | PRs |
 |---|---|---|---|---|---|---|
 | **02 Intake and corpus** | `rbot inventory`, `prepare` (pypdf for PDFs, openpyxl/`csv` for sheets, images as Image-Read stubs, portfolio JSON), `brief --from/--set`, `validate --run` (`source_unknown`, `citation_unanchored`, `too_large`), `corpus verify/list`, `corpus.json`, the `corpus` marker, the synthetic Primary pack, `scripts/proxy_run.py` skeleton (steps 1 and 5 only), decision records 0002 (`pypdf`) and 0003 (`openpyxl`), §14 A1 (scales), A3 (`too_large`), A4 (`document_types`), A5 (PR-size exclusion) | `rbot/scripts/rbotlib/{inventory,prepare,brief,corpus}.py`, `rbotlib/validate.py`, `rbotlib/contract.py`, `rbotlib/render.py`, `rbot/rules.json`, `tests/corpus/corpus.json`, `tests/corpus/synthetic/czr-2026q2-primary/**`, `tests/corpus/expectations/*.json`, `scripts/check_pr_size.sh`, `docs/decisions/000{2,3}-*.md` | 01 | Plan 01 `rbotlib` | `inventory.json`, `prepared/**`, `prepared/portfolios/*.json`, `run-brief.md` (§3.1 minus approval), `validate --run`, `rbot corpus`, `RBOT_CORPUS_ROOTS`, `document_types` on contracts | 02A rules/contract/validate amendments + corpus registry; 02B inventory + prepare; 02C brief + synthetic pack + proxy skeleton |
-| **03 Model (history)** | Port of `_cells`, `frame`, `history`, `statements`, `debt`, `metrics`, `layout`, `assemble`; `rbotlib/model/inputs.py`; PF-LTM; house view (§6.5); `model.json`; `model.xlsx`; `handoffs/MODEL.md` (§3.2); `rbot model`; `docs/model/enums.md`; mutmut config | `rbot/scripts/rbotlib/model/**`, `rbotlib/cli.py`, `tests/model/**`, `tests/parity/**` | 01 (02 for the CP-1 Handoff fixture format) | `cp1.*`, `cp1d.*`, `run-brief.md` | `MODEL` host step, `model.json` (§6.2), §3.2 tables, `rbot model` | 03A `_cells`/`frame`/`inputs`; 03B `history`; 03C `statements`+`debt`; 03D `metrics`+`layout`+`assemble`; 03E house view, `model.json`, `MODEL.md`; 03F `model.xlsx` + mutation report |
+| **03 Model (history)** | Port of `_cells`, `frame`, `history`, `statements`, `debt`, `metrics`, `layout`, `assemble`; `rbotlib/model/inputs.py`; PF-LTM; house view (§6.5); `model.json`; `handoffs/MODEL.md` (§3.2); `rbot model`; `docs/model/enums.md`; mutmut config | `rbot/scripts/rbotlib/model/**`, `rbotlib/cli.py`, `tests/model/**`, `tests/parity/**` | 01 (02 for the CP-1 Handoff fixture format) | `cp1.*`, `cp1d.*`, `run-brief.md` | `MODEL` host step, `model.json` (§6.2), §3.2 tables, `rbot model` | 03A `_cells`/`frame`/`inputs`; 03B `history`; 03C `statements`+`debt`; 03D `metrics`+`layout`+`assemble`; 03E house view, `model.json`, `MODEL.md`; 03F calculation/mutation checks (Excel export retired 2026-10-13) |
 | **04 cp-start** | `CP-0` contract and scripts; `rbot grade`, `approve`, `plan`, `brief --set-tranche`; `grading.json`; `brief.approval`; §14 A2 (host ids in lists) | `rbot/modules/CP-0/**`, `rbotlib/{grade,approve}.py`, `rbotlib/catalog.py`, `rbotlib/cli.py`, `rbot/catalog.json` (host_tables, front page `blocks` for `credit_snapshot`) | 02 | `cp0.*`, `document_types`, catalog | `CP-0` Handoff, `grading.json`, `rbot approve/plan`, Approval record | 04A CP-0 contract + fixture; 04B grade/approve/plan + catalog amendment |
 | **05 Core rewrites** | `CP-1`, `CP-1A`, `CP-1B`, `CP-1D`, `CP-2`, `CP-3` (+ `rbot calc bond_analytics`), `CP-5`, `CP-6`; `rbot fit` and `handoffs/FIT.md`; A/B harness (`scripts/ab_grade.py`, `docs/ab/rubric.md`); `catalog.json` `FULL_CREDIT_ASSESSMENT.full` = `["CP-0","CP-1","CP-1A","CP-1B","CP-1D","MODEL","CP-2","CP-3","FIT","CP-5","CP-6"]` | `rbot/modules/{CP-1,CP-1A,CP-1B,CP-1D,CP-2,CP-3,CP-5,CP-6}/**`, `rbotlib/calc/bond_analytics.py`, `rbotlib/fit.py`, `scripts/ab_grade.py`, `docs/ab/**`, `tests/fixtures/handoffs/*.md` | 02, 03, 04 | `cp0.*`, `MODEL` tables, `run-brief.md` | every §2.2–2.4, 2.6, 2.7, 2.13, 2.18, 2.19 table; `FIT` (§3.4); first Pathway entry | 05A CP-1; 05B CP-1A + CP-1B; 05C CP-1D + CP-2; 05D CP-3 + bond_analytics; 05E FIT + CP-5; 05F CP-6 + A/B harness + catalog entry |
 | **06 Orchestrator** | `rbot/SKILL.md`; `new-run`, `next`, `dispatch-message`, `accept`, `state`, `version`; `run-state.json`; resume; `install.sh`/`install.ps1` (skill copy only); `proxy_run.py` steps 2–4 | `rbot/SKILL.md`, `rbotlib/{run,state,dispatch}.py`, `rbotlib/cli.py`, `install.*`, `scripts/proxy_run.py`, `scripts/scorecard.py` | 03, 04, 05 | catalog lists, contracts | §8, §9 orchestration commands, §10 dispatch message, first scorecard on `czr-2026q2-primary` | 06A state + new-run + next + accept; 06B SKILL.md + dispatch + resume; 06C install + proxy run + scorecard |
