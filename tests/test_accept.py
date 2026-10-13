@@ -133,7 +133,7 @@ def test_io_one_is_terminal_and_missing_has_no_invented_hash(tmp_path: Path, mis
     result = json.loads((run / "validate/CP-0.json").read_text())
     assert result["exit"] == 1
     assert result["sha256"] == (None if missing else hashlib.sha256(b"\xff").hexdigest())
-    assert not (run / state.LOCK).exists()
+    assert (run / state.LOCK).exists()
 
 
 def test_terminal_edit_refuses_without_erasing_validation(tmp_path: Path) -> None:

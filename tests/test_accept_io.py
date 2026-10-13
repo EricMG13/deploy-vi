@@ -114,7 +114,7 @@ def test_attempted_owned_read_failure_is_terminal_and_immutable(
         }
         assert invoke() == result
         assert preserved == {name: real(run / name) for name in preserved}
-        assert not (run / state.LOCK).exists()
+        assert (run / state.LOCK).exists()
     assert own.read_bytes() == raw
     with pytest.raises(RunError, match="validated bytes changed"):
         library_accept(run, root, "CP-0")
@@ -123,7 +123,7 @@ def test_attempted_owned_read_failure_is_terminal_and_immutable(
     with pytest.raises(RunError, match="pending/running"):
         send(run, root, name="fixture-illegal-retry", retry=True)
     assert preserved == {name: real(run / name) for name in preserved}
-    assert not (run / state.LOCK).exists()
+    assert (run / state.LOCK).exists()
     assert {p.name: p.read_bytes() for p in run.parent.parent.iterdir() if p.is_file()} == sources
     if public:
         assert "\t1\n" in (run / "log/rbot.log").read_text()
@@ -177,7 +177,7 @@ def test_verification_unsafe_replacement_is_preflight_refusal(
     assert accept(run) == 1
     assert before == ((run / state.STATE).read_bytes(), external.read_bytes())
     assert len(list((run / "validate/history/CP-0").iterdir())) == 1
-    assert not (run / state.LOCK).exists()
+    assert (run / state.LOCK).exists()
 
 
 def test_missing_verification_retains_actual_initial_snapshot(
@@ -242,7 +242,7 @@ def test_read_denial_after_malformed_retry_preserves_prior_failure(
     )
     assert base64.b64decode(events[1]["handoff_base64"]) == own.read_bytes()
     assert events[-1]["result"]["sha256"] is None
-    assert not (run / state.LOCK).exists()
+    assert (run / state.LOCK).exists()
 
 
 @pytest.mark.parametrize("observed", [0, 3, 2, 4, 1])
@@ -295,7 +295,7 @@ def test_verification_io_retains_already_observed_findings_and_snapshot(
             (run / state.STATE).read_bytes(),
             (run / "validate/CP-0.json").read_bytes(),
         )
-    assert not (run / state.LOCK).exists()
+    assert (run / state.LOCK).exists()
     assert accept(run) == 1 and state.read(run)["steps"]["CP-0"] == step
     with pytest.raises(RunError, match="pending/running"):
         send(run, RBOT_ROOT, name="fixture-illegal-outcome-retry", retry=True)

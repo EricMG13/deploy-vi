@@ -7,6 +7,7 @@ import os
 from datetime import UTC, datetime
 from pathlib import Path
 
+from rbotlib import ownership, state
 from rbotlib.inventory import RunError, output_path
 from rbotlib.model.run import stage_file
 
@@ -22,20 +23,57 @@ def path(run: Path) -> Path:
     return destination
 
 
+def _entitlement(run: Path) -> dict[str, object] | None:
+    record = state.write_guard(run)
+    expected: dict[str, object] | None = record["ownership"]["log"] if record is not None else None
+    return expected
+
+
+class _StandaloneOwner:
+    """Original no-state O_EXCL sentinel and owned cleanup; no stable entitlement."""
+
+    def __init__(self, run: Path) -> None:
+        self.run = run
+        try:
+            fd = os.open(output_path(run, LOCK), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError as exc:
+            raise RunError("another command holds the run log lock") from exc
+        self.identity = os.fstat(fd)
+        os.close(fd)
+
+    def check(self) -> None:
+        observed = output_path(self.run, LOCK).lstat()
+        if (observed.st_dev, observed.st_ino) != (self.identity.st_dev, self.identity.st_ino):
+            raise RunError("log: owned lock identity changed; cleanup refused")
+
+    def close(self) -> None:
+        self.check()
+        output_path(self.run, LOCK).unlink()
+
+
 class Receipt:
     """Keep cooperating appenders out until this invocation's row is resolved."""
 
-    def __init__(self, run: Path, argv: list[str]) -> None:
+    def __init__(
+        self, run: Path, argv: list[str], state_owner: state._Locked | None = None
+    ) -> None:
         self.run = run
+        expected = _entitlement(run)
+        if state_owner is not None:
+            if state_owner.run != run:
+                raise RunError("log: borrowed state owner belongs to another run")
+            state_owner.owner.check()
         destination = path(run)
         destination.parent.mkdir(exist_ok=True)
         self.lock = output_path(run, LOCK)
-        try:
-            descriptor = os.open(self.lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-        except FileExistsError as exc:
-            raise RunError("another command holds the run log lock") from exc
-        self.identity = os.fstat(descriptor)
-        os.close(descriptor)
+        self.owner = (
+            ownership.Owner(run, LOCK, expected) if expected is not None else _StandaloneOwner(run)
+        )
+        self.identity = (
+            os.fstat(self.owner.fd)
+            if isinstance(self.owner, ownership.Owner)
+            else self.owner.identity
+        )
         self.prefix = b""
         self.state = "unobserved"
         stamp = datetime.now(UTC).isoformat(timespec="seconds")
@@ -54,6 +92,10 @@ class Receipt:
             raise
 
     def append(self, code: int) -> None:
+        self.owner.check()
+        actual = path(self.run).read_bytes() if path(self.run).exists() else b""
+        if actual != self.prefix:
+            raise RunError("log: original prefix changed; append refused")
         self.state = f"candidate{code}"
         with path(self.run).open("ab") as handle:
             suffix = self.row + f"{code}\n".encode()
@@ -66,6 +108,7 @@ class Receipt:
 
     def fail(self) -> None:
         """Never append blindly after an ambiguous write or alter another row."""
+        self.owner.check()
         if self.state == "unobserved":
             raise RunError("log: prefix ownership was not observed")
         destination = path(self.run)
@@ -83,6 +126,7 @@ class Receipt:
         )
         staged = stage_file(destination, self.prefix + self.row + b"1\n")
         try:
+            self.owner.check()
             os.replace(staged, path(self.run))
             self.state = "correction1-unverified"
         finally:
@@ -92,10 +136,7 @@ class Receipt:
         self.state = "row1"
 
     def close(self) -> None:
-        observed = output_path(self.run, LOCK).lstat()
-        if (observed.st_dev, observed.st_ino) != (self.identity.st_dev, self.identity.st_ino):
-            raise RunError("log: owned lock identity changed; cleanup refused")
-        self.lock.unlink()
+        self.owner.close()
 
 
 def append(run: Path, argv: list[str], code: int, receipt: Receipt | None = None) -> None:

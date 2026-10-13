@@ -21,8 +21,10 @@ STAMP = "2026-10-12T10:00:00+00:00"
 
 def seeded(tmp_path: Path, approved: bool = True) -> tuple[Path, dict[str, Any]]:
     pack = tmp_path / "pack"
-    run = pack / "rbot-runs" / "20261012-acme-pending"
-    run.mkdir(parents=True)
+    pack.mkdir(parents=True)
+    from rbotlib import runs, state
+
+    run = runs.create_run(pack)
     (pack / "source.md").write_bytes(b"unaltered source evidence\n")
     data: dict[str, Any] = {
         "schema": "rbot-run-state/1",
@@ -71,6 +73,7 @@ def seeded(tmp_path: Path, approved: bool = True) -> tuple[Path, dict[str, Any]]
             "started_at": STAMP,
             "model": "qualified-worker",
         }
+    data["ownership"] = state.read(run)["ownership"]
     (run / "run-state.json").write_text(json.dumps(data), encoding="utf-8")
     return run, data
 
@@ -207,7 +210,7 @@ def test_shared_lock_refuses_overlap_then_reads_the_latest_state(tmp_path: Path)
     assert record["steps"]["MODEL"]["attempts"] == 1
     assert record["steps"]["MODEL"]["started_at"] == STAMP
     assert record["steps"]["MODEL"]["model"] == "qualified-worker"
-    assert not (run / ".approve.lock").exists()
+    assert (run / ".approve.lock").exists()
 
 
 @pytest.mark.parametrize("raw", ["[]", '{"schema": 1, "schema": 2}', "NaN"])
@@ -252,7 +255,7 @@ def test_publication_boundary_failure_preserves_old_state_and_source(
     preserved = run / ("run-state.json" if event == "staging fails" else "original-state.json")
     assert preserved.read_bytes() == before
     assert source.read_bytes() == b"unaltered source evidence\n"
-    assert not (run / ".approve.lock").exists()
+    assert (run / ".approve.lock").exists()
     assert not list(run.glob(".state-*"))
 
 
@@ -271,7 +274,7 @@ def test_ordinary_aliases_above_pack_work_but_output_links_refuse(
     alias.symlink_to(original, target_is_directory=True)
     alias_run = alias / run.relative_to(original)
     log = run / "log/rbot.log"
-    log.parent.mkdir()
+    log.parent.mkdir(exist_ok=True)
     log.write_bytes(b"existing run log evidence\n")
     before = log.read_bytes()
     assert invoke(alias_run) == (0 if component == "ancestor" else 1)
@@ -333,6 +336,9 @@ def test_malformed_log_refuses_before_terminal_state_publication(tmp_path: Path,
     run, _ = seeded(tmp_path)
     target = run / ("log/rbot.log" if kind.endswith("target") else "log")
     target.parent.mkdir(exist_ok=True)
+    if target.is_dir():
+        (target / ".rbot-log.lock").unlink()
+        target.rmdir()
     if kind.startswith("directory"):
         target.mkdir()
     elif kind.startswith("file"):
@@ -361,7 +367,7 @@ def test_malformed_log_refuses_before_terminal_state_publication(tmp_path: Path,
     assert (run / "run-state.json").read_bytes() == before
     diagnostic = child.stdout + child.stderr
     assert "log" in diagnostic and ("regular file" in diagnostic or "directory" in diagnostic)
-    assert not (run / ".approve.lock").exists()
+    assert (run / ".approve.lock").exists()
     if kind == "file parent":
         assert target.read_bytes() == b"source-like parent bytes\n"
 

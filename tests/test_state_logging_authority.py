@@ -100,7 +100,7 @@ def test_unproved_state_marker_never_acquires_logging_authority(
         }[kind]
         marker.write_text(raw, encoding="utf-8")
     if existing_log:
-        (run / "log").mkdir()
+        (run / "log").mkdir(exist_ok=True)
         (run / "log/rbot.log").write_bytes(b"protected existing log\n")
     before = snapshot(tmp_path)
     result = call(str(run))

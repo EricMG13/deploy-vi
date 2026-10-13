@@ -77,7 +77,7 @@ def test_checked_approval_failure_logs_in_the_owned_run(tmp_path: Path, rules: R
     command[command.index("FULL_CREDIT_ASSESSMENT")] = "UNKNOWN"
     assert main(["--root", str(root), *command]) == 1
     assert "approve --run" in (run / "log/rbot.log").read_text()
-    assert not (run / ".approve.lock").exists()
+    assert (run / ".approve.lock").exists()
 
 
 def test_valid_alias_above_pack_keeps_effective_renamed_log(tmp_path: Path, rules: Rules) -> None:

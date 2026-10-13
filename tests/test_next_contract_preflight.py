@@ -62,7 +62,7 @@ def test_regular_extra_contract_keeps_exact_selection(
     assert all(after[m] == s for m, s in before.items() if s["status"] != "pending")
     if selected["step"] is not None:
         assert after[selected["step"]] == before[selected["step"]]
-    assert not (run / state.LOCK).exists()
+    assert (run / state.LOCK).exists()
 
 
 def replace_contract(target: Path, external: Path, kind: str) -> Path:
@@ -143,7 +143,7 @@ def test_unsupported_extra_contract_refuses_before_content_read(
     assert (run / state.STATE).read_bytes() == before
     assert all(p.read_bytes() == data for p, data in evidence.items())
     assert {p for p in run.rglob("*") if p.is_file() and "log" not in p.parts} == set(evidence)
-    assert not (run / state.LOCK).exists()
+    assert (run / state.LOCK).exists()
     assert all(p.read_bytes() == data for p, data in sources.items())
     assert external.read_bytes() == external_bytes
 
@@ -172,4 +172,4 @@ def test_complete_lexical_preflight_precedes_phase_under_writer_lock(
     monkeypatch.setattr(dispatch, "_file", observe_file)
     monkeypatch.setattr(next_step, "_phase", observe_phase)
     assert next_step.select(run, root)["kind"] == branch
-    assert not (run / state.LOCK).exists()
+    assert (run / state.LOCK).exists()

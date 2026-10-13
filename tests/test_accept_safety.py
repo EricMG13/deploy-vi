@@ -100,7 +100,7 @@ def test_interrupted_publication_preserves_orphan_and_refuses_retry(
     assert event.exists() and (run / state.STATE).read_bytes() == before
     saved = event.read_bytes()
     assert accept(run) == 1 and event.read_bytes() == saved
-    assert (run / state.STATE).read_bytes() == before and not (run / state.LOCK).exists()
+    assert (run / state.STATE).read_bytes() == before and (run / state.LOCK).exists()
 
 
 @pytest.mark.parametrize(
@@ -136,7 +136,7 @@ def test_unsafe_accept_paths_preserve_state_sources_and_history(
     before = (run / state.STATE).read_bytes(), other.read_bytes()
     assert accept(run) == 1
     assert before == ((run / state.STATE).read_bytes(), other.read_bytes())
-    assert not (run / state.LOCK).exists()
+    assert (run / state.LOCK).exists()
 
 
 def test_missing_after_malformed_does_not_reuse_previous_hash(tmp_path: Path) -> None:
@@ -160,7 +160,7 @@ def test_unowned_or_corrupt_call_creates_no_lock_or_log(tmp_path: Path) -> None:
     log = (run / "log/rbot.log").read_bytes()
     (run / state.STATE).write_text("corrupt")
     assert accept(run) == 1
-    assert (run / "log/rbot.log").read_bytes() == log and not (run / state.LOCK).exists()
+    assert (run / "log/rbot.log").read_bytes() == log and (run / state.LOCK).exists()
 
 
 def test_malformed_closed_front_matter_is_two(tmp_path: Path) -> None:
@@ -241,11 +241,12 @@ def test_safe_io_log_records_failure_and_shared_lock_stays_owned(tmp_path: Path)
     run = pending(tmp_path, RBOT_ROOT)
     send(run, RBOT_ROOT)
     lock = run / state.LOCK
+    original_lock = lock.read_bytes()
     lock.write_text("fixture owner")
     before = (run / state.STATE).read_bytes()
     assert accept(run) == 1
     assert lock.read_text() == "fixture owner" and (run / state.STATE).read_bytes() == before
-    lock.unlink()
+    lock.write_bytes(original_lock)
     (run / "handoffs/CP-0.md").unlink()
     assert accept(run) == 1
     assert "\t1\n" in (run / "log/rbot.log").read_text()
@@ -285,7 +286,7 @@ def test_approval_requires_current_registered_acceptance_when_receipts_exist(
     ]
     assert main(args) == 1
     assert run.exists() and (run / state.STATE).read_bytes() == before
-    assert not (run / state.LOCK).exists()
+    assert (run / state.LOCK).exists()
 
 
 @pytest.mark.parametrize("change", ["alphabet", "length", "qa"])

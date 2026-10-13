@@ -113,7 +113,7 @@ def test_latest_eligible_unfinished_ignores_completed_and_issuer_hints(
     assert discover(run.parent.parent) == run
     assert start(run.parent.parent, "--issuer", "OTHER") == 1
     assert str(run) in capsys.readouterr().out
-    assert not (run / "log").exists()
+    assert not (run / "log/rbot.log").exists()
 
 
 def test_completed_and_empty_name_collision_allow_new_allocation(
@@ -316,7 +316,9 @@ def test_failed_publication_removes_only_owned_empty_directory(
         assert str(run) in out and "incomplete run retained" in out
         assert (run / "user-file").read_bytes() == b"keep"
     else:
-        assert list(envelope.iterdir()) == []
+        retained = list(envelope.iterdir())
+        assert len(retained) == 1 and "incomplete run retained" in out
+        assert not (retained[0] / "run-state.json").exists()
     assert not (envelope / runs.LOCK).exists()
 
 
@@ -349,7 +351,7 @@ def test_created_run_logging_rechecks_checked_identity_and_links(
 
     def tamper(pack: Path, issuer: str | None, objective: str | None) -> Path:
         run = original(pack, issuer, objective)
-        (run / "log").mkdir()
+        (run / "log").mkdir(exist_ok=True)
         (run / "log/rbot.log").symlink_to(source)
         return run
 
@@ -383,7 +385,7 @@ def test_corrupt_discovery_candidate_is_named_and_not_silently_ignored(
     out = capsys.readouterr().out
     assert str(marker) in out
     assert list(run.parent.iterdir()) == before
-    assert not (run / "log").exists()
+    assert not (run / "log/rbot.log").exists()
 
 
 def test_newest_creation_time_and_tie_break_are_deterministic(tmp_path: Path) -> None:
@@ -474,7 +476,11 @@ def test_public_approval_rename_during_discovery_refuses_duplicate(
 
     run = _ready(SCRIPT.parent.parent, tmp_path)
     pack = run.parent.parent
-    (run / state.STATE).write_text(json.dumps(runs._bootstrap(run, pack, None, None)))
+    (run / state.STATE).write_text(
+        json.dumps(
+            runs._bootstrap(run, pack, None, None) | {"ownership": state.read(run)["ownership"]}
+        )
+    )
     state.read(run)
     before = {
         p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in pack.iterdir() if p.is_file()

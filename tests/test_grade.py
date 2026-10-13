@@ -39,9 +39,9 @@ def root(tmp_path: Path, rules: Rules) -> Path:
     return build_tree(tmp_path / "rbot", rules, SOURCES)
 
 
-def _prepare(tmp_path: Path, files: dict[str, str]) -> Path:
+def _prepare(tmp_path: Path, files: dict[str, str], *, managed: bool = False) -> Path:
     content: dict[str, str | bytes] = dict(files)
-    return prepared_pack(tmp_path, content)
+    return prepared_pack(tmp_path, content, managed=managed)
 
 
 def _graded(
@@ -62,9 +62,9 @@ def _depth(grading: dict[str, Any], pathway: str, depth: str) -> dict[str, Any]:
     return graded
 
 
-def _acme(tmp_path: Path, extra: dict[str, str] | None = None) -> Path:
+def _acme(tmp_path: Path, extra: dict[str, str] | None = None, *, managed: bool = False) -> Path:
     files = {name: f"{name}: Acme Holdings, Inc. as of 2026-10-02\n" for name in FILES}
-    return _prepare(tmp_path, files | (extra or {}))
+    return _prepare(tmp_path, files | (extra or {}), managed=managed)
 
 
 def test_a_complete_pack_grades_available_except_where_fit_is_needed(

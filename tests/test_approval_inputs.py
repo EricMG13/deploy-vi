@@ -72,7 +72,7 @@ def test_public_approval_refuses_unsupported_input_before_read(
     assert expected.encode() in out + err
     assert snapshot(run, name) == before
     assert sorted(run.parent.iterdir()) == [run]
-    assert not (run / state.LOCK).exists()
+    assert (run / state.LOCK).exists()
     assert not list(run.glob(".approve-*"))
     assert external.read_bytes() == original
     assert {p.name: p.read_bytes() for p in run.parent.parent.iterdir() if p.is_file()} == sources
@@ -96,5 +96,5 @@ def test_public_regular_control_preserves_cp0_and_reapproval_refuses(tmp_path: P
     again = subprocess.run(command(target), capture_output=True, timeout=3)
     assert again.returncode == 1 and b"was approved" in again.stdout + again.stderr
     assert snapshot(target, "") == before
-    assert not (target / state.LOCK).exists()
+    assert (target / state.LOCK).exists()
     assert load_rules(ROOT).is_placeholder(record["cp0_lineage"]["issuer_id"]) is False

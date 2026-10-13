@@ -120,6 +120,7 @@ def _finish_log(
     if log_run is not None:
         log_run = Path(args.run_dir)
         try:
+            state.write_guard(log_run)
             _log(log_run, sys.argv[1:] if argv is None else argv, result)
         except (inventory.RunError, OSError) as exc:
             result = _fail(log_run, exc)
@@ -146,7 +147,19 @@ def _managed_host(args: argparse.Namespace, argv: list[str] | None) -> int | Non
     return host.run(args, actual, append_log)
 
 
-def main(argv: list[str] | None = None) -> int:
+def _inspect_legacy(args: argparse.Namespace) -> bool:
+    """Classify before command entry; checked legacy inspection has no logger."""
+    if not getattr(args, "run_dir", None):
+        return False
+    selected = Path(args.run_dir)
+    inspection = args.command == "plan" or (args.command == "state" and args.set is None)
+    if inspection:
+        return "ownership" not in state.read(state.log_run_path(selected))
+    state.write_guard(selected)
+    return False
+
+
+def _arguments(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="rbot")
     parser.add_argument("--root", type=Path, default=RBOT_ROOT, help="the RBOT folder")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -176,13 +189,21 @@ def main(argv: list[str] | None = None) -> int:
     attempts.add_command(sub)
     accept.add_command(sub)
     next_step.add_command(sub)
-    args = parser.parse_args(argv)
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _arguments(argv)
+    run_dir = getattr(args, "run_dir", None)
+    try:
+        legacy_inspection = _inspect_legacy(args)
+    except (OSError, ValueError, RecursionError) as exc:
+        return _fail(Path(run_dir or "."), exc)
     if args.command in ("model", "fit"):
         if (managed_result := _managed_host(args, argv)) is not None:
             return managed_result
-    run_dir = getattr(args, "run_dir", None)
     log_run: Path | None = None
-    if run_dir:
+    if run_dir and not legacy_inspection:
         selected = Path(run_dir)
         try:
             guard = getattr(args, "log_run_guard", None)

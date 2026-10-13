@@ -64,7 +64,7 @@ def test_receipt_requires_current_qualified_exact_message(tmp_path: Path) -> Non
             attempts.DispatchReceipt("id", "controller", hashlib.sha256(text.encode()).hexdigest()),
         )
     assert (run / state.STATE).read_bytes() == before
-    assert not (run / state.LOCK).exists()
+    assert (run / state.LOCK).exists()
 
 
 def test_public_receipt_command_and_duplicate_conflict(tmp_path: Path) -> None:
@@ -128,7 +128,7 @@ def test_receipt_refuses_changed_context_or_unsafe_publication(
     before = (run / state.STATE).read_bytes()
     with pytest.raises(ValueError):
         attempts.register_dispatch(run, root, "CP-0", item)
-    assert (run / state.STATE).read_bytes() == before and not (run / state.LOCK).exists()
+    assert (run / state.STATE).read_bytes() == before and (run / state.LOCK).exists()
 
 
 def test_claimed_model_and_worker_time_are_attributed_only_to_receipt(tmp_path: Path) -> None:

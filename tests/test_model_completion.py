@@ -27,7 +27,7 @@ def failed(run: Path, prefix: bytes) -> state.Record:
     raw = (run / "log/rbot.log").read_bytes()
     assert raw.startswith(prefix)
     assert len(raw[len(prefix) :].splitlines()) == 1 and raw.endswith(b"\t1\n")
-    assert not (run / state.LOCK).exists() and not (run / runlog.LOCK).exists()
+    assert (run / state.LOCK).exists() and (run / runlog.LOCK).exists()
     return current
 
 
@@ -119,6 +119,9 @@ def test_state_failure_does_not_leave_accepted_public_one_or_log_zero(
 
     def broken(owner: state._Locked, staged: Path) -> None:
         nonlocal calls
+        if state.read(run)["steps"]["MODEL"]["status"] != "running":
+            commit(owner, staged)
+            return
         calls += 1
         if mode == "persistent" or (mode == "accepted-once" and calls == 1):
             raise OSError("fixture state publication denied")
@@ -200,14 +203,16 @@ def test_postcommit_cleanup_failure_preserves_public_zero_and_fenced_lock(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], lock: str
 ) -> None:
     run = eligible(tmp_path, RBOT_ROOT)
-    unlink = Path.unlink
+    from rbotlib.ownership import Owner
 
-    def refused(path: Path, missing_ok: bool = False) -> None:
-        if path == run / lock and state.read(run)["steps"]["MODEL"]["status"] == "accepted":
+    close = Owner.close
+
+    def refused(owner: Owner) -> None:
+        close(owner)
+        if owner.run == run and owner.name == lock:
             raise OSError("fixture cleanup denied")
-        unlink(path, missing_ok=missing_ok)
 
-    monkeypatch.setattr(Path, "unlink", refused)
+    monkeypatch.setattr(Owner, "close", refused)
     assert invoke(run) == 0
     current = state.read(run)
     assert current["steps"]["MODEL"]["host_exit"] == 0

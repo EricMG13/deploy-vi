@@ -60,6 +60,7 @@ def test_unsupported_owned_path_refuses_without_source_or_state_change(
 ) -> None:
     run = eligible(tmp_path, RBOT_ROOT)
     target = run / name
+    target.unlink(missing_ok=True)
     outside = tmp_path / "outside"
     outside.write_bytes(b"preserved")
     if kind == "symlink":
@@ -74,7 +75,7 @@ def test_unsupported_owned_path_refuses_without_source_or_state_change(
     assert invoke(run) == 1 and outside.read_bytes() == b"preserved"
     if name != "log/.rbot-log.lock":
         assert (run / state.STATE).read_bytes() == before
-    assert not (run / state.LOCK).exists()
+    assert (run / state.LOCK).exists()
 
 
 def test_managed_raw_cp1_crlf_hash_is_retained_while_legacy_text_hash_is_unchanged(

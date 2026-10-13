@@ -113,7 +113,8 @@ def test_an_empty_pack_or_a_stray_folder_exits_1(
     assert main(["inventory", "--run", str(run)]) == 1
     assert "the Source Pack has no files" in capsys.readouterr().out
     assert main(["inventory", "--run", str(tmp_path / "nowhere")]) == 1
-    assert "no such run folder" in capsys.readouterr().out
+    captured = capsys.readouterr()
+    assert "no such run folder" in captured.out + captured.err
     (tmp_path / "stray").mkdir()
     assert main(["inventory", "--run", str(tmp_path / "stray")]) == 1
     assert "not inside a rbot-runs/ folder" in capsys.readouterr().out
@@ -135,8 +136,10 @@ def test_a_symlinked_run_folder_or_runs_folder_is_skipped(tmp_path: Path) -> Non
     (pack / "rbot-runs").symlink_to(moved, target_is_directory=True)
     state = {"schema": "rbot-run-state/1", "pack_root": str(pack)}
     (moved / run.name / "run-state.json").write_text(json.dumps(state), encoding="utf-8")
-    main(["inventory", "--run", str(pack / "rbot-runs" / run.name)])
-    data = _inventory(run)
+    before = (moved / run.name / "inventory.json").read_bytes()
+    assert main(["inventory", "--run", str(pack / "rbot-runs" / run.name)]) == 1
+    assert (moved / run.name / "inventory.json").read_bytes() == before
+    data = inventory_module.build(pack, moved / run.name)
     assert not [f for f in data["files"] if f["path"].startswith("rbot-runs/")]
     assert {"path": "rbot-runs", "reason": "symbolic link"} in data["skipped"]
 
@@ -145,12 +148,9 @@ def test_a_run_inside_the_pack_never_lists_its_own_outputs(tmp_path: Path) -> No
     pack = _pack(tmp_path)
     run = pack / "analysis" / "run1"
     run.mkdir(parents=True)
-    state = {"schema": "rbot-run-state/1", "pack_root": str(pack)}
-    (run / "run-state.json").write_text(json.dumps(state), encoding="utf-8")
-    main(["inventory", "--run", str(run)])
-    first = _inventory(run)
-    main(["inventory", "--run", str(run)])
-    second = _inventory(run)
+    first = inventory_module.build(pack, run)
+    (run / "inventory.json").write_text(json.dumps(first))
+    second = inventory_module.build(pack, run)
     assert not [f for f in first["files"] if f["path"].startswith("analysis/run1")]
     assert [f["path"] for f in first["files"]] == [f["path"] for f in second["files"]]
 
@@ -224,13 +224,18 @@ def test_pypdf_warnings_are_captured_not_logged(
     assert entry["pages"] == 1 and "startxref" in entry["problem"]
 
 
-def test_a_missing_pack_is_named(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_an_unproved_missing_pack_hint_refuses_without_publication(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     run = tmp_path / "run"
     run.mkdir()
     state = {"pack_root": str(tmp_path / "gone")}
     (run / "run-state.json").write_text(json.dumps(state), encoding="utf-8")
     assert main(["inventory", "--run", str(run)]) == 1
-    assert f"{tmp_path / 'gone'}: no such Source Pack" in capsys.readouterr().out
+    captured = capsys.readouterr()
+    assert "inside pack/rbot-runs" in captured.out + captured.err
+    assert not (run / "inventory.json").exists() and not (run / "log").exists()
+    assert json.loads((run / "run-state.json").read_text()) == state
 
 
 def test_a_raising_command_is_still_logged(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -38,30 +38,28 @@ def test_build_time_interleavings_preserve_fresh_authority(
             once = True
             if event == "competing":
                 assert invoke(run) == 1
-            elif event == "failed":
-                state.set_status(run, "MODEL", "failed", "public execution cancellation")
-            elif event == "token":
-                state.update(
-                    run, lambda r: r["steps"]["MODEL"]["host_execution"].update(token="other")
-                )
             else:
-                state.update(run, lambda r: r.update(extension={"fresh": "preserved"}))
+                with pytest.raises(RunError, match="holds"):
+                    if event == "failed":
+                        state.set_status(run, "MODEL", "failed", "public contender")
+                    elif event == "token":
+                        state.update(
+                            run,
+                            lambda r: r["steps"]["MODEL"]["host_execution"].update(token="other"),
+                        )
+                    else:
+                        state.update(run, lambda r: r.update(extension={"fresh": "preserved"}))
             changed = copy.deepcopy(state.read(run)["steps"]["MODEL"])
         return build(cp1, brief, cp1d, generated_at, missing)
 
     monkeypatch.setattr(writer, "build", interleaved)
     code = invoke(run)
     current = state.read(run)
-    if event in ("failed", "token"):
-        assert code == 1 and current["steps"]["MODEL"] == changed
-        assert not any((run / name).exists() for name in qualification.OUTPUTS)
-    else:
-        assert code == 0 and current["steps"]["MODEL"]["attempts"] == 1
-        if event == "unrelated":
-            assert current["extension"] == {"fresh": "preserved"}
-    if event == "competing":
-        rows = (run / "log/rbot.log").read_bytes().splitlines()
-        assert rows[-2].endswith(b"\t1") and rows[-1].endswith(b"\t0")
+    assert code == 0 and current["steps"]["MODEL"]["attempts"] == 1
+    assert current["steps"]["MODEL"]["host_execution"] == changed["host_execution"]
+    assert "extension" not in current
+    rows = (run / "log/rbot.log").read_bytes().splitlines()
+    assert rows[-1].endswith(b"\t0")
 
 
 @pytest.mark.parametrize("terminal", ["accepted", "failed", "skipped", "running"])
@@ -100,7 +98,7 @@ def test_managed_log_lock_is_shared_without_recursive_acquisition(
         selected: Path, argv: list[str], code: int, *, receipt: runlog.Receipt | None = None
     ) -> None:
         assert (run / state.LOCK).exists() and (run / runlog.LOCK).exists()
-        with pytest.raises(RunError, match="log lock"):
+        with pytest.raises(RunError, match="holds"):
             logger(run, ["ordinary contender"], 1)
         with pytest.raises(RunError, match="holds"):
             state.set_status(run, "MODEL", "failed", "competing completion")
@@ -120,10 +118,7 @@ def test_lock_contention_keeps_other_owner_bytes(tmp_path: Path, lock: str) -> N
     path.write_bytes(b"other owner")
     before = (run / state.STATE).read_bytes()
     assert invoke(run) == 1 and path.read_bytes() == b"other owner"
-    if lock == state.LOCK:
-        assert (run / state.STATE).read_bytes() == before
-    else:
-        assert state.read(run)["steps"]["MODEL"]["status"] == "failed"
+    assert (run / state.STATE).read_bytes() == before
 
 
 def test_projected_accepted_edit_required_failure_cannot_skip_running_host(tmp_path: Path) -> None:
@@ -154,19 +149,21 @@ def test_registration_cleanup_uncertainty_cannot_compute_or_create_another_attem
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     run = eligible(tmp_path, RBOT_ROOT)
-    unlink = Path.unlink
+    from rbotlib.ownership import Owner
 
-    def broken(path: Path, missing_ok: bool = False) -> None:
-        if path == run / state.LOCK:
-            raise OSError("registration lock cleanup failed")
-        unlink(path, missing_ok=missing_ok)
+    close = Owner.close
 
-    monkeypatch.setattr(Path, "unlink", broken)
-    assert invoke(run) == 1
+    def broken(owner: Owner) -> None:
+        close(owner)
+        if owner.name == state.LOCK:
+            raise OSError("lifetime lock cleanup failed")
+
+    monkeypatch.setattr(Owner, "close", broken)
+    assert invoke(run) == 0
     current = state.read(run)["steps"]["MODEL"]
-    assert current["status"] == "running" and current["attempts"] == 1
-    assert not any((run / name).exists() for name in qualification.OUTPUTS)
-    assert "persisted=True" in capsys.readouterr().err
+    assert current["status"] == "accepted" and current["attempts"] == 1
+    qualification.qualify(run, RBOT_ROOT, state.read(run))
+    assert "cleanup failed" in capsys.readouterr().err
 
 
 def test_actual_completion_acquires_state_before_log(
@@ -180,8 +177,13 @@ def test_actual_completion_acquires_state_before_log(
         state_init(owner, selected)
         acquired.append("state")
 
-    def log_owned(receipt: runlog.Receipt, selected: Path, argv: list[str]) -> None:
-        log_init(receipt, selected, argv)
+    def log_owned(
+        receipt: runlog.Receipt,
+        selected: Path,
+        argv: list[str],
+        state_owner: state._Locked | None = None,
+    ) -> None:
+        log_init(receipt, selected, argv, state_owner)
         acquired.append("log")
 
     monkeypatch.setattr(state._Locked, "__init__", state_owned)

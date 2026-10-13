@@ -344,20 +344,18 @@ def prepare(run: Path, root: Path, rules: Rules, choice: Choice) -> Commit:
 
 
 @contextmanager
-def _locked(run: Path, where: list[Path]) -> Iterator[None]:
+def _locked(run: Path, where: list[Path]) -> Iterator[rs._Locked]:
     """An exclusive lock file for the run; `where` tracks it when the folder is renamed."""
-    try:
-        os.close(os.open(run / LOCK, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
-    except FileExistsError as exc:
-        raise ApprovalError(
-            f"another rbot approve holds this run ({LOCK}); wait for it, or delete {run / LOCK}"
-            " if no approve is running"
-        ) from exc
+    owner = rs._Locked(run)
     where.append(run)
     try:
-        yield
+        yield owner
     finally:
-        (where[-1] / LOCK).unlink(missing_ok=True)
+        owner.run = where[-1]
+        owner.owner.run = where[-1]
+        warnings = owner.close()
+        if warnings:
+            raise ApprovalError("; ".join(warnings))
 
 
 @contextmanager
@@ -386,7 +384,8 @@ def _restore(published: list[tuple[Path, str]]) -> list[str]:
     return errors
 
 
-def _commit(run: Path, commit: Commit, where: list[Path]) -> None:
+def _commit(run: Path, commit: Commit, where: list[Path], owner: rs._Locked) -> None:
+    owner.owner.check()
     originals = [
         (run / name, (run / name).read_text(encoding="utf-8")) for name in (rb.BRIEF, STATE)
     ]
@@ -395,9 +394,11 @@ def _commit(run: Path, commit: Commit, where: list[Path]) -> None:
         operation = "publish Approval"
         try:
             for staged, (path, original) in zip(stages, originals, strict=True):
+                owner.owner.check()
                 os.replace(staged, path)
                 published.append((path, original))
             operation = f"rename the run folder to {commit.target.name}"
+            owner.owner.check()
             run.rename(commit.target)
         except OSError as exc:
             errors = _restore(published)
@@ -427,9 +428,9 @@ def approve(run: Path, root: Path, rules: Rules, choice: Choice) -> Path:
     """Record the Approval under the run's lock; return the renamed run folder."""
     run = _owned_run(run)
     where: list[Path] = []
-    with _locked(run, where):
+    with _locked(run, where) as owner:
         commit = prepare(run, root, rules, choice)
-        _commit(run, commit, where)
+        _commit(run, commit, where, owner)
     return commit.target
 
 

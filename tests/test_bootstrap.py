@@ -143,10 +143,13 @@ def test_io_failure_and_shared_lock_refuse_without_changing_state(
 
     run = pending(tmp_path, root)
     before = (run / state.STATE).read_bytes()
-    (run / state.LOCK).touch()
-    with pytest.raises(RunError, match="another state update or Approval"):
-        bootstrap.complete_cp0(run, root, load_rules(root))
-    (run / state.LOCK).unlink()
+    owner = state._Locked(run)
+    try:
+        with pytest.raises(RunError, match="holds"):
+            bootstrap.complete_cp0(run, root, load_rules(root))
+        assert (run / state.STATE).read_bytes() == before
+    finally:
+        assert owner.close() == []
     (run / "prepared/index.json").unlink()
     with pytest.raises(RunError, match="exit 1"):
         bootstrap.complete_cp0(run, root, load_rules(root))
@@ -339,7 +342,7 @@ def test_completion_and_approval_share_actual_writer_lock(
     thread.start()
     try:
         assert inside.wait(10)
-        with pytest.raises(RunError, match="another state update or Approval"):
+        with pytest.raises(RunError, match="holds"):
             bootstrap.complete_cp0(run, root, load_rules(root))
     finally:
         done.set()
@@ -349,7 +352,7 @@ def test_completion_and_approval_share_actual_writer_lock(
     assert state.read(target)["steps"]["CP-0"]["status"] == "accepted"
     with pytest.raises(RunError, match="already approved"):
         bootstrap.complete_cp0(target, root, load_rules(root))
-    assert not (target / state.LOCK).exists()
+    assert (target / state.LOCK).exists()
 
 
 def test_fifo_handoff_refuses_before_opening_and_releases_writer_lock(
@@ -385,7 +388,7 @@ def test_fifo_handoff_refuses_before_opening_and_releases_writer_lock(
             process.communicate()
     assert process.returncode == 1 and "regular file" in out and not err
     assert (run / state.STATE).read_bytes() == before
-    assert not (run / state.LOCK).exists()
+    assert (run / state.LOCK).exists()
 
 
 def test_undecodable_handoff_names_the_input_and_preserves_state(
@@ -397,4 +400,4 @@ def test_undecodable_handoff_names_the_input_and_preserves_state(
     with pytest.raises(RunError, match=r"CP-0.md.*readable"):
         bootstrap.complete_cp0(run, root, load_rules(root))
     assert (run / state.STATE).read_bytes() == before
-    assert not (run / state.LOCK).exists()
+    assert (run / state.LOCK).exists()

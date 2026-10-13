@@ -81,7 +81,10 @@ def _owned(record: state.Record, token: str, module: str) -> state.Record:
     return current
 
 
-def _register(run: Path, root: Path, generated_at: str, token: str, backend: Backend[C, W]) -> C:
+def _register(
+    owner: state._Locked, root: Path, generated_at: str, token: str, backend: Backend[C, W]
+) -> C:
+    run = owner.run
     captured: C | None = None
     module = backend.step
 
@@ -111,7 +114,9 @@ def _register(run: Path, root: Path, generated_at: str, token: str, backend: Bac
         )
 
     try:
-        state.update(run, start)
+        record = state.read(run)
+        start(record)
+        owner.commit(owner.stage(record))
     except ERRORS as exc:
         raise _registration_error(run, token, module, exc) from exc
     if captured is None:
@@ -181,10 +186,11 @@ def _resolve_log(
     argv: list[str],
     receipt: runlog.Receipt | None,
     append_log: Appender,
+    owner: state._Locked | None = None,
 ) -> tuple[runlog.Receipt | None, str]:
     try:
         if receipt is None:
-            receipt = runlog.Receipt(run, argv)
+            receipt = runlog.Receipt(run, argv, owner)
             try:
                 append_log(receipt, 1)
             except ERRORS as append_error:
@@ -209,6 +215,7 @@ def _complete(
     built: tuple[W, dict[str, bytes]] | Exception,
     argv: list[str],
     append_log: Appender,
+    owner: state._Locked,
 ) -> int:
     run, root, token, captured = (
         execution.run,
@@ -217,7 +224,6 @@ def _complete(
         execution.captured,
     )
     backend, module = execution.backend, execution.backend.step
-    owner = state._Locked(run)
     receipt: runlog.Receipt | None = None
     result, phase = 1, "build"
     try:
@@ -250,13 +256,13 @@ def _complete(
         phase = "required command output"
         backend.show(written)
         phase = "log"
-        receipt = runlog.Receipt(run, argv)
+        receipt = runlog.Receipt(run, argv, owner)
         append_log(receipt, 0)
         phase = "accepted state publication"
         owner.commit(staged)
         result = 0  # no fallible outcome-changing work follows this commit
     except ERRORS as exc:
-        receipt, log_error = _resolve_log(run, argv, receipt, append_log)
+        receipt, log_error = _resolve_log(run, argv, receipt, append_log, owner)
         cause = RunError(f"{exc}{log_error}") if log_error else exc
         message = _failed(owner, execution, cause, phase, receipt)
         _diagnostic(message)
@@ -266,8 +272,6 @@ def _complete(
                 receipt.close()
             except ERRORS as exc:
                 _diagnostic(f"log cleanup; result={result}: {exc}")
-        for warning in owner.close():
-            _diagnostic(f"{warning}; result={result}")
     return result
 
 
@@ -277,19 +281,23 @@ def execute(
     """Selected before CLI execution; all exits here own their single command row."""
     selected = Path(args.run_dir)
     token = uuid4().hex
+    owner = None
     try:
         run, root = state.run_path(selected), dispatch._root(args.root)
+        owner = state._Locked(run)
         generated_at = datetime.now(UTC).isoformat()
-        captured = _register(run, root, generated_at, token, backend)
+        captured = _register(owner, root, generated_at, token, backend)
         execution = Execution(run, root, token, captured, generated_at, backend)
         try:
             built: tuple[W, dict[str, bytes]] | Exception = backend.build(captured, generated_at)
         except ERRORS as exc:
             built = exc
-        return _complete(execution, built, argv, append_log)
+        return _complete(execution, built, argv, append_log, owner)
     except ERRORS as exc:
         _diagnostic(f"{exc}; token={token}; uncommitted outcome; recovery may be required")
-        receipt, error = _resolve_log(selected, argv, None, append_log)
+        if owner is None:
+            return 1  # refusal never acquires unrelated publication/log ownership
+        receipt, error = _resolve_log(selected, argv, None, append_log, owner)
         if error:
             _diagnostic(error)
         if receipt is not None:
@@ -298,6 +306,10 @@ def execute(
             except ERRORS as cleanup:
                 _diagnostic(f"log cleanup: {cleanup}")
         return 1
+    finally:
+        if owner is not None:
+            for warning in owner.close():
+                _diagnostic(warning)
 
 
 class Model:

@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import re
 import shlex
 import sys
@@ -454,11 +453,7 @@ def prepare_message(run: Path, root: Path, module: str, findings: str | None = N
     state.read(run)  # prove ownership before lock/publication
     if re.fullmatch(r"CP-[0-9]+[A-Z]?", module) is None or module in ("CP-8",):
         raise RunError(f"undeclared module target {module!r}")
-    lock = output_path(run, state.LOCK)
-    try:
-        os.close(os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600))
-    except FileExistsError as exc:
-        raise RunError("another state update or Approval holds this run") from exc
+    owner = state._Locked(run)
     try:
         record = state.read(run)
         current = record["steps"].get(module)
@@ -475,11 +470,15 @@ def prepare_message(run: Path, root: Path, module: str, findings: str | None = N
             raise RunError("analyst Approval required before analysis dispatch")
         text = qualified_message(run, root, module, record, findings)
         path = _target(run, f"dispatch/{module}.md")
+        owner.owner.check()
         path.parent.mkdir(exist_ok=True)
+        owner.owner.check()
         write_atomic(_target(run, f"dispatch/{module}.md"), text)
         return text
     finally:
-        lock.unlink(missing_ok=True)
+        warnings = owner.close()
+        if warnings:
+            raise RunError("; ".join(warnings))
 
 
 def run_command(args: argparse.Namespace) -> int:

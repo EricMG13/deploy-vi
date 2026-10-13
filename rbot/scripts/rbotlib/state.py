@@ -17,6 +17,7 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
+from rbotlib import ownership
 from rbotlib.fsio import write_atomic
 from rbotlib.inventory import RunError, output_path
 
@@ -165,6 +166,34 @@ def validate(record: Record, run: Path) -> None:
     )
     _approval(record)
     _lineage(record)
+    _ownership(record)
+
+
+def _ownership(record: Record) -> None:
+    if "ownership" not in record:
+        return
+    protocol = _fields(
+        record["ownership"],
+        {
+            "schema": lambda v: v == "rbot-process-owner/1",
+            "state": lambda v: isinstance(v, dict),
+            "log": lambda v: isinstance(v, dict),
+        },
+        "state ownership",
+    )
+    for name in ("state", "log"):
+        _fields(
+            protocol[name],
+            {
+                "bytes": lambda v: (
+                    isinstance(v, str)
+                    and re.fullmatch(r"rbot-owner/1 [0-9a-f]{32}\n", v) is not None
+                ),
+                "device": lambda v: type(v) is int and v >= 0,
+                "inode": lambda v: type(v) is int and v >= 0,
+            },
+            f"state ownership.{name}",
+        )
 
 
 def _lineage(record: Record) -> None:
@@ -289,11 +318,39 @@ def _pairs(pairs: list[tuple[str, Any]]) -> Record:
 def read(run: Path) -> Record:
     """Read strict JSON from a guarded production run; malformed/linked state refuses."""
     run = run_path(run)
-    record: Record = json.loads(
-        _destination(run).read_text(encoding="utf-8"), object_pairs_hook=_pairs
-    )
+    try:
+        text = _destination(run).read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise RunError(f"{run / STATE}: no readable run state ({exc})") from exc
+    record: Record = json.loads(text, object_pairs_hook=_pairs)
     validate(record, run)
     json.dumps(record, allow_nan=False)  # also rejects non-finite extension metadata
+    return record
+
+
+def write_guard(run: Path) -> Record | None:
+    """Read-only classification: no-state standalone or checked prospective ownership."""
+    try:
+        _physical(run)
+    except FileNotFoundError as exc:
+        raise RunError(f"{run}: no such run folder ({exc})") from exc
+    marker = output_path(run, STATE)
+    if not marker.exists():
+        if output_path(run, LOCK).exists():
+            raise RunError(
+                "run-state.json: state must be an existing regular file; "
+                "legacy/initialization ownership unresolved; run preserved"
+            )
+        return None
+    record = read(run)
+    protocol = record.get("ownership")
+    if protocol is None:
+        raise RunError(
+            "legacy run: checked process ownership missing; read-only compatibility limitation"
+        )
+    for key, name in (("state", LOCK), ("log", ownership.LOG)):
+        if ownership.existing(run, name) != protocol[key]:
+            raise RunError(f"{name}: owned lock identity/protocol changed; publication refused")
     return record
 
 
@@ -305,33 +362,20 @@ def update(
     Evidence owners must detect a published orphan if state publication is interrupted.
     This is not a multi-file crash transaction; no evidence is deleted on failure.
     """
-    run = run_path(run)
-    lock = output_path(run, LOCK)
+    owner = _Locked(run)
     try:
-        os.close(os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600))
-    except FileExistsError as exc:
-        raise RunError(f"another state update or Approval holds this run ({LOCK})") from exc
-    stage: Path | None = None
-    try:
-        record = read(run)
+        record = read(owner.run)
         change(record)
-        record["updated_at"] = datetime.now(UTC).isoformat(timespec="seconds")
-        validate(record, run)
-        fd, name = tempfile.mkstemp(dir=run, prefix=".state-")
-        os.close(fd)
-        stage = Path(name)
-        write_atomic(
-            stage, json.dumps(record, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
-        )
-        _destination(run)  # preflight before related evidence publication
+        staged = owner.stage(record)
         if publish is not None:
+            owner.owner.check()
             publish()
-        os.replace(stage, _destination(run))
+        owner.commit(staged)
         return record
     finally:
-        if stage is not None:
-            stage.unlink(missing_ok=True)
-        lock.unlink(missing_ok=True)
+        warnings = owner.close()
+        if warnings:
+            raise RunError("; ".join(warnings))
 
 
 def set_status(run: Path, step: str, status: str, reason: str) -> Record:
@@ -393,16 +437,16 @@ class _Locked:
 
     def __init__(self, run: Path) -> None:
         self.run = run_path(run)
+        record = write_guard(self.run)
+        if record is None:
+            raise RunError("run-state.json: state ownership requires a published new run")
+        self.owner = ownership.Owner(self.run, LOCK, record["ownership"]["state"])
         self.lock = output_path(self.run, LOCK)
-        try:
-            descriptor = os.open(self.lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-        except FileExistsError as exc:
-            raise RunError("another state update or Approval holds this run") from exc
-        self.identity = os.fstat(descriptor)
-        os.close(descriptor)
+        self.identity = os.fstat(self.owner.fd)
         self.stages: list[Path] = []
 
     def stage(self, record: Record) -> Path:
+        self.owner.check()
         record["updated_at"] = datetime.now(UTC).isoformat(timespec="seconds")
         validate(record, self.run)
         fd, name = tempfile.mkstemp(dir=self.run, prefix=".state-")
@@ -416,6 +460,7 @@ class _Locked:
         return staged
 
     def commit(self, staged: Path) -> None:
+        self.owner.check()
         os.replace(staged, _destination(self.run))
 
     def close(self) -> list[str]:
@@ -426,10 +471,7 @@ class _Locked:
             except OSError as exc:
                 warnings.append(f"state stage cleanup: {exc}")
         try:
-            observed = output_path(self.run, LOCK).lstat()
-            if (observed.st_dev, observed.st_ino) != (self.identity.st_dev, self.identity.st_ino):
-                raise RunError("owned state lock identity changed; cleanup refused")
-            self.lock.unlink()
+            self.owner.close()
         except (OSError, ValueError) as exc:
             warnings.append(f"state lock cleanup: {exc}")
         return warnings

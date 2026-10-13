@@ -10,13 +10,13 @@ from typing import Any
 import pytest
 
 import rbotlib.approve as ap
+from builders import make_run
 from conftest import FIXTURES
 from rbotlib.approve import ApprovalError, new_name
 from rbotlib.bootstrap import QualifiedCP0
 from rbotlib.cli import main
 from rbotlib.handoff import Handoff, parse
 from rbotlib.rules import Rules
-from rbotlib.runs import _bootstrap
 from rbotlib.validate import run_findings
 from spec_fixture import SOURCES, build_tree
 from test_grade import FILES, _acme, _graded
@@ -51,9 +51,10 @@ def root(tmp_path: Path, rules: Rules) -> Path:
 
 
 def _seed(run: Path) -> None:
-    """The pre-Approval run-state.json that `rbot new-run` (Plan 06) or proxy step 1 writes."""
-    state = _bootstrap(run, run.parents[1], None, None)
-    (run / "run-state.json").write_text(json.dumps(state), encoding="utf-8")
+    """The fixture started from a genuine fresh new-run allocation."""
+    from rbotlib import state as rs
+
+    assert "ownership" in rs.read(run)
 
 
 def _ready(
@@ -66,7 +67,7 @@ def _ready(
 ) -> Path:
     """A graded Acme run with objective and analyst set; optionally a question with the
     Prior Case `rows` (the pack then holds two earlier RBOT Reports) and a new tranche."""
-    run = _acme(tmp_path, REPORTS if rows else None)
+    run = _acme(tmp_path, REPORTS if rows else None, managed=True)
     _graded(root, run, FILES | (REPORT_CLASSES if rows else {}))
     if rows:
         cp0 = run / "handoffs" / "CP-0.md"
@@ -287,8 +288,8 @@ def test_the_new_name_counts_up_and_needs_a_pending_folder(tmp_path: Path) -> No
 def test_approval_on_the_primary_pack(
     prepared_run: Callable[[str], Path], tmp_path: Path, rules: Rules
 ) -> None:
-    run = tmp_path / "rbot-runs" / "20261011-czr-pending"
-    shutil.copytree(prepared_run("czr-2026q2-primary"), run)
+    run = make_run(tmp_path, "20261011-czr-pending", managed=True)
+    shutil.copytree(prepared_run("czr-2026q2-primary"), run, dirs_exist_ok=True)
     (tmp_path / "rbot").mkdir()
     root = build_tree(tmp_path / "rbot", rules, SOURCES)
     (run / "handoffs").mkdir(exist_ok=True)
@@ -338,7 +339,7 @@ def test_a_failed_rename_leaves_the_run_unapproved_and_retryable(
     monkeypatch.undo()
     assert (run / "run-brief.md").read_bytes() == brief
     assert (run / "run-state.json").read_bytes() == state
-    assert sorted(p.name for p in run.iterdir() if p.name.startswith(".")) == []
+    assert sorted(p.name for p in run.iterdir() if p.name.startswith(".")) == [".approve.lock"]
     assert _approve(root, run) == 0
     assert (run.parent / TARGET / "run-state.json").is_file()
 
@@ -364,11 +365,11 @@ def test_a_concurrent_approve_is_refused_by_the_lock(
     done.set()
     first.join()
     assert codes == {"fca": 0, "eu": 1}
-    assert "another rbot approve holds this run (.approve.lock)" in capsys.readouterr().out
+    assert "holds this run" in capsys.readouterr().out
     assert [p.name for p in run.parent.iterdir()] == [TARGET]
     state = _state(run.parent / TARGET)
     assert (state["pathway"], state["run_id"]) == ("FULL_CREDIT_ASSESSMENT", TARGET)
-    assert not (run.parent / TARGET / ".approve.lock").exists()
+    assert (run.parent / TARGET / ".approve.lock").exists()
 
 
 def test_a_report_cp0_did_not_offer_cannot_be_accepted(
@@ -452,9 +453,10 @@ def test_a_grading_record_without_depths_is_named(
 def test_plan_names_an_incomplete_state(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     (tmp_path / "run-state.json").write_text('{"plan": ["CP-0"], "steps": {}}', encoding="utf-8")
     assert main(["plan", "--run", str(tmp_path)]) == 1
-    assert "run-state.json lacks 'run_id'; it is not an approved run state" in (
-        capsys.readouterr().out
-    )
+    captured = capsys.readouterr()
+    assert "inside pack/rbot-runs" in captured.out + captured.err
+    assert (tmp_path / "run-state.json").read_text() == '{"plan": ["CP-0"], "steps": {}}'
+    assert not (tmp_path / "log").exists()
 
 
 def test_a_cp0_that_no_longer_validates_is_refused(

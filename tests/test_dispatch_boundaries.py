@@ -185,7 +185,7 @@ def test_library_and_public_named_refusals(
     elif case == "root":
         (root / "catalog.json").write_text("{}")
     elif case == "lock":
-        (run / state.LOCK).touch()
+        (run / state.LOCK).write_bytes(b"")
     else:
         (run / "validate").mkdir()
         path = run / "validate/CP-1.json"

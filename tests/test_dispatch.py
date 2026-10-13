@@ -197,7 +197,7 @@ def test_unsupported_paths_refuse_before_open(
     )
     assert proc.returncode == 1 and ("error:" in proc.stdout + proc.stderr)
     assert (run / state.STATE).read_bytes() == before and external.read_bytes() == original
-    assert not (run / state.LOCK).exists()
+    assert (run / state.LOCK).exists()
 
 
 def test_findings_are_bound_data_not_retry_entitlement(

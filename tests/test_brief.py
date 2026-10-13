@@ -19,8 +19,10 @@ from rbotlib.validate import check, run_findings
 CP0 = FIXTURES / "handoffs" / "CP-0.md"
 
 
-def _run(tmp_path: Path) -> Path:
-    run = make_run(tmp_path / "pack", "20261011-czr-pending")
+def _run(tmp_path: Path, *, managed: bool = False) -> Path:
+    if managed:
+        (tmp_path / "pack").mkdir()
+    run = make_run(tmp_path / "pack", "20261011-czr-pending", managed=managed)
     (run / "handoffs").mkdir()
     shutil.copy(CP0, run / "handoffs" / "CP-0.md")
     return run
@@ -204,9 +206,8 @@ def test_tranches_with_primary_no_are_refused_by_name(
 
 
 def test_the_brief_records_its_hash_and_time_in_the_run_state(tmp_path: Path) -> None:
-    run = _run(tmp_path)
+    run = _run(tmp_path, managed=True)
     state = run / "run-state.json"
-    state.write_text(json.dumps({"schema": "rbot-run-state/1", "run_brief_sha256": None}))
     assert _from(run) == 0
     data = json.loads(state.read_text(encoding="utf-8"))
     brief = (run / "run-brief.md").read_bytes()
@@ -333,14 +334,19 @@ def test_a_failed_write_and_an_undecodable_file_are_errors_not_tracebacks(
 def test_an_approved_brief_is_never_silently_reset(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    run = _run(tmp_path)
-    _from(run)
-    (run / "run-state.json").write_text(json.dumps({"approval": {"by": "A"}}), encoding="utf-8")
+    from test_bootstrap import approve, pending, ready
+
+    from rbotlib.rules import RBOT_ROOT
+
+    run = pending(tmp_path, RBOT_ROOT)
+    ready(run, RBOT_ROOT)
+    run = approve(run, RBOT_ROOT)
     before = (run / "run-brief.md").read_bytes()
     capsys.readouterr()
     for args in (["--set", "analyst=A"], ["--from", "handoffs/CP-0.md"]):
         assert main(["brief", "--run", str(run), *args]) == 1
-        assert "the brief is approved; re-run rbot approve" in capsys.readouterr().out
+        diagnostic = capsys.readouterr().out
+        assert "was approved" in diagnostic and "needs a new run" in diagnostic
     assert (run / "run-brief.md").read_bytes() == before
 
 

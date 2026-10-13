@@ -31,15 +31,31 @@ def make_pdf(pages: list[str]) -> bytes:
     return out + trailer.encode()
 
 
-def make_run(pack: Path, name: str = "20261011-test-pending") -> Path:
+def make_run(pack: Path, name: str = "20261011-test-pending", *, managed: bool = False) -> Path:
     """An empty run folder at <pack>/rbot-runs/<name>/ (spec section 8.1)."""
     run = pack / "rbot-runs" / name
+    if managed:
+        import json
+
+        from rbotlib import runs, state
+
+        allocated = runs.create_run(pack)
+        record = state.read(allocated)
+        allocated.rename(run)
+        record["run_id"] = run.name
+        (run / state.STATE).write_text(json.dumps(record))
+        state.read(run)
+        return run
     run.mkdir(parents=True)
     return run
 
 
 def prepared_pack(
-    root: Path, files: dict[str, str | bytes], name: str = "20261011-acme-pending"
+    root: Path,
+    files: dict[str, str | bytes],
+    name: str = "20261011-acme-pending",
+    *,
+    managed: bool = False,
 ) -> Path:
     """A Source Pack of `files` under `root/pack`, and a run with inventory and prepare done."""
     from rbotlib.cli import main
@@ -53,7 +69,7 @@ def prepared_pack(
             target.write_bytes(content)
         else:
             target.write_text(content, encoding="utf-8")
-    run = make_run(pack, name)
+    run = make_run(pack, name, managed=managed)
     for command in ("inventory", "prepare"):
         if main([command, "--run", str(run)]) != 0:
             raise RuntimeError(f"rbot {command} failed for {run}")

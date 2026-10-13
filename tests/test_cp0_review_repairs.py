@@ -54,7 +54,7 @@ def test_second_publication_failure_restores_both_files_and_allows_retry(
     assert capsys.readouterr().out.startswith("could not publish Approval (")
     assert failed
     assert before == {name: (run / name).read_bytes() for name in before}
-    assert not [p for p in run.iterdir() if p.name.startswith(".approve")]
+    assert not [p for p in run.iterdir() if p.name.startswith(".approve-")]
     monkeypatch.undo()
     assert _approve(root, run) == 0
     assert (run.parent / TARGET / "log/rbot.log").read_text().endswith("\t0\n")
@@ -79,7 +79,7 @@ def test_second_staging_failure_publishes_nothing_and_allows_retry(
     assert _approve(root, run) == 1
     assert calls == 2
     assert before == {name: (run / name).read_bytes() for name in before}
-    assert not [p for p in run.iterdir() if p.name.startswith(".approve")]
+    assert not [p for p in run.iterdir() if p.name.startswith(".approve-")]
     monkeypatch.undo()
     assert _approve(root, run) == 0
 
@@ -112,7 +112,7 @@ def test_failed_recovery_does_not_claim_nothing_was_approved(
     assert "inspect the pending Run Brief and state before retrying" in out
     assert "nothing was approved" not in out
     assert rb.approval(run) is not None
-    assert not (run / ".approve.lock").exists()
+    assert (run / ".approve.lock").exists()
 
 
 @pytest.mark.parametrize("name", ["grading.json", "run-state.json"])
@@ -125,7 +125,7 @@ def test_approval_names_undecodable_input(
     assert _approve(root, run) == 1
     captured = capsys.readouterr()
     assert f"{run / name}: no readable" in captured.out + captured.err
-    assert run.is_dir() and not (run / ".approve.lock").exists()
+    assert run.is_dir() and (run / ".approve.lock").exists()
 
 
 def _damage_inventory(path: Path, damage: str) -> None:

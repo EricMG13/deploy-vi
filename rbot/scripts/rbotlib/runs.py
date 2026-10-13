@@ -23,7 +23,7 @@ from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from rbotlib import __version__, state
+from rbotlib import __version__, ownership, state
 from rbotlib.fsio import write_atomic
 from rbotlib.inventory import RUNS, RunError, output_path
 
@@ -170,12 +170,21 @@ def create_run(pack: Path, issuer: str | None = None, objective: str | None = No
     with _creation_lock(envelope):
         unfinished = discover_unfinished(pack)
         if unfinished is not None:
+            if "ownership" not in state.read(unfinished):
+                raise RunError(
+                    f"unfinished legacy run exists: {unfinished}; "
+                    "checked ownership missing; preserve read-only run"
+                )
             raise RunError(f"unfinished run exists: {unfinished}; use next --run {unfinished}")
         slug = re.sub(r"[^a-z0-9]+", "-", (issuer or "").lower()).strip("-")[:80] or "unknown"
         run = _allocate(envelope, f"{datetime.now(UTC):%Y%m%d}-{slug}-pending")
         try:
             record = _bootstrap(run, pack, issuer, objective)
-            write_atomic(output_path(run, state.STATE), json.dumps(record, indent=2) + "\n")
+            owner = ownership.provision(run, state.LOCK, record)
+            try:
+                write_atomic(output_path(run, state.STATE), json.dumps(record, indent=2) + "\n")
+            finally:
+                owner.close()
             state.read(run)
         except (OSError, ValueError, RecursionError) as exc:
             try:

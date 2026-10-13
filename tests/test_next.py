@@ -236,7 +236,7 @@ def test_refusal_has_no_false_selection_or_state_publication(tmp_path: Path, uns
     with pytest.raises((OSError, ValueError, KeyError, TypeError)):
         next_step.select(run, root)
     assert (run / state.STATE).read_bytes() == before and other.read_text() == "preserve"
-    assert not (run / state.LOCK).exists()
+    assert (run / state.LOCK).exists()
     if unsafe not in ("symlink", "hardlink", "directory", "fifo"):
         assert not target.exists()
 
@@ -305,7 +305,7 @@ def test_context_refusal_preserves_evidence_and_owned_lock(tmp_path: Path, cause
     if cause == "lock":
         assert (run / state.LOCK).read_text() == "other owner"
     else:
-        assert not (run / state.LOCK).exists()
+        assert (run / state.LOCK).exists()
 
 
 def test_actual_host_reader_edges_are_required_without_invented_brief_step(tmp_path: Path) -> None:
