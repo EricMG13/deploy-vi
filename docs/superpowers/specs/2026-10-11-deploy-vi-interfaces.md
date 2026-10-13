@@ -713,6 +713,8 @@ Prepared portfolio JSON (`"schema": "rbot-portfolio/1"`):
 
 Source files are never modified; `rbot-runs/` is git-ignored in the repo and lives inside the analyst's pack.
 
+Existing stateful runs without checked process-ownership entitlement remain read-only to this implementation. Refusal creates no state/log fence, log directory or command row. Checked discovery and supported read-only inspection remain available without logging; genuinely no-state standalone commands retain their existing logging behavior. Only a fresh unpublished `new-run` allocation may provision ownership, before publishing state; malformed or broken state entries never become standalone authority.
+
 ### 8.2 `run-state.json` (`"schema": "rbot-run-state/1"`)
 
 ```json
@@ -748,7 +750,7 @@ Source files are never modified; `rbot-runs/` is git-ignored in the repo and liv
 | `rbot accept` exit 2, `attempts` = 2 | `failed` | `reason` = findings |
 | `rbot accept` exit 4 | `failed` | identity mismatch is never retried |
 | host step exit 0 | `accepted` | |
-| host step exit 1 | `failed` | `reason` = message |
+| attributed host execution failure (exit 1) | `failed` | `reason` = message; ownership/legacy/uncommitted refusals preserve state and pause (§10.3) |
 | a required input is `failed` or `skipped` | `skipped` | `reason` names the input; the Report marks the module and the Front Page blocks it owns |
 | a required input is `blocked` | runs normally | the dispatch message names the Blocked input; the module works with its tables' gaps |
 | `CP-DR` unticked / `CP-8` not accepted / `PROJECTION` without `CP-2G` / `FIT` without portfolios | `skipped` | `reason` fixed strings: `not approved`, `no prior case`, `CP-2G not run`, `no portfolio context` |
@@ -757,7 +759,7 @@ Source files are never modified; `rbot-runs/` is git-ignored in the repo and liv
 
 `/rbot` in a folder whose newest `rbot-runs/*/run-state.json` has `report.written_at` null resumes it: no re-approval; the orchestrator runs `rbot next`, which returns the first step whose status is `pending` or `running` (a `running` module is re-dispatched; its attempts counter is kept). `failed` and `skipped` steps are not retried on resume. Before continuing, `rbot next` re-hashes every accepted Handoff; a hash mismatch re-validates the file: valid → the new hash is recorded with `note: edited`; invalid → status `failed` with the findings (the analyst's edit broke it). A run older than 30 days is not resumed; `rbot new-run` is offered instead.
 
-Host continuation requires explicit recorded entitlement to the shared process-held ownership protocol and acquisition of that registered owner. A busy owner preserves state and pauses. An interrupted entitled host preserves its calculation token/attempt and original input/time seed, while recording each actual continuation invocation and checking current origin/publication/log evidence. Legacy already-running hosts without that entitlement refuse automatic takeover with a visible unresolved-owner limitation; no elapsed-time, missing-file or log0 guess supplies retrospective ownership. Terminal outcomes are never automatically retried. This bounds compatibility without weakening new-run recovery or analytical checks (Task06.9 causal diagnosis, 2026-10-13).
+The resume/edit protocol above applies to freshly provisioned runs with checked process-ownership entitlement. Every unentitled legacy stateful run refuses automatic adoption, resume and mutation regardless of pending/running/terminal status, before any run-local write; discovery remains available with the visible compatibility limitation. No elapsed-time, missing-file, status or log0 guess supplies retrospective ownership. Host continuation additionally requires acquisition of its registered process-held owner. A busy owner preserves state and pauses. An interrupted entitled host preserves its calculation token/attempt and original input/time seed, while recording each actual continuation invocation and checking current origin/publication/log evidence. Terminal outcomes are never automatically retried. This bounds compatibility without weakening new-run recovery or analytical checks (Task06.9 corrected legacy-overlap diagnosis, 2026-10-13).
 
 ---
 
@@ -765,19 +767,21 @@ Host continuation requires explicit recorded entitlement to the shared process-h
 
 Exit codes unless stated: 0 success, 1 failure with a message naming the cause. `--root` (Plan 01) applies to every command. All paths absolute or relative to the current directory; `--run <RUN>` names the run folder.
 
+Stateful mutation requires checked ownership before command execution or logging (§8.1); this includes direct publication helpers. Unentitled legacy refusal writes no log row. Supported read-only legacy inspection bypasses logging; corrupt/unsafe state entries refuse rather than falling back to standalone execution.
+
 | Command | Arguments | Inputs | Outputs | Exit codes | Plan |
 |---|---|---|---|---|---|
 | `validate` | `<handoff> --module <ID> [--run <RUN>]` | Handoff, contract, rules; with `--run`: `inventory.json`, `prepared/`, `fetched/` | findings on stdout, `exit <n>` | 0 valid, 2 malformed, 3 blocked, 4 identity (Plan 01); new findings `too_large`, `source_unknown` (cited `source` not in the inventory or `fetched/`), `citation_unanchored` (excerpt not found in the prepared text of that file at token and number boundaries after the shared normalisation; with a page locator — `p.`, `pp.`, `pg.`, `page(s)`, with or without a space — not on that page; an excerpt under 2 tokens or 8 characters, or an ellipsis part under 2 tokens, is unanchored) → 2; a run-folder read failure → 1 with `error: <path>: <reason>` (amended 2026-10-11) | 01; `--run` in 02 |
 | `render-module` | `<ID> [--write]` | contract | MODULE.md | 0 | 01 |
 | `check` | — | tree | problems | 0 / 1 | 01; extensions §14 |
-| `new-run` | `--pack <dir> [--issuer <hint>] [--objective <text>]` | pack | run folder with `run-state.json` | 0; 1 when an unfinished run exists (prints its id; use `next`) | 06 |
+| `new-run` | `--pack <dir> [--issuer <hint>] [--objective <text>]` | pack | freshly provisioned run folder with `run-state.json` | 0; 1 when an unfinished run exists (prints its id; use `next` only with checked entitlement, otherwise preserve the legacy run and show its compatibility limitation) | 06 |
 | `inventory` | `--run <RUN>` | pack files | `inventory.json` | 0; 1 when the pack is empty | 02 |
 | `prepare` | `--run <RUN> [--only <file>]` | `inventory.json` | `prepared/**` | 0; 1 when a file cannot be read at all (listed, the rest prepared) → exit 0 with `unreadable` entries; 1 only for an I/O failure of the run folder | 02 |
 | `brief` | `--run <RUN> --from handoffs/CP-0.md` / `--set <field>=<value>` / `--set-tranche <id> <field>=<value>` / `--show` | CP-0 Handoff, prior `run-brief.md` | `run-brief.md` | 0; 1 unknown field | 02 (`--from`, `--set`), 04 (tranches) |
 | `grade` | `--run <RUN>` | `run-brief.md`, `handoffs/CP-0.md`, contracts (`document_types`), catalog | `grading.json` and a Markdown menu on stdout | 0 | 04 |
 | `approve` | `--run <RUN> --pathway <ID> --depth full\|quick --primary yes\|no --analyst <name> [--deep-research yes\|no] [--untick <question_id>…] [--prior-case yes\|no] [--acknowledge-blocked]` | `grading.json` | `run-brief.md` (`brief.approval`), `run-state.json` (`plan`), folder renamed | 0; 1 when Blocked and not acknowledged, or an unknown Pathway | 04 |
 | `plan` | `--run <RUN>` | catalog, approval | prints the ordered steps with their status | 0 | 04 |
-| `next` | `--run <RUN>` | `run-state.json` | JSON on stdout `{"step": "CP-1", "kind": "module|host|done", "command": "<host command>|null", "dispatch": "dispatch/CP-1.md|null"}`; writes the dispatch message | 0; 1 when the state file is corrupt | 06 |
+| `next` | `--run <RUN>` | `run-state.json` | JSON on stdout `{"step": "CP-1", "kind": "module|host|done", "command": "<host command>|null", "dispatch": "dispatch/CP-1.md|null"}`; writes the dispatch message | 0; 1 for corrupt state or ownership/legacy refusal (preserve state and pause; no runnable selection) | 06 |
 | `dispatch-message` | `--run <RUN> --module <ID> [--findings validate/<ID>.json]` | state, contract, catalog | `dispatch/<ID>.md` (also stdout) | 0 | 06 |
 | `accept` | `--run <RUN> --module <ID>` | `handoffs/<ID>.md` | `validate/<ID>.json`, state updated | validate's code (0/2/3/4) | 06 |
 | `state` | `--run <RUN> [--set <step>=<status> --reason <text>]` | state | prints or updates | 0; 1 unknown step | 06 |
@@ -800,7 +804,7 @@ Repo-only tooling (not in `rbot.py`): `scripts/proxy_run.py` and `scripts/scorec
 
 ### 10.1 cp-start, turn 1
 
-1. Resolve the pack root (attached folder, else workspace root). If an unfinished run exists → §8.4 resume, skip to 10.4.
+1. Resolve the pack root (attached folder, else workspace root). If an unfinished run exists → §8.4 resume through §10.3; an unentitled legacy run pauses with its compatibility limitation and no mutation.
 2. `rbot new-run --pack <root> [--issuer <hint>] [--objective <text>]` → `<RUN>`.
 3. `rbot inventory --run <RUN>`; `rbot prepare --run <RUN>`.
 4. Dispatch `CP-0` (§10.5) and `rbot accept --run <RUN> --module CP-0`. Exit 2 → one re-dispatch with findings; a second 2 or a 4 → stop and show the findings (no run without a readiness Handoff).
