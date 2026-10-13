@@ -56,9 +56,7 @@ def test_real_logger_failure_resolves_one_owned_row(
     assert "log" in failed(run, prefix)["reason"]
 
 
-@pytest.mark.parametrize(
-    "phase", ["stage1", "stage2", "stage3", "replace1", "replace2", "replace3"]
-)
+@pytest.mark.parametrize("phase", ["stage1", "stage2", "replace1", "replace2"])
 def test_each_output_io_failure_is_terminal(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, phase: str
 ) -> None:
@@ -69,15 +67,15 @@ def test_each_output_io_failure_is_terminal(
     replacements: list[str] = []
 
     def staged(target: Path, raw: bytes) -> Path:
-        if target.name in ("model.json", "model.xlsx", "MODEL.md"):
+        if target.name in ("model.json", "MODEL.md"):
             stages.append(target.name)
             if phase == f"stage{len(stages)}":
                 raise OSError(f"fixture {phase} denied")
         return stage(target, raw)
 
     def replaced(source: Path, target: Path) -> None:
-        if target.name in ("model.json", "model.xlsx", "MODEL.md"):
-            assert stages == ["model.json", "model.xlsx", "MODEL.md"]
+        if target.name in ("model.json", "MODEL.md"):
+            assert stages == ["model.json", "MODEL.md"]
             replacements.append(target.name)
             if phase == f"replace{len(replacements)}":
                 raise OSError(f"fixture {phase} denied")

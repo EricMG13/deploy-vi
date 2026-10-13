@@ -5,7 +5,8 @@ as served by the Model except where the Model's own figure is a ratio: a
 multiple is shown to two decimals, a percentage (a fraction times 100) to one,
 days to one, each rounded half-even here and only here. A figure cell is a
 `Fig`: the display string that also carries the exact value and the reason
-there is none, so `model.json` and `model.xlsx` keep every figure exact. A
+there is none: `model.json` retains exact figures, while `MODEL.md` displays
+the formatted text. A
 cell without a figure is `—`. Columns ending `_x` carry `x`, `_pct` carry `%`.
 
 On the PF-LTM, cash interest, closing cash and a facility are shown with the

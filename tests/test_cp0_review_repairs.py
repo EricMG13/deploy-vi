@@ -305,12 +305,13 @@ def test_both_stages_are_synced_before_first_publication(
 ) -> None:
     run = _ready(root, tmp_path)
     real_sync, real_replace = os.fsync, os.replace
-    synced: list[int] = []
+    synced: list[tuple[int, int]] = []
 
     def sync(fd: int) -> None:
-        assert os.fstat(fd).st_size > 0
+        observed = os.fstat(fd)
+        assert observed.st_size > 0
         real_sync(fd)
-        synced.append(fd)
+        synced.append((observed.st_dev, observed.st_ino))
 
     def publish(src: object, dst: object) -> None:
         if Path(str(dst)) == run / "run-brief.md":
@@ -320,7 +321,9 @@ def test_both_stages_are_synced_before_first_publication(
     monkeypatch.setattr(os, "fsync", sync)
     monkeypatch.setattr(os, "replace", publish)
     assert _approve(root, run) == 0
-    assert len(synced) == 2
+    assert len(synced) == 3
+    logged = (run.parent / TARGET / "log/rbot.log").stat()
+    assert synced[-1] == (logged.st_dev, logged.st_ino)
 
 
 @pytest.mark.parametrize(

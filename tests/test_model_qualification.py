@@ -1,16 +1,13 @@
-"""Exact captured bytes, genuine upstream receipts and independent real trio origin."""
+"""Exact captured bytes, genuine upstream receipts and real pair origin."""
 
 from __future__ import annotations
 
 import hashlib
 import json
 import os
-from io import BytesIO
 from pathlib import Path
-from zipfile import ZipFile
 
 import pytest
-from openpyxl import load_workbook
 from test_accept import send
 from test_model_completion import invoke
 from test_model_host import eligible
@@ -160,14 +157,10 @@ def test_current_required_input_refusal_cannot_compute(tmp_path: Path, cause: st
         "json-identity",
         "json-content",
         "handoff-qa",
-        "workbook",
-        "invalid-zip",
-        "formula",
-        "macro",
-        "external",
+        "handoff-content",
     ],
 )
-def test_corrupt_actual_accepted_trio_cannot_qualify_consumer(tmp_path: Path, kind: str) -> None:
+def test_corrupt_actual_accepted_pair_cannot_qualify_consumer(tmp_path: Path, kind: str) -> None:
     run = eligible(tmp_path, RBOT_ROOT)
     assert invoke(run) == 0
     if kind.startswith("json"):
@@ -183,26 +176,13 @@ def test_corrupt_actual_accepted_trio_cannot_qualify_consumer(tmp_path: Path, ki
     elif kind == "handoff-qa":
         path = run / "handoffs/MODEL.md"
         path.write_text(path.read_text().replace("qa_status: Pass", "qa_status: Blocked"))
-    elif kind == "invalid-zip":
-        (run / "model.xlsx").write_bytes(b"invalid ZIP")
-    elif kind in ("workbook", "formula"):
-        path = run / "model.xlsx"
-        book = load_workbook(BytesIO(path.read_bytes()))
-        book["Columns"]["A2"] = "=1+1" if kind == "formula" else "wrong period"
-        buffer = BytesIO()
-        book.save(buffer)
-        book.close()
-        path.write_bytes(buffer.getvalue())
     else:
-        path = run / "model.xlsx"
-        with ZipFile(path, "a") as archive:
-            archive.writestr(
-                "xl/vbaProject.bin" if kind == "macro" else "xl/externalLinks/x.xml", "injected"
-            )
+        path = run / "handoffs/MODEL.md"
+        path.write_text(path.read_text() + "\nChanged origin\n")
     before = (run / state.STATE).read_bytes()
     assert cli.main(["dispatch-message", "--run", str(run), "--module", "CP-3"]) == 1
     assert (run / state.STATE).read_bytes() == before
-    with pytest.raises((RunError, ValueError), match=r"MODEL|identity|workbook"):
+    with pytest.raises((RunError, ValueError), match=r"MODEL|identity"):
         qualification.qualify(run, RBOT_ROOT, state.read(run))
 
 
@@ -225,27 +205,6 @@ def test_checked_but_model_unreadable_optional_is_excluded_with_actual_reason(
     assert (run / "handoffs/CP-1D.md").read_bytes() == before
 
 
-def _invalid_xml(raw: bytes) -> bytes:
-    buffer = BytesIO()
-    with ZipFile(BytesIO(raw)) as original, ZipFile(buffer, "w") as modified:
-        for member in original.infolist():
-            payload = (
-                b"<broken>"
-                if member.filename == "xl/worksheets/sheet1.xml"
-                else original.read(member)
-            )
-            modified.writestr(member, payload)
-    return buffer.getvalue()
-
-
-def _active_payload(raw: bytes, corruption: str) -> bytes:
-    buffer = BytesIO(raw)
-    with ZipFile(buffer, "a") as archive:
-        name = "xl/vbaProject.bin" if corruption == "macro" else "xl/externalLinks/x.xml"
-        archive.writestr(name, "generated")
-    return buffer.getvalue()
-
-
 def _corrupt_json(raw: bytes, corruption: str) -> bytes:
     data = json.loads(raw)
     if corruption == "run":
@@ -259,9 +218,9 @@ def _corrupt_json(raw: bytes, corruption: str) -> bytes:
 
 @pytest.mark.parametrize(
     "corruption",
-    ["run", "inputs", "money", "qa", "workbook", "zip", "xml", "macro", "external", "missing"],
+    ["run", "inputs", "money", "qa", "handoff", "missing-json", "missing-md", "extra"],
 )
-def test_wrong_built_trio_cannot_be_initially_accepted(
+def test_wrong_built_pair_cannot_be_initially_accepted(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, corruption: str
 ) -> None:
     run = eligible(tmp_path, RBOT_ROOT)
@@ -285,21 +244,12 @@ def test_wrong_built_trio_cannot_be_initially_accepted(
                 files["handoffs/MODEL.md"] = files["handoffs/MODEL.md"].replace(
                     b"qa_status: Pass", b"qa_status: Restricted"
                 )
-            elif corruption == "missing":
-                del files["model.xlsx"]
-            elif corruption == "zip":
-                files["model.xlsx"] = b"invalid ZIP"
-            elif corruption == "xml":
-                files["model.xlsx"] = _invalid_xml(files["model.xlsx"])
-            elif corruption in ("macro", "external"):
-                files["model.xlsx"] = _active_payload(files["model.xlsx"], corruption)
+            elif corruption.startswith("missing"):
+                del files["model.json" if corruption == "missing-json" else "handoffs/MODEL.md"]
+            elif corruption == "extra":
+                files["model.xlsx"] = b"retired export"
             else:
-                book = load_workbook(BytesIO(files["model.xlsx"]))
-                book["Columns"]["A2"] = "wrong origin"
-                stream = BytesIO()
-                book.save(stream)
-                book.close()
-                files["model.xlsx"] = stream.getvalue()
+                files["handoffs/MODEL.md"] += b"\nChanged origin\n"
         return written, files
 
     monkeypatch.setattr(writer, "build", altered)
@@ -320,3 +270,23 @@ def test_blocked_no_stack_observations_never_publish_money_rank_zero(tmp_path: P
         assert totals[name]["reasons"]["amount"] == "NOT_SOURCED"
     markdown = (run / "handoffs/MODEL.md").read_text()
     assert "| Senior secured debt | — |" in markdown and "| Unsecured debt | — |" in markdown
+
+
+def test_legacy_three_output_receipt_requires_recovery_without_migration(tmp_path: Path) -> None:
+    run = eligible(tmp_path, RBOT_ROOT)
+    assert invoke(run) == 0
+    legacy = run / "model.xlsx"
+    legacy.write_bytes(b"retired workbook")
+
+    def legacy_receipt(record: state.Record) -> None:
+        record["steps"]["MODEL"]["outputs"]["model.xlsx"] = hashlib.sha256(
+            legacy.read_bytes()
+        ).hexdigest()
+
+    state.update(run, legacy_receipt)
+    before = (run / state.STATE).read_bytes()
+    with pytest.raises(RunError, match="current outputs/hash/QA differ"):
+        qualification.qualify(run, RBOT_ROOT, state.read(run))
+    assert cli.main(["dispatch-message", "--run", str(run), "--module", "CP-3"]) == 1
+    assert (run / state.STATE).read_bytes() == before
+    assert legacy.read_bytes() == b"retired workbook"

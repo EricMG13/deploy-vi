@@ -1,12 +1,12 @@
 """`rbot model --run <RUN>`: the MODEL host step (spec §6.8).
 
 Reads `handoffs/CP-1.md` (required), `handoffs/CP-1D.md` (optional) and
-`run-brief.md` (required); writes `model.json`, `model.xlsx` and
+`run-brief.md` (required); writes `model.json` and
 `handoffs/MODEL.md`. This is the only I/O in `rbotlib.model`; every figure it
 writes comes from the pure modules. A malformed input raises
 `ModelInputError` naming the file, or the table, row and column (a table
 tagged but not readable as a table, or tagged twice, is malformed), and then
-nothing is written. The three outputs are staged as temporary files beside
+nothing is written. The two outputs are staged as temporary files beside
 their targets before any publish; staging failure leaves each as it was.
 Each publish is an atomic replacement, while a failure between replacements
 can leave a partially published set (reported as exit 1). A
@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from rbotlib.handoff import Handoff, HandoffError, Table, parse
+from rbotlib.handoff import Handoff, HandoffError, parse
 from rbotlib.model.assemble import CreditModel, ModelInputs, credit_model, reconciliation_faults
 from rbotlib.model.citations import Citations, citation_rows
 from rbotlib.model.history import BALANCE_METRICS, FLOW_METRICS
@@ -58,7 +58,6 @@ from rbotlib.model.output import (
 from rbotlib.model.reader import ModelInputError
 from rbotlib.model.registers import Cp1Registers
 from rbotlib.model.snapshot import Context, build_tables, display, limitation_rows, unit_label
-from rbotlib.model.xlsx import workbook
 
 
 @dataclass(frozen=True, slots=True)
@@ -207,10 +206,6 @@ def _inputs(
     return inputs, regs, model
 
 
-def _rows(table: Table) -> list[dict[str, str]]:
-    return [dict(zip(table.columns, row, strict=True)) for row in table.rows]
-
-
 def _judgment_limits(regs: Cp1Registers, inputs: HouseInputs) -> list[Limitation]:
     latest = _ltm_judgments(regs, inputs.assessments)
     newest = max(
@@ -279,18 +274,14 @@ def build(
         "inputs": ", ".join(["CP-1", *(["CP-1D"] if cp1d else []), "RUN_BRIEF"]),
     }
     markdown = model_md(front, tables, citations, limitations, _analysis(view))
-    workbook_bytes = workbook(
-        data, _rows(tables["model.house"]), _rows(tables["snapshot.financials"])
-    )
     return Written(qa_status(limitations), tuple(limitations)), {
         "model.json": dumps(data).encode("utf-8"),
-        "model.xlsx": workbook_bytes,
         "handoffs/MODEL.md": markdown.encode("utf-8"),
     }
 
 
 def run_model(run: Path, generated_at: str) -> Written:
-    """Build the Model for the run folder and write its three files."""
+    """Build the Model for the run folder and write its two files."""
     if not (run / "handoffs").resolve().is_relative_to(run.resolve()):
         raise ModelInputError("handoffs resolves outside the run folder")
     cp1 = read_handoff(run / "handoffs" / "CP-1.md")
@@ -314,13 +305,13 @@ def run_command(args: argparse.Namespace) -> int:
     except OSError as exc:
         print(f"model: cannot write the outputs: {exc}", file=sys.stderr)
         return 1
-    print(f"model.json, model.xlsx and handoffs/MODEL.md written; qa_status {written.qa_status}")
+    print(f"model.json and handoffs/MODEL.md written; qa_status {written.qa_status}")
     for limitation in written.limitations:
         print(f"{limitation.code}: {limitation.message}")
     return 0
 
 
 def add_command(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    m = sub.add_parser("model", help="build model.json, model.xlsx and MODEL.md for a run")
+    m = sub.add_parser("model", help="build model.json and MODEL.md for a run")
     m.add_argument("--run", dest="run_dir", required=True, help="the run folder")
     m.set_defaults(run=run_command)

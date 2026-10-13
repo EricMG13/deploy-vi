@@ -3,12 +3,10 @@
 import json
 import shutil
 from collections.abc import Callable
-from decimal import Decimal
 from pathlib import Path
 
 import ab_evidence
 import pytest
-from openpyxl import load_workbook
 from test_cp1 import _model
 from test_fit import _run
 from test_p05_review_followup import _a_evidence
@@ -72,11 +70,6 @@ def test_plan05_current_ltm_judgment_reaches_all_model_outputs(
     rows = model.tables["model.house"].rows
     for item, expected in (("Structuring EBITDA", "3742"), ("SSIM EBITDA", ssim)):
         assert next(row for row in rows if row[0] == item)[1] == expected
-    book = load_workbook(run / "model.xlsx")
-    for item, expected in (("Structuring EBITDA", "3742"), ("SSIM EBITDA", ssim)):
-        row = next(row for row in book["House"].iter_rows(values_only=True) if row[0] == item)
-        assert Decimal(str(row[1])) == Decimal(expected)
-    book.close()
 
 
 @pytest.mark.parametrize("side", ["A", "B"])

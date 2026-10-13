@@ -15,7 +15,7 @@ from run_cases import CP1D_COLUMNS, _model, _run
 import rbotlib.model.run as run_module
 from rbotlib.cli import main
 
-OUTPUTS = ("model.json", "model.xlsx", "handoffs/MODEL.md")
+OUTPUTS = ("model.json", "handoffs/MODEL.md")
 
 
 def _error(capsys: pytest.CaptureFixture[str]) -> str:
@@ -117,13 +117,13 @@ def test_a_control_character_in_cp1_exits_1_before_anything_is_written(
 def test_an_unwritable_output_exits_1_and_leaves_the_others_as_they_were(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    # I1/I3: model.xlsx was a directory: model.json was rewritten, then a traceback.
+    # Required outputs are preflighted before any publication.
     run = _run(tmp_path)
     assert main(["model", "--run", str(run)]) == 0
     capsys.readouterr()
-    before = {n: (run / n).read_bytes() for n in ("model.json", "handoffs/MODEL.md")}
-    (run / "model.xlsx").unlink()
-    (run / "model.xlsx").mkdir()
+    before = {"model.json": (run / "model.json").read_bytes()}
+    (run / "handoffs/MODEL.md").unlink()
+    (run / "handoffs/MODEL.md").mkdir()
     (run / "handoffs" / "CP-1.md").write_text(
         cp1_handoff(example_registers()).replace("| 11519 |", "| 11518 |", 1), encoding="utf-8"
     )
@@ -146,7 +146,7 @@ def test_a_failure_staging_the_last_file_replaces_none(
 
     def failing(target: Path, data: bytes) -> Path:
         calls.append(target.name)
-        if len(calls) == 3:
+        if len(calls) == 2:
             raise OSError("disk full")
         return stage(target, data)
 
@@ -156,7 +156,7 @@ def test_a_failure_staging_the_last_file_replaces_none(
     )
     assert main(["model", "--run", str(run)]) == 1
     assert _error(capsys) == "model: cannot write the outputs: disk full\n"
-    assert len(calls) == 3
+    assert len(calls) == 2
     assert _snapshot(run) == before
 
 
@@ -273,7 +273,6 @@ def test_a_publish_failure_exits_one_and_cleans_remaining_temporary_files(
     monkeypatch.setattr(os, "replace", failed)
     assert main(["model", "--run", str(run)]) == 1
     assert _error(capsys) == "model: cannot write the outputs: publication refused\n"
-    assert calls == ["model.json", "model.xlsx"]
-    assert (run / "model.xlsx").read_bytes() == before["model.xlsx"]
+    assert calls == ["model.json", "MODEL.md"]
     assert (run / "handoffs" / "MODEL.md").read_bytes() == before["handoffs/MODEL.md"]
     assert not list(run.glob(".*")) and not list((run / "handoffs").glob(".*"))

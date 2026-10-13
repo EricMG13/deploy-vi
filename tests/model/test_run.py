@@ -17,7 +17,7 @@ from rbotlib.model._cells import CONTEXT
 from rbotlib.model.output import MAX_SOURCES
 
 
-def test_rbot_model_writes_the_three_files(
+def test_rbot_model_writes_the_pair_without_excel_export(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     run = _run(tmp_path)
@@ -40,7 +40,8 @@ def test_rbot_model_writes_the_three_files(
     assert data["rate_deck"] is None
     assert data["forecast"] == {"status": "incomplete", "rows": {}}
     assert data["reconciliation_faults"] == []
-    assert (run / "model.xlsx").exists() and (run / "handoffs" / "MODEL.md").exists()
+    assert (run / "handoffs" / "MODEL.md").exists()
+    assert not (run / "model.xlsx").exists()
 
 
 def test_model_json_cells_keep_figures_exact_and_name_their_sources(tmp_path: Path) -> None:
@@ -140,3 +141,25 @@ def test_model_md_is_a_handoff_with_the_four_sections_and_its_tables(tmp_path: P
     assert h.sections == ["Analysis", "Tables", "Gaps", "Citations"]
     assert {"snapshot.capital_structure", "model.house", "model.limitations"} <= set(h.tables)
     assert (h.orphan_tags, h.duplicate_tags, h.invalid_tags) == ([], [], [])
+
+
+@pytest.mark.parametrize("kind", ["file", "directory", "symlink"])
+def test_retired_workbook_is_preserved_by_standalone_model(tmp_path: Path, kind: str) -> None:
+    run = _run(tmp_path)
+    legacy, supplied = run / "model.xlsx", run / "supplied.xlsx"
+    supplied.write_bytes(b"analyst supplied input")
+    if kind == "file":
+        legacy.write_bytes(b"legacy workbook")
+    elif kind == "directory":
+        legacy.mkdir()
+    else:
+        legacy.symlink_to(supplied)
+    assert main(["model", "--run", str(run)]) == 0
+    assert (
+        legacy.is_dir()
+        if kind == "directory"
+        else legacy.read_bytes()
+        == (b"legacy workbook" if kind == "file" else b"analyst supplied input")
+    )
+    assert legacy.is_symlink() == (kind == "symlink")
+    assert supplied.read_bytes() == b"analyst supplied input"

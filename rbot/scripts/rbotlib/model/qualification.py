@@ -1,4 +1,4 @@
-"""Managed MODEL execution owns attempts and validates the entire published trio.
+"""Managed MODEL execution owns attempts and validates the entire published pair.
 
 Registration and completion use separate checked cooperating-writer transactions.
 A running token refuses re-execution; interrupted completion requires recovery.
@@ -9,13 +9,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from io import BytesIO
 from pathlib import Path
-from typing import Any
-from zipfile import BadZipFile, ZipFile
-
-from openpyxl import Workbook, load_workbook
-from openpyxl.utils.exceptions import InvalidFileException
 
 from rbotlib import attempts, dispatch, state
 from rbotlib import next as next_step
@@ -26,7 +20,7 @@ from rbotlib.model.house_inputs import assessments, debt_like_items, effective_r
 from rbotlib.model.inputs import cp1_registers
 from rbotlib.rules import load_rules
 
-OUTPUTS = ("model.json", "model.xlsx", "handoffs/MODEL.md")
+OUTPUTS = ("model.json", "handoffs/MODEL.md")
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,44 +113,14 @@ def _hashes(files: dict[str, bytes]) -> dict[str, str]:
     return {name: hashlib.sha256(raw).hexdigest() for name, raw in files.items()}
 
 
-def _workbook(raw: bytes) -> list[tuple[str, list[list[tuple[Any, str, str]]]]]:
-    """Read real cells, retaining type/format and refusing active spreadsheet content."""
-    try:
-        with ZipFile(BytesIO(raw)) as archive:
-            if any(
-                "externallinks/" in name.lower() or "vbaproject" in name.lower()
-                for name in archive.namelist()
-            ):
-                raise RunError("MODEL workbook: macros/external links are forbidden")
-        book = load_workbook(BytesIO(raw), keep_links=True)
-    except (BadZipFile, SyntaxError, InvalidFileException) as exc:
-        raise RunError(f"MODEL workbook: malformed ({exc})") from exc
-    try:
-        return _cells(book)
-    finally:
-        book.close()
-
-
-def _cells(book: Workbook) -> list[tuple[str, list[list[tuple[Any, str, str]]]]]:
-    result = []
-    for sheet in book.worksheets:
-        rows = []
-        for row in sheet.iter_rows():
-            if any(cell.data_type == "f" or cell.hyperlink is not None for cell in row):
-                raise RunError("MODEL workbook: formula/hyperlink is forbidden")
-            rows.append([(cell.value, cell.data_type, cell.number_format) for cell in row])
-        result.append((sheet.title, rows))
-    return result
-
-
 def validate(
     files: dict[str, bytes], captured: Inputs, record: state.Record, generated_at: str
 ) -> writer.Written:
-    """Independent completion readback recomputes source origin and trio consistency."""
+    """Completion readback recomputes source origin and pair consistency."""
     import json
 
     if set(files) != set(OUTPUTS):
-        raise RunError("MODEL completion requires all three outputs")
+        raise RunError("MODEL completion requires exactly model.json and handoffs/MODEL.md")
     data = json.loads(files["model.json"], object_pairs_hook=state._pairs)
     if not isinstance(data, dict):
         raise RunError("MODEL JSON: expected an object")
@@ -191,9 +155,8 @@ def validate(
         front.get("qa_status") != written.qa_status
         or files["model.json"] != rebuilt["model.json"]
         or files["handoffs/MODEL.md"] != rebuilt["handoffs/MODEL.md"]
-        or _workbook(files["model.xlsx"]) != _workbook(rebuilt["model.xlsx"])
     ):
-        raise RunError("MODEL completion: JSON/Handoff/workbook differs from current host origin")
+        raise RunError("MODEL completion: JSON/Handoff differs from current host origin")
     return written
 
 

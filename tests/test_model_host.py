@@ -106,13 +106,14 @@ def test_actual_returned_model_command_completes_and_advances(tmp_path: Path) ->
     command = shlex.split(selected["command"])
     result = subprocess.run(command, capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stderr
-    assert all((run / name).is_file() for name in ("model.json", "model.xlsx", "handoffs/MODEL.md"))
+    assert all((run / name).is_file() for name in ("model.json", "handoffs/MODEL.md"))
     current = state.read(run)["steps"]["MODEL"]
     assert current["status"] == "accepted"
     assert current["attempts"] == 1
     assert "started_at" in current and "finished_at" in current
     assert current["host_exit"] == 0
-    assert len(current["outputs"]) == 3
+    assert set(current["outputs"]) == {"model.json", "handoffs/MODEL.md"}
+    assert not (run / "model.xlsx").exists()
     assert json.loads((run / "model.json").read_text())["inputs"]["CP-1D"] is None
     assert next_step.select(run, root)["step"] == "CP-3"
     rows = (run / "log/rbot.log").read_bytes().splitlines()
@@ -144,3 +145,13 @@ def test_successful_accepted_model_cannot_be_downgraded(tmp_path: Path) -> None:
     with pytest.raises(RunError, match="cannot set accepted to failed"):
         state.set_status(run, "MODEL", "failed", "late caller failure")
     assert (run / state.STATE).read_bytes() == before
+
+
+def test_retired_workbook_leftover_does_not_block_managed_pair(tmp_path: Path) -> None:
+    run = eligible(tmp_path, RBOT_ROOT)
+    legacy = run / "model.xlsx"
+    legacy.write_bytes(b"legacy analyst workbook")
+    assert cli.main(["model", "--run", str(run)]) == 0
+    assert set(state.read(run)["steps"]["MODEL"]["outputs"]) == {"model.json", "handoffs/MODEL.md"}
+    assert next_step.select(run, RBOT_ROOT)["step"] == "CP-3"
+    assert legacy.read_bytes() == b"legacy analyst workbook"

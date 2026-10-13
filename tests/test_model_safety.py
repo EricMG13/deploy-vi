@@ -53,9 +53,7 @@ def test_unsafe_managed_state_cannot_downgrade_to_standalone(
     assert other.read_bytes() == raw
 
 
-@pytest.mark.parametrize(
-    "name", ["model.json", "model.xlsx", "handoffs/MODEL.md", "log/.rbot-log.lock"]
-)
+@pytest.mark.parametrize("name", ["model.json", "handoffs/MODEL.md", "log/.rbot-log.lock"])
 @pytest.mark.parametrize("kind", ["symlink", "hardlink", "directory", "fifo"])
 def test_unsupported_owned_path_refuses_without_source_or_state_change(
     tmp_path: Path, name: str, kind: str

@@ -1,4 +1,4 @@
-"""Managed CLI outcome owner: token, trio, output, log, then state commit."""
+"""Managed CLI outcome owner: token, pair, output, log, then state commit."""
 
 from __future__ import annotations
 
@@ -102,11 +102,11 @@ def _publish(run: Path, files: dict[str, bytes]) -> None:
     writer.write_all({dispatch._target(run, name): raw for name, raw in files.items()})
     readback = {name: dispatch._file(run, name).read_bytes() for name in proof.OUTPUTS}
     if readback != files:
-        raise RunError("MODEL: published trio differs from this execution")
+        raise RunError("MODEL: published pair differs from this execution")
 
 
 def _show(written: writer.Written) -> None:
-    print(f"model.json, model.xlsx and handoffs/MODEL.md written; qa_status {written.qa_status}")
+    print(f"model.json and handoffs/MODEL.md written; qa_status {written.qa_status}")
     for limitation in written.limitations:
         print(f"{limitation.code}: {limitation.message}")
     sys.stdout.flush()
