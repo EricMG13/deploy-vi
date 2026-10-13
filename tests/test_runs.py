@@ -413,12 +413,17 @@ def test_discovery_rejects_naive_clock(tmp_path: Path) -> None:
 @pytest.mark.corpus
 @pytest.mark.parametrize("pack_id", ["czr-2026q2-primary", "czr-2026q2-full-credit-assessment"])
 def test_new_run_preserves_hashes_of_verified_real_corpus_copies(
-    corpus_pack: Callable[[str], Path], pack_id: str, capsys: pytest.CaptureFixture[str]
+    corpus_pack: Callable[[str], Path],
+    pack_id: str,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
 ) -> None:
+    import shutil
+
     from conftest import CORPUS
     from rbotlib.corpus import sha256_file
 
-    pack = corpus_pack(pack_id)
+    pack = shutil.copytree(corpus_pack(pack_id), tmp_path / "working pack")
     registered = CORPUS.pack(pack_id)
     before = {entry.path: sha256_file(pack / entry.path) for entry in registered.files}
     assert before == {entry.path: entry.sha256 for entry in registered.files}
