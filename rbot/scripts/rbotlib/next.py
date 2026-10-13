@@ -46,6 +46,9 @@ def _dependencies(root: Path, record: state.Record, rules: Rules) -> dict[str, t
     """Use selected contracts; host reader edges also require the approved Run Brief."""
     for name in ("rules.json", "catalog.json", "canon.md", "scripts/rbot.py"):
         dispatch._file(root, name)
+    # Context fingerprints every installed contract, including out-of-plan entries.
+    for path in (root / "modules").glob("*/contract.json"):
+        dispatch._file(root, str(path.relative_to(root)))
     plan = _plan(root, record)
     result: dict[str, tuple[str, ...]] = {}
     for position, module in enumerate(plan):
