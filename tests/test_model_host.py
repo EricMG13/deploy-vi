@@ -27,7 +27,15 @@ def eligible(
     *,
     variant: str = "",
 ) -> Path:
-    run = approved(tmp_path, root)
+    run = with_cp1(approved(tmp_path, root), root, qa, optional, variant=variant)
+    if not optional:
+        assert next_step.select(run, root)["step"] == "MODEL"
+    return run
+
+
+def with_cp1(
+    run: Path, root: Path, qa: str = "Blocked", optional: bool = False, *, variant: str = ""
+) -> Path:
     contract = load_contract(root / "modules/CP-1/contract.json", load_rules(root))
     text = (
         f"---\nmodule_id: CP-1\nrun_id: {run.name}\nissuer_id: ACME\n"
@@ -92,10 +100,10 @@ def eligible(
     )
     send(run, root, "CP-1", "fixture-host-input")
     assert accept.accept(run, root, "CP-1")["exit"] == (3 if qa == "Blocked" else 0)
-    for module in ("CP-1A", "CP-1B") if optional else ("CP-1A", "CP-1B", "CP-1D"):
+    failed = ("CP-1A", "CP-1B") if optional else ("CP-1A", "CP-1B", "CP-1D")
+    failed = {"profile": ("CP-1B", "CP-1D")}.get(variant, failed)
+    for module in failed:
         state.set_status(run, module, "failed", "fixture optional producer failed")
-    if not optional:
-        assert next_step.select(run, root)["step"] == "MODEL"
     return run
 
 

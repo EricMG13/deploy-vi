@@ -44,6 +44,17 @@ def _fail(path: Path, exc: Exception) -> int:
 
 def _validate(args: argparse.Namespace) -> int:
     rules = load_rules(args.root)
+    if args.module in rules.host_producers:
+        from rbotlib.host_validate import qualify
+
+        try:
+            if not args.run_dir:
+                raise inventory.RunError(f"{args.module}: --run required for current host origin")
+            qualify(Path(args.run_dir), args.root, args.module, Path(args.handoff))
+        except (OSError, ValueError, KeyError, TypeError, RecursionError) as exc:
+            return _fail(Path(args.handoff), exc)
+        print("exit 0")
+        return 0
     path = args.root / "modules" / args.module / "contract.json"
     try:
         contract = load_contract(path, rules)
@@ -115,7 +126,7 @@ def _finish_log(
     return result
 
 
-def _managed_model(args: argparse.Namespace, argv: list[str] | None) -> int | None:
+def _managed_host(args: argparse.Namespace, argv: list[str] | None) -> int | None:
     from rbotlib.model import host, qualification
 
     try:
@@ -128,6 +139,10 @@ def _managed_model(args: argparse.Namespace, argv: list[str] | None) -> int | No
     def append_log(receipt: runlog.Receipt, code: int) -> None:
         _log(receipt.run, actual, code, receipt=receipt)
 
+    if args.command == "fit":
+        from rbotlib.fit_host import Fit
+
+        return host.execute(args, actual, append_log, Fit())
     return host.run(args, actual, append_log)
 
 
@@ -162,8 +177,8 @@ def main(argv: list[str] | None = None) -> int:
     accept.add_command(sub)
     next_step.add_command(sub)
     args = parser.parse_args(argv)
-    if args.command == "model":
-        if (managed_result := _managed_model(args, argv)) is not None:
+    if args.command in ("model", "fit"):
+        if (managed_result := _managed_host(args, argv)) is not None:
             return managed_result
     run_dir = getattr(args, "run_dir", None)
     log_run: Path | None = None

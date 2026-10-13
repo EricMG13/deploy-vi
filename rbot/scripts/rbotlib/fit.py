@@ -21,6 +21,7 @@ import argparse
 import json
 import re
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -37,8 +38,8 @@ from rbotlib.fit_arithmetic import (
     Run,
     fit,
 )
-from rbotlib.fsio import write_atomic
 from rbotlib.handoff import Handoff, HandoffError, Table, parse
+from rbotlib.model import run as writer
 from rbotlib.rules import load_rules
 from rbotlib.validate import EXIT_BLOCKED, EXIT_VALID, check
 
@@ -254,7 +255,11 @@ def portfolio(run: Path, prepared_json: str) -> Portfolio:
         loaded = json.loads(_text(path))
     except json.JSONDecodeError as exc:
         raise FitError(f"{prepared_json}: not JSON ({exc.msg})") from exc
-    data = _check_prepared(loaded, prepared_json)
+    return portfolio_data(loaded, prepared_json)
+
+
+def portfolio_data(loaded: object, name: str) -> Portfolio:
+    data = _check_prepared(loaded, name)
     return Portfolio(
         data["portfolio_id"],
         data["portfolio_name"],
@@ -442,13 +447,13 @@ def _write_all(run: Path, per_portfolio: Mapping[str, str], handoff_text: str) -
     stale JSON is removed. An I/O failure can interrupt this multi-file publication."""
     fit_dir, handoffs = _folder(run, "fit"), _folder(run, "handoffs")
     fit_dir.mkdir(exist_ok=True)
-    for old in fit_dir.glob("*.json"):
-        if old.name not in {f"{pid}.json" for pid in per_portfolio}:
-            old.unlink()
-    for pid, body in per_portfolio.items():
-        write_atomic(fit_dir / f"{pid}.json", body)
     handoffs.mkdir(exist_ok=True)
-    write_atomic(handoffs / "FIT.md", handoff_text)
+    files = {fit_dir / f"{pid}.json": body.encode() for pid, body in per_portfolio.items()}
+    files[handoffs / "FIT.md"] = handoff_text.encode()
+    writer.write_all(files)
+    for old in fit_dir.glob("*.json"):
+        if old not in files:
+            old.unlink()
 
 
 def run_fit(run: Path, root: Path) -> list[Fit]:
@@ -457,13 +462,38 @@ def run_fit(run: Path, root: Path) -> list[Fit]:
     _cp3(run, root)
     cp1a_path = run / "handoffs" / "CP-1A.md"
     cp1a = _read(cp1a_path) if cp1a_path.is_file() else None
+    portfolios = tuple(
+        portfolio(run, entry["prepared_json"])
+        for entry in _records(brief.tables.get("brief.portfolios"))
+    )
+    written, files = build(brief, cp1, cp1a, portfolios)
+    bodies = {
+        Path(name).stem: raw.decode() for name, raw in files.items() if name.endswith(".json")
+    }
+    _write_all(run, bodies, files["handoffs/FIT.md"].decode())
+    return list(written.fits)
+
+
+@dataclass(frozen=True, slots=True)
+class Written:
+    qa_status: str
+    fits: tuple[Fit, ...]
+
+
+def build(
+    brief: Handoff,
+    cp1: Handoff,
+    cp1a: Handoff | None,
+    portfolios: tuple[Portfolio, ...],
+    missing: str = "",
+) -> tuple[Written, dict[str, bytes]]:
+    """Pure complete output set; qualified managed callers add provenance fingerprints."""
     facts = _run(brief, cp1)
     found = instruments(cp1, cp1a)
     fits: list[Fit] = []
     unparsed: dict[str, list[Mapping[str, str]]] = {}
     per_portfolio: dict[str, str] = {}
-    for entry in _records(brief.tables.get("brief.portfolios")):
-        p = portfolio(run, entry["prepared_json"])
+    for p in portfolios:
         if p.portfolio_id in per_portfolio:
             raise FitError(f"brief.portfolios: portfolio {p.portfolio_id} is listed twice")
         unparsed[p.portfolio_id] = list(p.unparsed)
@@ -477,18 +507,21 @@ def run_fit(run: Path, root: Path) -> list[Fit]:
         if fits
         else ["- No portfolio in the Portfolio Context: FIT computes nothing."]
     )
+    if missing:
+        notes = [n for n in notes if n != "- None."] + [f"- {missing}"]
     restricted = not fits or any(n != "- None." for n in notes)
     inputs = ["CP-1", *(["CP-1A"] if cp1a else []), "CP-3", "RUN_BRIEF"]
     front = {
         "module_id": "FIT",
-        "run_id": run.name,
+        "run_id": brief.front_matter["run_id"],
         "issuer_id": facts.issuer_id,
         "analysis_date": facts.as_of.isoformat(),
         "qa_status": "Restricted" if restricted else "Pass",
         "inputs": ", ".join(inputs),
     }
-    _write_all(run, per_portfolio, handoff(front, fits, facts, notes))
-    return fits
+    files = {f"fit/{pid}.json": raw.encode() for pid, raw in per_portfolio.items()}
+    files["handoffs/FIT.md"] = handoff(front, fits, facts, notes).encode()
+    return Written(front["qa_status"], tuple(fits)), files
 
 
 def run_command(args: argparse.Namespace) -> int:

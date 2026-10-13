@@ -138,6 +138,9 @@ def _context(
     expected |= {k: "Yes" if record[k] else "No" for k in ("primary", "deep_research")}
     expected |= {k: record["approval"][k] for k in ("approved_at", "analyst", "pathway_grade")}
     parsed = parse(path.read_text(encoding="utf-8"))
+    from rbotlib.host_validate import brief_shape
+
+    brief_shape(parsed, record)
     table = parsed.tables["brief.run_brief_fields"]
     fields = {r[0]: dict(zip(table.columns, r, strict=True))["value"] for r in table.rows}
     if (
@@ -180,7 +183,7 @@ def _handoff_permission(
     module = need.values[0]
     current = record["steps"].get(module)
     status = current["status"] if current else "missing"
-    if module in rules.host_producers and module != "MODEL" and need.required:
+    if module in rules.host_producers and module not in ("MODEL", "FIT") and need.required:
         raise RunError(
             f"NEEDS_CONTEXT: required host input {module} ({status}) needs host qualification"
         )
@@ -193,6 +196,11 @@ def _handoff_permission(
 
         qualify(run, root, record)
         return str(_file(run, "handoffs/MODEL.md")), ""
+    if module == "FIT":
+        from rbotlib.fit_host import qualify as fit_qualify
+
+        fit_qualify(run, root, record)
+        return str(_file(run, "handoffs/FIT.md")), ""
     if module in rules.host_producers:
         return "", f"{module}: host qualification unavailable"
     if module != "CP-0":
