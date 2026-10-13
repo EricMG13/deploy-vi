@@ -443,6 +443,9 @@ def _folder(run: Path, name: str) -> Path:
 
 
 def _write_all(run: Path, per_portfolio: Mapping[str, str], handoff_text: str) -> None:
+    from rbotlib import state
+
+    state.write_guard(run)
     """Publish precomputed outputs atomically per file: JSON files, then `FIT.md` last;
     stale JSON is removed. An I/O failure can interrupt this multi-file publication."""
     fit_dir, handoffs = _folder(run, "fit"), _folder(run, "handoffs")
@@ -457,6 +460,9 @@ def _write_all(run: Path, per_portfolio: Mapping[str, str], handoff_text: str) -
 
 
 def run_fit(run: Path, root: Path) -> list[Fit]:
+    from rbotlib import state
+
+    state.write_guard(run)
     brief = _read(run / "run-brief.md")
     cp1 = _read(run / "handoffs" / "CP-1.md")
     _cp3(run, root)

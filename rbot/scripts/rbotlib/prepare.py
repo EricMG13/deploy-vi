@@ -474,6 +474,9 @@ def _drop_surrogates(pages: list[str]) -> tuple[list[str], int]:
 
 
 def prepare_file(run: Path, pack: Path, entry: dict[str, Any]) -> dict[str, Any]:
+    from rbotlib import state
+
+    state.write_guard(run)
     record: dict[str, Any] = {"path": entry["path"], "sha256": entry["sha256"]}
     record |= {"kind": entry["kind"], "prepared": None, "pages": 0, "excerpt": ""}
     record |= {"entities": [], "dates": [], "sheets": [], "image_read": False, "unreadable": None}
@@ -563,6 +566,9 @@ def _sweep(run: Path, kept: dict[str, dict[str, Any]]) -> None:
 
 
 def write(run: Path, rules: Rules, only: str | None = None) -> dict[str, Any]:
+    from rbotlib import state
+
+    state.write_guard(run)
     try:
         inventory = json.loads((run / "inventory.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:

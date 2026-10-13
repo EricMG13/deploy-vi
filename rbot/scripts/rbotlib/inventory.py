@@ -260,6 +260,9 @@ def build(pack: Path, run: Path) -> dict[str, Any]:
 
 
 def write(run: Path) -> dict[str, Any]:
+    from rbotlib import state
+
+    state.write_guard(run)
     run = run.resolve()
     if not run.is_dir():
         raise RunError(f"{run}: no such run folder")

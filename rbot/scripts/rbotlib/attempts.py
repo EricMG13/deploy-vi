@@ -314,6 +314,7 @@ def append_event(
 
 
 def publish_event(run: Path, module: str, event: state.Record) -> None:
+    state.write_guard(run)
     target = event_path(run, module, event["sequence"])
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.exists():

@@ -26,6 +26,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from rbotlib.handoff import Handoff, HandoffError, parse
+from rbotlib.inventory import RunError
 from rbotlib.model.assemble import CreditModel, ModelInputs, credit_model, reconciliation_faults
 from rbotlib.model.citations import Citations, citation_rows
 from rbotlib.model.history import BALANCE_METRICS, FLOW_METRICS
@@ -282,6 +283,9 @@ def build(
 
 def run_model(run: Path, generated_at: str) -> Written:
     """Build the Model for the run folder and write its two files."""
+    from rbotlib import state
+
+    state.write_guard(run)
     if not (run / "handoffs").resolve().is_relative_to(run.resolve()):
         raise ModelInputError("handoffs resolves outside the run folder")
     cp1 = read_handoff(run / "handoffs" / "CP-1.md")
@@ -299,7 +303,7 @@ def run_command(args: argparse.Namespace) -> int:
     now = datetime.now(UTC).isoformat(timespec="seconds")
     try:
         written = run_model(Path(args.run_dir), now)
-    except ModelInputError as exc:
+    except (ModelInputError, RunError) as exc:
         print(f"model: {exc}", file=sys.stderr)
         return 1
     except OSError as exc:

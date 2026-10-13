@@ -38,6 +38,7 @@ from rbotlib.catalog import ALWAYS, Catalog, Pathway, load_catalog, load_contrac
 from rbotlib.contract import Contract, load_contract
 from rbotlib.fsio import write_atomic
 from rbotlib.handoff import Handoff, HandoffError, Table, parse
+from rbotlib.inventory import RunError, output_path
 from rbotlib.rules import Rules, load_rules
 from rbotlib.validate import EXIT_BLOCKED, EXIT_VALID, check
 
@@ -400,11 +401,16 @@ def menu(grading: dict[str, Any]) -> str:
 def run_command(args: argparse.Namespace) -> int:
     run = Path(args.run_dir)
     try:
+        from rbotlib import state
+
+        state.write_guard(run)
         grading = grade_run(run, args.root, load_rules(args.root))
-    except (GradeError, OSError) as exc:
+        write_atomic(
+            output_path(run, GRADING), json.dumps(grading, indent=2, ensure_ascii=False) + "\n"
+        )
+    except (GradeError, RunError, OSError) as exc:
         print(exc)
         return 1
-    write_atomic(run / GRADING, json.dumps(grading, indent=2, ensure_ascii=False) + "\n")
     print(menu(grading), end="")
     return 0
 

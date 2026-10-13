@@ -23,7 +23,7 @@ import json
 import re
 import unicodedata
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
@@ -564,14 +564,25 @@ def _approved(run: Path, state: dict[str, Any] | None) -> bool:
 
 def _record(run: Path, state: dict[str, Any] | None, text: str) -> None:
     """Write the brief and, when the run has a state file, its hash and time (spec 8.1)."""
-    write_atomic(run / BRIEF, text)
-    if state is not None:
-        state["run_brief_sha256"] = hashlib.sha256(text.encode("utf-8")).hexdigest()
-        state["updated_at"] = datetime.now(UTC).isoformat(timespec="seconds")
-        write_atomic(run / "run-state.json", json.dumps(state, indent=2) + "\n")
+    from rbotlib import state as rs
+    from rbotlib.inventory import output_path
+
+    if rs.write_guard(run) is None:
+        write_atomic(output_path(run, BRIEF), text)
+        return
+
+    def change(record: rs.Record) -> None:
+        if record["approval"] is not None:
+            raise BriefError("the brief is approved; re-run rbot approve to change it")
+        record["run_brief_sha256"] = hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+    rs.update(run, change, lambda: write_atomic(output_path(run, BRIEF), text))
 
 
 def _write(run: Path, args: argparse.Namespace) -> int:
+    from rbotlib import state as rs
+
+    rs.write_guard(run)
     source = run / CP0
     if args.source and (run / args.source).resolve() != source.resolve():
         raise BriefError(f"--from must be {CP0} in the run; later edits rebuild from it")
