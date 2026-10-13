@@ -14,9 +14,9 @@ from typing import Any
 
 import pytest
 
+from rbot import METADATA, files, git_hash, verify
 from rbotlib.cli import main
 from rbotlib.rules import RBOT_ROOT
-from rbotlib.runtime import METADATA, files, git_hash, verify
 
 
 def git(repo: Path, *args: str) -> bytes:
@@ -100,7 +100,7 @@ def save(root: Path, data: dict[str, Any]) -> None:
 def test_installed_only_version_and_contracts(
     installed: Path, committed: tuple[Path, str], tmp_path: Path
 ) -> None:
-    data = verify(installed)
+    data, _ = verify(installed)
     assert data["git_sha"] == committed[1]
     assert data["source_tree"] == git(committed[0], "rev-parse", "HEAD^{tree}").decode().strip()
     assert data["runtime_tree"] == git(committed[0], "rev-parse", "HEAD:rbot").decode().strip()
@@ -238,7 +238,7 @@ def test_alternate_root_cannot_claim_other_code(installed: Path) -> None:
     assert result.returncode == 1 and "executing installed runtime" in result.stderr
 
 
-@pytest.mark.parametrize("module", ["runtime", "inventory", "calc/__init__"])
+@pytest.mark.parametrize("module", ["inventory", "calc/__init__"])
 @pytest.mark.parametrize("legacy", [False, True])
 def test_poisoned_cache_cannot_replace_executing_source(
     installed: Path, module: str, legacy: bool
@@ -269,6 +269,17 @@ def test_extra_python_cannot_shadow_stdlib_before_refusal(installed: Path) -> No
     result = invoke(installed, "version")
     assert result.returncode == 1 and not result.stdout
     assert "missing or extra installed files" in result.stderr
+
+
+@pytest.mark.parametrize("module", ["cli", "__init__", "inventory"])
+@pytest.mark.parametrize("argv", [["version"], ["inventory", "--help"]])
+def test_package_source_is_bound_before_execution(
+    installed: Path, module: str, argv: list[str]
+) -> None:
+    path = installed / f"scripts/rbotlib/{module}.py"
+    path.write_text("print('unverified package source executed'); raise SystemExit(0)\n")
+    result = invoke(installed, *argv)
+    assert result.returncode == 1 and not result.stdout
 
 
 def test_build_ignores_uncommitted_bytes_and_preserves_sources(

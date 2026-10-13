@@ -9,6 +9,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from rbot import command as version_command
 from rbotlib import (
     accept,
     approve,
@@ -23,7 +24,6 @@ from rbotlib import (
     prepare,
     runlog,
     runs,
-    runtime,
     state,
 )
 from rbotlib import (
@@ -167,7 +167,7 @@ def _arguments(argv: list[str] | None) -> argparse.Namespace:
     version = sub.add_parser(
         "version", help="verify installed bytes and print immutable build identity"
     )
-    version.set_defaults(run=runtime.command)
+    version.set_defaults(run=version_command)
     v = sub.add_parser("validate", help="check a Handoff against its module contract")
     v.add_argument("handoff")
     v.add_argument("--module", required=True)
