@@ -50,15 +50,14 @@ def test_continue_prepares_exact_native_message_without_reporting_send(tmp_path:
     assert not (run / "validate").exists()
 
 
-def test_explicit_fetch_and_isolation_refuse_before_creating_output(
+def test_explicit_fetch_and_blank_module_refuse_before_creating_output(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     registry, run = prepared(tmp_path)
     before = outcome_bytes(run)
     for flags, message in [
         (["--fetch"], "Plan10 fetch unavailable"),
-        (["--module", "CP-1B"], "isolated Module unavailable"),
-        (["--module", ""], "isolated Module unavailable"),
+        (["--module", ""], "--module requires a nonempty Module id"),
     ]:
         assert proxy_run.main(args(registry, *flags)) == 1
         assert message in capsys.readouterr().out
