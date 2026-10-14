@@ -28,11 +28,11 @@
 | CP-1A | 9/9 | - |
 | CP-1B | 2/2 | - |
 | CP-2 | 24/24 | - |
-| CP-3 | 72/129 | - |
+| CP-3 | 117/129 | - |
 | CP-6 | 15/15 | - |
 | FIT | 156/156 | - |
 
-Overall measured owners: 278/335.
+Overall measured owners: 323/335.
 
 Not measured (owned by a host step or no module in this plan, and the expectations give no expected_rows denominator; none is invented): snapshot.capital_structure (MODEL), snapshot.capital_structure_totals (MODEL), snapshot.ebitda_adjustments (MODEL), snapshot.financial_columns (MODEL), snapshot.financials (MODEL), snapshot.run_header (RUN_BRIEF), snapshot.transaction_summary (RUN_BRIEF).
 

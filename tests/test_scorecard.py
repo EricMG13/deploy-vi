@@ -270,6 +270,19 @@ def test_a_duplicated_facility_row_lowers_coverage() -> None:
     assert total == 129 and filled < total
 
 
+def test_facility_id_punctuation_does_not_change_identity_matching() -> None:
+    text = _fixture("CP-3")
+    assert "| CEI-SSN-2030 |" in text and "| CEI-SSN-2032 |" in text
+    # same instrument spelled without hyphens still counts
+    respelled = text.replace("| CEI-SSN-2030 |", "| CEI-SSN2030 |")
+    assert _counted("CP-3", respelled) == (129, 129)
+    # two rows that normalise equal are duplicates: neither covers a row
+    clash = respelled.replace("| CEI-SSN-2032 |", "| cei-ssn 2030 |")
+    filled, total = _counted("CP-3", clash)
+    unspelled = _counted("CP-3", text.replace("| CEI-SSN-2032 |", "| CEI-SSN-2030 |"))
+    assert total == 129 and filled == unspelled[0] < 129
+
+
 def test_expectations_without_expected_rows_are_refused_not_invented(tmp_path: Path) -> None:
     data = json.loads((EXPECTATIONS / f"{PACK}.json").read_text(encoding="utf-8"))
     for page in data["front_pages"].values():
