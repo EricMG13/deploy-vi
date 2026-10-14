@@ -158,6 +158,17 @@ def _unknown_key(key: tuple[str, ...], rules: Rules) -> bool:
     return any(not k or rules.is_placeholder(k) for k in key)
 
 
+_PLACEHOLDER = re.compile(r"\[\[[A-Za-z0-9_-]+\]\]")
+
+
+def _placeholders(h: Handoff) -> list[Finding]:
+    """A `[[identifier]]` template token left in the body: the writer never filled it in."""
+    tokens = dict.fromkeys(_PLACEHOLDER.findall(h.body))
+    return [
+        Finding("unresolved_placeholder", f"unresolved template placeholder {t}") for t in tokens
+    ]
+
+
 def _tags(h: Handoff, contract: Contract) -> list[Finding]:
     declared = {t.id for t in contract.tables} | {"citations"}
     found = [Finding("duplicate_table", f"table {t} is tagged twice") for t in h.duplicate_tags]
@@ -509,6 +520,7 @@ def check(
     except HandoffError as exc:
         return EXIT_MALFORMED, [Finding("not_a_handoff", str(exc))]
     findings = _front_matter(h, contract, rules) + _sections(h, rules) + _tags(h, contract)
+    findings += _placeholders(h)
     if run is not None:
         cited = run_findings(h, run)
         if [f.code for f in cited] == ["run_error"]:

@@ -293,3 +293,22 @@ def test_only_a_blocked_handoff_is_excused_its_critical_cells(
     text = handoff_text.replace("qa_status: Pass", f"qa_status: {status}")
     text = text.replace("| revenue | 100 | — |", "| revenue | — | — |")
     assert codes(text, contract, rules) == (EXIT_MALFORMED, {"critical_placeholder"})
+
+
+@pytest.mark.parametrize("token", ["[[q_segE_h25]]", "[[a-b_9]]"])
+def test_an_unresolved_template_placeholder_is_malformed(
+    handoff_text: str, contract: Contract, rules: Rules, token: str
+) -> None:
+    text = handoff_text.replace("## Gaps", f"Revenue rose {token} on volume.\n\n## Gaps", 1)
+    exit_code, findings = check(text, contract, rules)
+    assert exit_code == EXIT_MALFORMED
+    hits = [f for f in findings if f.code == "unresolved_placeholder"]
+    assert [f.message for f in hits] == [f"unresolved template placeholder {token}"]
+
+
+def test_brackets_that_are_not_placeholders_are_valid(
+    handoff_text: str, contract: Contract, rules: Rules
+) -> None:
+    prose = "See [the filing](https://example.com/a) and [C1], [[ spaced ]], [[]], [x] ok."
+    text = handoff_text.replace("## Gaps", f"{prose}\n\n## Gaps", 1)
+    assert "unresolved_placeholder" not in codes(text, contract, rules)[1]
