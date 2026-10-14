@@ -4,7 +4,8 @@ The baseline is Plan 07's `complete_run` (hand-written Handoffs through the real
 never live model evidence). `rbot render` is not in this branch, so `report.html` and `report.md`
 are written by the fixture (the embedded document is the real `run_json.build`) and the report
 fields go through `state.update`: R2 is exercised on those files, not on a real render's output.
-Each case flips exactly one row of the baseline.
+Each case flips exactly one row of the baseline, on a fresh copy of the pack put back from a
+snapshot; three runs are built once per module (accepted, failed CP-1B, dropped rows).
 """
 
 from __future__ import annotations
@@ -12,8 +13,9 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from pathlib import Path
+from typing import NamedTuple
 
 import acceptance
 import pytest
@@ -100,38 +102,83 @@ def verdicts(run: Path, live: bool = False) -> Verdicts:
     return {i: (v, m, e) for i, v, m, e in acceptance.check(run, PACK, live)}
 
 
+def cli(run: Path, capsys: pytest.CaptureFixture[str], *extra: str) -> tuple[int, Verdicts]:
+    """One `check` through main (its exit code and printed rows): a check costs ~30 s."""
+    code = acceptance.main(["check", "--run", str(run), "--pack-id", PACK, *extra])
+    rows = [x.split(" | ", 3) for x in capsys.readouterr().out.splitlines()]
+    return code, {r[0]: (r[1], r[2], r[3]) for r in rows}
+
+
 def flipped(base: Verdicts, got: Verdicts) -> set[str]:
     return {i for i in base if got[i][0] != base[i][0]}
 
 
-@pytest.fixture(scope="module")
-def run(corpus_pack: Callable[[str], Path], tmp_path_factory: pytest.TempPathFactory) -> Path:
-    return finished(corpus_pack, tmp_path_factory.mktemp("accepted"))
+class Built(NamedTuple):
+    """A finished run and an untouched copy of its pack, to put back before each case."""
+
+    run: Path
+    pristine: Path
+
+
+def build(
+    corpus_pack: Callable[[str], Path], factory: pytest.TempPathFactory, name: str, **kw: str
+) -> Built:
+    run = finished(corpus_pack, factory.mktemp(name), **kw)
+    pristine = factory.mktemp(f"{name}-pristine") / "pack"
+    shutil.copytree(run.parent.parent, pristine, symlinks=True)
+    return Built(run, pristine)
+
+
+def reset(built: Built) -> Path:
+    """Give the case a fresh copy of the pack: every file is put back from the snapshot and any
+    other file removed. A copy at another path is not possible (the host steps' evidence binds
+    the pack's absolute path), and `.approve.lock` is left in place (its inode is the run's
+    owner identity)."""
+    pack = built.run.parent.parent
+    want = {p.relative_to(built.pristine) for p in built.pristine.rglob("*") if not p.is_dir()}
+    for path in sorted(pack.rglob("*"), reverse=True):
+        if path.is_dir() and not (built.pristine / path.relative_to(pack)).is_dir():
+            shutil.rmtree(path)
+        elif not path.is_dir() and path.relative_to(pack) not in want:
+            path.unlink()
+    for rel in want:
+        if rel.name == ".approve.lock":
+            continue
+        (pack / rel).parent.mkdir(parents=True, exist_ok=True)
+        source = built.pristine / rel
+        if not (pack / rel).is_file() or (pack / rel).read_bytes() != source.read_bytes():
+            shutil.copy2(source, pack / rel)
+    return built.run
 
 
 @pytest.fixture(scope="module")
-def base(run: Path) -> Verdicts:
-    return verdicts(run)
+def accepted(corpus_pack: Callable[[str], Path], tmp_path_factory: pytest.TempPathFactory) -> Built:
+    return build(corpus_pack, tmp_path_factory, "accepted")
 
 
 @pytest.fixture(scope="module")
-def failed_run(
-    corpus_pack: Callable[[str], Path], tmp_path_factory: pytest.TempPathFactory
-) -> Path:
-    return finished(corpus_pack, tmp_path_factory.mktemp("failed"), fail="CP-1B")
+def failed(corpus_pack: Callable[[str], Path], tmp_path_factory: pytest.TempPathFactory) -> Built:
+    return build(corpus_pack, tmp_path_factory, "failed", fail="CP-1B")
+
+
+@pytest.fixture(scope="module")
+def short(corpus_pack: Callable[[str], Path], tmp_path_factory: pytest.TempPathFactory) -> Built:
+    return build(corpus_pack, tmp_path_factory, "short", drop_row_of="snapshot.instrument_levels")
 
 
 @pytest.fixture
-def restore(run: Path) -> Iterator[Callable[[Path], None]]:
-    """Remember a file's bytes; put them back after the case (the run is shared)."""
-    saved: dict[Path, bytes] = {}
+def run(accepted: Built) -> Path:
+    return reset(accepted)
 
-    def keep(path: Path) -> None:
-        saved[path] = path.read_bytes()
 
-    yield keep
-    for path, data in saved.items():
-        path.write_bytes(data)
+@pytest.fixture
+def failed_run(failed: Built) -> Path:
+    return reset(failed)
+
+
+@pytest.fixture(scope="module")
+def base(accepted: Built) -> Verdicts:
+    return verdicts(reset(accepted))
 
 
 def test_baseline_passes_every_row(base: Verdicts) -> None:
@@ -149,12 +196,8 @@ def test_report_is_a_table_and_exit_is_zero(run: Path, capsys: pytest.CaptureFix
 
 def test_missing_report_html_fails_only_r2(run: Path, base: Verdicts) -> None:
     page = run / "report.html"
-    data = page.read_bytes()
     page.unlink()
-    try:
-        got = verdicts(run)
-    finally:
-        page.write_bytes(data)
+    got = verdicts(run)
     assert flipped(base, got) == {"R2"} and "report.html is missing" in got["R2"][2]
 
 
@@ -166,11 +209,8 @@ def test_missing_report_html_fails_only_r2(run: Path, base: Verdicts) -> None:
         (lambda t: t.replace("<main>", "<main>edited"), "sha256 differs"),
     ],
 )
-def test_report_html_defects_fail_r2(
-    run: Path, restore: Callable[[Path], None], edit: Callable[[str], str], why: str
-) -> None:
+def test_report_html_defects_fail_r2(run: Path, edit: Callable[[str], str], why: str) -> None:
     page = run / "report.html"
-    restore(page)
     page.write_text(edit(page.read_text(encoding="utf-8")), encoding="utf-8")
     record = state.read(run)
     if why != "sha256 differs":  # keep the recorded digest true so the named defect is the cause
@@ -179,18 +219,19 @@ def test_report_html_defects_fail_r2(
     assert result[1] == "FAIL" and why in result[3]
 
 
-def test_failed_step_fails_r3_and_r7_stays_consistent(failed_run: Path) -> None:
-    got = verdicts(failed_run)
+def test_failed_step_fails_r3_and_r7_stays_consistent(
+    failed_run: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, got = cli(failed_run, capsys)
+    assert code == 1
     assert got["R3"][0] == "FAIL" and "failed: CP-1B" in got["R3"][2]
     assert got["R7"][0] == "PASS"
-    assert acceptance.main(["check", "--run", str(failed_run), "--pack-id", PACK]) == 1
 
 
 def test_failed_step_missing_from_limitations_fails_r7(
-    failed_run: Path, restore: Callable[[Path], None]
+    failed_run: Path,
 ) -> None:
     page = failed_run / "report.html"
-    restore(page)
     doc = run_json.build(failed_run, RBOT_ROOT, NOW)
     doc["limitations"]["unforeseen"] = [
         x for x in doc["limitations"]["unforeseen"] if x.get("step") != "CP-1B"
@@ -201,11 +242,8 @@ def test_failed_step_missing_from_limitations_fails_r7(
     assert result[1] == "FAIL" and "CP-1B:failed" in result[3]
 
 
-def test_model_limitations_and_faults_must_be_on_the_tab(
-    run: Path, tmp_path: Path, restore: Callable[[Path], None]
-) -> None:
+def test_model_limitations_and_faults_must_be_on_the_tab(run: Path, tmp_path: Path) -> None:
     page = run / "report.html"
-    restore(page)
     doc = run_json.build(run, RBOT_ROOT, NOW)
     doc["limitations"]["unforeseen"] = []
     page.write_text(f"<html>{embed_json(doc)}</html>", encoding="utf-8")
@@ -219,37 +257,26 @@ def test_model_limitations_and_faults_must_be_on_the_tab(
     assert acceptance._model_lost(tmp_path, {"unforeseen": ["debt does not tie"]}) == []
 
 
-def test_corrupt_prepared_excerpt_fails_only_r4(
-    run: Path, base: Verdicts, restore: Callable[[Path], None]
-) -> None:
+def test_corrupt_prepared_excerpt_fails_only_r4(run: Path, base: Verdicts) -> None:
     # CP-1's citations name many prepared files; blank every one so the ratio falls under 0.95.
     for path in (run / "prepared").rglob("*.txt"):
-        restore(path)
         path.write_text("corrupted", encoding="utf-8")
     got = verdicts(run)
     assert flipped(base, got) == {"R4"}, got
     assert "below 0.95" in got["R4"][2]
 
 
-def test_dropped_facility_row_fails_only_r5(
-    corpus_pack: Callable[[str], Path], tmp_path_factory: pytest.TempPathFactory, base: Verdicts
-) -> None:
-    short = finished(
-        corpus_pack, tmp_path_factory.mktemp("short"), drop_row_of="snapshot.instrument_levels"
-    )
-    got = verdicts(short)
+def test_dropped_facility_row_fails_only_r5(short: Built, base: Verdicts) -> None:
+    got = verdicts(short.run)
     assert flipped(base, got) == {"R5"}, got
     before, after = (int(x.split("/")[0]) for x in (base["R5"][1], got["R5"][1]))
     assert after < before and got["R5"][1].split("/")[1] == base["R5"][1].split("/")[1]
 
 
-def test_altered_pack_byte_fails_only_r6(
-    run: Path, base: Verdicts, restore: Callable[[Path], None]
-) -> None:
+def test_altered_pack_byte_fails_only_r6(run: Path, base: Verdicts) -> None:
     pack = Path(state.read(run)["pack_root"])
     first = json.loads((run / "inventory.json").read_text(encoding="utf-8"))["files"][0]["path"]
     source = pack / first  # the inventory's first file: the section parse must not skip it
-    restore(source)
     source.write_bytes(source.read_bytes() + b" ")
     got = verdicts(run)
     assert flipped(base, got) == {"R6"} and first in got["R6"][2]
@@ -257,17 +284,12 @@ def test_altered_pack_byte_fails_only_r6(
 
 def test_stripped_receipt_fails_only_r8(run: Path, base: Verdicts) -> None:
     folder = run / "validate/history/CP-1"
-    keep = {p: p.read_bytes() for p in folder.iterdir()}
     receipts = [
         p for p in folder.iterdir() if json.loads(p.read_text())["event"] == "dispatch_report"
     ]
     for p in receipts:
         p.unlink()
-    try:
-        got = verdicts(run)
-    finally:
-        for p, data in keep.items():
-            p.write_bytes(data)
+    got = verdicts(run)
     assert flipped(base, got) == {"R8"}, got
     assert "CP-1 (no receipt)" in got["R8"][2]
 
@@ -275,9 +297,8 @@ def test_stripped_receipt_fails_only_r8(run: Path, base: Verdicts) -> None:
 def test_live_run_leaves_the_model_label_unmeasured(
     run: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    got = verdicts(run, live=True)
-    assert got["R8"][0] == "NOT MEASURED" and "chat export" in got["R8"][2]
-    assert acceptance.main(["check", "--run", str(run), "--pack-id", PACK, "--live"]) == 1
+    code, got = cli(run, capsys, "--live")
+    assert got["R8"][0] == "NOT MEASURED" and "chat export" in got["R8"][2] and code == 1
 
 
 def test_missing_model_label_fails_a_proxy_run_r8(
