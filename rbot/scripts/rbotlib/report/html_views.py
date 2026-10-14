@@ -285,12 +285,8 @@ def evidence_view(ctx: Ctx) -> str:
     )
 
 
-def limitations_view(ctx: Ctx) -> str:
-    lim = ctx.run["limitations"]
-
-    def items(entries: list[str]) -> str:
-        return h("ul", "".join(h("li", escape(x)) for x in entries)) if entries else h("p", "None.")
-
+def limitation_groups(lim: Record) -> list[tuple[str, str, list[str]]]:
+    """(section id, title, entries) of the four Limitations groups, shared with `report.md`."""
     approval = [x.get("text") or f"{x['module']}: limited by grading" for x in lim["approval"]]
     cp5 = [f"{x['module_id']}: {x['limitation']} ({x['effect_on_decision']})" for x in lim["cp5"]]
     keys = ("kind", "step", "code", "message", "reason", "ref")
@@ -299,10 +295,20 @@ def limitations_view(ctx: Ctx) -> str:
         "Deep Research: not in this run: not approved",
         "What changed: not in this run: no prior case",
     ]
-    body = (
-        section("Shown at Approval", items(approval), "limit-approval")
-        + section("Found at CP-5", items(cp5), "limit-cp5")
-        + section("Unforeseen", items(other), "limit-unforeseen")
-        + section("Not in this run", items(absent), "limit-absent")
+    return [
+        ("limit-approval", "Shown at Approval", approval),
+        ("limit-cp5", "Found at CP-5", cp5),
+        ("limit-unforeseen", "Unforeseen", other),
+        ("limit-absent", "Not in this run", absent),
+    ]
+
+
+def limitations_view(ctx: Ctx) -> str:
+    def items(entries: list[str]) -> str:
+        return h("ul", "".join(h("li", escape(x)) for x in entries)) if entries else h("p", "None.")
+
+    body = "".join(
+        section(title, items(entries), sid)
+        for sid, title, entries in limitation_groups(ctx.run["limitations"])
     )
     return view("limitations", "Limitations", body)

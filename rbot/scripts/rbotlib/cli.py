@@ -33,6 +33,7 @@ from rbotlib.catalog import check_tree
 from rbotlib.contract import ContractError, load_contract
 from rbotlib.model.run import add_command as add_model_command
 from rbotlib.render import render_module
+from rbotlib.report import render as report_render
 from rbotlib.rules import RBOT_ROOT, load_rules
 from rbotlib.validate import check
 
@@ -194,6 +195,7 @@ def _arguments(argv: list[str] | None) -> argparse.Namespace:
     attempts.add_command(sub)
     accept.add_command(sub)
     next_step.add_command(sub)
+    report_render.add_command(sub)
     return parser.parse_args(argv)
 
 
