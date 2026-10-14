@@ -340,7 +340,9 @@ def main(source: Path, spec_path: Path, out: Path) -> None:
         for index, support in enumerate(supports[:before]):
             names = sorted(n for n in shared if home[n] == index and n in used)
             if names:
-                found.append(f"from {support['file'].removesuffix('.py')} import {', '.join(names)}")
+                found.append(
+                    f"from {support['file'].removesuffix('.py')} import {', '.join(names)}"
+                )
         return found
 
     for index, support in enumerate(supports):
@@ -8649,7 +8651,9 @@ NEW_NOTE = (
 )
 
 
-def note_row(name: str, face: str, book: str, prior: str, maturity: str, rate: str) -> tuple[str, str, int]:
+def note_row(
+    name: str, face: str, book: str, prior: str, maturity: str, rate: str
+) -> tuple[str, str, int]:
     """A note's carrying value: book (the 10-Q's June 30 Book Value), with the whole line cited."""
     short = f'"value": "{face.replace(",", "")}", "tolerance": "0", "source": "CZR_Q2_2026_10Q.txt", "locator": "Note 6. Long-Term Debt", "excerpt": "{name} | {maturity} | {rate} | {face}"'
     full = f'"value": "{book.replace(",", "")}", "tolerance": "0", "source": "CZR_Q2_2026_10Q.txt", "locator": "Note 6. Long-Term Debt", "excerpt": "{name} | {maturity} | {rate} | {face} | {book} | {prior}"'
