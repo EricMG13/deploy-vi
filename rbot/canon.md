@@ -42,6 +42,16 @@ Each `[C<n>]` marker points to one row of your citations table: the source file 
 
 Missing evidence produces explicit gaps and narrower conclusions, never shorter reasoning or filler.
 
+## Shared analytical rules
+
+These govern content inside your existing Analysis and Gaps sections; they add no tables or columns. A module with no analytical conclusion (a readiness or classification step) applies each rule to its classification or verdict and says so in one line.
+
+1. **Counter-argument.** Against the headline conclusion, state the strongest supported opposing case, what evidence would make it win, and how it would change conviction or monitoring. A classification step states the strongest case for the next-nearest class.
+2. **One reconciliation.** Put every conflict across sources, periods, definitions and upstream Handoffs in one place: each value with its citation, which governs and why, or a named gap. Do not leave a conflict only in a footnote.
+3. **Causal downside.** Give the starting condition, the first break with a threshold or magnitude, the quantified transmission, a dated consequence, and the observable triggers. Where the data cannot quantify a step, name the gap instead of skipping it.
+4. **Search before declaring absent.** Before a gap says a fact is missing, search the whole Source Pack, including notes, exhibits and attachments to amendments, and state what you searched. A fact found there is used and cited.
+5. **Recompute upstream figures.** Before relying on an upstream figure, check it from its cited inputs: components (does a benchmark include the issuer itself), differences and signs, and stated repayments or events in a pro forma. A mismatch is a conflict under rule 2. Host-computed Model and Fit figures are exempt.
+
 ## Gaps and status
 
 Under `## Gaps`, each gap names the missing data, why it matters, what it limits in your output, and the source that would close it.

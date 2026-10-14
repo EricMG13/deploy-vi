@@ -212,8 +212,13 @@ def write_steps(module_id: str, folder: str, order: dict[str, str], out: Path) -
 # --- measure ---------------------------------------------------------------------------------
 
 
+def _fold(text: str) -> str:
+    """Identity key: case-folded, with every non-alphanumeric character dropped."""
+    return "".join(ch for ch in text.casefold() if ch.isalnum())
+
+
 def _matches(record: dict[str, str], identity: dict[str, str]) -> bool:
-    return all(normalise(record.get(k.casefold(), "")) == normalise(v) for k, v in identity.items())
+    return all(_fold(record.get(k.casefold(), "")) == _fold(v) for k, v in identity.items())
 
 
 def _expected_records(
@@ -226,7 +231,7 @@ def _expected_records(
 
 def _distinct_records(records: list[dict[str, str]], entry: dict[str, Any]) -> list[dict[str, str]]:
     keys = ROW_KEYS.get(entry["table"], ())
-    identities = [tuple(normalise(r.get(k, "")) for k in keys) for r in records]
+    identities = [tuple(_fold(r.get(k, "")) for k in keys) for r in records]
     return [
         r
         for r, key in zip(records, identities, strict=True)
