@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 
 import pytest
@@ -11,8 +12,9 @@ from state_receipt_assertions import outcome_bytes
 from test_accept import accept, send
 from test_bootstrap import approve, pending, ready
 
-from rbotlib import state
+from rbotlib import attempts, state
 from rbotlib.contract import Contract, load_contract
+from rbotlib.fit import FIT_COLUMNS
 from rbotlib.handoff import parse
 from rbotlib.rules import RBOT_ROOT, load_rules
 
@@ -125,9 +127,32 @@ def test_state_edit_without_validation_evidence_cannot_count(run: Path, tmp_path
     row = scorecard.Row("CP-1", "module", "accepted")
     assert scorecard._accepted(row, step, []) is False
     assert "FORGED?" in row.notes[0]
-    host = scorecard.Row("MODEL", "host", "accepted")
-    assert scorecard._accepted(host, {"status": "accepted"}, []) is True
     assert scorecard._accepted(row, step | {"status": "pending"}, []) is False
+
+
+def test_g1_host_step_without_host_evidence_is_not_counted(run: Path, tmp_path: Path) -> None:
+    for name in ("MODEL", "FIT"):
+        row = scorecard.Row(name, "host", "accepted")
+        assert scorecard._accepted(row, {"status": "accepted"}, [], "no host_execution") is False
+        assert row.notes == ["FORGED?: no host_execution"]
+        assert scorecard._accepted(row, {"status": "accepted"}, [], None) is True
+    other = scorecard.Row("PROJECTION", "host", "accepted")
+    assert scorecard._accepted(other, {"status": "accepted"}, [], "x") is True
+    # end to end: MODEL forged accepted in state, with a planted file and a matching digest
+    planted = b"planted"
+    (run / "handoffs" / "MODEL.md").write_bytes(planted)
+    record = json.loads((run / "run-state.json").read_text(encoding="utf-8"))
+    record["steps"]["MODEL"] |= {
+        "status": "accepted",
+        "host_exit": 0,
+        "handoff": "handoffs/MODEL.md",
+        "sha256": hashlib.sha256(planted).hexdigest(),
+    }
+    (run / "run-state.json").write_text(json.dumps(record), encoding="utf-8")
+    out = tmp_path / "forged"
+    if scorecard.main(["--run", str(run), "--out", str(out), "--pack-id", PACK]) == 0:
+        (path,) = out.iterdir()
+        assert cols(path.read_text(encoding="utf-8"), "MODEL")["Accepted"] == "no"
 
 
 def test_a_wrong_citation_changes_the_measured_ratio(run: Path) -> None:
@@ -149,8 +174,6 @@ def test_a_wrong_citation_changes_the_measured_ratio(run: Path) -> None:
 def test_image_read_citations_are_counted_apart_never_as_anchored(
     run: Path, tmp_path: Path
 ) -> None:
-    import json
-
     index = run / "prepared" / "index.json"
     data = json.loads(index.read_text(encoding="utf-8"))
     for record in data["files"]:
@@ -176,15 +199,21 @@ def test_unknown_times_are_never_zero() -> None:
     assert scorecard.duration("2026-10-14T10:00:00+00:00", "2026-10-14T10:01:30+00:00") == "90s"
 
 
-def test_model_limitations_and_faults_are_reported(run: Path, tmp_path: Path) -> None:
-    (run / "model.json").write_text(
-        '{"limitations": ["GROWTH_UNAVAILABLE"], "reconciliation_faults": ["PF:LTM:interest"]}'
-    )
-    text = score(run, tmp_path / "out")
-    assert "- Limitations (1): GROWTH_UNAVAILABLE" in text
-    assert "- Reconciliation faults (1): PF:LTM:interest" in text
-    (run / "model.json").write_text("[]")
-    assert "model.json is not readable" in score(run, tmp_path / "out2")
+def test_g2_model_section_needs_a_verified_hash_matched_model_json(tmp_path: Path) -> None:
+    body = b'{"limitations": ["GROWTH_UNAVAILABLE"], "reconciliation_faults": ["PF:LTM:interest"]}'
+    (tmp_path / "model.json").write_bytes(body)
+    step = {"outputs": {"model.json": hashlib.sha256(body).hexdigest()}}
+    shown = "\n".join(scorecard.model_section(tmp_path, step, True))
+    assert "- Limitations (1): GROWTH_UNAVAILABLE" in shown
+    assert "- Reconciliation faults (1): PF:LTM:interest" in shown
+    unverified = "\n".join(scorecard.model_section(tmp_path, step, False))
+    assert "unknown: MODEL is not accepted" in unverified and "GROWTH" not in unverified
+    (tmp_path / "model.json").write_bytes(body.replace(b"GROWTH", b"GROWTI"))
+    changed = "\n".join(scorecard.model_section(tmp_path, step, True))
+    assert "unknown: model.json differs" in changed and "GROWTI" not in changed
+    (tmp_path / "model.json").write_bytes(b"[]")
+    step = {"outputs": {"model.json": hashlib.sha256(b"[]").hexdigest()}}
+    assert "model.json is not readable" in "\n".join(scorecard.model_section(tmp_path, step, True))
 
 
 # --- Front Page coverage (Plan 06.15): row identities, not row counts ----------------------
@@ -242,8 +271,6 @@ def test_a_duplicated_facility_row_lowers_coverage() -> None:
 
 
 def test_expectations_without_expected_rows_are_refused_not_invented(tmp_path: Path) -> None:
-    import json
-
     data = json.loads((EXPECTATIONS / f"{PACK}.json").read_text(encoding="utf-8"))
     for page in data["front_pages"].values():
         for entry in page["supportable"]:
@@ -262,3 +289,83 @@ def test_no_citation_rows_is_an_unknown_ratio_not_zero_over_zero(run: Path) -> N
     cited = scorecard.citations(parse(cut), run)
     assert cited is not None and cited.total == 0
     assert cited.text() == "unknown (no citation rows)"
+
+
+# --- G3: the host FIT table -----------------------------------------------------------------
+
+
+def _fit_text(rows: list[tuple[str, str]]) -> str:
+    cells = ["x"] * (len(FIT_COLUMNS) - 3)
+    body = "\n".join(f"| P | s | {fac} | " + " | ".join(cells) + " |" for _, fac in rows)
+    head = "| " + " | ".join(FIT_COLUMNS) + " |\n|" + "---|" * len(FIT_COLUMNS)
+    table = f"<!-- table: snapshot.portfolio_fit -->\n{head}\n{body}\n"
+    return f"---\nmodule_id: FIT\n---\n\n## Tables\n{table}"
+
+
+def _fit(rows: list[tuple[str, str]] | None) -> tuple[int, int] | str:
+    entry = {"table": scorecard.FIT_TABLE, "expected_rows": 12}
+    text = None if rows is None else _fit_text(rows)
+    return scorecard.fit_cells(text, entry, load_rules())
+
+
+def test_g3_fit_cells_count_unique_facility_rows(run: Path, tmp_path: Path) -> None:
+    rows = [("P", f"F{i}") for i in range(12)]
+    width = len(FIT_COLUMNS)
+    assert _fit(rows) == (12 * width, 12 * width)
+    assert _fit(rows[:11]) == (11 * width, 12 * width)  # (b) a missing row
+    assert _fit([*rows[:2], *rows[2:11], ("P", "F0")]) == (10 * width, 12 * width)  # (a)
+    assert _fit(None) == (0, 12 * width)
+    text = score(run, tmp_path / "out")
+    assert f"| FIT | 0/{12 * width} | step not accepted: cells unfilled |" in text
+    assert "snapshot.run_header (" in text and "snapshot.portfolio_fit (" not in text  # (c)
+
+
+# --- G4, G5, G6 -----------------------------------------------------------------------------
+
+
+def test_g4_validated_blocked_handoff_is_measured(
+    run: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    raw = _fixture("CP-3").encode()
+    (run / "handoffs" / "CP-3.md").write_bytes(raw)
+    step = {"kind": "module", "status": "blocked", "attempts": 1, "qa_status": "Blocked"}
+    step |= {"sha256": hashlib.sha256(raw).hexdigest(), "handoff": "handoffs/CP-3.md"}
+    event = {"event": "validation", "slot": 1, "result": {"exit": 3}}
+    monkeypatch.setattr(attempts, "read_history", lambda *_: [event])
+    row, text = scorecard.step_row(run, "CP-3", step)
+    assert text is not None and row.counted and not row.accepted
+    assert "blocked: measured from its validated Handoff" in row.notes
+    filled, _ = _counted("CP-3", text)
+    assert filled > 0
+    passed = {"event": "validation", "slot": 1, "result": {"exit": 0}}
+    monkeypatch.setattr(attempts, "read_history", lambda *_: [passed])
+    assert not scorecard.step_row(run, "CP-3", step)[0].counted
+
+
+def test_g5_sources_report_and_not_verified(run: Path, tmp_path: Path) -> None:
+    text = score(run, tmp_path / "out")
+    assert "## Sources" in text and "| unchanged |" in text and "| changed |" not in text
+    assert "- Report: not rendered (report fields null)" in text
+    assert "A/B qualification" in text.rstrip().splitlines()[-1]
+    record = state.read(run)
+    first = json.loads((run / "inventory.json").read_text(encoding="utf-8"))["files"][0]
+    pack_file = Path(record["pack_root"]) / first["path"]
+    pack_file.write_bytes(pack_file.read_bytes() + b"x")
+    changed = score(run, tmp_path / "out2")
+    assert f"| {first['path']} | {first['sha256']} | changed |" in changed
+    written = record | {"report": {"written_at": "2026-10-14T10:00:00+00:00", "md_sha256": "ab"}}
+    assert "written 2026-10-14T10:00:00+00:00" in scorecard.report_line(written)
+
+
+def test_g6_a_record_of_another_run_is_never_replaced(
+    run: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    out = tmp_path / "out"
+    assert scorecard.main(["--run", str(run), "--out", str(out), "--pack-id", PACK]) == 0
+    (path,) = out.iterdir()
+    assert scorecard.main(["--run", str(run), "--out", str(out), "--pack-id", PACK]) == 0
+    other = path.read_text(encoding="utf-8").replace(run.name, "another-run")
+    path.write_text(other, encoding="utf-8")
+    assert scorecard.main(["--run", str(run), "--out", str(out), "--pack-id", PACK]) == 2
+    assert "records another run" in capsys.readouterr().out
+    assert path.read_text(encoding="utf-8") == other

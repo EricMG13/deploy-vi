@@ -35,17 +35,24 @@ from ab_evidence import ABError
 import ab_grade
 from rbotlib import attempts, catalog, current, state
 from rbotlib.contract import Contract, load_contract
-from rbotlib.handoff import Handoff, HandoffError, parse
+from rbotlib.fit import FIT_COLUMNS
+from rbotlib.fsio import write_atomic
+from rbotlib.handoff import Handoff, HandoffError, Table, parse
 from rbotlib.inventory import RunError
 from rbotlib.rules import RBOT_ROOT, Rules, load_rules
-from rbotlib.validate import run_findings
+from rbotlib.validate import EXIT_BLOCKED, run_findings
 
 UNKNOWN = "unknown"
+HOST_EVIDENCED = ("MODEL", "FIT")
 EXPECTATIONS = RBOT_ROOT.parent / "tests" / "corpus" / "expectations"
 DEFAULT_OUT = RBOT_ROOT.parent / "docs" / "corpus-runs"
+FIT_TABLE = "snapshot.portfolio_fit"
+RUN_LINE = re.compile(r"^- Run: ([^;\n]*)", re.MULTILINE)
 NOT_VERIFIED = (
     "Not verified: Copilot behaviour (this is a proxy run, never a certification), GPT models, "
-    "and fetch (no network fetch is run or measured)."
+    "fetch (no network fetch is run or measured), the provider identity behind model labels "
+    "(caller-reported), worker isolation beyond the dispatch message, module A/B qualification "
+    "(pending from Plan 05), and report rendering unless the Report line says it was written."
 )
 
 
@@ -67,6 +74,8 @@ class Row:
     kind: str
     status: str
     accepted: bool = False
+    counted: bool = False  # accepted, or a validated Blocked Handoff measured as such
+    text: str | None = None  # the counted Handoff text
     qa: str = UNKNOWN
     attempts: str = UNKNOWN
     exits: str = UNKNOWN
@@ -199,11 +208,19 @@ def _evidence(row: Row, step: state.Record, events: list[state.Record]) -> None:
         row.notes.append("worker start time unknown")
 
 
-def _accepted(row: Row, step: state.Record, events: list[state.Record]) -> bool:
+def _accepted(
+    row: Row, step: state.Record, events: list[state.Record], forged: str | None = None
+) -> bool:
     """Accepted needs the state's word and, past CP-0's receipt-free completion, a passing
-    validation event in the attempt history: a state edit or an existing file is not enough."""
-    if step["status"] != "accepted" or row.kind == "host":
-        return bool(step["status"] == "accepted")
+    validation event in the attempt history: a state edit or an existing file is not enough.
+    MODEL and FIT also need the host execution evidence (`forged` is its refusal message)."""
+    if step["status"] != "accepted":
+        return False
+    if row.kind == "host":
+        if forged is not None and row.step in HOST_EVIDENCED:
+            row.notes.append(f"FORGED?: {forged}")
+            return False
+        return True
     passed = any(e["event"] == "validation" and e["result"]["exit"] == 0 for e in events)
     if passed or (row.step == "CP-0" and step.get("attempts") == 0):
         return True
@@ -211,7 +228,15 @@ def _accepted(row: Row, step: state.Record, events: list[state.Record]) -> bool:
     return False
 
 
-def step_row(run: Path, name: str, step: state.Record) -> tuple[Row, str | None]:
+def _blocked_counted(step: state.Record, events: list[state.Record]) -> bool:
+    return step["status"] == "blocked" and any(
+        e["event"] == "validation" and e["result"]["exit"] == EXIT_BLOCKED for e in events
+    )
+
+
+def step_row(
+    run: Path, name: str, step: state.Record, forged: str | None = None
+) -> tuple[Row, str | None]:
     row = Row(name, step["kind"], step["status"], qa=clean(step.get("qa_status", UNKNOWN)))
     if "attempts" in step:
         row.attempts = str(step["attempts"])
@@ -225,7 +250,11 @@ def step_row(run: Path, name: str, step: state.Record) -> tuple[Row, str | None]
     text = None
     if step["status"] in ("accepted", "blocked"):
         text = _handoff_text(run, step, row)
-    row.accepted = _accepted(row, step, events) and text is not None
+    row.accepted = _accepted(row, step, events, forged) and text is not None
+    row.counted = row.accepted
+    if text is not None and not row.accepted and _blocked_counted(step, events):
+        row.counted = True
+        row.notes.append("blocked: measured from its validated Handoff")
     if text is None:
         return row, None
     _measure(run, row, text)
@@ -284,10 +313,9 @@ def _contracts(plan: list[str], rules: Rules) -> dict[str, Contract]:
     return found
 
 
-def owner_line(name: str, result: tuple[int, int] | str, accepted: bool) -> str:
+def owner_line(name: str, result: tuple[int, int] | str, note: str) -> str:
     if isinstance(result, str):
         return f"| {name} | {UNKNOWN} | {clean(result)} |"
-    note = "-" if accepted else "step not accepted: cells unfilled"
     return f"| {name} | {result[0]}/{result[1]} | {note} |"
 
 
@@ -300,13 +328,70 @@ def unmeasured(
     shown = ", ".join(f"{t} ({cat.host_tables.get(t, 'no owner in this plan')})" for t in missing)
     return [
         "Not measured (owned by a host step or no module in this plan, and the "
-        f"expectations give no per-cell denominator; none is invented): {shown}."
+        f"expectations give no expected_rows denominator; none is invented): {shown}."
     ]
+
+
+def unique_facilities(table: Table) -> Table:
+    """FIT rows whose (portfolio_id, facility_id) occurs once: a duplicated pair covers no row."""
+    names = [c.casefold() for c in table.columns]
+    if not {"portfolio_id", "facility_id"} <= set(names):
+        return table
+    at = (names.index("portfolio_id"), names.index("facility_id"))
+    rows = [r for r in table.rows if len(r) == len(names)]
+    keys = [tuple(r[i] for i in at) for r in rows]
+    return Table(table.columns, [r for r, k in zip(rows, keys, strict=True) if keys.count(k) == 1])
+
+
+def fit_cells(text: str | None, entry: dict[str, Any], rules: Rules) -> tuple[int, int] | str:
+    """Filled / expected critical cells of the host FIT table (every FIT column is critical)."""
+    total = entry["expected_rows"] * len(FIT_COLUMNS)
+    if text is None:
+        return 0, total
+    try:
+        table = parse(text).tables.get(FIT_TABLE)
+    except HandoffError as exc:
+        return f"refused: {exc}"
+    table = unique_facilities(table) if table else None
+    return ab_grade._filled(table, set(FIT_COLUMNS), entry, rules), total
+
+
+def _owner_note(row: Row | None) -> str:
+    if row is None or not row.counted:
+        return "step not accepted: cells unfilled"
+    return "-" if row.accepted else "blocked: measured from its validated Handoff"
+
+
+def _owner_results(
+    plan: list[str],
+    rows: dict[str, Row],
+    expectations: Path,
+    fit: dict[str, Any] | None,
+    rules: Rules,
+) -> tuple[list[str], list[tuple[int, int]], int, set[str]]:
+    lines, counted, refused, owned = [], [], 0, set[str]()
+    results = []
+    for name, contract in _contracts(plan, rules).items():
+        owned |= {t.id for t in contract.tables}
+        text = rows[name].text
+        results.append((name, front_page_text(contract, text, expectations, rules)))
+    if fit:
+        owned.add(FIT_TABLE)
+        results.append(("FIT", fit_cells(rows["FIT"].text, fit, rules)))
+    for name, result in results:
+        if result is None:
+            continue
+        lines.append(owner_line(name, result, _owner_note(rows.get(name))))
+        if isinstance(result, str):
+            refused += 1
+        else:
+            counted.append(result)
+    return lines, counted, refused, owned
 
 
 def front_page_section(
     record: state.Record,
-    texts: dict[str, str | None],
+    rows: dict[str, Row],
     expectations: Path | None,
     rules: Rules,
 ) -> list[str]:
@@ -322,31 +407,30 @@ def front_page_section(
     if pathway is None or pathway.front_page not in pages:
         return [*out, f"{UNKNOWN}: no supportable cells listed for this Pathway's Front Page."]
     out += ["| Owner | Critical cells filled/supportable | Note |", "|---|---|---|"]
-    counted, refused = [], 0
-    owned: set[str] = set()
-    for name, contract in _contracts(record["plan"], rules).items():
-        owned |= {t.id for t in contract.tables}
-        result = front_page_text(contract, texts.get(name), expectations, rules)
-        if result is None:
-            continue
-        out.append(owner_line(name, result, texts.get(name) is not None))
-        if isinstance(result, str):
-            refused += 1
-        else:
-            counted.append(result)
+    supportable = pages[pathway.front_page]["supportable"]
+    fit = next((s for s in supportable if s["table"] == FIT_TABLE and "expected_rows" in s), None)
+    if "FIT" not in record["plan"] or cat.host_tables.get(FIT_TABLE) != "FIT":
+        fit = None
+    lines, counted, refused, owned = _owner_results(record["plan"], rows, expectations, fit, rules)
     cells = f"{sum(f for f, _ in counted)}/{sum(t for _, t in counted)}"
     overall = cells if not refused else f"{UNKNOWN} ({refused} refused)"
-    out += ["", f"Overall measured owners: {overall}.", ""]
-    return [*out, *unmeasured(pages[pathway.front_page]["supportable"], owned, cat)]
+    out += [*lines, "", f"Overall measured owners: {overall}.", ""]
+    return [*out, *unmeasured(supportable, owned, cat)]
 
 
-def model_section(run: Path) -> list[str]:
+def model_section(run: Path, step: state.Record, verified: bool) -> list[str]:
+    """Limitations and faults, read only from a model.json that the verified MODEL step recorded."""
     out = ["## Model", ""]
     path = run / "model.json"
     if not path.is_file():
         return [*out, f"{UNKNOWN}: model.json is not in the run."]
+    if not verified:
+        return [*out, f"{UNKNOWN}: MODEL is not accepted (verified) in this run."]
     try:
-        model = json.loads(path.read_text(encoding="utf-8"))
+        raw = path.read_bytes()
+        if hashlib.sha256(raw).hexdigest() != step.get("outputs", {}).get("model.json"):
+            return [*out, f"{UNKNOWN}: model.json differs from the digest MODEL recorded."]
+        model = json.loads(raw)
         limits, faults = model["limitations"], model["reconciliation_faults"]
     except (OSError, ValueError, KeyError, TypeError):
         return [*out, f"{UNKNOWN}: model.json is not readable as an rbot model."]
@@ -357,6 +441,38 @@ def model_section(run: Path) -> list[str]:
         f"- Limitations ({len(limits)}): {shown}",
         f"- Reconciliation faults ({len(faults)}): {bad}",
     ]
+
+
+def sources_section(run: Path, record: state.Record) -> list[str]:
+    out = ["## Sources", ""]
+    try:
+        files = json.loads((run / "inventory.json").read_text(encoding="utf-8"))["files"]
+        out += ["| Path | sha256 | Now |", "|---|---|---|"]
+        for f in files:
+            out.append(
+                f"| {clean(f['path'])} | {clean(f['sha256'])} | {_source_state(record, f)} |"
+            )
+    except (OSError, ValueError, KeyError, TypeError):
+        return [*out, f"{UNKNOWN}: inventory.json is not readable in the run."]
+    return out
+
+
+def _source_state(record: state.Record, f: dict[str, Any]) -> str:
+    try:
+        now = hashlib.sha256((Path(record["pack_root"]) / f["path"]).read_bytes()).hexdigest()
+    except OSError:
+        return "changed"
+    return "unchanged" if now == f["sha256"] else "changed"
+
+
+def report_line(record: state.Record) -> str:
+    report = record["report"]
+    if report.get("written_at") is None:
+        return "- Report: not rendered (report fields null)"
+    return (
+        f"- Report: written {clean(report['written_at'])}; html {clean(report.get('html_sha256'))}"
+        f"; md {clean(report.get('md_sha256'))}"
+    )
 
 
 def fit_section(run: Path) -> list[str]:
@@ -382,6 +498,15 @@ def pack_id_of(record: state.Record) -> str:
     return pack.parent.name if pack.name == "pack" else pack.name
 
 
+def _forged(run: Path, record: state.Record) -> str | None:
+    """The read-only host evidence check of MODEL and FIT: its refusal message, else None."""
+    try:
+        current._host_origins(run, RBOT_ROOT, record)
+    except RunError as exc:
+        return str(exc)
+    return None
+
+
 def build(run: Path, pack_id: str | None) -> tuple[str, str]:
     """(file name, Markdown) for one run."""
     run = state.run_path(run)
@@ -390,17 +515,19 @@ def build(run: Path, pack_id: str | None) -> tuple[str, str]:
         raise RunError("the run has no approved Pathway and depth to score")
     pack = pack_id or pack_id_of(record)
     rules = load_rules()
-    rows, texts = [], {}
+    rows, forged = [], _forged(run, record)
     for name in record["plan"]:
-        row, text = step_row(run, name, record["steps"][name])
+        row, text = step_row(run, name, record["steps"][name], forged)
         rows.append(row)
-        texts[name] = text if row.accepted else None
+        row.text = text if row.counted else None
     accepted = sum(r.accepted for r in rows)
+    by_name = {r.step: r.accepted for r in rows}
     head = [
         f"# Scorecard: {clean(record['pathway'])} {clean(record['depth'])} on {clean(pack)}",
         "",
         f"- Run: {clean(record['run_id'])}; created {clean(record['created_at'])}",
         f"- Steps accepted (verified): {accepted}/{len(rows)}",
+        report_line(record),
         "- Source: recorded run evidence only; nothing here was re-run or estimated.",
         "",
         "## Steps",
@@ -410,9 +537,11 @@ def build(run: Path, pack_id: str | None) -> tuple[str, str]:
     body = [
         *steps_table(rows),
         "",
-        *front_page_section(record, texts, expectations, rules),
+        *front_page_section(record, {r.step: r for r in rows}, expectations, rules),
         "",
-        *model_section(run),
+        *model_section(run, record["steps"].get("MODEL", {}), by_name.get("MODEL", False)),
+        "",
+        *sources_section(run, record),
         "",
         *fit_section(run),
         "",
@@ -430,6 +559,15 @@ def refuse_inside(run: Path, out: Path) -> None:
         raise RunError("--out must be outside the run folder")
 
 
+def refuse_other_run(target: Path, text: str) -> None:
+    """A same-day scorecard of another run for the same pack, Pathway and depth is not replaced."""
+    if not target.exists():
+        return
+    old, new = RUN_LINE.search(target.read_text(encoding="utf-8")), RUN_LINE.search(text)
+    if old is None or new is None or old.group(1) != new.group(1):
+        raise RunError(f"{target} records another run; it is left unchanged")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     parser.add_argument("--run", required=True, help="the run folder")
@@ -442,7 +580,8 @@ def main(argv: list[str] | None = None) -> int:
         refuse_inside(run, out)
         name, text = build(run, args.pack_id)
         out.mkdir(parents=True, exist_ok=True)
-        (out / name).write_text(text, encoding="utf-8")
+        refuse_other_run(out / name, text)
+        write_atomic(out / name, text)
     except (RunError, ABError, HandoffError, OSError, ValueError) as exc:
         print(f"scorecard: {exc}")
         return 2
