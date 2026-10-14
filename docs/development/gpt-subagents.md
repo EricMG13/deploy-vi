@@ -1,4 +1,4 @@
-# GPT development workflow
+# Development agent workflow
 
 ## Current authority
 
@@ -6,17 +6,18 @@ The [canonical policy](../../AGENTS.md) and [2026-10-13 owner amendment](2026-10
 
 Deliver one GitHub Copilot invocation, one issuer pack and one complete HTML/Markdown Report. Remove Excel report/workbook exports, including model.xlsx; retain Excel/xlsx input ingestion. Deterministic Model JSON/Markdown, money correctness, citations, gaps and frozen sources remain binding. Plans01–08 are v1; Plans09–19 stay backlog. Plan against actual executed/tested predecessors, without independent approval stages.
 
-Continue from approved combined05 `7d5cfe196abe5a9bebc20438bd98492003a7cbe5` and its tested successors recorded in `.superpowers/sdd/progress.md` and `recovery-context.md`. Main's pre-existing WIP and all approved/local historical commits stay preserved. The owner-authorized specification amendment is recorded separately from original WIP snapshots. Leave global settings and auto-memory unchanged; older Sonnet/Opus/Fable development mappings are superseded.
+Continue from approved combined05 `7d5cfe196abe5a9bebc20438bd98492003a7cbe5` and its tested successors recorded in `.superpowers/sdd/progress.md` and `recovery-context.md`. Main's pre-existing WIP and all approved/local historical commits stay preserved. The owner-authorized specification amendment is recorded separately from original WIP snapshots. The owner's 2026-10-14 rule replaces the GPT routing used during the Codex continuation.
 
 ## Native routing and ownership
 
-| Job | Model | Effort |
+| Job | Agent | Model |
 | --- | --- | --- |
-| Implementation, bounded fixes, verified planning | gpt-6.1-sol | high |
-| Complete mechanical transcription/configuration | gpt-6-luna | medium |
-| Architecture diagnosis after concrete BLOCKED evidence | gpt-6-astra | high |
+| Implementation, bounded fixes, verified planning | `mx-feature` | Sonnet 5.5 |
+| Complete mechanical transcription/configuration | `mx-scaffold` | Sonnet 5.5 |
+| A task's third and later fix rounds | `mx-escalate` | Fable 5.1 |
+| Architecture diagnosis after concrete BLOCKED evidence | `mx-architect` | Fable 5.1 |
 
-Pass native model identifiers, not role aliases. Fresh fork-none agents load concise file contracts. Root coordinates and does not edit production. Implementers do not spawn. Architects diagnose without production implementation. Change model/effort only with a new agent. Escalation needs an actual failed gate/BLOCKED cause; xhigh/max need measured benefit. Product components remain Modules and runtime Copilot models require their own qualification.
+Dispatch by `mx-*` name; Opus agents never write code. Fresh fork-none agents load concise file contracts. Root coordinates and does not edit production. Implementers do not spawn. Architects diagnose without production implementation. Change model/effort only with a new agent. Escalation needs an actual failed gate/BLOCKED cause; xhigh/max need measured benefit. Product components remain Modules and runtime Copilot models require their own qualification.
 
 Independent task, adversarial and whole-branch review/approval stages are removed. Rewrite tournaments are removed. Do not dispatch/await those stages or treat old pending review briefs as active. A later explicit user request can authorize a particular review; confidence review is still required.
 
@@ -38,4 +39,4 @@ A task completes from actual implementation, confidence review and required pass
 
 Every coherent PR remains≤800 ordinary changed lines. Existing exclusions only: *.lock, reference/**, tests/golden/**/documents/**, tests/corpus/synthetic/**. Count tests/docs/untracked and declared external evidence; retain whole historical oversize material openly unshipped. No new exemption or raw slicing. Preserve actual Git identities/protected bytes; supporting evidence tools do not waive gates. Do not create new repeated report/replay/pressure bundles merely to satisfy retired requirements.
 
-After06.9 is tested complete, independent runtime/install and proxy/scorecard streams may proceed concurrently when their read/write sets allow; integrate with all retained06.16 gates. Plans07/08 follow executed/tested predecessors and just-in-time planning. Work desktop inspection remains paused; qualify the authorized local GitHub Copilot route separately. No push, merge, release or publication is assumed.
+After06.9 is tested complete, independent runtime/install and proxy/scorecard streams may proceed concurrently when their read/write sets allow; integrate with all retained06.16 gates. Plans07/08 follow executed/tested predecessors and just-in-time planning. The owner clarified that GitHub Copilot is in an editor on the work PC: build/package on this Mac and share the artifact here for transfer. Work desktop inspection remains paused. Live Claude/GPT acceptance requires actual work-PC evidence; local fixtures and the transfer package do not establish it. No account probing, push, merge, release or publication is assumed.
