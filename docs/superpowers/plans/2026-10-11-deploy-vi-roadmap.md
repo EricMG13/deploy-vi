@@ -14,7 +14,7 @@ Plan just in time against the executed/tested predecessor. Fresh implementation 
 | 04 | cp-start: CP-0 contract, grade / approve / plan, amendment A2, first FCA catalog entry | 02 | — | queued |
 | 05 | Core module rewrites (CP-1, CP-1A, CP-1B, CP-1D, CP-2, CP-3 + bond_analytics, FIT, CP-5, CP-6) with the A/B harness | 02, 03, 04 | — | queued |
 | 06 | Orchestrator: run state, dispatch, resume, `SKILL.md`, install, proxy run | 03, 04, 05 | — | queued |
-| 07 | Report: owner-picked mockup as template, chart engine, renderer, embedded run JSON, Credit Snapshot blocks | 06 | — | queued (waits on the mockup pick) |
+| 07 | Report: owner-picked mockup as template, chart engine, renderer, embedded run JSON, Credit Snapshot blocks | 06 | [07 report](2026-10-14-deploy-vi-07-report.md) | in progress (Claude, 2026-10-14) |
 | 08 | v1 acceptance on the corpus | 06, 07 | — | queued |
 | 09 | Quick depth (CP-L10, CP-6 screening) | 05, 07 | — | queued |
 | 10 | Deep Research (CP-DR with fetch) | 06, 07 | — | queued |

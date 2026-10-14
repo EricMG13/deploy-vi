@@ -19,6 +19,7 @@ from typing import Any
 
 from rbotlib.contract import Contract, ContractError, load_contract
 from rbotlib.render import render_module
+from rbotlib.report.charts import REGISTRY
 from rbotlib.rules import Rules
 
 REPORT = "REPORT"
@@ -209,6 +210,25 @@ def _conditions(catalog: Catalog) -> list[str]:
     ]
 
 
+def _block_references(catalog: Catalog) -> list[str]:
+    """Amendment A6: a block's tables belong to its front page and its charts are registered."""
+    problems = []
+    for page, blocks in catalog.blocks.items():
+        listed = set(catalog.front_pages.get(page, ()))
+        for b in blocks:
+            problems += [
+                f"front page {page} block {b.id}: table {t} not in tables"
+                for t in b.tables
+                if t not in listed
+            ]
+            problems += [
+                f"front page {page} block {b.id}: unknown chart {c}"
+                for c in b.charts
+                if c not in REGISTRY
+            ]
+    return problems
+
+
 def check_tree(root: Path, rules: Rules) -> list[str]:
     problems: list[str] = []
     catalog = load_catalog(root)
@@ -220,6 +240,7 @@ def check_tree(root: Path, rules: Rules) -> list[str]:
         f"host table {t} is also a module table" for t in catalog.host_tables if t in module_tables
     ]
     problems += _conditions(catalog)
+    problems += _block_references(catalog)
     for pathway in catalog.pathways:
         if pathway.front_page not in catalog.front_pages:
             problems.append(f"{pathway.id}: unknown front page {pathway.front_page}")
