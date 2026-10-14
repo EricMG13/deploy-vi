@@ -85,3 +85,12 @@ def test_the_registry_names_the_ten_charts_and_defers_builders() -> None:
     assert tuple(REGISTRY) == CHART_IDS and len(CHART_IDS) == 10
     with pytest.raises(NotImplementedError, match=r"chart\.rv_hy"):
         REGISTRY["chart.rv_hy"]({})
+
+
+def test_a_linked_fonts_folder_is_refused_not_ignored(tmp_path: Path) -> None:
+    root = folder(tmp_path)
+    real = tmp_path / "elsewhere-fonts"
+    real.mkdir()
+    os.symlink(real, root / "fonts")
+    with pytest.raises(ReportError, match=r"fonts: report asset is a link"):
+        load(root)

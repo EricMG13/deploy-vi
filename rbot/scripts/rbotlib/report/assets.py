@@ -41,7 +41,9 @@ def _data_uri(media: str, raw: bytes) -> str:
 
 def _fonts(folder: Path) -> str:
     """`<family>-<weight>.woff2` becomes one `@font-face`; `inter-tight` is "Inter Tight"."""
-    if folder.is_symlink() or not folder.is_dir():
+    if folder.is_symlink():
+        raise ReportError("fonts: report asset is a link")
+    if not folder.is_dir():
         return ""
     faces = []
     for path in sorted(folder.iterdir()):
