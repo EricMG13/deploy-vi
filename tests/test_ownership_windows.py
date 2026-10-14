@@ -41,11 +41,14 @@ def use(monkeypatch: pytest.MonkeyPatch, name: str, double: FakeMsvcrt | None) -
         monkeypatch.setitem(sys.modules, "msvcrt", double)
 
 
-def test_nt_locks_one_byte_at_offset_zero(monkeypatch: pytest.MonkeyPatch, fd: int) -> None:
+def test_nt_locks_one_byte_past_the_sentinel(monkeypatch: pytest.MonkeyPatch, fd: int) -> None:
+    """Windows byte-range locks are mandatory: the sentinel bytes must stay readable elsewhere."""
     double = FakeMsvcrt()
     use(monkeypatch, "nt", double)
     ownership._kernel(fd)
-    assert double.calls == [(0, FakeMsvcrt.LK_NBLCK, 1)]
+    assert double.calls == [(ownership.LOCK_OFFSET, FakeMsvcrt.LK_NBLCK, 1)]
+    assert ownership.LOCK_OFFSET >= 1 << 30 > len(ownership.MAGIC) + 33
+    assert os.lseek(fd, 0, os.SEEK_CUR) == 0  # the sentinel write that follows starts at 0
 
 
 @pytest.mark.parametrize("code", [errno.EACCES, errno.EDEADLK])
