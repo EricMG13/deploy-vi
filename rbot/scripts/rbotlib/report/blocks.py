@@ -59,7 +59,7 @@ def owner_of(
     ]
     if len(owners) != 1:
         raise ReportError(f"table {table_id} has {len(owners)} owners in the plan")
-    return owners[0]
+    return str(owners[0])
 
 
 def _supported(block: Block) -> Callable[[Record], bool]:
