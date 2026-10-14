@@ -10,7 +10,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import subprocess
+import shutil
+import subprocess  # nosec B404 - build tool wrapping git and build_runtime.sh
 import sys
 import tempfile
 import tomllib
@@ -36,10 +37,18 @@ FENCE = "```checklist.txt\n"
 ZIP_TIME = (1980, 1, 1, 0, 0, 0)
 
 
+def _run(*argv: str) -> subprocess.CompletedProcess[bytes]:
+    """Run git/bash by absolute path with fixed argv (no shell); a failure raises."""
+    program = shutil.which(argv[0])
+    if program is None:
+        raise ValueError(f"build transfer: {argv[0]} is not installed")
+    return subprocess.run(  # nosec B603 - fixed argv, no shell
+        [program, *argv[1:]], check=True, capture_output=True, timeout=120
+    )
+
+
 def _git(repo: Path, *args: str) -> bytes:
-    return subprocess.run(
-        ["git", "-C", str(repo), *args], check=True, capture_output=True, timeout=120
-    ).stdout
+    return _run("git", "-C", str(repo), *args).stdout
 
 
 def _committed(repo: Path, commit: str, *paths: str) -> dict[str, tuple[bytes, bool]]:
@@ -111,14 +120,12 @@ def _blank_checklist(doc: str) -> str:
 
 def _runtime(repo: Path, commit: str, dest: Path) -> str:
     script = HERE / "build_runtime.sh"
-    done = subprocess.run(
-        ["bash", str(script), sys.executable, str(repo), commit, str(dest)],
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
-    if done.returncode:
-        raise ValueError(f"build transfer: runtime build failed: {done.stderr.strip()}")
+    try:
+        _run("bash", str(script), sys.executable, str(repo), commit, str(dest))
+    except subprocess.CalledProcessError as exc:
+        raise ValueError(
+            f"build transfer: runtime build failed: {exc.stderr.decode().strip()}"
+        ) from exc
     return str(json.loads((dest / "runtime.json").read_text())["runtime_tree"])
 
 
