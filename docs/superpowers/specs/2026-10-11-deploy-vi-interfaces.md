@@ -903,7 +903,7 @@ If subagents cannot run the terminal: the dispatch message omits the validate st
 5. **Deep Research** — `cpdr.questions`, `cpdr.answers`, `cpdr.evidence`, `cpdr.sector_view`; each fetched source listed with URL and retrieval date.
 6. **What changed** — `prior/diff.md` rendered (§11.6) then CP-8's tables.
 7. **Evidence** — every citation of every Handoff: id (`<module>:C<n>`), source file, locator, excerpt, anchored (Yes/No from `validate/<ID>.json`), a link back to each place it is cited.
-8. **Limitations** — first those shown at Approval (`brief.approval.limitations_shown` and `grading.json`), then `cp5.limitations`, then unforeseen (`failed`/`skipped` steps, Blocked Handoffs, `model.limitations`, unanchored citations).
+8. **Limitations** — first those shown at Approval (`brief.approval.limitations_shown` and `grading.json`), then `cp5.limitations`, then unforeseen (`failed`/`skipped` steps, Blocked Handoffs, accepted Restricted steps that no `cp5.limitations` row or Approval entry names, `model.limitations`, unanchored citations).
 
 ### 11.3 Embedded data: `<script type="application/json" id="rbot-run">` (`"schema": "rbot-run/1"`)
 

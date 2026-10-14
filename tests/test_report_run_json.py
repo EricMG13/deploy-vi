@@ -238,3 +238,31 @@ def test_refuses_a_folder_that_is_not_a_native_run(tmp_path: Path) -> None:
         run_json.build(run, RBOT_ROOT, NOW)
     with pytest.raises(ReportError, match="No such file"):
         run_json.build(tmp_path / "nowhere", RBOT_ROOT, NOW)
+
+
+def _restricted_case() -> tuple[Record, Record]:
+    record: Record = {
+        "approval": {"limitations_shown": []},
+        "steps": {n: {"status": "accepted"} for n in ("CP-2", "CP-5", "CP-6")},
+    }
+    handoffs: Record = {
+        n: {"qa_status": "Restricted", "status": "accepted", "citations": []}
+        for n in ("CP-2", "CP-5", "CP-6")
+    }
+    handoffs["CP-5"]["tables"] = {"cp5.limitations": {"columns": ["module_id"], "rows": [["CP-2"]]}}
+    return record, handoffs
+
+
+def test_restricted_step_no_one_names_is_listed_without_an_invented_reason() -> None:
+    record, handoffs = _restricted_case()
+    got = run_json.limitations(record, {}, handoffs, None, ["CP-5"])
+    restricted = [x for x in got["unforeseen"] if x["kind"] == "restricted"]
+    # CP-2 is named by a cp5 row and CP-5 by an Approval limited_module: only CP-6 is new.
+    assert restricted == [{"kind": "restricted", "step": "CP-6"}]
+
+
+def test_pass_handoff_is_not_listed_as_restricted() -> None:
+    record, handoffs = _restricted_case()
+    handoffs["CP-6"]["qa_status"] = "Pass"
+    got = run_json.limitations(record, {}, handoffs, None)
+    assert [x["step"] for x in got["unforeseen"] if x["kind"] == "restricted"] == ["CP-5"]

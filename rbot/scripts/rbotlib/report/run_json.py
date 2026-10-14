@@ -190,6 +190,17 @@ def _grading_limited(run: Path, record: Record) -> list[str]:
     return []
 
 
+def _unnamed_restricted(record: Record, handoffs: Record, named: set[Any]) -> list[Record]:
+    """Accepted Restricted steps that no CP-5 row or Approval entry names (no reason is made up)."""
+    return [
+        {"kind": "restricted", "step": name}
+        for name, entry in handoffs.items()
+        if entry["qa_status"] == "Restricted"
+        and record["steps"][name]["status"] == "accepted"
+        and name not in named
+    ]
+
+
 def limitations(
     record: Record,
     brief: Record,
@@ -197,7 +208,10 @@ def limitations(
     model: Record | None,
     limited_modules: list[str] | None = None,
 ) -> Record:
-    """The three Limitations groups (spec 11.2 tab 8): shown at Approval, CP-5, unforeseen."""
+    """The three Limitations groups (spec 11.2 tab 8): shown at Approval, CP-5, unforeseen.
+
+    Unforeseen also lists each accepted Restricted step no CP-5 row or Approval entry names.
+    """
     approval = [
         {"kind": "limitation", "text": t} for t in record["approval"]["limitations_shown"]
     ] + [{"kind": "limited_module", "module": m} for m in limited_modules or []]
@@ -213,6 +227,8 @@ def limitations(
             )
         elif step["status"] == "blocked":
             unforeseen.append({"kind": "blocked", "step": name, "reason": step.get("reason", "")})
+    named = {x.get("module_id") for x in cp5} | set(limited_modules or [])
+    unforeseen += _unnamed_restricted(record, handoffs, named)
     for detail in (model or {}).get("limitation_details", []):
         unforeseen.append({"kind": "model", **detail})
     for name, entry in handoffs.items():

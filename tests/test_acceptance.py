@@ -246,6 +246,22 @@ def test_failed_step_missing_from_limitations_fails_r7(
     assert result[1] == "FAIL" and "CP-1B:failed" in result[3]
 
 
+def test_restricted_step_must_be_on_some_limitations_group(run: Path) -> None:
+    doc = run_json.build(run, RBOT_ROOT, NOW)
+    lim = doc["limitations"]
+    lim["cp5"] = [x for x in lim["cp5"] if x["module_id"] != "CP-6"]
+    scored = acceptance.score_steps(run, state.read(run))
+
+    def detail() -> str:
+        (run / "report.html").write_text(f"<html>{embed_json(doc)}</html>", encoding="utf-8")
+        return acceptance.r7(run, state.read(run), scored)[3]
+
+    assert "CP-6:Restricted" in detail()  # named by no group: still a failure
+    lim["unforeseen"].append({"kind": "restricted", "step": "CP-6"})
+    got = detail()  # the entry the renderer now emits lists it; only the dropped cp5 row remains
+    assert "CP-6:Restricted" not in got and "cp5 rows" in got
+
+
 def test_model_limitations_and_faults_must_be_on_the_tab(run: Path, tmp_path: Path) -> None:
     page = run / "report.html"
     doc = run_json.build(run, RBOT_ROOT, NOW)
