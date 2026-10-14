@@ -23,6 +23,7 @@ import report_run
 from report_run import complete_run
 
 from rbotlib import attempts, dispatch, state
+from rbotlib.inventory import RunError
 from rbotlib.report import run_json
 from rbotlib.report.html_parts import embed_json
 from rbotlib.rules import RBOT_ROOT
@@ -313,3 +314,184 @@ def test_unreadable_run_is_refused(tmp_path: Path, capsys: pytest.CaptureFixture
     shutil.copytree(RBOT_ROOT / "modules", tmp_path / "not-a-run")
     assert acceptance.main(["check", "--run", str(tmp_path / "not-a-run")]) == 2
     assert capsys.readouterr().out.startswith("acceptance: ")
+
+
+# --- `ingest` (Plan 08 task 08.4b) -------------------------------------------------------------
+# The bundle's claude/ and gpt/ folders are both links to the one finished fixture run (a pack is
+# bound to its absolute path, so a second run would cost another ~5 minute build); the cases
+# differ in the checklist, install.txt, probes and manifest, which are written per case.
+
+COMMIT = "c0ffee" * 6 + "c0ff"
+TREE = "ab" * 20
+MODEL_VALUES = {
+    "picker_label": "{m} picker",
+    "context_tokens": "128000",
+    "skills_lists_rbot": "yes",
+    "rbot_invoked": "yes",
+    "turns_before_approval": "2",
+    "questions_after_approval": "0",
+    "subagents": "yes",
+    "report_opened": "yes",
+    "start_utc": "2026-10-14T09:00:00Z",
+    "finish_utc": "2026-10-14T10:30:00Z",
+}
+COMMON_VALUES = {
+    "package_sha256": "f" * 64,
+    "os": "Windows 11",
+    "editor": "VS Code",
+    "editor_version": "1.99",
+    "copilot_chat_version": "0.30",
+    "execution_policy": "RemoteSigned",
+    "python_cmd": "py",
+    "python_version": "3.11.9",
+    "wheels_install": "yes",
+    "install_method": "ps1",
+}
+PROBE = "".join(f"## {n}. Section\nrecorded {n}\n\n" for n in range(1, 7))
+
+
+def checklist_values(**override: str) -> dict[str, str]:
+    values = dict(COMMON_VALUES)
+    for model in ("claude", "gpt"):
+        values |= {f"{model}_{k}": v.format(m=model) for k, v in MODEL_VALUES.items()}
+    values["claude_resume_ok"] = "yes"
+    return values | override
+
+
+def make_bundle(tmp: Path, run_home: Path | None, **override: str) -> tuple[Path, Path]:
+    """An evidence folder and a manifest of this checkout's SKILL, canon and MODULE files."""
+    root = tmp / "rbot-v1-evidence-2026-10-14"
+    root.mkdir()
+    values = {k: v for k, v in checklist_values(**override).items() if v != "<absent>"}
+    (root / "checklist.txt").write_text("".join(f"{k}: {v}\n" for k, v in values.items()))
+    (root / "env.txt").write_text("PSVersion 5.1\n")
+    (root / "install.txt").write_text(
+        f'rbot 1.0.0 {COMMIT}\n  "runtime_tree": "{TREE}",\n0 problem(s)\n'
+    )
+    for model in ("claude", "gpt"):
+        if run_home is None:  # layout only: the run is never read
+            (root / model / "pack/rbot-runs/r1").mkdir(parents=True)
+            (root / model / "chat.md").write_text("chat")
+            (root / model / "rbot-probe-result.md").write_text(PROBE)
+        else:
+            root.joinpath(model).symlink_to(run_home, target_is_directory=True)
+    if run_home is not None:
+        (run_home / "chat.md").write_text("chat")
+        (run_home / "rbot-probe-result.md").write_text(PROBE)
+    files = [
+        "SKILL.md",
+        "canon.md",
+        *(
+            p.relative_to(RBOT_ROOT).as_posix()
+            for p in sorted(RBOT_ROOT.glob("modules/*/MODULE.md"))
+        ),
+    ]
+    hashes = {f"rbot/{f}": hashlib.sha256((RBOT_ROOT / f).read_bytes()).hexdigest() for f in files}
+    manifest = tmp / "MANIFEST.json"
+    manifest.write_text(
+        json.dumps({"commit": COMMIT, "runtime_tree": TREE, "files": hashes}), encoding="utf-8"
+    )
+    return root, manifest
+
+
+def ingest(
+    root: Path, manifest: Path, tmp: Path, capsys: pytest.CaptureFixture[str]
+) -> tuple[int, str, dict[str, str]]:
+    out = tmp / "docs/v1-work-pc-2026-10-14.md"
+    argv = ["ingest", "--evidence", str(root), "--manifest", str(manifest), "--out", str(out)]
+    code = acceptance.main(argv)
+    printed = capsys.readouterr().out
+    rows = {}
+    if out.is_file():
+        cells = [[c.strip() for c in x.split(" | ")] for x in out.read_text().splitlines()]
+        rows = {
+            c[0].lstrip("| "): c[3]
+            for c in cells
+            if len(c) >= 4 and c[0].startswith("| ") and c[0] != "| ID"
+        }
+    return code, printed, rows
+
+
+@pytest.mark.parametrize(
+    "override,why",
+    [
+        ({"gpt_subagents": "<absent>"}, "gpt_subagents"),
+        ({"claude_resume_ok": "<absent>"}, "claude_resume_ok"),
+        ({"gpt_resume_ok": "yes"}, "gpt_resume_ok"),
+        ({"claude_context_tokens": "many"}, "claude_context_tokens"),
+        ({"gpt_subagents": "maybe"}, "gpt_subagents"),
+        ({"os": ""}, "os"),
+        ({"claude_finish_utc": "2026-10-14T08:00:00Z"}, "before"),
+    ],
+)
+def test_bad_checklist_is_bad_evidence(
+    override: dict[str, str], why: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, manifest = make_bundle(tmp_path, None, **override)
+    code, printed, rows = ingest(root, manifest, tmp_path, capsys)
+    assert code == 2 and why in printed and not rows
+
+
+def test_duplicate_checklist_key_is_bad_evidence() -> None:
+    text = "".join(f"{k}: {v}\n" for k, v in checklist_values().items())
+    with pytest.raises(RunError, match="duplicate key 'os'"):
+        acceptance.parse_checklist(text + "os: again\n")
+    assert acceptance.parse_checklist(text)["python_cmd"] == "py"
+
+
+def test_commit_mismatch_is_bad_evidence(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, manifest = make_bundle(tmp_path, None)
+    (root / "install.txt").write_text(f"rbot 1.0.0 {'1' * 40}\n{TREE}\n0 problem(s)\n")
+    code, printed, rows = ingest(root, manifest, tmp_path, capsys)
+    assert code == 2 and COMMIT in printed and not rows
+
+
+def test_utf16_powershell_output_is_read(tmp_path: Path) -> None:
+    text = f"rbot 1.0.0 {COMMIT}\r\n0 problem(s)\r\n"
+    (tmp_path / "install.txt").write_bytes(b"\xff\xfe" + text.encode("utf-16-le"))
+    assert acceptance.read_text(tmp_path / "install.txt") == text
+    assert acceptance.VERSION_LINE.findall(text) == [COMMIT]
+
+
+def test_missing_probe_section_is_bad_evidence(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, manifest = make_bundle(tmp_path, None)
+    (root / "gpt/rbot-probe-result.md").write_text(PROBE.replace("## 4. Section", "## x"))
+    code, printed, _ = ingest(root, manifest, tmp_path, capsys)
+    assert code == 2 and "section 4" in printed
+
+
+@pytest.fixture
+def home(accepted: Built) -> Path:
+    return reset(accepted).parent.parent.parent
+
+
+def test_passing_bundle_writes_the_record(
+    home: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, manifest = make_bundle(tmp_path, home)
+    code, printed, rows = ingest(root, manifest, tmp_path, capsys)
+    wanted = [f"L{n}" for n in range(1, 12)] + [
+        f"R{n} ({m})" for m in ("claude", "gpt") for n in range(1, 9)
+    ]
+    assert {k: rows[k] for k in wanted} == dict.fromkeys(wanted, "PASS"), (printed, rows)
+    assert code == 0
+    record = (tmp_path / "docs/v1-work-pc-2026-10-14.md").read_text()
+    assert COMMIT in record and TREE in record and "f" * 64 in record
+    assert record.rstrip().splitlines()[-1].startswith("Not verified:")
+    for model in ("claude", "gpt"):
+        assert list((tmp_path / f"docs/v1-work-pc-2026-10-14/{model}").glob("*.md"))
+
+
+def test_budget_below_the_dispatch_size_fails_only_l8(
+    home: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, manifest = make_bundle(tmp_path, home, gpt_context_tokens="1000")
+    code, printed, rows = ingest(root, manifest, tmp_path, capsys)
+    assert code == 1, printed
+    assert {k for k, v in rows.items() if v != "PASS"} == {"L8"}
+    record = (tmp_path / "docs/v1-work-pc-2026-10-14.md").read_text()
+    assert "budget 400 bytes" in record and "51,200" in record

@@ -22,7 +22,7 @@ Run everything in the PowerShell terminal inside the editor. Append each command
 5. **Install the skill** (`install.txt`):
    1. Run `powershell -ExecutionPolicy Bypass -File .\install.ps1 -Python $HOME\.rbot-venv\Scripts\python.exe`.
    2. If policy forbids it, record the error, copy `rbot\` to `$HOME\.copilot\skills\rbot\` by hand and write `install_method: manual`.
-   3. Run the installed `rbot.py version` and `check`.
+   3. Run the installed `rbot.py version` and `check`, then append the installed `runtime.json` line `runtime_tree` (`Select-String '"runtime_tree"' $HOME\.copilot\skills\rbot\runtime.json`) to `install.txt`.
 6. **Run with the Claude model:**
    1. Copy `pack\czr-2026q2-primary` to `C:\rbot-acceptance\claude\` and open that folder.
    2. Open a new Agent-mode chat with the Claude model and type `/rbot`. Note the start time. If asked for Python, give the venv path.
@@ -52,6 +52,7 @@ rbot-v1-evidence-<date>/
 - **Installation:** `wheels_install`, `install_method`.
 - **Per model, with a `claude_` or `gpt_` prefix:** `picker_label`, `context_tokens`, `skills_lists_rbot`, `rbot_invoked`, `turns_before_approval`, `questions_after_approval`, `subagents` (yes, fallback or no), `report_opened`, `start_utc`, `finish_utc`.
 - **Claude run only:** `claude_resume_ok`.
+- **Values:** `yes` or `no` for `wheels_install`, `*_skills_lists_rbot`, `*_rbot_invoked`, `*_report_opened` and `claude_resume_ok`; `install_method` is `ps1` or `manual`; `*_context_tokens`, `*_turns_before_approval` and `*_questions_after_approval` are whole numbers; `*_start_utc` and `*_finish_utc` are ISO times such as `2026-10-14T09:00:00Z`.
 
 ### 6.3 Ingest command (Mac)
 

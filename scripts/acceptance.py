@@ -1,4 +1,4 @@
-"""v1 acceptance (Plan 08 task 08.4a): the run bar R1-R8 applied to one finished run.
+"""v1 acceptance (Plan 08 tasks 08.4a, 08.4b): the run bar R1-R8, and the work-PC evidence ingest.
 
 Repo tooling, never installed with the skill. `acceptance.py check --run <run folder>
 [--pack-id <id>] [--live]` prints one `ID | PASS/FAIL/NOT MEASURED | measured | evidence` line per
@@ -9,15 +9,25 @@ It only reads the run. Scoring is `scorecard`'s: `step_row`, the Front Page and 
 the host evidence check (`_forged`) and `state.read`; nothing is re-scored here. `--live` is for
 the owner's live runs: the model label is the owner's picker label and the chat export, which no
 run file holds, so R8 reaches at most NOT MEASURED there.
+
+`acceptance.py ingest --evidence <bundle> --manifest <MANIFEST.json> --out <record.md>` turns the
+evidence bundle from the work PC (plan section 6.2) into the L1-L11 / R1-R8 record of section 7.
+Exit 0: every row PASS. Exit 1: a row is FAIL or NOT MEASURED. Exit 2: bad evidence (a missing or
+unknown checklist key, an install of another commit, an unreadable probe or run). The runs are read
+where they lie: `run-state.json` binds its pack's absolute path, so a run recorded elsewhere is
+refused by `state.read` (exit 2) until it is read at that path.
 """
 
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
+import io
 import json
 import re
 import sys
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +35,7 @@ import scorecard
 from ab_evidence import ABError
 
 from rbotlib import attempts, corpus, state
+from rbotlib.fsio import write_atomic
 from rbotlib.handoff import HandoffError, parse
 from rbotlib.inventory import RunError
 from rbotlib.report import ReportError, run_json
@@ -32,6 +43,7 @@ from rbotlib.rules import RBOT_ROOT, load_rules
 from rbotlib.validate import EXIT_BLOCKED
 
 PASS, FAIL, UNMEASURED = "PASS", "FAIL", "NOT MEASURED"
+PACK = "czr-2026q2-primary"
 CITATION_BAR = 0.95
 FRONT_PAGE_BAR = 0.90
 TERMINAL = ("accepted", "blocked", "failed", "skipped")
@@ -276,6 +288,318 @@ def check(run: Path, pack_id: str | None, live: bool) -> list[Result]:
     ]
 
 
+# --- ingest ------------------------------------------------------------------------------------
+
+MODELS = ("claude", "gpt")
+YES_NO = ("yes", "no")
+COMMON_KEYS = (
+    "package_sha256 os editor editor_version copilot_chat_version execution_policy python_cmd "
+    "python_version wheels_install install_method"
+).split()
+MODEL_KEYS = (
+    "picker_label context_tokens skills_lists_rbot rbot_invoked turns_before_approval "
+    "questions_after_approval subagents report_opened start_utc finish_utc"
+).split()
+CHOICES = {
+    "wheels_install": YES_NO,
+    "install_method": ("ps1", "manual"),
+    "skills_lists_rbot": YES_NO,
+    "rbot_invoked": YES_NO,
+    "report_opened": YES_NO,
+    "resume_ok": YES_NO,
+    "subagents": ("yes", "fallback", "no"),
+}
+INTEGERS = ("context_tokens", "turns_before_approval", "questions_after_approval")
+REQUIRED = [
+    *COMMON_KEYS,
+    *(f"{m}_{k}" for m in MODELS for k in MODEL_KEYS),
+    "claude_resume_ok",
+]
+PROBE_SECTION = re.compile(r"^## (\d)\. ", re.MULTILINE)
+VERSION_LINE = re.compile(r"^rbot \S+ (\S+)\s*$", re.MULTILINE)
+CRITERIA = {
+    "L1": "Environment recorded",
+    "L2": "pip policy",
+    "L3": "PowerShell install",
+    "L4": "Discovery",
+    "L5": "Two-turn cp-start",
+    "L6": "Unattended completion",
+    "L7": "Resume (Claude run)",
+    "L8": "Measured prompt budget",
+    "L9": "Spike record",
+    "L10": "Report opens on the work PC",
+    "L11": "Model comparison",
+}
+BUDGET_FLOOR = 51200
+Row = tuple[str, str, str, str]  # ID, split, status, evidence
+
+
+def read_text(path: Path) -> str:
+    """Windows PowerShell 5.1 `Tee-Object` and editors write UTF-16 or a UTF-8 BOM."""
+    raw = path.read_bytes()
+    if raw[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        return raw.decode("utf-16")
+    return raw.decode("utf-8-sig", errors="replace")
+
+
+def parse_checklist(text: str) -> dict[str, str]:
+    """`key: value` lines; an unknown, duplicate, empty or out-of-vocabulary key is bad evidence."""
+    found: dict[str, str] = {}
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        key, _, value = line.partition(":")
+        if key not in REQUIRED:
+            raise RunError(f"checklist.txt: unknown key {key!r}")
+        if key in found:
+            raise RunError(f"checklist.txt: duplicate key {key!r}")
+        found[key] = value.strip()
+    empty = [k for k in REQUIRED if not found.get(k)]
+    if empty:
+        raise RunError("checklist.txt: missing or empty: " + ", ".join(empty))
+    for key, value in found.items():
+        _vocabulary(key, value)
+    for m in MODELS:
+        if _time(found[f"{m}_finish_utc"]) < _time(found[f"{m}_start_utc"]):
+            raise RunError(f"checklist.txt: {m}_finish_utc is before {m}_start_utc")
+    return found
+
+
+def _time(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
+def _vocabulary(key: str, value: str) -> None:
+    name = key.split("_", 1)[1] if key.startswith(("claude_", "gpt_")) else key
+    if name in CHOICES and value not in CHOICES[name]:
+        raise RunError(f"checklist.txt: {key} must be one of {', '.join(CHOICES[name])}")
+    if name in INTEGERS and not ((value.isdigit() and int(value) > 0) or value == "0"):
+        raise RunError(f"checklist.txt: {key} must be a whole number")
+    if name == "context_tokens" and int(value) == 0:
+        raise RunError(f"checklist.txt: {key} must be positive")
+    if name == "python_version" and not re.match(r"\d+\.\d+", value):
+        raise RunError("checklist.txt: python_version must look like 3.11.9")
+    if name.endswith("_utc"):
+        try:
+            _time(value)
+        except ValueError as exc:
+            raise RunError(f"checklist.txt: {key} is not an ISO time ({exc})") from exc
+
+
+class Bundle:
+    """The returned evidence: the three top-level files and, per model, probe, chat and run."""
+
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        for name in ("checklist.txt", "env.txt", "install.txt"):
+            if not (root / name).is_file():
+                raise RunError(f"evidence: {name} is missing")
+        self.probe: dict[str, Path] = {}
+        self.chat: dict[str, Path] = {}
+        self.run: dict[str, Path] = {}
+        for m in MODELS:
+            folder = root / m
+            chats = [p for p in (folder / "chat.json", folder / "chat.md") if p.is_file()]
+            runs = [p for p in folder.glob("*/rbot-runs/*") if p.is_dir()]
+            probe = folder / "rbot-probe-result.md"
+            if not probe.is_file() or not chats or len(runs) != 1:
+                raise RunError(f"evidence: {m}/ needs rbot-probe-result.md, a chat export, one run")
+            self.probe[m], self.chat[m], self.run[m] = probe, chats[0], runs[0]
+
+
+def load_manifest(path: Path) -> dict[str, Any]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or not isinstance(data.get("files"), dict):
+        raise RunError(f"{path}: not a transfer MANIFEST.json")
+    if not all(isinstance(data.get(k), str) and data[k] for k in ("commit", "runtime_tree")):
+        raise RunError(f"{path}: not a transfer MANIFEST.json")
+    return data
+
+
+def check_install(text: str, manifest: dict[str, Any]) -> None:
+    """`version` names the manifest's commit; the runtime tree is recorded beside it."""
+    named = VERSION_LINE.findall(text)
+    if manifest["commit"] not in named:
+        raise RunError(
+            f"install.txt: version names {', '.join(named) or 'no commit'}, "
+            f"not the manifest's commit {manifest['commit']}"
+        )
+    if re.search(rf"\b{re.escape(manifest['runtime_tree'])}\b", text) is None:
+        raise RunError(f"install.txt: runtime tree {manifest['runtime_tree']} is not recorded")
+
+
+def probe_sections(path: Path) -> None:
+    parts = PROBE_SECTION.split(read_text(path))
+    found = {int(n): body.strip() for n, body in zip(parts[1::2], parts[2::2], strict=True)}
+    gaps = [n for n in range(1, 7) if not found.get(n)]
+    if gaps:
+        raise RunError(f"{path.parent.name}/rbot-probe-result.md: empty or no section {gaps[0]}")
+
+
+def prompt_files(manifest: dict[str, Any], runs: dict[str, Path]) -> dict[str, int]:
+    """Byte sizes of the runtime's SKILL, canon and MODULE files (each proved to be the
+    manifest's bytes) and of every dispatch file the returned runs hold."""
+    sizes: dict[str, int] = {}
+    modules = sorted(
+        p.relative_to(RBOT_ROOT).as_posix() for p in RBOT_ROOT.glob("modules/*/MODULE.md")
+    )
+    for name in ("SKILL.md", "canon.md", *modules):
+        raw = (RBOT_ROOT / name).read_bytes()
+        if hashlib.sha256(raw).hexdigest() != manifest["files"].get(f"rbot/{name}"):
+            raise RunError(f"manifest: rbot/{name} differs from this checkout; ingest on the RC")
+        sizes[name] = len(raw)
+    for m, run in runs.items():
+        found = {
+            f"{m}/dispatch/{p.name}": p.stat().st_size for p in (run / "dispatch").glob("*.md")
+        }
+        if not found:
+            raise RunError(f"evidence: the {m} run holds no dispatch file")
+        sizes.update(found)
+    return sizes
+
+
+def l8(c: dict[str, str], sizes: dict[str, int]) -> tuple[str, str]:
+    window = min(int(c[f"{m}_context_tokens"]) for m in MODELS)
+    budget = window * 4 // 10
+    name, largest = max(sizes.items(), key=lambda kv: kv[1])
+    ok = largest <= budget
+    text = f"largest {name} {largest} bytes {'<=' if ok else '>'} budget {budget} bytes"
+    text += f" (smallest window {window} tokens)"
+    if budget < BUDGET_FLOOR:
+        text += "; budget below 51,200: catalog.json update due in 08.9"
+    return (PASS if ok else FAIL), text
+
+
+Cards = dict[str, tuple[list[Result], Path]]
+
+
+def score(bundle: Bundle, out: Path) -> Cards:
+    """`check --live` and the scorecard of each model's run; scorecards go under `out`."""
+    scored = {}
+    for m, run in bundle.run.items():
+        results = []
+        for i, v, measured, evidence in check(run, PACK, True):
+            if (i, v) == ("R8", UNMEASURED):  # only the owner's label and chat export were open
+                v, evidence = PASS, f"{evidence}; returned: {bundle.chat[m].name} and the label"
+            results.append((i, v, measured, evidence))
+        captured = io.StringIO()
+        with contextlib.redirect_stdout(captured):
+            args = ["--run", str(run), "--out", str(out / m), "--pack-id", PACK]
+            code = scorecard.main(args)
+        if code != 0:
+            raise RunError(f"scorecard ({m}): {captured.getvalue().strip()}")
+        scored[m] = (results, Path(captured.getvalue().strip()))
+    return scored
+
+
+def l_rows(bundle: Bundle, c: dict[str, str], sizes: dict[str, int], scored: Cards) -> list[Row]:
+    def each(key: str) -> str:
+        return ", ".join(f"{m} {c[f'{m}_{key}']}" for m in MODELS)
+
+    def all_pass(*models: str) -> bool:
+        return all(v == PASS for m in models for _, v, _, _ in scored[m][0])
+
+    def is_r(rid: str, m: str) -> bool:
+        return any(i == rid and v == PASS for i, v, _, _ in scored[m][0])
+
+    def every(key: str, want: str, models: tuple[str, ...] = MODELS) -> bool:
+        return all(c[f"{m}_{key}"] == want for m in models)
+
+    env = read_text(bundle.root / "env.txt")
+    install = read_text(bundle.root / "install.txt")
+    python = tuple(int(x) for x in c["python_version"].split(".")[:2])
+    spans = ", ".join(
+        f"{m} {_time(c[f'{m}_finish_utc']) - _time(c[f'{m}_start_utc'])}" for m in MODELS
+    )
+    budget, budget_text = l8(c, sizes)
+    cards = ", ".join(str(scored[m][1]) for m in MODELS)
+    both = "R1-R8 on both runs"
+    rows = {
+        "L1": (
+            python >= (3, 11) and bool(env.strip()),
+            f"python {c['python_version']} (floor 3.11); {c['os']}; {c['editor_version']}; "
+            f"Copilot Chat {c['copilot_chat_version']}; policy {c['execution_policy']}; env.txt",
+        ),
+        "L2": (c["wheels_install"] == "yes", f"wheels_install {c['wheels_install']}; probe 2"),
+        "L3": (
+            "0 problem(s)" in install,
+            f"install_method {c['install_method']}; install.txt: version, check",
+        ),
+        "L4": (
+            every("skills_lists_rbot", "yes") and every("rbot_invoked", "yes"),
+            f"skills_lists_rbot {each('skills_lists_rbot')}; rbot_invoked {each('rbot_invoked')}",
+        ),
+        "L5": (
+            every("turns_before_approval", "2") and every("questions_after_approval", "0"),
+            f"turns {each('turns_before_approval')}; questions {each('questions_after_approval')}",
+        ),
+        "L6": (every("subagents", "yes") and all_pass(*MODELS), f"{each('subagents')}; {both}"),
+        "L7": (
+            c["claude_resume_ok"] == "yes" and all_pass("claude"),
+            f"claude_resume_ok {c['claude_resume_ok']}; R1-R8 on the claude run",
+        ),
+        "L8": (budget == PASS, budget_text),
+        "L9": (True, "both probe files hold sections 1-6; content: docs/spike/copilot-spike.md"),
+        "L10": (
+            every("report_opened", "yes") and all(is_r("R2", m) for m in MODELS),
+            f"report_opened {each('report_opened')}; R2 on both runs",
+        ),
+        "L11": (all_pass(*MODELS), f"{both}; durations {spans}; scorecards {cards}"),
+    }
+    return [(i, "B", PASS if ok else FAIL, why) for i, (ok, why) in rows.items()]
+
+
+def render(c: dict[str, str], manifest: dict[str, Any], rows: list[Row], bundle: Path) -> str:
+    head = "| ID | Criterion | Split | Status (PASS / FAIL / PENDING OWNER / NOT MEASURED) |"
+    lines = [
+        f"# v1 work-PC acceptance record ({date.today().isoformat()})",
+        "",
+        f"- RC commit: {manifest['commit']}",
+        f"- Runtime tree: {manifest['runtime_tree']}",
+        f"- Package sha256: {c['package_sha256']}",
+        f"- Evidence: {bundle.name}",
+        "",
+        head + " Evidence path |",
+        "|---|---|---|---|---|",
+    ]
+    for i, split, status, evidence in rows:
+        name = CRITERIA.get(i, "Run bar " + i[:2])
+        lines.append(f"| {i} | {name} | {split} | {status} | {scorecard.clean(evidence)} |")
+    lines += [
+        "",
+        "Rulings: NOT MEASURED is not a pass (exit 1). R8 on a live run is PASS when every module",
+        "step has a receipt and an accept event and the label and chat export came back.",
+        "L9 records that both probe files hold their six sections; the facts are filled into",
+        "docs/spike/copilot-spike.md by the owner.",
+        "",
+        "Not verified: the content of the probe files and chat exports; the picker labels and "
+        "context windows as typed in checklist.txt; the Agent-mode start of /rbot, the two-turn "
+        "flow and the resume check beyond the checklist answers; anything on the work PC itself.",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def ingest(evidence: Path, manifest_path: Path, out: Path) -> int:
+    bundle = Bundle(evidence.resolve())
+    if out.resolve().is_relative_to(bundle.root) or out.suffix != ".md":
+        raise RunError("--out must be a .md file outside the evidence folder")
+    manifest = load_manifest(manifest_path)
+    c = parse_checklist(read_text(bundle.root / "checklist.txt"))
+    check_install(read_text(bundle.root / "install.txt"), manifest)
+    for m in MODELS:
+        probe_sections(bundle.probe[m])
+    sizes = prompt_files(manifest, bundle.run)
+    scored = score(bundle, out.with_suffix(""))
+    rows = l_rows(bundle, c, sizes, scored)
+    for m in MODELS:
+        rows += [(f"{i} ({m})", f"B ({m})", v, f"{mm}; {ev}") for i, v, mm, ev in scored[m][0]]
+    out.parent.mkdir(parents=True, exist_ok=True)
+    write_atomic(out, render(c, manifest, rows, bundle.root))
+    print(out)
+    return 0 if all(r[2] == PASS for r in rows) else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -283,10 +607,16 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--run", required=True, help="the run folder")
     c.add_argument("--pack-id", help="the pack's corpus id (default: from the run's pack)")
     c.add_argument("--live", action="store_true", help="a live run: model labels are the owner's")
+    i = sub.add_parser("ingest", help="turn the work-PC evidence bundle into the acceptance record")
+    i.add_argument("--evidence", required=True, help="the unzipped rbot-v1-evidence-<date> folder")
+    i.add_argument("--manifest", required=True, help="MANIFEST.json of the transfer package")
+    i.add_argument("--out", required=True, help="the record file; scorecards go beside it")
     args = parser.parse_args(argv)
     try:
+        if args.command == "ingest":
+            return ingest(Path(args.evidence), Path(args.manifest), Path(args.out))
         results = check(Path(args.run), args.pack_id, args.live)
-    except (RunError, HandoffError, OSError, ValueError, ABError) as exc:
+    except (RunError, HandoffError, OSError, ValueError, ABError, KeyError) as exc:
         print(f"acceptance: {exc}")
         return 2
     for line in results:
