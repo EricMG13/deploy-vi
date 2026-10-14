@@ -117,7 +117,7 @@ def test_step_1_copies_the_pack_and_prepares_a_pending_run(
     assert not (run.parent / "20261011-test-pending-2").exists()
 
 
-def test_step_5_prints_the_simulated_approval(
+def test_step_5_refuses_missing_readiness_instead_of_printing_approval(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     registry = _registry(tmp_path)
@@ -125,14 +125,11 @@ def test_step_5_prints_the_simulated_approval(
     assert "no unfinished native proxy run; run step 1 first" in capsys.readouterr().out
     proxy_run.main(_args(registry))
     capsys.readouterr()
-    assert proxy_run.main(_args(registry, "--approve")) == 0
+    assert proxy_run.main(_args(registry, "--approve")) == 1
     run = tmp_path / "repo/corpus-runs/p1/pack/rbot-runs/20261011-test-pending"
-    assert capsys.readouterr().out == (
-        f"python rbot/scripts/rbot.py approve --run {run} --pathway EARNINGS_UPDATE"
-        " --depth quick --primary yes --analyst proxy-run --deep-research yes --prior-case no\n"
-    )
-    assert proxy_run.main(_args(registry, "--approve", "--primary", "no")) == 0
-    assert "--primary no" in capsys.readouterr().out
+    assert f"{run}: native CP-0 readiness required" in capsys.readouterr().out
+    assert proxy_run.main(_args(registry, "--approve", "--primary", "no")) == 1
+    assert state.read(run)["approval"] is None
 
 
 def test_a_pathway_the_pack_does_not_list_is_refused(
@@ -252,7 +249,7 @@ def test_the_newest_run_is_ordered_by_creation_time_not_mtime(
     os.utime(new, (1, 1))  # the newer run looks the oldest by mtime
     os.utime(old, (2_000_000_000, 2_000_000_000))
     capsys.readouterr()
-    assert proxy_run.main(_args(registry, "--approve")) == 0
+    assert proxy_run.main(_args(registry, "--approve")) == 1
     assert "20261012-test-pending" in capsys.readouterr().out
 
 
