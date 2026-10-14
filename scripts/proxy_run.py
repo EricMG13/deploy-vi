@@ -24,6 +24,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "rbot" / "scripts"))
 
 import proxy_continue
+import proxy_isolated
+from proxy_continue import NativeFailure as NativeFailure
 
 from rbotlib import bootstrap, brief, command_receipts, current, runs, state
 from rbotlib.catalog import load_catalog
@@ -41,14 +43,6 @@ from rbotlib.corpus import (
 )
 from rbotlib.inventory import output_path
 from rbotlib.rules import RBOT_ROOT, load_rules
-
-
-class NativeFailure(CorpusError):
-    """Preserve the native command's actual exit and already printed diagnostic."""
-
-    def __init__(self, command: str, code: int) -> None:
-        super().__init__(f"rbot {command} failed (exit {code})")
-        self.code = code
 
 
 def _native(run: Path, command: str, extra: list[str] | None = None) -> str:
@@ -201,7 +195,9 @@ def start(registry: Registry, entry: Pack, args: argparse.Namespace, out: Path) 
 def _transport_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--continue", dest="continuing", action="store_true")
     parser.add_argument("--run", help="explicit existing renamed run; requires --continue")
-    parser.add_argument("--module", help="isolated Module (requires a future native import seam)")
+    parser.add_argument("--module", help="isolated Module: import upstream, stop at its dispatch")
+    parser.add_argument("--from-run", help="isolated source run (default: newest qualifying)")
+    parser.add_argument("--fixtures", action="store_true", help="isolated source: fixture Handoffs")
     parser.add_argument("--model-label", help="requested caller label; never provider proof")
     parser.add_argument("--fetch", action="store_true", help="request unavailable Plan10 fetch")
     parser.add_argument("--reported-module", help="genuine controller dispatch report target")
@@ -229,7 +225,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", help="the corpus-runs folder (default: <repo>/corpus-runs)")
     args = parser.parse_args(argv)
     _usage(parser, args)
-    if not args.approve and (args.set or args.set_tranche or args.acknowledge_blocked):
+    simulated = args.approve or args.module is not None
+    if not simulated and (args.set or args.set_tranche or args.acknowledge_blocked):
         parser.error("simulated edits/acknowledgement require --approve")
     try:
         proxy_continue.check_options(args)
@@ -237,18 +234,13 @@ def main(argv: list[str] | None = None) -> int:
         entry = registry.pack(args.pack)
         _check_pathway(entry, args.pathway, args.depth)
         out = Path(args.out) if args.out else repo_root(registry) / "corpus-runs"
+        if args.module is not None:
+            return proxy_isolated.run_isolated(
+                registry, entry, args, out, proxy_isolated.Hooks(start, approve, _native)
+            )
+        out, isolated = proxy_isolated.effective_out(out, entry.id, args.run)
         if args.approve or args.continuing:
-            pack = _copy_path(registry, entry, out)
-            run = proxy_continue.existing(pack, args.run, args.pathway, args.depth)
-            if run is None:
-                run = _latest_run(pack.parent)
-                proxy_continue.existing(pack, str(run), args.pathway, args.depth)
-            _verify_copy(entry, pack)
-            if args.continuing:
-                return _continue(run, args)
-            run = approve(run, entry, args)
-            print(f"run folder: {run}")
-            return 0
+            return _existing(registry, entry, args, out, isolated)
         run = start(registry, entry, args, out)
         proxy_continue.advance(run, args.model_label, _native)
     except NativeFailure as exc:
@@ -259,6 +251,22 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     print(f"run folder: {run}")
     print(f"next: CP-0; use rbot next --run {run}")
+    return 0
+
+
+def _existing(
+    registry: Registry, entry: Pack, args: argparse.Namespace, out: Path, isolated: bool
+) -> int:
+    pack = _copy_path(registry, entry, out)
+    run = proxy_continue.existing(pack, args.run, args.pathway, args.depth)
+    if run is None:
+        run = _latest_run(pack.parent)
+        proxy_continue.existing(pack, str(run), args.pathway, args.depth)
+    _verify_copy(entry, pack)
+    if args.continuing:
+        return _continue(run, args, proxy_isolated.read_record(out, run) if isolated else None)
+    run = approve(run, entry, args)
+    print(f"run folder: {run}")
     return 0
 
 
@@ -273,11 +281,12 @@ def _usage(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
         parser.error("existing-run/dispatch-report/accept options require --continue")
     if args.continuing and args.approve:
         parser.error("--continue and --approve are separate native phases")
+    proxy_isolated.usage(parser, args)
     if any(value is not None and not value.strip() for value in (args.run, args.accept_module)):
         parser.error("--run and --accept-module require nonempty values")
 
 
-def _continue(run: Path, args: argparse.Namespace) -> int:
+def _continue(run: Path, args: argparse.Namespace, isolated: dict[str, object] | None) -> int:
     print(f"run folder: {run}")
     if args.receipt:
         _native(run, "dispatch-receipt", proxy_continue.receipt_options(args))
@@ -295,6 +304,8 @@ def _continue(run: Path, args: argparse.Namespace) -> int:
         if args.accept_module == "CP-0" and step["status"] in ("accepted", "blocked"):
             print("CP-0 readiness completed; waiting for analyst Approval")
             return code
+    if proxy_isolated.stopped(run, isolated):
+        return code
     proxy_continue.advance(run, args.model_label, _native)
     return code
 

@@ -488,6 +488,18 @@ def _module_findings(
     return cp0.findings(h, rules, run)
 
 
+def _host_findings(
+    h: Handoff, contract: Contract, run: Path | None, found: list[Finding]
+) -> list[Finding]:
+    """What a host step that reads this module would refuse (`rbotlib.host_preflight`);
+    asked only of a Handoff in a run that has no other finding."""
+    if run is None or found:
+        return []
+    from rbotlib import host_preflight  # imported here: it builds on this module's Finding
+
+    return host_preflight.findings(h, contract.module_id, run)
+
+
 def check(
     text: str, contract: Contract, rules: Rules, run: Path | None = None
 ) -> tuple[int, list[Finding]]:
@@ -509,6 +521,7 @@ def check(
         findings += _table(spec, h, rules)
     findings += _citations(h, rules)
     findings += _module_findings(h, contract, rules, run)
+    findings += _host_findings(h, contract, run, findings)
     if any(f.code == "run_error" for f in findings):
         return EXIT_USAGE, findings
     if any(f.code == "identity" for f in findings):

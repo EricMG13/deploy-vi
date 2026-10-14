@@ -18,6 +18,14 @@ from rbotlib.rules import RBOT_ROOT
 Native = Callable[[Path, str, list[str] | None], str]
 
 
+class NativeFailure(CorpusError):
+    """Preserve the native command's actual exit and already printed diagnostic."""
+
+    def __init__(self, command: str, code: int) -> None:
+        super().__init__(f"rbot {command} failed (exit {code})")
+        self.code = code
+
+
 def check_options(args: argparse.Namespace) -> None:
     label = args.model_label
     if label is not None and (
@@ -28,11 +36,8 @@ def check_options(args: argparse.Namespace) -> None:
         raise CorpusError("model-label: require 1-200 printable characters; caller claim only")
     if args.fetch:
         raise CorpusError("Plan10 fetch unavailable; no network fetch performed")
-    if args.module is not None:
-        raise CorpusError(
-            "isolated Module unavailable: native upstream-import provenance/target-only "
-            "context required; no accepted state or fixture outcomes will be transplanted"
-        )
+    if args.module is not None and not args.module.strip():
+        raise CorpusError("--module requires a nonempty Module id")
 
 
 def existing(pack: Path, explicit: str | None, pathway: str, depth: str) -> Path | None:
@@ -91,11 +96,18 @@ def worker(run: Path, selected: state.Record, label: str | None) -> None:
         print("Attach --model only to the genuine dispatch-receipt; provider/model stays unknown")
 
 
-def advance(run: Path, label: str | None, native: Native) -> None:
+def advance(
+    run: Path,
+    label: str | None,
+    native: Native,
+    on_module: Callable[[state.Record], bool] | None = None,
+) -> None:
     # Each host becomes terminal or returns its genuine refusal/error. Never retry it here.
     for _ in range(len(state.read(run)["plan"]) + 1):
         selected = json.loads(native(run, "next", None))
         if selected["kind"] == "module":
+            if on_module is not None and on_module(selected):
+                continue  # isolated mode imported this Module natively
             worker(run, selected, label)
             return
         if selected["kind"] == "done":
