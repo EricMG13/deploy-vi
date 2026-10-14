@@ -27,7 +27,11 @@ def test_corpus_production_approval_and_module_accept(
 ) -> None:
     import shutil
 
-    pack = shutil.copytree(corpus_pack("czr-2026q2-primary"), tmp_path / "working pack")
+    pack = shutil.copytree(
+        corpus_pack("czr-2026q2-primary"),
+        tmp_path / "working pack",
+        ignore=shutil.ignore_patterns("rbot-runs"),
+    )
     files = {
         p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in pack.iterdir() if p.is_file()
     }

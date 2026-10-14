@@ -45,7 +45,9 @@ def complete_run(
     fail: str | None = None,
 ) -> Path:
     """A finished run of the czr synthetic pack; `fail` sets that pending step failed."""
-    pack = shutil.copytree(corpus_pack(PACK), tmp_path / "working pack")
+    pack = shutil.copytree(
+        corpus_pack(PACK), tmp_path / "working pack", ignore=shutil.ignore_patterns("rbot-runs")
+    )
     assert main(["new-run", "--pack", str(pack)]) == 0
     run = next((pack / "rbot-runs").iterdir())
     for command in ("inventory", "prepare"):

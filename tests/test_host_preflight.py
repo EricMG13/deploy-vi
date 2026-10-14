@@ -42,7 +42,11 @@ def fixture(module: str, run: Path) -> str:
 
 def czr_run(corpus_pack: Callable[[str], Path], tmp_path: Path, *modules: str) -> Path:
     """A CZR run whose accepted Handoffs are the named fixture modules, in order."""
-    pack = shutil.copytree(corpus_pack("czr-2026q2-primary"), tmp_path / "working pack")
+    pack = shutil.copytree(
+        corpus_pack("czr-2026q2-primary"),
+        tmp_path / "working pack",
+        ignore=shutil.ignore_patterns("rbot-runs"),
+    )
     assert cli.main(["new-run", "--pack", str(pack)]) == 0
     run = next((pack / "rbot-runs").iterdir())
     for command in ("inventory", "prepare"):
