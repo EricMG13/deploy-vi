@@ -13,17 +13,16 @@ run file holds, so R8 reaches at most NOT MEASURED there.
 `acceptance.py ingest --evidence <bundle> --manifest <MANIFEST.json> --out <record.md>` turns the
 evidence bundle from the work PC (plan section 6.2) into the L1-L11 / R1-R8 record of section 7.
 Exit 0: every row PASS. Exit 1: a row is FAIL or NOT MEASURED. Exit 2: bad evidence (a missing or
-unknown checklist key, an install of another commit, an unreadable probe or run). The runs are read
-where they lie: `run-state.json` binds its pack's absolute path, so a run recorded elsewhere is
-refused by `state.read` (exit 2) until it is read at that path.
+unknown checklist key, an install of another commit, an unreadable probe, a missing or malformed
+`<model>/check.txt` or `<model>/scorecard.md`). The runs are not re-read: `run-state.json`
+binds its pack's absolute path, so the owner runs `tools/acceptance.py check --live` and
+`tools/scorecard.py` on the work PC (both ship in the package) and returns their output.
 """
 
 from __future__ import annotations
 
 import argparse
-import contextlib
 import hashlib
-import io
 import json
 import re
 import sys
@@ -237,7 +236,7 @@ def r7(run: Path, record: state.Record, scored: Scored) -> Result:
     return "R7", FAIL if lost else PASS, f"{count} limitations", "; ".join(lost) or source
 
 
-def r8(run: Path, record: state.Record, scored: Scored, live: bool) -> Result:
+def _receipts(run: Path, record: state.Record, scored: Scored) -> tuple[list[str], list[str]]:
     lacking, unlabelled = [], []
     for row, _ in modules(scored):
         try:
@@ -252,6 +251,11 @@ def r8(run: Path, record: state.Record, scored: Scored, live: bool) -> Result:
             lacking.append(f"{row.step} ({'no receipt' if not sent else 'no accept event'})")
         if row.model == scorecard.UNKNOWN:
             unlabelled.append(row.step)
+    return lacking, unlabelled
+
+
+def r8(run: Path, record: state.Record, scored: Scored, live: bool) -> Result:
+    lacking, unlabelled = _receipts(run, record, scored)
     measured = f"{len(lacking)} without receipt or accept"
     if lacking:
         return "R8", FAIL, measured, "; ".join(lacking)
@@ -298,7 +302,8 @@ COMMON_KEYS = (
 ).split()
 MODEL_KEYS = (
     "picker_label context_tokens skills_lists_rbot rbot_invoked turns_before_approval "
-    "questions_after_approval subagents report_opened start_utc finish_utc"
+    "questions_after_approval subagents report_opened start_utc finish_utc "
+    "check_exit scorecard_exit"
 ).split()
 CHOICES = {
     "wheels_install": YES_NO,
@@ -309,7 +314,13 @@ CHOICES = {
     "resume_ok": YES_NO,
     "subagents": ("yes", "fallback", "no"),
 }
-INTEGERS = ("context_tokens", "turns_before_approval", "questions_after_approval")
+INTEGERS = (
+    "context_tokens",
+    "turns_before_approval",
+    "questions_after_approval",
+    "check_exit",
+    "scorecard_exit",
+)
 REQUIRED = [
     *COMMON_KEYS,
     *(f"{m}_{k}" for m in MODELS for k in MODEL_KEYS),
@@ -473,48 +484,63 @@ def l8(c: dict[str, str], sizes: dict[str, int]) -> tuple[str, str]:
 Cards = dict[str, tuple[list[Result], Path]]
 
 
-def score(bundle: Bundle, out: Path) -> Cards:
-    """`check --live` and the scorecard of each model's run; scorecards go under `out`."""
+def parse_check(text: str, where: str) -> list[Result]:
+    """The eight rows `check` printed (`ID | verdict | measured | evidence`), each exactly once."""
+    rows = [x.split(" | ", 3) for x in text.splitlines() if x.strip()]
+    ids = [r[0] for r in rows]
+    if ids != [f"R{n}" for n in range(1, 9)] or any(
+        len(r) != 4 or r[1] not in (PASS, FAIL, UNMEASURED) for r in rows
+    ):
+        raise RunError(
+            f"{where}: not the eight R1-R8 rows of `acceptance.py check` ({text[:80]!r})"
+        )
+    return [(r[0], r[1], r[2], r[3]) for r in rows]
+
+
+def _model_files(bundle: Bundle, c: dict[str, str], m: str) -> tuple[list[Result], str, str]:
+    folder = bundle.root / m
+    for name in ("check.txt", "scorecard.md"):
+        if not (folder / name).is_file():
+            raise RunError(f"evidence: {m}/{name} is missing")
+    text, card = read_text(folder / "check.txt"), read_text(folder / "scorecard.md")
+    results = parse_check(text, f"{m}/check.txt")
+    code = 0 if all(r[1] == PASS for r in results) else 1
+    if int(c[f"{m}_check_exit"]) != code or int(c[f"{m}_scorecard_exit"]) != 0:
+        raise RunError(f"checklist.txt: {m} check/scorecard exit codes disagree with the files")
+    if f"- Run: {bundle.run[m].name};" not in card:
+        raise RunError(f"{m}/scorecard.md does not name the run {bundle.run[m].name}")
+    return results, text, card
+
+
+def score(bundle: Bundle, c: dict[str, str], out: Path) -> Cards:
+    """Each model's `check --live` rows and scorecard, produced on the work PC (the run binds its
+    own absolute path, so they cannot be re-run here); the scorecard must name the run."""
     scored = {}
-    for m, run in bundle.run.items():
-        results = []
-        for i, v, measured, evidence in check(run, PACK, True):
-            if (i, v) == ("R8", UNMEASURED):  # only the owner's label and chat export were open
-                v, evidence = PASS, f"{evidence}; returned: {bundle.chat[m].name} and the label"
-            results.append((i, v, measured, evidence))
-        captured = io.StringIO()
-        with contextlib.redirect_stdout(captured):
-            args = ["--run", str(run), "--out", str(out / m), "--pack-id", PACK]
-            code = scorecard.main(args)
-        if code != 0:
-            raise RunError(f"scorecard ({m}): {captured.getvalue().strip()}")
-        scored[m] = (results, Path(captured.getvalue().strip()))
+    for m in MODELS:
+        results, text, card = _model_files(bundle, c, m)
+        for i, (rid, v, measured, evidence) in enumerate(results):
+            if (rid, v) == ("R8", UNMEASURED):  # only the owner's label and chat export were open
+                note = f"{evidence}; returned: {bundle.chat[m].name} and the label"
+                results[i] = (rid, PASS, measured, note)
+        (out / m).mkdir(parents=True, exist_ok=True)
+        write_atomic(out / m / "scorecard.md", card)
+        write_atomic(out / m / "check.txt", text)
+        scored[m] = (results, out / m / "scorecard.md")
     return scored
 
 
-def l_rows(bundle: Bundle, c: dict[str, str], sizes: dict[str, int], scored: Cards) -> list[Row]:
-    def each(key: str) -> str:
-        return ", ".join(f"{m} {c[f'{m}_{key}']}" for m in MODELS)
+def _each(c: dict[str, str], key: str) -> str:
+    return ", ".join(f"{m} {c[f'{m}_{key}']}" for m in MODELS)
 
-    def all_pass(*models: str) -> bool:
-        return all(v == PASS for m in models for _, v, _, _ in scored[m][0])
 
-    def is_r(rid: str, m: str) -> bool:
-        return any(i == rid and v == PASS for i, v, _, _ in scored[m][0])
+def _every(c: dict[str, str], key: str, want: str, models: tuple[str, ...] = MODELS) -> bool:
+    return all(c[f"{m}_{key}"] == want for m in models)
 
-    def every(key: str, want: str, models: tuple[str, ...] = MODELS) -> bool:
-        return all(c[f"{m}_{key}"] == want for m in models)
 
+def _environment_rows(bundle: Bundle, c: dict[str, str]) -> dict[str, tuple[bool, str]]:
     env = read_text(bundle.root / "env.txt")
-    install = read_text(bundle.root / "install.txt")
     python = tuple(int(x) for x in c["python_version"].split(".")[:2])
-    spans = ", ".join(
-        f"{m} {_time(c[f'{m}_finish_utc']) - _time(c[f'{m}_start_utc'])}" for m in MODELS
-    )
-    budget, budget_text = l8(c, sizes)
-    cards = ", ".join(str(scored[m][1]) for m in MODELS)
-    both = "R1-R8 on both runs"
-    rows = {
+    return {
         "L1": (
             python >= (3, 11) and bool(env.strip()),
             f"python {c['python_version']} (floor 3.11); {c['os']}; {c['editor_version']}; "
@@ -522,18 +548,40 @@ def l_rows(bundle: Bundle, c: dict[str, str], sizes: dict[str, int], scored: Car
         ),
         "L2": (c["wheels_install"] == "yes", f"wheels_install {c['wheels_install']}; probe 2"),
         "L3": (
-            "0 problem(s)" in install,
+            "0 problem(s)" in read_text(bundle.root / "install.txt"),
             f"install_method {c['install_method']}; install.txt: version, check",
         ),
         "L4": (
-            every("skills_lists_rbot", "yes") and every("rbot_invoked", "yes"),
-            f"skills_lists_rbot {each('skills_lists_rbot')}; rbot_invoked {each('rbot_invoked')}",
+            _every(c, "skills_lists_rbot", "yes") and _every(c, "rbot_invoked", "yes"),
+            f"skills_lists_rbot {_each(c, 'skills_lists_rbot')}; "
+            f"rbot_invoked {_each(c, 'rbot_invoked')}",
         ),
         "L5": (
-            every("turns_before_approval", "2") and every("questions_after_approval", "0"),
-            f"turns {each('turns_before_approval')}; questions {each('questions_after_approval')}",
+            _every(c, "turns_before_approval", "2") and _every(c, "questions_after_approval", "0"),
+            f"turns {_each(c, 'turns_before_approval')}; "
+            f"questions {_each(c, 'questions_after_approval')}",
         ),
-        "L6": (every("subagents", "yes") and all_pass(*MODELS), f"{each('subagents')}; {both}"),
+    }
+
+
+def l_rows(bundle: Bundle, c: dict[str, str], sizes: dict[str, int], scored: Cards) -> list[Row]:
+    def all_pass(*models: str) -> bool:
+        return all(v == PASS for m in models for _, v, _, _ in scored[m][0])
+
+    def r2_pass(m: str) -> bool:
+        return any(i == "R2" and v == PASS for i, v, _, _ in scored[m][0])
+
+    spans = ", ".join(
+        f"{m} {_time(c[f'{m}_finish_utc']) - _time(c[f'{m}_start_utc'])}" for m in MODELS
+    )
+    budget, budget_text = l8(c, sizes)
+    cards = ", ".join(str(scored[m][1]) for m in MODELS)
+    both = "R1-R8 on both runs"
+    rows = _environment_rows(bundle, c) | {
+        "L6": (
+            _every(c, "subagents", "yes") and all_pass(*MODELS),
+            f"{_each(c, 'subagents')}; {both}",
+        ),
         "L7": (
             c["claude_resume_ok"] == "yes" and all_pass("claude"),
             f"claude_resume_ok {c['claude_resume_ok']}; R1-R8 on the claude run",
@@ -541,12 +589,18 @@ def l_rows(bundle: Bundle, c: dict[str, str], sizes: dict[str, int], scored: Car
         "L8": (budget == PASS, budget_text),
         "L9": (True, "both probe files hold sections 1-6; content: docs/spike/copilot-spike.md"),
         "L10": (
-            every("report_opened", "yes") and all(is_r("R2", m) for m in MODELS),
-            f"report_opened {each('report_opened')}; R2 on both runs",
+            _every(c, "report_opened", "yes") and all(r2_pass(m) for m in MODELS),
+            f"report_opened {_each(c, 'report_opened')}; R2 on both runs",
         ),
         "L11": (all_pass(*MODELS), f"{both}; durations {spans}; scorecards {cards}"),
     }
-    return [(i, "B", PASS if ok else FAIL, why) for i, (ok, why) in rows.items()]
+    return [
+        (i, "B", PASS if ok else FAIL, why) for i, (ok, why) in sorted(rows.items(), key=_order)
+    ]
+
+
+def _order(item: tuple[str, object]) -> int:
+    return int(item[0][1:])
 
 
 def render(c: dict[str, str], manifest: dict[str, Any], rows: list[Row], bundle: Path) -> str:
@@ -590,7 +644,7 @@ def ingest(evidence: Path, manifest_path: Path, out: Path) -> int:
     for m in MODELS:
         probe_sections(bundle.probe[m])
     sizes = prompt_files(manifest, bundle.run)
-    scored = score(bundle, out.with_suffix(""))
+    scored = score(bundle, c, out.with_suffix(""))
     rows = l_rows(bundle, c, sizes, scored)
     for m in MODELS:
         rows += [(f"{i} ({m})", f"B ({m})", v, f"{mm}; {ev}") for i, v, mm, ev in scored[m][0]]

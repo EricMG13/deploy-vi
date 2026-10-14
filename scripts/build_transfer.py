@@ -27,6 +27,8 @@ PACK = "czr-2026q2-primary"
 PYTHON_PACKAGES = ("openpyxl", "pypdf")  # the runtime's pinned dependencies (pyproject.toml)
 CHECKLIST_DOC = "docs/acceptance/work-pc-checklist.md"
 FENCE = "```checklist.txt\n"
+TOOLS = ("acceptance.py", "scorecard.py", "ab_grade.py", "ab_evidence.py")  # run beside rbot/
+TOOL_DATA = ("tests/corpus/corpus.json", f"tests/corpus/expectations/{PACK}.json")
 ZIP_TIME = (1980, 1, 1, 0, 0, 0)
 
 
@@ -114,6 +116,10 @@ def _collect(args: argparse.Namespace, scratch: Path) -> tuple[dict[str, tuple[b
     }
     files.update({n: v for n, v in _files(stage, "").items() if n in ("install.sh", "install.ps1")})
     files.update(_files(stage / "spike", "spike/"))
+    # tools/acceptance.py and scorecard.py read `rbot/scripts` and `tests/corpus` beside tools/
+    files.update({f"tools/{n}": ((stage / "scripts" / n).read_bytes(), False) for n in TOOLS})
+    files.update({n: ((stage / n).read_bytes(), False) for n in TOOL_DATA})
+    files.update(_files(stage / "tests/corpus/synthetic" / PACK, f"tests/corpus/synthetic/{PACK}/"))
     tree = str(json.loads((args.runtime / "runtime.json").read_text())["runtime_tree"])
     return files, tree
 

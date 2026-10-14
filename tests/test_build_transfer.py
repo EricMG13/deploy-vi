@@ -50,6 +50,12 @@ def repo(tmp_path: Path) -> tuple[Path, str]:
         (root / name).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(REAL / name, root / name)
     shutil.copytree(REAL / "spike", root / "spike")
+    for name in ("acceptance", "scorecard", "ab_grade", "ab_evidence"):
+        (root / f"scripts/{name}.py").parent.mkdir(exist_ok=True)
+        shutil.copyfile(REAL / f"scripts/{name}.py", root / f"scripts/{name}.py")
+    expect = "tests/corpus/expectations/czr-2026q2-primary.json"
+    (root / expect).parent.mkdir(parents=True)
+    shutil.copyfile(REAL / expect, root / expect)
     pack = root / "tests/corpus/synthetic/czr-2026q2-primary"
     pack.mkdir(parents=True)
     (pack / "a.txt").write_text("registered\n")
@@ -130,6 +136,10 @@ def test_manifest_round_trip(repo: tuple[Path, str], wheels: Path, tmp_path: Pat
         assert {
             "install.sh",
             "install.ps1",
+            "tools/acceptance.py",
+            "tools/scorecard.py",
+            "tests/corpus/corpus.json",
+            "tests/corpus/synthetic/czr-2026q2-primary/a.txt",
             "CHECKLIST.md",
             "evidence/checklist.txt",
             "rbot/runtime.json",
@@ -200,4 +210,24 @@ def test_shipped_lock_pins_pure_wheels_and_checklist_block_is_complete() -> None
     blank = build_transfer._blank_checklist(
         (REAL / "docs/acceptance/work-pc-checklist.md").read_text()
     )
-    assert len(blank.splitlines()) == 10 + 2 * 10 + 1
+    assert len(blank.splitlines()) == 10 + 2 * 12 + 1
+
+
+def test_shipped_tools_import_from_the_extracted_folder(
+    repo: tuple[Path, str], wheels: Path, tmp_path: Path
+) -> None:
+    assert _build(repo, tmp_path, wheels).code == 0
+    pkg = tmp_path / "extracted"
+    with zipfile.ZipFile(tmp_path / f"out/rbot-v1-{repo[1][:12]}.zip") as zf:
+        zf.extractall(pkg)
+    (tmp_path / "not-a-run").mkdir()
+    for tool, args in (("acceptance", ["check"]), ("scorecard", [])):
+        argv = [
+            sys.executable,
+            str(pkg / f"tools/{tool}.py"),
+            *args,
+            "--run",
+            str(tmp_path / "not-a-run"),
+        ]
+        done = subprocess.run(argv, capture_output=True, text=True, cwd=tmp_path, timeout=120)
+        assert done.returncode == 2 and f"{tool}: " in done.stdout, done.stdout + done.stderr

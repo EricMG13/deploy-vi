@@ -10,7 +10,9 @@ snapshot; three runs are built once per module (accepted, failed CP-1B, dropped 
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import io
 import json
 import shutil
 from collections.abc import Callable
@@ -20,6 +22,7 @@ from typing import NamedTuple
 import acceptance
 import pytest
 import report_run
+import scorecard
 from report_run import complete_run
 
 from rbotlib import attempts, dispatch, state
@@ -317,9 +320,9 @@ def test_unreadable_run_is_refused(tmp_path: Path, capsys: pytest.CaptureFixture
 
 
 # --- `ingest` (Plan 08 task 08.4b) -------------------------------------------------------------
-# The bundle's claude/ and gpt/ folders are both links to the one finished fixture run (a pack is
-# bound to its absolute path, so a second run would cost another ~5 minute build); the cases
-# differ in the checklist, install.txt, probes and manifest, which are written per case.
+# `check --live` and the scorecard run once, for real, on the finished fixture run (as the owner
+# does on the work PC); their output is copied into each bundle, whose run folder is a stand-in
+# that holds the run's dispatch files. `ingest` never reads the run state.
 
 COMMIT = "c0ffee" * 6 + "c0ff"
 TREE = "ab" * 20
@@ -334,7 +337,7 @@ MODEL_VALUES = {
     "report_opened": "yes",
     "start_utc": "2026-10-14T09:00:00Z",
     "finish_utc": "2026-10-14T10:30:00Z",
-}
+}  # check_exit and scorecard_exit are added in checklist_values
 COMMON_VALUES = {
     "package_sha256": "f" * 64,
     "os": "Windows 11",
@@ -354,37 +357,43 @@ def checklist_values(**override: str) -> dict[str, str]:
     values = dict(COMMON_VALUES)
     for model in ("claude", "gpt"):
         values |= {f"{model}_{k}": v.format(m=model) for k, v in MODEL_VALUES.items()}
+    for m in ("claude", "gpt"):
+        values |= {f"{m}_check_exit": "1", f"{m}_scorecard_exit": "0"}  # live: R8 NOT MEASURED
     values["claude_resume_ok"] = "yes"
     return values | override
 
 
-def make_bundle(tmp: Path, run_home: Path | None, **override: str) -> tuple[Path, Path]:
+class Measured(NamedTuple):
+    run_id: str
+    dispatch: Path
+    check: str
+    card: str
+
+
+def make_bundle(
+    tmp: Path, measured: Measured | None, check: str | None = None, **override: str
+) -> tuple[Path, Path]:
     """An evidence folder and a manifest of this checkout's SKILL, canon and MODULE files."""
     root = tmp / "rbot-v1-evidence-2026-10-14"
     root.mkdir()
     values = {k: v for k, v in checklist_values(**override).items() if v != "<absent>"}
     (root / "checklist.txt").write_text("".join(f"{k}: {v}\n" for k, v in values.items()))
     (root / "env.txt").write_text("PSVersion 5.1\n")
-    (root / "install.txt").write_text(
-        f'rbot 1.0.0 {COMMIT}\n  "runtime_tree": "{TREE}",\n0 problem(s)\n'
-    )
+    tree = f'  "runtime_tree": "{TREE}",'
+    (root / "install.txt").write_text(f"rbot 1.0.0 {COMMIT}\n{tree}\n0 problem(s)\n")
     for model in ("claude", "gpt"):
-        if run_home is None:  # layout only: the run is never read
-            (root / model / "pack/rbot-runs/r1").mkdir(parents=True)
-            (root / model / "chat.md").write_text("chat")
-            (root / model / "rbot-probe-result.md").write_text(PROBE)
-        else:
-            root.joinpath(model).symlink_to(run_home, target_is_directory=True)
-    if run_home is not None:
-        (run_home / "chat.md").write_text("chat")
-        (run_home / "rbot-probe-result.md").write_text(PROBE)
-    files = [
-        "SKILL.md",
-        "canon.md",
-        *(
-            p.relative_to(RBOT_ROOT).as_posix()
-            for p in sorted(RBOT_ROOT.glob("modules/*/MODULE.md"))
-        ),
+        run = root / model / "pack/rbot-runs" / (measured.run_id if measured else "r1")
+        run.mkdir(parents=True)
+        (root / model / "chat.md").write_text("chat")
+        (root / model / "rbot-probe-result.md").write_text(PROBE)
+        if measured:
+            shutil.copytree(measured.dispatch, run / "dispatch")
+            (root / model / "scorecard.md").write_text(measured.card)
+            if check is not None:
+                (root / model / "check.txt").write_text(check or measured.check)
+    files = ["SKILL.md", "canon.md"]
+    files += [
+        p.relative_to(RBOT_ROOT).as_posix() for p in sorted(RBOT_ROOT.glob("modules/*/MODULE.md"))
     ]
     hashes = {f"rbot/{f}": hashlib.sha256((RBOT_ROOT / f).read_bytes()).hexdigest() for f in files}
     manifest = tmp / "MANIFEST.json"
@@ -421,6 +430,7 @@ def ingest(
         ({"claude_context_tokens": "many"}, "claude_context_tokens"),
         ({"gpt_subagents": "maybe"}, "gpt_subagents"),
         ({"os": ""}, "os"),
+        ({"gpt_check_exit": "<absent>"}, "gpt_check_exit"),
         ({"claude_finish_utc": "2026-10-14T08:00:00Z"}, "before"),
     ],
 )
@@ -464,32 +474,78 @@ def test_missing_probe_section_is_bad_evidence(
     assert code == 2 and "section 4" in printed
 
 
-@pytest.fixture
-def home(accepted: Built) -> Path:
-    return reset(accepted).parent.parent.parent
+@pytest.fixture(scope="module")
+def measured(accepted: Built, tmp_path_factory: pytest.TempPathFactory) -> Measured:
+    """What the owner runs on the work PC: `check --live` and the scorecard on the finished run."""
+    run = reset(accepted)
+    printed = io.StringIO()
+    with contextlib.redirect_stdout(printed):
+        assert acceptance.main(["check", "--run", str(run), "--pack-id", PACK, "--live"]) == 1
+        out = tmp_path_factory.mktemp("card")
+        assert scorecard.main(["--run", str(run), "--out", str(out), "--pack-id", PACK]) == 0
+    card = next(out.glob("*.md")).read_text(encoding="utf-8")
+    check = "\n".join(x for x in printed.getvalue().splitlines() if x.startswith("R")) + "\n"
+    return Measured(run.name, run / "dispatch", check, card)
 
 
 def test_passing_bundle_writes_the_record(
-    home: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    measured: Measured, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    root, manifest = make_bundle(tmp_path, home)
+    root, manifest = make_bundle(tmp_path, measured, check="")
     code, printed, rows = ingest(root, manifest, tmp_path, capsys)
-    wanted = [f"L{n}" for n in range(1, 12)] + [
-        f"R{n} ({m})" for m in ("claude", "gpt") for n in range(1, 9)
-    ]
+    wanted = [f"L{n}" for n in range(1, 12)]
+    wanted += [f"R{n} ({m})" for m in ("claude", "gpt") for n in range(1, 9)]
     assert {k: rows[k] for k in wanted} == dict.fromkeys(wanted, "PASS"), (printed, rows)
     assert code == 0
     record = (tmp_path / "docs/v1-work-pc-2026-10-14.md").read_text()
     assert COMMIT in record and TREE in record and "f" * 64 in record
     assert record.rstrip().splitlines()[-1].startswith("Not verified:")
     for model in ("claude", "gpt"):
-        assert list((tmp_path / f"docs/v1-work-pc-2026-10-14/{model}").glob("*.md"))
+        card = tmp_path / f"docs/v1-work-pc-2026-10-14/{model}/scorecard.md"
+        assert card.read_text() == measured.card
+
+
+def test_fail_row_in_check_txt_exits_one(
+    measured: Measured, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    failing = measured.check.replace("R3 | PASS", "R3 | FAIL")
+    assert failing != measured.check
+    root, manifest = make_bundle(tmp_path, measured, check=failing)
+    code, printed, rows = ingest(root, manifest, tmp_path, capsys)
+    assert code == 1, printed
+    assert {k for k, v in rows.items() if v != "PASS"} == {
+        "R3 (claude)",
+        "R3 (gpt)",
+        "L6",
+        "L7",
+        "L11",
+    }
+
+
+@pytest.mark.parametrize("text", [None, "", "R1 | PASS | x | y\n", "acceptance: run refused\n"])
+def test_missing_or_malformed_check_txt_is_bad_evidence(
+    text: str | None, measured: Measured, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, manifest = make_bundle(tmp_path, measured, check=text)
+    if text == "":
+        (root / "claude/check.txt").write_text("")
+    code, printed, rows = ingest(root, manifest, tmp_path, capsys)
+    assert code == 2 and "check.txt" in printed and not rows
+
+
+def test_scorecard_of_another_run_is_bad_evidence(
+    measured: Measured, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, manifest = make_bundle(tmp_path, measured, check="")
+    (root / "gpt/scorecard.md").write_text(measured.card.replace(measured.run_id, "other-run"))
+    code, printed, _ = ingest(root, manifest, tmp_path, capsys)
+    assert code == 2 and "does not name the run" in printed
 
 
 def test_budget_below_the_dispatch_size_fails_only_l8(
-    home: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    measured: Measured, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    root, manifest = make_bundle(tmp_path, home, gpt_context_tokens="1000")
+    root, manifest = make_bundle(tmp_path, measured, check="", gpt_context_tokens="1000")
     code, printed, rows = ingest(root, manifest, tmp_path, capsys)
     assert code == 1, printed
     assert {k for k, v in rows.items() if v != "PASS"} == {"L8"}

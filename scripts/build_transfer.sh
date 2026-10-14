@@ -18,7 +18,8 @@ trap 'rm -rf -- "$stage"' EXIT
 mkdir "$stage/inputs"
 if ! git -C "$repo" archive "$sha" install.sh install.ps1 uv.lock spike/rbot-probe \
   spike/probe-workspace docs/acceptance/work-pc-checklist.md tests/corpus/corpus.json \
-  tests/corpus/synthetic | tar -x -C "$stage/inputs"; then
+  tests/corpus/synthetic tests/corpus/expectations/czr-2026q2-primary.json scripts/acceptance.py \
+  scripts/scorecard.py scripts/ab_grade.py scripts/ab_evidence.py | tar -x -C "$stage/inputs"; then
   echo "error: build transfer: required inputs are not committed at ${sha:0:12}" >&2
   exit 1
 fi

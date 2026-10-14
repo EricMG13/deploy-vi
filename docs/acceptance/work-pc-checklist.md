@@ -31,8 +31,17 @@ Run everything in the PowerShell terminal inside the editor. Append each command
    5. Type nothing more except for the resume check. When CP-1A is reported accepted, close the chat, open a new one and type `/rbot`. Note whether it resumes without asking for Approval.
    6. At the end, note the finish time and copy the final reply.
    7. Open `rbot-runs\<run>\report.html` from disk.
-   8. Export the chat (Chat: Export…, or copy the text) to `evidence\claude\chat.json` or `chat.md`, and redact account names.
-   9. Record verbatim any question the agent asked after Approval.
+   8. Measure the run. With `$py = "$HOME\.rbot-venv\Scripts\python.exe"` and `$run` the folder `C:\rbot-acceptance\claude\czr-2026q2-primary\rbot-runs\<run_id>`, from the unzipped package folder:
+      ```
+      & $py tools\acceptance.py check --run $run --live | Out-File -Encoding utf8 evidence\claude\check.txt
+      $LASTEXITCODE
+      & $py tools\scorecard.py --run $run --out evidence\claude\sc
+      $LASTEXITCODE
+      Move-Item evidence\claude\sc\*.md evidence\claude\scorecard.md
+      ```
+      Write the two printed exit codes into `claude_check_exit` and `claude_scorecard_exit` (check exits 1 on a live run because R8 reads NOT MEASURED; ingest settles it).
+   9. Export the chat (Chat: Export…, or copy the text) to `evidence\claude\chat.json` or `chat.md`, and redact account names.
+   10. Record verbatim any question the agent asked after Approval.
 7. **Run with the GPT model:** repeat step 6 under `C:\rbot-acceptance\gpt\`, without the resume check.
 8. **Fill in `evidence\checklist.txt`.**
 9. **Zip and return.** Zip `evidence\` and both `C:\rbot-acceptance\<model>\czr-2026q2-primary` folders, including `rbot-runs\`, as `rbot-v1-evidence-<date>.zip`. Confirm it holds no work data, then transfer it to the Mac.
@@ -42,7 +51,7 @@ Run everything in the PowerShell terminal inside the editor. Append each command
 ```
 rbot-v1-evidence-<date>/
   checklist.txt  env.txt  install.txt
-  claude/rbot-probe-result.md  claude/chat.(json|md)  claude/czr-2026q2-primary/**  (incl. rbot-runs/<run_id>/)
+  claude/rbot-probe-result.md  claude/chat.(json|md)  claude/check.txt  claude/scorecard.md  claude/czr-2026q2-primary/**  (incl. rbot-runs/<run_id>/)
   gpt/   … same
 ```
 
@@ -50,9 +59,9 @@ rbot-v1-evidence-<date>/
 
 - **Package and environment:** `package_sha256`, `os`, `editor`, `editor_version`, `copilot_chat_version`, `execution_policy`, `python_cmd`, `python_version`.
 - **Installation:** `wheels_install`, `install_method`.
-- **Per model, with a `claude_` or `gpt_` prefix:** `picker_label`, `context_tokens`, `skills_lists_rbot`, `rbot_invoked`, `turns_before_approval`, `questions_after_approval`, `subagents` (yes, fallback or no), `report_opened`, `start_utc`, `finish_utc`.
+- **Per model, with a `claude_` or `gpt_` prefix:** `picker_label`, `context_tokens`, `skills_lists_rbot`, `rbot_invoked`, `turns_before_approval`, `questions_after_approval`, `subagents` (yes, fallback or no), `report_opened`, `start_utc`, `finish_utc`, `check_exit`, `scorecard_exit`.
 - **Claude run only:** `claude_resume_ok`.
-- **Values:** `yes` or `no` for `wheels_install`, `*_skills_lists_rbot`, `*_rbot_invoked`, `*_report_opened` and `claude_resume_ok`; `install_method` is `ps1` or `manual`; `*_context_tokens`, `*_turns_before_approval` and `*_questions_after_approval` are whole numbers; `*_start_utc` and `*_finish_utc` are ISO times such as `2026-10-14T09:00:00Z`.
+- **Values:** `yes` or `no` for `wheels_install`, `*_skills_lists_rbot`, `*_rbot_invoked`, `*_report_opened` and `claude_resume_ok`; `install_method` is `ps1` or `manual`; `*_context_tokens`, `*_turns_before_approval` and `*_questions_after_approval`, `*_check_exit` and `*_scorecard_exit` are whole numbers; `*_start_utc` and `*_finish_utc` are ISO times such as `2026-10-14T09:00:00Z`.
 
 ### 6.3 Ingest command (Mac)
 
@@ -87,6 +96,8 @@ claude_subagents:
 claude_report_opened:
 claude_start_utc:
 claude_finish_utc:
+claude_check_exit:
+claude_scorecard_exit:
 claude_resume_ok:
 gpt_picker_label:
 gpt_context_tokens:
@@ -98,4 +109,6 @@ gpt_subagents:
 gpt_report_opened:
 gpt_start_utc:
 gpt_finish_utc:
+gpt_check_exit:
+gpt_scorecard_exit:
 ```
