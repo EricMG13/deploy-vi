@@ -138,6 +138,7 @@ def test_blocked_owner_keeps_tables() -> None:
 def test_owner_outside_the_plan_adds_no_table() -> None:
     got = entry(blk.front_page_blocks(make_run(), CATALOG, CONTRACTS), "chart_strip")
     assert [t["table_id"] for t in got["tables"]] == ["model.metrics", "model.summary"]
+    assert got["line"] == "Net leverage, interest cover and liquidity: PROJECTION not in this run"
 
 
 def test_missing_table_in_accepted_handoff_refuses() -> None:

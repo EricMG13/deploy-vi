@@ -100,6 +100,7 @@ def _block_entry(
         owner = owner_of(table_id, run, catalog, contracts)
         status = _owner_status(run, owner)
         if status is None:
+            seen.setdefault(owner, f"{block.title}: {owner} not in this run")
             continue
         if status in ("failed", "skipped"):
             if owner not in seen:
