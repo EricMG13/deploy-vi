@@ -12,36 +12,31 @@
 </head>
 <body>
 <div class="mockup-banner" hidden data-artifact-only>Design mockup · figures from Caesars' public filings · every score, recommendation and view is illustrative, not investment research</div>
-<a class="skip" href="#paper">Skip to the Report</a>
-<div class="shell">
-  <aside class="rail" aria-label="Contents">
-    <div class="rail__id">
-      <div>
-        <span class="rail__issuer" id="rail-issuer"></span>
-        <span class="rail__meta"><span id="rail-meta"></span><span class="vh">, current section: </span><span id="rail-where" class="rail__where"></span></span>
-      </div>
-      <button type="button" class="btn rail__toggle" id="rail-toggle" aria-expanded="false" aria-controls="rail-panel">Contents</button>
+<a class="skip" href="#main">Skip to the Report</a>
+<div class="app">
+  <aside class="pane" id="pane" aria-label="Report navigation">
+    <div class="pane__bar">
+      <img class="brand-logo" data-brand src="../../brand/ssim-logo-horizontal-white.png" alt="State Street Investment Management" width="176" height="22">
+      <span class="pane__where" id="pane-where" aria-hidden="true"></span>
+      <button type="button" class="pane__menu" id="pane-menu" aria-expanded="false" aria-controls="pane-sheet"><span class="pane__menu-ico" aria-hidden="true"></span>Menu</button>
     </div>
-    <div class="rail__panel" id="rail-panel" hidden>
-      <nav id="toc" aria-label="Report sections"></nav>
-      <div class="rail__tools">
-        <button type="button" class="btn btn--quiet" id="open-all" aria-pressed="false">Open all sections</button>
+    <div class="pane__sheet" id="pane-sheet">
+      <div class="pane__id">
+        <span class="pane__issuer" id="pane-issuer"></span>
+        <span class="pane__meta" id="pane-meta"></span>
       </div>
-      <div class="rail__key">
-        <h2>How to read a figure</h2>
-        <ul>
-          <li><button type="button" class="cite" data-ref="C1">C1</button> Cited: opens file, line and excerpt</li>
-          <li><button type="button" class="calc" data-ref="K2">K2</button> Calculated: opens the formula</li>
-          <li><span class="gapref" aria-hidden="true">G8</span> Gap: missing, with its reason</li>
-          <li><span class="prov-model">Model-authored</span><span class="tag-model">Model</span></li>
-          <li><span class="illus">Illustrative</span> no RBOT run exists</li>
-          <li><span class="synth">Synthetic</span> Test CLO I files</li>
-        </ul>
+      <div class="pane__search" role="search">
+        <label class="pane__search-l" for="pane-search">Search the Report <kbd>/</kbd></label>
+        <input class="pane__search-i" id="pane-search" type="search" autocomplete="off" placeholder="Search (press /)" aria-controls="pane-results">
+        <p class="pane__count" id="pane-search-status" role="status" aria-live="polite" hidden></p>
+        <ul class="pane__results" id="pane-results" hidden></ul>
       </div>
+      <nav class="nav" id="nav" aria-label="Report views"></nav>
     </div>
   </aside>
-  <main class="paper" id="paper" tabindex="-1"></main>
+  <main class="main" id="main" tabindex="-1"></main>
 </div>
+<div class="vh" id="route-live" role="status" aria-live="polite"></div>
 <script src="shared/data.js"></script>
 <script src="shared/charts.js"></script>
 <script src="report-a.js"></script>
