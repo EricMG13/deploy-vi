@@ -386,3 +386,57 @@ def test_pro_forma_keeps_a_foreign_note_drops_a_differs_note_and_is_exact() -> N
     assert pf["total_debt"] == frame[ltm.column_id]["total_debt"]
     assert pf["net_debt"].basis == "PRO_FORMA"
     assert pf["net_debt"].value == frame[ltm.column_id]["net_debt"].value
+
+
+def _revolver_pf(drawn: Decimal, movement: Decimal) -> tuple[dict[str, Cell], dict[str, Cell]]:
+    """The LTM and PF-LTM cells for a revolver drawn `drawn` with `movement`
+    pro forma drawings (negative repays)."""
+    regs = with_figures(example_registers(), "LTM_Q2_2026", {"rcf_drawn": drawn})
+    row = replace(regs.pro_forma[0], adjustment_id="rcf_move", metric_id="facility:rcf")
+    regs = replace(regs, pro_forma=(replace(row, value=movement),))
+    ltm = _columns(regs)["LTM Q2 26"]
+    frame = _frame(regs)
+    made = pro_forma_column(regs, ltm, frame)
+    assert made is not None
+    return frame[ltm.column_id], made[1]["PF:LTM_Q2_2026"]
+
+
+def test_pf_revolver_repayment_restores_undrawn_and_liquidity() -> None:
+    base, pf = _revolver_pf(Decimal(120), Decimal(-120))
+    assert _values(base, "undrawn_rcf") == (2080,)
+    assert _values(pf, "undrawn_rcf") == (2200,)
+    assert pf["undrawn_rcf"].basis == "PRO_FORMA"
+    for cells, undrawn in ((pf, 2200), (base, 2080)):
+        cash = cells["cash_closing"].value
+        assert cash is not None
+        assert cells["liquidity"].value == cash + undrawn
+
+
+def test_pf_non_revolver_facility_leaves_undrawn() -> None:
+    regs = example_registers()
+    ltm = _columns(regs)["LTM Q2 26"]
+    frame = _frame(regs)
+    made = pro_forma_column(regs, ltm, frame)
+    assert made is not None
+    assert made[1]["PF:LTM_Q2_2026"]["undrawn_rcf"] == frame[ltm.column_id]["undrawn_rcf"]
+
+
+@settings(max_examples=60, deadline=None)
+@given(drawn=st.decimals(0, 2200, places=2), movement=st.decimals(-2200, 2200, places=2))
+def test_pf_undrawn_is_commitment_less_pro_forma_drawn(drawn: Decimal, movement: Decimal) -> None:
+    _, pf = _revolver_pf(drawn, movement)
+    assert pf["undrawn_rcf"].value == Decimal(2200) - (drawn + movement)
+
+
+def test_pf_revolver_type_spellings_and_drawings_lower_undrawn() -> None:
+    regs = with_figures(example_registers(), "LTM_Q2_2026", {"rcf_drawn": Decimal(0)})
+    for spelling in ("Revolver", "rcf", "REVOLVING CREDIT FACILITY"):
+        typed = replace(
+            regs,
+            facilities=tuple(replace(f, facility_type=spelling) for f in regs.facilities),
+            pro_forma=(replace(regs.pro_forma[0], metric_id="facility:rcf", value=Decimal(50)),),
+        )
+        ltm = _columns(typed)["LTM Q2 26"]
+        made = pro_forma_column(typed, ltm, _frame(typed))
+        assert made is not None
+        assert made[1]["PF:LTM_Q2_2026"]["undrawn_rcf"].value == 2150

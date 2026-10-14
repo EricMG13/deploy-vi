@@ -47,6 +47,7 @@ Pure: Decimal only, no I/O, no rounding.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Iterable
 from dataclasses import replace
 from decimal import Decimal, localcontext
@@ -113,6 +114,7 @@ _PF_TARGETS = {
     "cash_and_equivalents": ("cash_closing",),
     "total_debt": ("total_debt", "debt_closing"),
 }
+_REVOLVER = re.compile(r"^(RCF|REVOLV)")
 _PF_BLANK = (
     "other_operating",
     "ffo",
@@ -404,6 +406,26 @@ def _pf_keys(adjustment: PfAdjustmentRow, regs: Cp1Registers) -> Iterable[str]:
     return (f"fac:{facility_id}", *sorted(totals))
 
 
+def _is_revolver(adjustment: PfAdjustmentRow, regs: Cp1Registers) -> bool:
+    """Whether the adjustment moves a revolving credit facility's drawings; the
+    type is open text, so `REVOLVING_CREDIT_FACILITY`, `Revolver` and `RCF` all
+    read as one."""
+    if not adjustment.metric_id.startswith(_FACILITY):
+        return False
+    facility_id = adjustment.metric_id.removeprefix(_FACILITY)
+    return any(
+        f.facility_id == facility_id and _REVOLVER.match(f.facility_type.strip().upper())
+        for f in regs.facilities
+    )
+
+
+def _pf_undrawn(base: Cell, adjustments: list[PfAdjustmentRow], regs: Cp1Registers) -> Cell:
+    """The undrawn revolver after the adjustments' movements on revolver
+    facilities: drawings repaid add to it, new drawings take from it."""
+    freed = [replace(a, value=-a.value) for a in adjustments if _is_revolver(a, regs)]
+    return _pf_add("undrawn_rcf", base, freed) if freed and base.value is not None else base
+
+
 def _pf_value(adjustment: PfAdjustmentRow) -> Decimal:
     """The adjustment's figure in CP-1's own sign, a negative zero as zero."""
     return no_negative_zero(adjustment.value)
@@ -451,6 +473,7 @@ def pro_forma_column(regs: Cp1Registers, ltm: Column, frame: Frame) -> tuple[Col
                 added.setdefault(key, []).append(adjustment)
         for key, rows in added.items():
             cells[key] = _pf_add(key, cells.get(key), rows)
+        cells["undrawn_rcf"] = _pf_undrawn(cells["undrawn_rcf"], adjustments, regs)
         adjusted = cells["adjusted_ebitda"]
         lease_cost = cells["operating_lease_cost"]
         ebitdar = calc(((adjusted, 1), (lease_cost, -1)))
