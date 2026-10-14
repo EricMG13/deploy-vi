@@ -20,6 +20,7 @@ at 30 June 2026, net debt 10,740. No PF rows: the snapshot column is the LTM.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable
 from decimal import Decimal
 from pathlib import Path
@@ -152,3 +153,47 @@ def test_a14_outputs_use_the_current_registered_ltm_judgment(
     assert house["structuring_ebitda"]["value"] == "3742"
     assert house["ssim_ebitda"]["value"] == ssim
     assert "Structuring EBITDA 3742" in (run / "handoffs" / "MODEL.md").read_text(encoding="utf-8")
+
+
+_ROW = re.compile(r"^\| (cogs|opex_including_da) \| (\w+) \| (-?\d+) \|", re.MULTILINE)
+
+
+def _by_nature(text: str) -> str:
+    """The fixture as an issuer reporting expenses by nature registers it (as
+    CZR's real CP-1 does): no cogs rows, each period's opex_including_da the
+    whole of its operating expenses."""
+    totals: dict[str, int] = {}
+    for _metric, period, value in _ROW.findall(text):
+        totals[period] = totals.get(period, 0) + int(value)
+    kept = [line for line in text.splitlines() if not line.startswith("| cogs |")]
+    return "\n".join(
+        _ROW.sub(lambda m: f"| opex_including_da | {m[2]} | {totals[m[2]]} |", line)
+        for line in kept
+    )
+
+
+def test_model_on_expenses_by_nature_keeps_ebitda_and_leverage(
+    tmp_path: Path, corpus_pack: Callable[[str], Path]
+) -> None:
+    corpus_pack(PACK)
+    brief = (FIXTURES / "run_brief_czr.md").read_text(encoding="utf-8")
+    nature = _by_nature(CZR)
+    assert "| cogs |" not in nature
+    run = run_folder(tmp_path, nature, brief)
+    assert main(["model", "--run", str(run)]) == 0
+    data = _model(run)
+    ltm = {
+        line["line_id"]: {c["column_id"]: c for c in line["cells"]}["LTM:LTM_Q2_2026"]
+        for line in data["lines"]
+    }
+    assert ltm["gross_profit"]["value"] is None
+    assert [ltm[k]["value"] for k in ("ebit", "ebitda", "adjusted_ebitda")] == [
+        "1857",
+        "3255",
+        "3592",
+    ]
+    house = data["house"]
+    assert house["ssim_ebitda"]["value"] == "3592"
+    assert display(Decimal(house["ssim_multiple"]["value"]), "MULTIPLE") == "3.26"
+    assert house["ev"]["value"] == "28736.0"
+    assert data["reconciliation_faults"] == []

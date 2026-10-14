@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import errno
+import importlib
 import os
 import re
 import stat
@@ -14,9 +15,27 @@ from rbotlib.inventory import RunError, output_path
 
 MAGIC = b"rbot-owner/1 "
 LOG = "log/.rbot-log.lock"
+# Windows byte-range locks are mandatory, so lock a byte far past the sentinel to keep it readable.
+LOCK_OFFSET = 1 << 30
+
+
+_BUSY = "another state update, Approval or command holds this run (.approve.lock); busy"
 
 
 def _kernel(descriptor: int) -> None:
+    if os.name == "nt":
+        msvcrt: Any = importlib.import_module("msvcrt")  # absent from POSIX type stubs
+        # The MSVC CRT locks from the current position; seek there, then back for the writes.
+        os.lseek(descriptor, LOCK_OFFSET, os.SEEK_SET)
+        try:
+            msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
+        except OSError as exc:
+            if exc.errno in (errno.EACCES, errno.EDEADLK):
+                raise RunError(_BUSY) from exc
+            raise
+        finally:
+            os.lseek(descriptor, 0, os.SEEK_SET)
+        return
     if os.name != "posix":
         raise RunError("process ownership unsupported on this platform")
     import fcntl
@@ -25,9 +44,7 @@ def _kernel(descriptor: int) -> None:
         fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError as exc:
         if exc.errno in (errno.EACCES, errno.EAGAIN):
-            raise RunError(
-                "another state update, Approval or command holds this run (.approve.lock); busy"
-            ) from exc
+            raise RunError(_BUSY) from exc
         raise
 
 
@@ -50,7 +67,7 @@ class Owner:
         ):
             raise RunError(f"{name}: malformed ownership entitlement")
         target = output_path(run, name)
-        flags = os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
+        flags = os.O_RDWR | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
         if expected is None:
             flags |= os.O_CREAT | os.O_EXCL
         try:
