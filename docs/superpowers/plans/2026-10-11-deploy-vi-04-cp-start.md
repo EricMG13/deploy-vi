@@ -3352,7 +3352,9 @@ for pack in registry.packs:
     quiet += [main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"])]
     quiet += [main(["--root", str(root), "grade", "--run", str(run)])]
     assert quiet == [0, 0, 0, 0], (pack.id, quiet)
-    depths = {p["id"]: p["depths"] for p in json.loads((run / "grading.json").read_text())["pathways"]}
+    depths = {
+        p["id"]: p["depths"] for p in json.loads((run / "grading.json").read_text())["pathways"]
+    }
     for w in pack.data["pathways"]:
         g = depths[w["id"]][w["depth"]]
         cells = [pack.id, f"{w['id']} {w['depth']} ({w['fit']})", g["status"]]
@@ -3533,18 +3535,26 @@ from rbotlib.validate import check, run_findings
 run, pack = Path(sys.argv[1]), load_registry().pack(sys.argv[2])
 rules = load_rules()
 text = (run / "handoffs" / "CP-0.md").read_text(encoding="utf-8")
-code, findings = check(text, load_contract(RBOT_ROOT / "modules/CP-0/contract.json", rules), rules, run)
+code, findings = check(
+    text, load_contract(RBOT_ROOT / "modules/CP-0/contract.json", rules), rules, run
+)
 h = parse(text)
 cited = len(h.tables["citations"].rows) if "citations" in h.tables else 0
 bad = [f for f in run_findings(h, run) if f.code in ("citation_unanchored", "source_unknown")]
 inv = h.tables["cp0.source_inventory"]
 rows = {r[0]: dict(zip(inv.columns, r)) for r in inv.rows}
 truth = registry_classification(pack)
-agree = {k: sum(1 for f, t in truth.items() if rows.get(f, {}).get(k) == t[i]) for k, i in
-         (("class", 0), ("document_type", 1), ("entity_match", 3))}
+agree = {
+    k: sum(1 for f, t in truth.items() if rows.get(f, {}).get(k) == t[i])
+    for k, i in (("class", 0), ("document_type", 1), ("entity_match", 3))
+}
 traps = [t for t in pack.data["traps"] if t["kind"] in ("entity_mismatch", "image_read_only")]
-caught = sum(1 for t in traps if (rows.get(t["file"], {}).get("entity_match") == "No")
-             or (rows.get(t["file"], {}).get("image_read") == "Yes"))
+caught = sum(
+    1
+    for t in traps
+    if (rows.get(t["file"], {}).get("entity_match") == "No")
+    or (rows.get(t["file"], {}).get("image_read") == "Yes")
+)
 brief = parse((run / "run-brief.md").read_text(encoding="utf-8"))
 fields = {r[0]: r for r in brief.tables["brief.run_brief_fields"].rows}
 wanted = ["issuer", "issuer_id", "as_of_date"] + (["primary"] if pack.data["primary"] else [])
@@ -3558,17 +3568,34 @@ if pack.data.get("expectations"):
     got = {r[0]: dict(zip(ts.columns, r)) for r in ts.rows}
     for v in (v for v in exp["values"] if v["module"] == "RUN_BRIEF"):
         cell = got.get(v["where"]["tranche_id"], {}).get(v["column"], "")
-        same = cell == v["value"] or (v["column"] == "size" and cell and Decimal(cell) == Decimal(v["value"]))
+        same = cell == v["value"] or (
+            v["column"] == "size" and cell and Decimal(cell) == Decimal(v["value"])
+        )
         values.append(same)
-gaps = sum(1 for line in h.body.split("## Gaps")[1].split("## Citations")[0].splitlines() if line.startswith("- "))
-print(json.dumps({
-    "validate_exit": code, "findings": sorted({f.code for f in findings}),
-    "C": f"{cited - len(bad)}/{cited}", "files": f"{len(rows)}/{len(truth)}",
-    "class": f"{agree['class']}/{len(truth)}", "document_type": f"{agree['document_type']}/{len(truth)}",
-    "entity_match": f"{agree['entity_match']}/{len(truth)}", "traps_caught": f"{caught}/{len(traps)}",
-    "F": f"{filled}/{len(wanted)}", "V": f"{sum(values)}/{len(values)}", "gaps": gaps,
-    "bytes": len(text.encode()), "qa_status": h.front_matter.get("qa_status"),
-}))
+gaps = sum(
+    1
+    for line in h.body.split("## Gaps")[1].split("## Citations")[0].splitlines()
+    if line.startswith("- ")
+)
+print(
+    json.dumps(
+        {
+            "validate_exit": code,
+            "findings": sorted({f.code for f in findings}),
+            "C": f"{cited - len(bad)}/{cited}",
+            "files": f"{len(rows)}/{len(truth)}",
+            "class": f"{agree['class']}/{len(truth)}",
+            "document_type": f"{agree['document_type']}/{len(truth)}",
+            "entity_match": f"{agree['entity_match']}/{len(truth)}",
+            "traps_caught": f"{caught}/{len(traps)}",
+            "F": f"{filled}/{len(wanted)}",
+            "V": f"{sum(values)}/{len(values)}",
+            "gaps": gaps,
+            "bytes": len(text.encode()),
+            "qa_status": h.front_matter.get("qa_status"),
+        }
+    )
+)
 ```
 
 On the fixture Handoff it prints the calibration line of the regression record. Write `docs/corpus-runs/<YYYY-MM-DD>-<pack>-<PATHWAY>-<depth>.md` with these sections: **Run** (pack, Pathway, depth, `<RUN>`, model label, wall time per attempt); **CP-0** (status `accepted`/`blocked`/`failed`, `qa_status`, validate exit per attempt with the findings codes, C = anchored ÷ citations, gap count, bytes); **Classification** (files, class, document type and entity match agreement with the registry, traps caught); **Run Brief** (F = filled sourced fields ÷ supportable, V = Transaction Summary values equal to `expectations` ÷ listed, for the primary pack); **Turn 2** (each registry Pathway's grade and whether it matches the record; the Approval exit codes; the `rbot plan` output); **Pass bar** (each line below with pass or fail); `Not verified:` Copilot behaviour, GPT models, fetch, the `rbot dispatch-message`/`accept` path (Plan 06).
