@@ -184,10 +184,15 @@ def _left_out(accounts: dict[str, Cell], excluded: frozenset[str]) -> bool:
 
 def _income(get: _Get, accounts: dict[str, Cell], excluded: frozenset[str]) -> dict[str, Cell]:
     """Gross profit to adjusted EBITDAR; adjusted EBITDA compared with CP-1's
-    unless an excluded add-back left something out."""
+    unless an excluded add-back left something out. Without a `cogs` row (an
+    issuer reporting expenses by nature) EBIT is revenue plus operating
+    expenses and gross profit is blank."""
     rev, cogs, opex, da = get("revenue"), get("cogs"), get("opex_total"), get("da")
     gross = _stated(calc(((rev, 1), (cogs, 1))), get("acct:gross_profit"))
-    ebit = _stated(calc(((gross, 1), (opex, 1))), get("acct:ebit"))
+    # Expenses by nature: no cost-of-revenue line, so total operating expenses
+    # including D&A are all of the cost base and gross profit stays blank.
+    start = (rev, 1) if cogs.reason == "NOT_SOURCED" else (gross, 1)
+    ebit = _stated(calc((start, (opex, 1))), get("acct:ebit"))
     ebitda = _stated(calc(((ebit, 1), (da, -1))), get("acct:ebitda"))
     addbacks = [
         (cell, 1)
