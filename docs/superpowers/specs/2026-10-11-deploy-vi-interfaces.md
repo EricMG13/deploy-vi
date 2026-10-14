@@ -926,6 +926,15 @@ If subagents cannot run the terminal: the dispatch message omits the validate st
 
 Handoff bodies are embedded whole (`analysis_md`, `gaps_md`, tables) so a later `rbot diff` is exact without the run folder.
 
+**Amendment 2026-10-14 (Plan 07 rulings).**
+
+- R1: `charts.py` emits the RBOTCharts spec, table twin, summary and origin; `charts.js` draws at load, so no SVG is written in Python.
+- R2: a citation is `<a class="cite" href="#ev-M-Cn" data-ref="M:Cn" title="excerpt">`; `report.js` opens the popover and keeps the anchor.
+- R3: the views are the template's pane (Snapshot, each plan module, Model, Portfolio Fit, Evidence, Limitations); Deep Research and What changed are one line each under Limitations.
+- R7: the capital structure chart is the template's debt waterfall (Senior secured, Unsecured, Total debt) and the multiples go in its summary line.
+- R11: `render --md-only` writes `report.md` and `md_sha256` only; `written_at` is set by a full render.
+- R13: `rbot-run/1` gains the additive keys `modules` (contract titles, questions, table titles) and `front_page_blocks[].title/line`; the schema string is unchanged.
+
 ### 11.4 Charts
 
 **Chart rules** (caos DESIGN.md § Charts, adapted to offline HTML): every chart is inline SVG written by the Python renderer (`rbotlib/report/charts.py`), no library, no CDN; a chart is a figure with a title, one plain summary line and a table twin behind a "Table" disclosure; provenance is drawn in the mark: host-computed figures are solid, model-authored figures are hatched (bars) or dashed with hollow points (lines); a missing value is an n/a gap mark with its reason, never zero, never interpolated; a bridge that does not reconcile draws its residual in the critical hue and says so; figures print as served (exact decimals from the tables; a float only places a mark); every mark is a `<a>`/`<button>`-role element with an accessible name (series, category, value, origin), reachable by keyboard, with a hit target ≥ 24 px; no gradients, shadows or rounded ends; one value axis holding zero (a bridge step or a range bar may float); colours `--chart-1..5`, tranche tokens for seniority, `--chart-neutral` for stated totals, a sixth series neutral; category names wrap, never ellipsis.

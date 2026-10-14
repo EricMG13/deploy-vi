@@ -268,37 +268,23 @@ def test_actual_managed_host_execution_and_failure_are_owned_once(
     assert not (run / "model.xlsx").exists()
 
 
-def test_all_terminal_names_unavailable_renderer_without_report(
+def test_all_terminal_renders_report_and_sets_state(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     registry, run = approved(tmp_path)
     for module in ("CP-1", "CP-1A", "CP-5"):
-        assert (
-            native(
-                [
-                    "state",
-                    "--run",
-                    str(run),
-                    "--set",
-                    f"{module}=failed",
-                    "--reason",
-                    "explicit fixture failure",
-                ]
-            )
-            == 0
-        )
+        failed = ["state", "--run", str(run), "--set", f"{module}=failed", "--reason"]
+        assert native([*failed, "explicit fixture failure"]) == 0
     capsys.readouterr()
     assert proxy_run.main(args(registry, "--continue")) == 0
-    assert "analysis all-terminal; Plan07 renderer unavailable" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert f"report.html: {run / 'report.html'}" in out and "Blocked/failed/skipped:" in out
     record = state.read(run)
-    assert all(
-        s["status"] in ("accepted", "blocked", "failed", "skipped")
-        for s in record["steps"].values()
-    )
-    assert record["report"] == {"written_at": None, "html_sha256": None, "md_sha256": None}
-    assert not (run / "report.md").exists() and not (run / "report.html").exists()
+    assert record["report"]["written_at"] and (run / "report.md").exists()
+    assert (run / "report.html").exists()
     before = outcome_bytes(run)
-    assert proxy_run.main(args(registry, "--continue")) == 0
+    assert proxy_run.main(args(registry, "--continue", "--run", str(run))) == 0
+    assert f"report already written: {run / 'report.html'}" in capsys.readouterr().out
     assert outcome_bytes(run) == before
 
 
@@ -348,9 +334,13 @@ def test_discovered_run_cannot_silently_use_another_requested_pathway(tmp_path: 
     assert proxy_run.main(flags) == 1 and outcome_bytes(run) == before
 
 
-def test_partial_report_metadata_requires_its_native_owner(tmp_path: Path) -> None:
+def test_rendered_run_continues_to_the_summary(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     registry, run = approved(tmp_path)
     state.update(run, lambda record: record["report"].update(html_sha256="0" * 64))
     before = outcome_bytes(run)
-    assert proxy_run.main(args(registry, "--continue")) == 1
+    capsys.readouterr()
+    assert proxy_run.main(args(registry, "--continue")) == 0
+    assert "worker required: CP-1" in capsys.readouterr().out
     assert outcome_bytes(run) == before

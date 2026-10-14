@@ -49,8 +49,6 @@ def existing(pack: Path, explicit: str | None, pathway: str, depth: str) -> Path
         raise CorpusError("explicit run belongs to a different registered pack copy")
     if record["approval"] is not None and (record["pathway"], record["depth"]) != (pathway, depth):
         raise CorpusError("explicit run has a different approved Pathway/Depth")
-    if any(record["report"][key] is not None for key in ("written_at", "html_sha256", "md_sha256")):
-        raise CorpusError("complete/partial Report metadata requires its native renderer owner")
     return run
 
 
@@ -102,6 +100,9 @@ def advance(
     native: Native,
     on_module: Callable[[state.Record], bool] | None = None,
 ) -> None:
+    if state.read(run)["report"]["written_at"] is not None:
+        print(f"report already written: {run / 'report.html'}, {run / 'report.md'}")
+        return
     # Each host becomes terminal or returns its genuine refusal/error. Never retry it here.
     for _ in range(len(state.read(run)["plan"]) + 1):
         selected = json.loads(native(run, "next", None))
@@ -111,7 +112,7 @@ def advance(
             worker(run, selected, label)
             return
         if selected["kind"] == "done":
-            print("analysis all-terminal; Plan07 renderer unavailable; Report fields remain null")
+            native(run, "render", None)  # prints the paths and the summary; failure pauses the run
             return
         if selected["kind"] != "host" or selected["step"] not in ("MODEL", "FIT"):
             raise CorpusError("native selection returned an unsupported host")

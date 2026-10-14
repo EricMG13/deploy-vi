@@ -61,9 +61,10 @@ Exit1: checked terminal failure permits `next`; pending/running, busy/refused or
 publication pauses. Never issue a synthetic failed setter. `next`/current-input/origin
 errors pause with history intact. Resume with effective path, Approval, original attempts,
 retry limits, terminal states and ownership; never redispatch terminal work.
-For `kind=done`, Plan07 `render` is unavailable: leave report fields unset and return actual
-run/artifact paths and Blocked/failed/skipped limitations. Claim no Report/Recommendation
-summary. Preserve XLSX ingestion; no workbook exports.
+For kind=done, run render --run "<RUN>" once. Exit 0: reply with the printed report.html and
+report.md paths, the Recommendation line, the limitation count and the Blocked, failed and skipped
+steps exactly as render prints them. Exit 1 pauses with its reason; claim no Report. Preserve XLSX
+ingestion; no workbook exports.
 
 Not verified: live Copilot/model/account/A-B/fetch/platform/Python/PowerShell, Windows
-(inspection paused), Plan07 rendering or complete Report delivery.
+(inspection paused) or a live-model Report delivery.
