@@ -5,7 +5,6 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
-import shutil
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
@@ -17,7 +16,6 @@ from rbotlib import state
 from rbotlib.cli import main
 from rbotlib.report import ReportError, run_json
 from rbotlib.report import render as rr
-from rbotlib.report.assets import Assets, load
 from rbotlib.rules import RBOT_ROOT
 
 Record = dict[str, Any]
@@ -40,17 +38,6 @@ def run(finished: Path) -> Iterator[Path]:
         (finished / name).unlink(missing_ok=True)
     for name, raw in saved.items():
         (finished / name).write_bytes(raw)
-
-
-@pytest.fixture(autouse=True)
-def placeholder_js(
-    monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
-) -> None:
-    """The shipped assets with a placeholder `report.js` (the real one arrives in 07.7)."""
-    root = shutil.copytree(RBOT_ROOT / "report", tmp_path_factory.mktemp("assets") / "report")
-    (root / "report.js").write_text("window.RBOT_REPORT = true;\n", encoding="utf-8")
-    assets: Assets = load(root)
-    monkeypatch.setattr(rr, "load_assets", lambda _root: assets)
 
 
 def sha(path: Path) -> str:

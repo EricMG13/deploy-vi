@@ -7,7 +7,6 @@ import dataclasses
 import html as stdlib_html
 import json
 import re
-import shutil
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -48,11 +47,8 @@ def page(corpus_pack: Callable[[str], Path], tmp_path_factory: pytest.TempPathFa
 
 
 @pytest.fixture(scope="module")
-def assets(tmp_path_factory: pytest.TempPathFactory) -> Assets:
-    """The shipped assets with a placeholder `report.js` (the real one arrives in 07.7)."""
-    root = shutil.copytree(RBOT_ROOT / "report", tmp_path_factory.mktemp("assets") / "report")
-    (root / "report.js").write_text("window.RBOT_REPORT = true;\n", encoding="utf-8")
-    return load(root)
+def assets() -> Assets:
+    return load(RBOT_ROOT / "report")
 
 
 def render(page: Page, assets: Assets, doc: Record | None = None) -> str:
