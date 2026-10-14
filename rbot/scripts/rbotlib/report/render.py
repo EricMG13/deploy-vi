@@ -22,7 +22,7 @@ from rbotlib.report import ReportError, run_json
 from rbotlib.report.assets import load as load_assets
 from rbotlib.report.blocks import call_band, front_page_blocks
 from rbotlib.report.charts import build_all
-from rbotlib.report.html import render_html
+from rbotlib.report.html import number_charts, render_html
 from rbotlib.report.markdown import render_markdown
 from rbotlib.rules import load_rules
 
@@ -34,13 +34,19 @@ def _sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def render(run: Path, root: Path, *, md_only: bool, generated_at: str) -> Record:
-    """Build, write and record the Report; any refusal raises before a file or state changes."""
-    doc = run_json.build(run, root, generated_at)
+def render(
+    run: Path, root: Path, *, md_only: bool, generated_at: str, doc: Record | None = None
+) -> Record:
+    """Build, write and record the Report; any refusal raises before a file or state changes.
+
+    `doc` is the run JSON when the caller already built it (the command reuses it for its summary).
+    """
+    doc = doc or run_json.build(run, root, generated_at)
     run = state.run_path(run)
     contracts = load_contracts(root, load_rules(root), [])
     blocks = front_page_blocks(doc, load_catalog(root), contracts)
     charts = build_all(doc, run_dir=run)
+    number_charts(doc, blocks, charts)
     texts = {"report.md": render_markdown(doc, blocks, charts)}
     if not md_only:
         texts["report.html"] = render_html(doc, blocks, charts, load_assets(root / "report"))
@@ -77,8 +83,8 @@ def run_command(args: argparse.Namespace) -> int:
     run = Path(args.run_dir)
     stamp = datetime.now(UTC).isoformat(timespec="seconds")
     try:
-        render(run, args.root, md_only=args.md_only, generated_at=stamp)
         doc = run_json.build(run, args.root, stamp)
+        render(run, args.root, md_only=args.md_only, generated_at=stamp, doc=doc)
     except (ReportError, RunError, OSError, ValueError) as exc:
         print(f"error: {run}: {exc}", file=sys.stderr)
         return 1

@@ -100,20 +100,23 @@ def _module(ctx: Ctx, module: str, mark: str) -> str:
     return "\n\n".join([*out, f"{mark}# Gaps", _prose(entry["gaps_md"]) or "No gap is raised."])
 
 
+def _band(model: Record, band: int) -> str:
+    ids = [c["column_id"] for c in model["columns"]]
+    rows = []
+    for line in (x for x in model["lines"] if x["band"] == band):
+        cells = {c["column_id"]: c["value"] for c in line["cells"]}
+        rows.append([line["label"], line["unit_label"], *(cells.get(i) or GAP for i in ids)])
+    labels = [c["label"] for c in model["columns"]]
+    return f"### {band}. {BANDS[band - 1]}\n\n" + _table(["Line", "Unit", *labels], rows)
+
+
 def _model(ctx: Ctx) -> str:
     model = ctx.run["model"]
     if model is None:
         why = ctx.run["steps"].get("MODEL", {}).get("reason") or "not in this run"
         return f"## Model\n\nModel: {why}"
     out = ["## Model", *_figures(ctx.charts, "front_page", ["chart.model_strip"])]
-    labels = [c["label"] for c in model["columns"]]
-    ids = [c["column_id"] for c in model["columns"]]
-    for band in sorted({x["band"] for x in model["lines"]}):
-        rows = []
-        for line in (x for x in model["lines"] if x["band"] == band):
-            cells = {c["column_id"]: c["value"] for c in line["cells"]}
-            rows.append([line["label"], line["unit_label"], *(cells.get(i) or GAP for i in ids)])
-        out += [f"### {band}. {BANDS[band - 1]}", _table(["Line", "Unit", *labels], rows)]
+    out += [_band(model, b) for b in sorted({x["band"] for x in model["lines"]})]
     if house := ctx.run["handoffs"].get("MODEL", {}).get("tables", {}).get("model.house"):
         out += ["### House figures", _table(house["columns"], house["rows"])]
     notes = "\n".join(f"- {d['message']}" for d in model["limitation_details"]) or "None."

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import json
 import shutil
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -71,6 +72,35 @@ def test_render_writes_files_and_state_fields(run: Path) -> None:
     }
     assert state.read(run) == after
     assert after["steps"] == before["steps"] and after["plan"] == before["plan"]
+
+
+def embedded(text: str, opener: str, closer: str) -> Record:
+    raw = text.split(opener, 1)[1].split(closer, 1)[0]
+    found: Record = json.loads(raw.replace("<\\/", "</"))
+    return found
+
+
+def test_md_and_html_embed_identical_json(run: Path) -> None:
+    rr.render(run, RBOT_ROOT, md_only=False, generated_at=T1)
+    md = (run / "report.md").read_text(encoding="utf-8")
+    page = (run / "report.html").read_text(encoding="utf-8")
+    from_md = embedded(md, "```json rbot-run\n", "\n```")
+    from_html = embedded(page, '<script type="application/json" id="rbot-run">', "</script>")
+    assert from_md == from_html
+    assert any(e["data"] and e["data"]["number"] for e in from_md["charts"])
+
+
+def test_render_builds_the_run_json_once(run: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+    real = run_json.build
+
+    def counted(run: Path, root: Path, at: str) -> Record:
+        calls.append("x")
+        return real(run, root, at)
+
+    monkeypatch.setattr(run_json, "build", counted)
+    assert main(["--root", str(RBOT_ROOT), "render", "--run", str(run), "--md-only"]) == 0
+    assert calls == ["x"]
 
 
 def test_md_only_sets_md_hash_only(run: Path) -> None:

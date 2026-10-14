@@ -325,11 +325,9 @@ def _check_assets(assets: Assets) -> None:
         raise ReportError("report js asset contains </script>")
 
 
-def render_html(run: Record, blocks: list[Record], charts: list[Record], assets: Assets) -> str:
-    """The complete page. Chart entries are copied; their `number` is filled as they are placed."""
-    _check_assets(assets)
-    charts = copy.deepcopy(charts)
-    ctx = Ctx(run, charts, build_citations(run))
+def _views(ctx: Ctx, charts: list[Record], blocks: list[Record]) -> tuple[str, list[str]]:
+    """All views in document order (this numbers the figures) and the modules listed."""
+    run = ctx.run
     by = {b["id"]: b for b in blocks}
     mods = [m for m in run["plan"] if m in run["modules"] and m not in FOLDED and m not in HOSTED]
     ends = [("snapshot", "Snapshot"), *((f"module-{slug(m)}", m) for m in mods), ("model", "Model")]
@@ -339,6 +337,19 @@ def render_html(run: Record, blocks: list[Record], charts: list[Record], assets:
     for entry in charts:
         if entry["data"] is not None:
             entry["data"]["number"] = ctx.numbers.get(entry["chart_id"])
+    return "".join(views), mods
+
+
+def number_charts(run: Record, blocks: list[Record], charts: list[Record]) -> None:
+    """Fill each drawn chart's `number` in place, as the page places them (no assets needed)."""
+    _views(Ctx(run, charts, build_citations(run)), charts, blocks)
+
+
+def render_html(run: Record, blocks: list[Record], charts: list[Record], assets: Assets) -> str:
+    """The complete page. Chart entries are copied; their `number` is filled as they are placed."""
+    _check_assets(assets)
+    charts = copy.deepcopy(charts)
+    views, mods = _views(Ctx(run, charts, build_citations(run)), charts, blocks)
     doc = {**run, "charts": charts, "front_page_blocks": blocks}
     issuer = escape(str(run["run_brief"]["front_matter"].get("issuer_id", "")))
     style = f"{assets.fonts_css}\n{assets.tokens_css}\n{assets.report_css}"
@@ -346,7 +357,7 @@ def render_html(run: Record, blocks: list[Record], charts: list[Record], assets:
         issuer=issuer,
         style=style,
         pane=_pane(run, assets, mods),
-        views="".join(views),
+        views=views,
         data=embed_json(doc),
         charts_js=assets.charts_js,
         report_js=assets.report_js,
