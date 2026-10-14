@@ -183,7 +183,7 @@ def test_a_host_id_outside_the_rules_is_named(tree: Path, rules: Rules) -> None:
 def test_blocks_load_with_their_conditions(tree: Path, rules: Rules) -> None:
     blocks = [
         {"id": "view", "title": "View", "tables": ["snapshot.view"], "charts": []},
-        {"id": "fit", "tables": ["snapshot.portfolio_fit"], "condition": "portfolios"},
+        {"id": "fit", "tables": ["snapshot.view"], "condition": "portfolios"},
     ]
     write_catalog(tree, front_pages={"fp": {"tables": ["snapshot.view"], "blocks": blocks}})
     catalog = load_catalog(tree)
@@ -197,6 +197,20 @@ def test_blocks_load_with_their_conditions(tree: Path, rules: Rules) -> None:
     blocks[1]["condition"] = "sometimes"
     write_catalog(tree, front_pages={"fp": {"tables": ["snapshot.view"], "blocks": blocks}})
     assert check_tree(tree, rules) == ["front page fp block fit: unknown condition 'sometimes'"]
+
+
+def test_check_flags_block_table_not_in_tables(tree: Path, rules: Rules) -> None:
+    blocks = [{"id": "view", "tables": ["snapshot.view", "snapshot.other"]}]
+    write_catalog(tree, front_pages={"fp": {"tables": ["snapshot.view"], "blocks": blocks}})
+    assert check_tree(tree, rules) == [
+        "front page fp block view: table snapshot.other not in tables"
+    ]
+
+
+def test_check_flags_unknown_chart(tree: Path, rules: Rules) -> None:
+    blocks = [{"id": "view", "tables": ["snapshot.view"], "charts": ["chart.rv_hy", "chart.nope"]}]
+    write_catalog(tree, front_pages={"fp": {"tables": ["snapshot.view"], "blocks": blocks}})
+    assert check_tree(tree, rules) == ["front page fp block view: unknown chart chart.nope"]
 
 
 # Interfaces spec section 3: every host-produced table and its producer (amendment A7).

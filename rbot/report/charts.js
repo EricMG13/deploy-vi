@@ -6,6 +6,7 @@
   "use strict";
 
   var SVGNS = "http://www.w3.org/2000/svg";
+  var fmtHook = null, textHook = null, fieldHook = null;
   var uid = 0;
 
   /* ------------------------------------------------------------ DOM helpers */
@@ -67,6 +68,8 @@
   function isGap(d) { return !d || d.v === null || d.v === undefined || isNaN(parseNum(d.v)); } /* numeric: charts */
   function isMissing(d) { return !d || d.v === null || d.v === undefined; } /* textual: tables and prose */
   function withUnit(v, unit) {
+    var f = fmtHook ? fmtHook({ v: v }, unit, "chart") : null;
+    if (f !== null && f !== undefined) return f;
     if (!unit) return String(v);
     if (unit === "x" || unit === "%" || unit === "pp") return String(v) + unit;
     return String(v) + " " + unit;
@@ -114,7 +117,7 @@
   var canvas = null;
   function tw(text, size, weight) {
     if (!canvas) canvas = document.createElement("canvas").getContext("2d");
-    canvas.font = (weight || 400) + " " + (size || 11) + "px Inter, system-ui, sans-serif";
+    canvas.font = (weight || 400) + " " + (size || 12) + "px Inter, system-ui, sans-serif";
     return canvas.measureText(String(text)).width;
   }
   function wrap(text, maxW, size, maxLines) {
@@ -164,6 +167,22 @@
   var SHAPES = ["circle", "square", "diamond", "triangle", "cross"];
 
   /* ------------------------------------------------------------ frame */
+  /* roving focus across a chart's marks: Tab enters once, arrow keys move, Home and End jump */
+  function markFocus(e) {
+    var g = e.target.closest ? e.target.closest("g.mark") : null;
+    if (!g) return;
+    Array.prototype.forEach.call(e.currentTarget.querySelectorAll("g.mark"), function (m) { m.setAttribute("tabindex", m === g ? "0" : "-1"); });
+  }
+  function markArrows(e) {
+    var step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+    var jump = e.key === "Home" ? 0 : e.key === "End" ? -1 : null;
+    if (!step && jump === null) return;
+    var list = Array.prototype.slice.call(e.currentTarget.querySelectorAll("g.mark")), i = list.indexOf(e.target.closest("g.mark"));
+    if (i < 0) return;
+    var next = jump !== null ? (jump < 0 ? list.length - 1 : 0) : Math.max(0, Math.min(list.length - 1, i + step));
+    e.preventDefault();
+    list[next].focus();
+  }
   function mount(el, spec, kind) {
     if (!el) throw new Error("RBOTCharts." + kind.name + ": no element");
     var id = "rc" + (++uid);
@@ -197,12 +216,17 @@
     var ctx = { id: id, spec: spec, plot: plot, tip: tip, defs: null, patterns: {} };
     function draw() {
       while (plot.firstChild) plot.removeChild(plot.firstChild);
-      var W = Math.max(280, Math.round(plot.clientWidth || el.clientWidth || 640));
-      var svg = s("svg", { role: "group", "aria-label": (spec.title || kind.name) + ", chart; each mark is focusable" });
+      /* one px under the box, so the SVG is never scaled down by a fractional width and its 12px text stays 12px */
+      var W = Math.max(spec.minWidth || 280, Math.round(plot.clientWidth || el.clientWidth || 640) - 1);
+      var svg = s("svg", { role: "group", tabindex: "-1", "aria-label": (spec.title || kind.name) + ", chart; each mark is focusable" });
       ctx.svg = svg; ctx.W = W; ctx.patterns = {};
+      svg.addEventListener("keydown", markArrows);
+      svg.addEventListener("focusin", markFocus);
       ctx.defs = s("defs");
       svg.appendChild(ctx.defs);
       var H = kind.draw(ctx, spec);
+      var marks = svg.querySelectorAll("g.mark");
+      for (var mi = 1; mi < marks.length; mi++) marks[mi].setAttribute("tabindex", "-1");  /* one tab stop per chart; arrows move between marks */
       svg.setAttribute("viewBox", "0 0 " + W + " " + H);
       svg.setAttribute("width", W);
       svg.setAttribute("height", H);
@@ -254,6 +278,7 @@
 
   /* a focusable mark: shape(s) plus a >= 24px hit rect */
   function mark(ctx, box, label, ref, kids) {
+    if (window.RBOTUI && window.RBOTUI.tidy) label = window.RBOTUI.tidy(label);
     var g = s("g", { class: "mark", tabindex: 0, role: "img", "aria-label": label, "data-ref": ref || null });
     add(g, kids);
     var w = Math.max(24, box.w), hh = Math.max(24, box.h);
@@ -301,14 +326,14 @@
   }
 
   /* ------------------------------------------------------------ axes */
-  function yAxis(ctx, sc, y, left, right, unit) {
+  function yAxis(ctx, sc, y, left, right, unit, unitY) {
     var g = s("g", { class: "grid ax", "aria-hidden": "true" });
     sc.ticks.forEach(function (t) {
       var yy = Math.round(y(t)) + 0.5;
       g.appendChild(s("line", { x1: left, x2: right, y1: yy, y2: yy }));
       g.appendChild(s("text", { x: left - 6, y: yy + 3.5, "text-anchor": "end", text: fmtTick(t, sc.step) }));
     });
-    if (unit) g.appendChild(s("text", { x: left - 6, y: y(sc.hi) - 10, "text-anchor": "end", class: "lbl--muted", text: unit }));
+    if (unit) g.appendChild(s("text", { x: left - 6, y: unitY === undefined ? y(sc.hi) - 10 : unitY, "text-anchor": "end", class: "lbl--muted", text: unit }));
     ctx.svg.appendChild(g);
     if (sc.lo <= 0 && sc.hi >= 0) ctx.svg.appendChild(s("line", { class: "zero", x1: left, x2: right, y1: Math.round(y(0)) + 0.5, y2: Math.round(y(0)) + 0.5, "aria-hidden": "true" }));
   }
@@ -323,18 +348,20 @@
     ctx.svg.appendChild(g);
     if (sc.lo <= 0 && sc.hi >= 0) ctx.svg.appendChild(s("line", { class: "zero", x1: Math.round(x(0)) + 0.5, x2: Math.round(x(0)) + 0.5, y1: top, y2: bottom, "aria-hidden": "true" }));
   }
+  /* a fiscal-year label that would touch its neighbour reads FY23 instead of FY2023 */
+  function fitCat(c, band) { return /^FY20\d\d$/.test(c) && tw(c, 12) > band - 4 ? c.replace(/^FY20/, "FY") : c; }
   function catLabels(ctx, cats, xOf, band, y, maxLines) {
-    var lines = cats.map(function (c) { return wrap(c, Math.max(30, band - 6), 11, maxLines || 2); });
+    var lines = cats.map(function (c) { return wrap(fitCat(c, band), Math.max(46, band - 6), 12, maxLines || 2); });
     var g = s("g", { class: "ax", "aria-hidden": "true" });
-    cats.forEach(function (c, i) { g.appendChild(textLines(xOf(i), y, lines[i], { "text-anchor": "middle" }, 12)); });
+    cats.forEach(function (c, i) { g.appendChild(textLines(xOf(i), y, lines[i], { "text-anchor": "middle" }, 14)); });
     ctx.svg.appendChild(g);
     return Math.max.apply(null, lines.map(function (l) { return l.length; }));
   }
   function maxLinesFor(cats, band, maxLines) {
-    return Math.max.apply(null, cats.map(function (c) { return wrap(c, Math.max(30, band - 6), 11, maxLines || 2).length; }));
+    return Math.max.apply(null, cats.map(function (c) { return wrap(fitCat(c, band), Math.max(46, band - 6), 12, maxLines || 2).length; }));
   }
   function gapMark(ctx, x, y, label, ref) {
-    var w = tw("n/a", 11, 600) + 6;
+    var w = tw("n/a", 12, 600) + 6;
     return mark(ctx, { x: x - w / 2, y: y - 11, w: w, h: 14 }, label, ref, [
       s("text", { class: "na", x: x, y: y, "text-anchor": "middle", text: "n/a" })
     ]);
@@ -356,10 +383,10 @@
           s("rect", { width: 5, height: 5, fill: "#fff" }), s("line", { x1: 0, y1: 0, x2: 0, y2: 5, stroke: c, "stroke-width": 2 })])]));
         sw.appendChild(s("rect", { x: 3, y: 1, width: 16, height: 10, fill: "url(#" + pid + ")", stroke: c, "stroke-dasharray": "3 2" }));
         break;
-      case "na": sw.appendChild(s("text", { x: 11, y: 10, "text-anchor": "middle", "font-size": 10, "font-style": "italic", "font-weight": 600, fill: "#55585E", text: "n/a" })); break;
+      case "na": sw.appendChild(s("text", { x: 11, y: 10, "text-anchor": "middle", "font-size": 12, "font-style": "italic", "font-weight": 600, fill: "#55585E", text: "n/a" })); break;
       default: sw.appendChild(s("rect", { x: 3, y: 1, width: 16, height: 10, fill: c }));
     }
-    return h("li", {}, [sw, e.label]);
+    return h("li", { class: e.kind === "na" ? "lg-na" : null }, [sw, e.label]);
   }
   function provLegend(datums) {
     var out = [], seen = {};
@@ -393,7 +420,7 @@
       td.appendChild(g);
       return td;
     }
-    td.appendChild(document.createTextNode(opts && opts.unitInCell ? withUnit(d.v, unit) : String(d.v)));
+    td.appendChild(document.createTextNode(shown(d, opts && opts.unitInCell ? unit : null, "table").text));
     var chip = chipFor(d);
     if (chip) td.appendChild(chip);
     if (d.prov === "illustrative") td.appendChild(h("span", { class: "illus", text: "Illustrative" }));
@@ -437,22 +464,38 @@
       sp.series.forEach(function (x) { x.values.forEach(function (d) { if (!isGap(d)) vals.push(parseNum(d.v)); }); });
       var sc = scaleOf(vals, sp.ticks || 4, sp.includeZero);
       var left = Math.max.apply(null, sc.ticks.map(function (t) { return tw(fmtTick(t, sc.step)); })) + 12;
-      left = Math.max(left, tw(sp.unit || "", 11) + 8);
+      left = Math.max(left, tw(sp.unit || "", 12) + 8);
       var endW = 0;
       sp.series.forEach(function (x) {
         var lastD = null;
         x.values.forEach(function (d) { if (!isGap(d)) lastD = d; });
-        if (lastD && sp.labels !== "none") endW = Math.max(endW, tw(withUnit(lastD.v, sp.unit === "x" || sp.unit === "%" ? sp.unit : ""), 11, 600));
+        if (lastD && sp.labels !== "none") endW = Math.max(endW, tw(withUnit(lastD.v, sp.unit === "x" || sp.unit === "%" ? sp.unit : ""), 12, 600));
       });
       var right = W - Math.max(12, endW + 14);
       var step = (right - left) / n;
       var bLines = maxLinesFor(sp.categories, step, 2);
-      var gapsPerCat = sp.categories.map(function (c, i) { return sp.series.filter(function (x) { return isGap(x.values[i]); }).length; });
-      var top = 24 + Math.max(0, Math.max.apply(null, gapsPerCat) - 1) * 13;
-      var bottom = H - 10 - bLines * 12;
+      /* a category every series misses gets one n/a mark, not one per series; the reasons are kept together */
+      var merged = sp.categories.map(function (c, i) {
+        return sp.series.length >= 2 && sp.series.every(function (x) { return isGap(x.values[i]); });
+      });
+      var mergedText = function (i) {
+        var seen = [];
+        sp.series.forEach(function (x) { var r = (x.values[i] && x.values[i].reason) || "not in the sources"; if (seen.indexOf(r) < 0) seen.push(r); });
+        return "n/a, " + seen.join("; ");
+      };
+      var gapsPerCat = sp.categories.map(function (c, i) { return merged[i] ? 1 : sp.series.filter(function (x) { return isGap(x.values[i]); }).length; });
+      var maxGaps = Math.max.apply(null, gapsPerCat);
+      var top = 24 + Math.max(0, maxGaps - 1) * 15 + (maxGaps > 0 ? 6 : 0);   /* n/a labels sit on their own rows, clear of the unit label */
+      var bottom = H - 10 - bLines * 14;
       var y = function (v) { return bottom - (v - sc.lo) / (sc.hi - sc.lo) * (bottom - top); };
       var x = function (i) { return left + step * (i + 0.5); };
-      yAxis(ctx, sc, y, left, right, sp.unit);
+      /* a short plot keeps at most every other tick, so the labels never touch */
+      while (sc.ticks.length > 2 && (bottom - top) / (sc.ticks.length - 1) < 22) {
+        var keep = sc.ticks.filter(function (t, ti) { return ti % 2 === 0; });
+        if (keep.length === sc.ticks.length) break;
+        sc = { lo: sc.lo, hi: sc.hi, ticks: keep, step: sc.step };
+      }
+      yAxis(ctx, sc, y, left, right, sp.unit, maxGaps > 0 ? 10 : undefined);
       catLabels(ctx, sp.categories, x, step, bottom + 15, 2);
       /* projected divider */
       var firstProj = -1;
@@ -478,10 +521,11 @@
         ser.values.forEach(function (d, j) {
           var cat = sp.categories[j];
           if (isGap(d)) {
-            var k = sp.series.slice(0, si).filter(function (x2) { return isGap(x2.values[j]); }).length;
-            var gy = top - 8 + k * 13;
-            ctx.svg.appendChild(s("line", { x1: x(j), x2: x(j), y1: gy + 4, y2: bottom, stroke: c, "stroke-dasharray": "1 3", "aria-hidden": "true" }));
-            gapMark(ctx, x(j), gy, ser.label + ", " + cat + ": " + gapText(d), d && d.ref);
+            if (merged[j] && si > 0) return;
+            var k = merged[j] ? 0 : sp.series.slice(0, si).filter(function (x2) { return isGap(x2.values[j]); }).length;
+            var gy = top - 8 + k * 15;
+            if (k === 0) ctx.svg.appendChild(s("line", { x1: x(j), x2: x(j), y1: gy + 4, y2: bottom, stroke: color("chart-neutral"), "stroke-dasharray": "1 3", "aria-hidden": "true" }));
+            gapMark(ctx, x(j), gy, (merged[j] ? sp.series.map(function (x2) { return x2.label; }).join(" and ") : ser.label) + ", " + cat + ": " + (merged[j] ? mergedText(j) : gapText(d)), d && d.ref);
             return;
           }
           var vy = y(parseNum(d.v));
@@ -494,7 +538,7 @@
         if (lastJ >= 0 && sp.labels !== "none") ends.push({ y: y(parseNum(ser.values[lastJ].v)), x: x(lastJ), text: withUnit(ser.values[lastJ].v, sp.unit === "x" || sp.unit === "%" ? sp.unit : ""), c: c });
       });
       ends.sort(function (a, b) { return a.y - b.y; });
-      for (var e = 1; e < ends.length; e++) if (ends[e].y - ends[e - 1].y < 13) ends[e].y = ends[e - 1].y + 13;
+      for (var e = 1; e < ends.length; e++) if (ends[e].y - ends[e - 1].y < 15) ends[e].y = ends[e - 1].y + 15;
       ends.forEach(function (en) {
         ctx.svg.appendChild(s("text", { x: en.x + 8, y: en.y + 4, class: "lbl", fill: en.c, style: "fill:" + en.c, "aria-hidden": "true", text: en.text }));
       });
@@ -514,10 +558,10 @@
       sp.series.forEach(function (x) { x.values.forEach(function (d) { if (!isGap(d)) vals.push(parseNum(d.v)); }); });
       var sc = scaleOf(vals, sp.ticks || 4, true);
       var left = Math.max.apply(null, sc.ticks.map(function (t) { return tw(fmtTick(t, sc.step)); })) + 12;
-      left = Math.max(left, tw(sp.unit || "", 11) + 8);
+      left = Math.max(left, tw(sp.unit || "", 12) + 8);
       var right = W - 8, band = (right - left) / n;
       var bLines = maxLinesFor(sp.categories, band, 2);
-      var top = 22, bottom = H - 10 - bLines * 12;
+      var top = 22, bottom = H - 10 - bLines * 14;
       var y = function (v) { return bottom - (v - sc.lo) / (sc.hi - sc.lo) * (bottom - top); };
       yAxis(ctx, sc, y, left, right, sp.unit);
       var inner = band * 0.78, barW = Math.min(56, inner / m), gap = Math.min(4, barW * 0.12);
@@ -530,7 +574,7 @@
           var v = parseNum(d.v), y0 = y(0), y1 = y(v), top1 = Math.min(y0, y1), hgt = Math.max(1, Math.abs(y1 - y0));
           var kids = [s("rect", Object.assign({ x: bx, y: top1, width: bw, height: hgt }, paint(ctx, c, d)))];
           var lbl = String(d.v);
-          if (sp.labels !== false && tw(lbl, 11, 600) <= barW + 8) {
+          if (sp.labels !== false && tw(lbl, 12, 600) <= barW + 8) {
             kids.push(s("text", { class: "lbl", x: bx + bw / 2, y: v >= 0 ? top1 - 4 : top1 + hgt + 12, "text-anchor": "middle", text: lbl }));
           }
           mark(ctx, { x: bx, y: top1, w: bw, h: hgt }, ser.label + ", " + cat + ": " + withUnit(d.v, sp.unit) + " (" + provWord(d) + ")", d.ref, kids);
@@ -545,8 +589,14 @@
     name: "waterfall",
     datums: function (sp) { return sp.steps.map(function (x) { return x.d; }); },
     legend: function (sp) {
-      var out = [{ kind: "fill", color: "chart-3", label: sp.totalLabel || "Total" },
-        { kind: "fill", color: "chart-1", label: "Increase" }, { kind: "fill", color: "chart-2", label: "Decrease" }];
+      var out = [], steps = sp.steps.filter(function (x) { return x.kind !== "total" && x.kind !== "residual"; });
+      var neg = function (x) { return !isGap(x.d) && parseNum(x.d.v) < 0; };
+      if (sp.steps.some(function (x) { return x.kind === "total"; })) out.push({ kind: "fill", color: "chart-3", label: sp.totalLabel || "Total" });
+      if (sp.stepLabel && steps.length) out.push({ kind: "fill", color: "chart-1", label: sp.stepLabel });
+      else {
+        if (steps.some(function (x) { return !neg(x); })) out.push({ kind: "fill", color: "chart-1", label: "Increase" });
+        if (steps.some(neg)) out.push({ kind: "fill", color: "chart-2", label: "Decrease" });
+      }
       if (sp.steps.some(function (x) { return x.kind === "residual"; })) out.push({ kind: "fill", color: "chart-critical", label: "Unexplained residual" });
       return out;
     },
@@ -554,7 +604,7 @@
       return table(sp.title, [sp.categoryLabel || "Step", "Kind", "Amount | " + (sp.unit || "")],
         sp.steps.map(function (st) {
           var kind = st.kind === "total" ? "Total" : st.kind === "residual" ? "Unexplained residual" :
-            isGap(st.d) ? "Step" : parseNum(st.d.v) >= 0 ? "Increase" : "Decrease";
+            isGap(st.d) ? "Step" : sp.stepLabel ? sp.stepLabel : parseNum(st.d.v) >= 0 ? "Increase" : "Decrease";
           return h("tr", { class: st.kind === "total" ? "total" : null }, [rowHead(st.label), textCell(kind), valueCell(st.d, sp.unit)]);
         }));
     },
@@ -570,11 +620,11 @@
       });
       var sc = scaleOf(vals, sp.ticks || 4, true);
       var left = Math.max.apply(null, sc.ticks.map(function (t) { return tw(fmtTick(t, sc.step)); })) + 12;
-      left = Math.max(left, tw(sp.unit || "", 11) + 8);
+      left = Math.max(left, tw(sp.unit || "", 12) + 8);
       var right = W - 8, band = (right - left) / n;
       var labels = sp.steps.map(function (st) { var l = st.short || st.label; return st.kind === "residual" ? l + " (unexplained)" : l; });
       var bLines = maxLinesFor(labels, band, 3);
-      var top = 22, bottom = H - 10 - bLines * 12;
+      var top = 22, bottom = H - 10 - bLines * 14;
       var y = function (v) { return bottom - (v - sc.lo) / (sc.hi - sc.lo) * (bottom - top); };
       yAxis(ctx, sc, y, left, right, sp.unit);
       catLabels(ctx, labels, function (i) { return left + band * (i + 0.5); }, band, bottom + 15, 3);
@@ -603,7 +653,7 @@
   /* ================================================================ horizontal helpers */
   function hLayout(ctx, sp, rows, values, rowH, extraRight) {
     var W = ctx.W;
-    var labW = Math.min(W * 0.34, Math.max.apply(null, rows.map(function (r) { return tw(r.label, 11, 600); })) + 14);
+    var labW = Math.min(W * 0.34, Math.max.apply(null, rows.map(function (r) { return tw(r.label, 12, 600); })) + 14);
     var sub = rows.some(function (r) { return r.sub; });
     var sc = scaleOf(values, sp.ticks || 5, sp.includeZero);
     var left = labW, right = W - (extraRight || 16), top = 8;
@@ -613,7 +663,7 @@
     var g = s("g", { "aria-hidden": "true" });
     rows.forEach(function (r, i) {
       var cy = top + rowH * (i + 0.5);
-      var lines = wrap(r.label, labW - 12, 11, 2);
+      var lines = wrap(r.label, labW - 12, 12, 2);
       g.appendChild(textLines(labW - 10, cy + (sub ? -2 : 4) - (lines.length - 1) * 6, lines, { "text-anchor": "end", class: "lbl" }, 12));
       if (r.sub) g.appendChild(s("text", { x: labW - 10, y: cy + 11 + (lines.length - 1) * 6, "text-anchor": "end", class: "lbl--muted", text: r.sub }));
     });
@@ -639,23 +689,23 @@
       var rows = sp.rows.map(function (r) { return { label: r.label, sub: dirWord(r.direction) }; });
       var short = sp.unit === "x" || sp.unit === "%" ? sp.unit : "";
       var tlw = 0;
-      sp.rows.forEach(function (r) { if (!isGap(r.threshold)) tlw = Math.max(tlw, tw(dirWord(r.direction) + " " + withUnit(r.threshold.v, short), 11)); });
+      sp.rows.forEach(function (r) { if (!isGap(r.threshold)) tlw = Math.max(tlw, tw(dirWord(r.direction) + " " + withUnit(r.threshold.v, short), 12)); });
       var anyGap = sp.rows.some(function (r) { return isGap(r.threshold); });
       var L = hLayout(ctx, sp, rows, vals, anyGap ? 60 : 46, Math.max(20, tlw / 2 + 8));
       sp.rows.forEach(function (r, i) {
         var cy = L.cy(i) - (anyGap ? 6 : 0), c = color("chart-1");
         if (isGap(r.current) && isGap(r.threshold)) {
           var gd = r.threshold && r.threshold.reason ? r.threshold : r.current;
-          var tx = L.x(0) + 6, gl = wrap("n/a: " + ((gd && gd.reason) || "not in the sources"), ctx.W - tx - 20, 11, 2);
-          mark(ctx, { x: tx - 3, y: cy - 10, w: Math.min(ctx.W - tx - 10, tw(gl[0], 11) + 6), h: 12 * gl.length + 8 }, r.label + ": " + gapText(gd), (gd && gd.ref) || null,
-            [textLines(tx, cy + 4 - (gl.length - 1) * 6, gl, { class: "na" }, 12)]);
+          var tx = L.x(0) + 6, gl = wrap("n/a: " + ((gd && gd.reason) || "not in the sources"), ctx.W - tx - 20, 12, 2);
+          mark(ctx, { x: tx - 3, y: cy - 10, w: Math.min(ctx.W - tx - 10, tw(gl[0], 12) + 6), h: 14 * gl.length + 8 }, r.label + ": " + gapText(gd), (gd && gd.ref) || null,
+            [textLines(tx, cy + 4 - (gl.length - 1) * 6, gl, { class: "na" }, 14)]);
           return;
         }
         var tx2 = isGap(r.threshold) ? null : Math.round(L.x(parseNum(r.threshold.v))) + 0.5;
         if (isGap(r.current)) gapMark(ctx, L.x(0) + 14, cy + 4, r.label + ", current: " + gapText(r.current), r.current && r.current.ref);
         else {
           var v = parseNum(r.current.v), x0 = L.x(0), x1 = L.x(v), bw = Math.abs(x1 - x0);
-          var lbl = withUnit(r.current.v, short), lw = tw(lbl, 11, 600);
+          var lbl = withUnit(r.current.v, short), lw = tw(lbl, 12, 600);
           var lx = Math.max(x0, x1) + 5, anchor = "start", fill = null;
           if (tx2 !== null && tx2 > lx - 8 && tx2 < lx + lw + 6) {
             if (bw > lw + 10) { lx = Math.max(x0, x1) - 5; anchor = "end"; fill = "fill:#fff"; }
@@ -669,12 +719,12 @@
             ]);
         }
         if (isGap(r.threshold)) {
-          var gx = L.x(0) + 2, gl2 = wrap(dirWord(r.direction) + ": n/a, " + ((r.threshold && r.threshold.reason) || "not in the sources"), ctx.W - gx - 12, 11, 2);
-          mark(ctx, { x: gx - 2, y: cy + 10, w: Math.min(ctx.W - gx - 8, tw(gl2[0], 11) + 4), h: 12 * gl2.length + 2 }, r.label + ", " + dirWord(r.direction) + ": " + gapText(r.threshold), r.threshold && r.threshold.ref,
-            [textLines(gx, cy + 21, gl2, { class: "na" }, 12)]);
+          var gx = L.x(0) + 2, gl2 = wrap(dirWord(r.direction) + ": n/a, " + ((r.threshold && r.threshold.reason) || "not in the sources"), ctx.W - gx - 12, 12, 2);
+          mark(ctx, { x: gx - 2, y: cy + 10, w: Math.min(ctx.W - gx - 8, tw(gl2[0], 12) + 4), h: 14 * gl2.length + 2 }, r.label + ", " + dirWord(r.direction) + ": " + gapText(r.threshold), r.threshold && r.threshold.ref,
+            [textLines(gx, cy + 21, gl2, { class: "na" }, 14)]);
         } else {
           var tc = color("chart-3"), tl = dirWord(r.direction) + " " + withUnit(r.threshold.v, short), tlx = tx2 + 4, tanchor = "start";
-          if (tlx + tw(tl, 11) > ctx.W - 2) { tlx = tx2 - 4; tanchor = "end"; }
+          if (tlx + tw(tl, 12) > ctx.W - 2) { tlx = tx2 - 4; tanchor = "end"; }
           mark(ctx, { x: tx2 - 2, y: cy - 15, w: 4, h: 30 }, r.label + ": " + dirWord(r.direction) + " " + withUnit(r.threshold.v, sp.unit) + " (" + provWord(r.threshold) + ")", r.threshold.ref, [
             s("line", { x1: tx2, x2: tx2, y1: cy - 13, y2: cy + 13, stroke: tc, "stroke-width": 2.5, "stroke-dasharray": soft(r.threshold) ? "3 2" : null }),
             s("text", { class: "lbl--muted", x: tlx, y: cy - 12, "text-anchor": tanchor, text: tl })
@@ -707,14 +757,14 @@
       });
       var sc = scaleOf(sums, sp.ticks || 4, true);
       var left = Math.max.apply(null, sc.ticks.map(function (t) { return tw(fmtTick(t, sc.step)); })) + 12;
-      left = Math.max(left, tw(sp.unit || "", 11) + 8);
+      left = Math.max(left, tw(sp.unit || "", 12) + 8);
       var right = W - 8, band = (right - left) / n;
       var bLines = maxLinesFor(sp.categories, band, 2);
-      var top = 22, bottom = H - 10 - bLines * 12;
+      var top = 22, bottom = H - 10 - bLines * 14;
       var y = function (v) { return bottom - (v - sc.lo) / (sc.hi - sc.lo) * (bottom - top); };
       yAxis(ctx, sc, y, left, right, sp.unit);
       catLabels(ctx, sp.categories, function (i) { return left + band * (i + 0.5); }, band, bottom + 15, 2);
-      var bw = Math.min(64, band * 0.66);
+      var bw = Math.min(64, band * 0.66), placed = [];
       sp.categories.forEach(function (cat, i) {
         var cx = left + band * (i + 0.5), bx = cx - bw / 2, acc = 0, gaps = [];
         sp.series.forEach(function (ser, si) {
@@ -725,16 +775,23 @@
           if (v === 0) return;
           var cname = seriesColor(ser, si), c = color(cname), y0 = y(acc), y1 = y(acc + v), hg = Math.max(1, y0 - y1);
           var kids = [s("rect", Object.assign({ x: bx, y: y1, width: bw, height: hg }, paint(ctx, c, d), { stroke: "#fff", "stroke-width": soft(d) ? 1.25 : 0.75 }))];
-          if (hg >= 14 && tw(String(d.v), 10.5, 600) <= bw - 4) {
+          if (hg >= 14 && tw(String(d.v), 12, 600) <= bw - 4) {
             var key = typeof cname === "number" ? "chart-" + cname : cname;
-            kids.push(s("text", { class: "lbl lbl--in", x: cx, y: y1 + hg / 2 + 4, "text-anchor": "middle", style: "font-size:10.5px;fill:" + (ON_DARK[key] && !soft(d) ? "#fff" : "#000533"), text: String(d.v) }));
+            kids.push(s("text", { class: "lbl lbl--in", x: cx, y: y1 + hg / 2 + 4, "text-anchor": "middle", style: "font-size:12px;fill:" + (ON_DARK[key] && !soft(d) ? "#fff" : "#000533"), text: String(d.v) }));
           }
           mark(ctx, { x: bx, y: y1, w: bw, h: hg }, ser.label + ", " + cat + ": " + withUnit(d.v, sp.unit) + " (" + provWord(d) + ")", d.ref, kids);
           acc += v;
         });
         var topY = y(acc);
         if (sp.totals !== false && acc > 0) {
-          ctx.svg.appendChild(s("text", { class: "lbl", x: cx, y: topY - 4, "text-anchor": "middle", "aria-hidden": "true", text: totalOf(sp, i) }));
+          /* neighbouring totals that would touch are staggered upwards, so none overprints another */
+          var tt = totalOf(sp, i), ty = topY - 4, tw2 = tw(tt, 12, 600) / 2 + 2;
+          for (var pi = 0; pi < placed.length; pi++) {
+            var pl = placed[pi];
+            if (Math.abs(pl.y - ty) < 14 && Math.abs(pl.x - cx) < pl.w + tw2) { ty = pl.y - 14; pi = -1; }
+          }
+          placed.push({ x: cx, y: ty, w: tw2 });
+          ctx.svg.appendChild(s("text", { class: "lbl", x: cx, y: Math.max(11, ty), "text-anchor": "middle", "aria-hidden": "true", text: tt }));
         }
         gaps.forEach(function (gp, k) {
           gapMark(ctx, cx, topY - 18 - k * 14, gp.ser.label + ", " + cat + ": " + gapText(gp.d), gp.d.ref);
@@ -761,7 +818,7 @@
     legend: function (sp) {
       return [{ kind: "fill", color: "soft-blue", label: "Interquartile range (Q1 to Q3)" },
         { kind: "rule", color: "chart-3", label: "Median" }, { kind: "rule", color: "chart-neutral", label: "Min and max" },
-        { kind: "dot", color: "chart-2", label: sp.markerLabel || "Issuer" }];
+        { kind: "dot", color: "chart-1", label: sp.markerLabel || "Issuer" }];
     },
     twin: function (sp) {
       var present = STATS.filter(function (k) { return sp.rows.some(function (r) { return r[k]; }); });
@@ -775,7 +832,7 @@
       var vals = [];
       rangeStrip.datums(sp).forEach(function (d) { if (!isGap(d)) vals.push(parseNum(d.v)); });
       var L = hLayout(ctx, sp, sp.rows.map(function (r) { return { label: r.label, sub: r.sub }; }), vals, 48, 24);
-      var neutral = color("chart-neutral"), navy = color("chart-3"), blue = color("chart-5"), orange = color("chart-2");
+      var neutral = color("chart-neutral"), navy = color("chart-3"), blue = color("chart-5"), issuer = color("chart-1");
       sp.rows.forEach(function (r, i) {
         var cy = L.cy(i);
         var lo = r.min && !isGap(r.min) ? parseNum(r.min.v) : null, hi = r.max && !isGap(r.max) ? parseNum(r.max.v) : null;
@@ -802,9 +859,9 @@
           if (isGap(r.marker)) { gapMark(ctx, L.x(0) + 70, cy - 12, r.label + ", " + (sp.markerLabel || "issuer") + ": " + gapText(r.marker), r.marker.ref); return; }
           var mx = L.x(parseNum(r.marker.v));
           mark(ctx, { x: mx - 6, y: cy - 6, w: 12, h: 12 }, r.label + ", " + (sp.markerLabel || "Issuer") + ": " + withUnit(r.marker.v, sp.unit) + " (" + provWord(r.marker) + ")", r.marker.ref, [
-            pointShape("circle", mx, cy, 5.5, Object.assign(pointAttrs(orange, r.marker), { stroke: "#fff", "stroke-width": soft(r.marker) ? 0 : 1.5 })),
-            soft(r.marker) ? pointShape("circle", mx, cy, 5.5, { fill: "#fff", stroke: orange, "stroke-width": 2 }) : null,
-            s("text", { class: "lbl", x: mx, y: cy + 20, "text-anchor": "middle", style: "fill:" + orange, text: (sp.markerLabel || "Issuer") + " " + withUnit(r.marker.v, sp.unit === "x" || sp.unit === "%" ? sp.unit : "") })
+            pointShape("circle", mx, cy, 5.5, Object.assign(pointAttrs(issuer, r.marker), { stroke: "#fff", "stroke-width": soft(r.marker) ? 0 : 1.5 })),
+            soft(r.marker) ? pointShape("circle", mx, cy, 5.5, { fill: "#fff", stroke: issuer, "stroke-width": 2 }) : null,
+            s("text", { class: "lbl", x: mx, y: cy + 20, "text-anchor": "middle", style: "fill:" + issuer, text: (sp.markerLabel || "Issuer") + " " + withUnit(r.marker.v, sp.unit === "x" || sp.unit === "%" ? sp.unit : "") })
           ]);
         }
       });
@@ -850,7 +907,7 @@
       var xhi = Math.ceil(Math.max.apply(null, xs.concat(sp.xMax !== undefined ? [sp.xMax] : [])));
       if (xlo === xhi) xhi += 1;
       var left = Math.max.apply(null, sc.ticks.map(function (t) { return tw(fmtTick(t, sc.step)); })) + 12;
-      left = Math.max(left, tw(sp.unit || "", 11) + 8);
+      left = Math.max(left, tw(sp.unit || "", 12) + 8);
       var right = W - 70, top = 16, bottom = H - 40;
       var y = function (v) { return bottom - (v - sc.lo) / (sc.hi - sc.lo) * (bottom - top); };
       var x = function (v) { return left + (v - xlo) / (xhi - xlo) * (right - left); };
@@ -888,13 +945,13 @@
       ok.forEach(function (q) {
         var gi = gs.indexOf(q.p.group), c = color((sp.groupColors && sp.groupColors[q.p.group]) || (gi < 5 ? gi + 1 : "neutral"));
         var px = x(q.x), py = y(q.y), kids = [pointShape(SHAPES[gi % 5], px, py, 4.5, pointAttrs(c, q.p.y))];
-        var text = q.p.short || q.p.label, w = tw(text, 10.5, 600), hh = 12;
+        var text = q.p.short || q.p.label, w = tw(text, 12, 600), hh = 14;
         var cands = [[px + 8, py - 6], [px - 8 - w, py - 6], [px - w / 2, py - 20], [px - w / 2, py + 8]];
         for (var ci = 0; ci < cands.length; ci++) {
           var bx = { x: cands[ci][0], y: cands[ci][1], w: w, h: hh };
           if (bx.x < left || bx.x + w > W - 2 || bx.y < 0 || collides(bx)) continue;
           placed.push(bx);
-          kids.push(s("text", { class: "lbl", x: bx.x, y: bx.y + 10, style: "font-size:10.5px;fill:" + c, text: text }));
+          kids.push(s("text", { class: "lbl", x: bx.x, y: bx.y + 10, style: "font-size:12px;fill:" + c, text: text }));
           break;
         }
         mark(ctx, { x: px - 5, y: py - 5, w: 10, h: 10 }, q.p.label + " (" + q.p.group + "), " + (sp.xLabel || "maturity") + " " + q.p.x + ": " + withUnit(q.p.y.v, sp.unit) + " (" + provWord(q.p.y) + ")", q.p.y.ref, kids);
@@ -920,7 +977,7 @@
     draw: function (ctx, sp) {
       var vals = [];
       dumbbell.datums(sp).forEach(function (d) { if (!isGap(d)) vals.push(parseNum(d.v)); });
-      var maxLbl = Math.max.apply(null, dumbbell.datums(sp).map(function (d) { return isGap(d) ? 20 : tw(String(d.v), 11, 600); }));
+      var maxLbl = Math.max.apply(null, dumbbell.datums(sp).map(function (d) { return isGap(d) ? 20 : tw(String(d.v), 12, 600); }));
       var L = hLayout(ctx, sp, sp.rows.map(function (r) { return { label: r.label, sub: r.sub }; }), vals, 34, maxLbl + 18);
       var grey = color("chart-neutral"), blue = color("chart-1");
       sp.rows.forEach(function (r, i) {
@@ -997,7 +1054,7 @@
           mark(ctx, { x: x0 + 3, y: y0 + 3, w: cw - 6, h: ch - 6 }, label, null, [
             s("rect", { x: x0 + 3.5, y: y0 + 3.5, width: cw - 7, height: ch - 7, fill: "none", stroke: color("chart-3"), "stroke-width": 1, "stroke-dasharray": soft2 ? "3 2" : null }),
             s("text", { x: x0 + 12, y: y0 + 26, style: "font-family:var(--font-head);font-size:18px;font-weight:800;fill:#000533", text: String(evs.length) }),
-            textLines(x0 + 12, y0 + 44, wrap(ids, cw - 24, 11, 2), { class: "lbl" }, 12)
+            textLines(x0 + 12, y0 + 44, wrap(ids, cw - 24, 12, 2), { class: "lbl" }, 14)
           ]);
         });
       });
@@ -1051,25 +1108,27 @@
     pop.setAttribute("aria-label", ref + (found ? ", " + found.kind : ""));
     if (!found) pop.appendChild(h("p", { text: "No record for " + ref + " in RBOT_DATA." }));
     else if (found.kind === "Cited" || found.kind === "Synthetic portfolio file") {
-      var it = found.item;
+      var it = found.item, served = anchor.getAttribute ? anchor.getAttribute("data-served") : null;
       pop.appendChild(h("dl", {}, [
         it.label ? h("dt", { text: "Figure" }) : null, it.label ? h("dd", { text: it.label + (it.value ? ": " + it.value : "") }) : null,
+        served ? h("dt", { text: "Served as" }) : null, served ? h("dd", { text: served }) : null,
         h("dt", { text: "File" }), h("dd", { text: it.file || "" }),
         h("dt", { text: "Locator" }), h("dd", { text: it.locator || (it.line ? "line " + it.line : "") })
       ]));
       if (it.excerpt) pop.appendChild(h("blockquote", { text: it.excerpt }));
     } else if (found.kind === "Calculated") {
-      var c = found.item, inputs = h("dd");
+      var c = found.item, inputs = h("dd"), servedC = anchor.getAttribute ? anchor.getAttribute("data-served") : null;
       (c.inputs || []).forEach(function (r) { inputs.appendChild(chip(r)); inputs.appendChild(document.createTextNode(" ")); });
       pop.appendChild(h("dl", {}, [
         c.label ? h("dt", { text: "Figure" }) : null, c.label ? h("dd", { text: c.label + (c.value ? ": " + c.value : "") }) : null,
+        servedC ? h("dt", { text: "Served as" }) : null, servedC ? h("dd", { text: servedC }) : null,
         h("dt", { text: "Formula" }), h("dd", {}, [h("code", { text: c.formula || "" })]),
         h("dt", { text: "Inputs" }), inputs
       ]));
       if (c.note) pop.appendChild(h("p", { class: "gap__reason", text: c.note }));
     } else {
       var g = found.item;
-      pop.appendChild(h("dl", {}, [h("dt", { text: "Field" }), h("dd", { text: g.field || g.label || "" }), h("dt", { text: "Reason" }), h("dd", { text: g.reason || "" })]));
+      pop.appendChild(h("dl", {}, [h("dt", { text: "Missing item" }), h("dd", { text: fieldHook ? fieldHook(g.field || g.label || "") : (g.field || g.label || "") }), h("dt", { text: "Reason" }), h("dd", { text: g.reason || "" })]));
     }
     pop.hidden = false;
     var r = anchor.getBoundingClientRect();
@@ -1082,19 +1141,42 @@
     if (anchor.setAttribute) anchor.setAttribute("aria-expanded", "true");
     pop.focus();
   }
+  /* Display formatting is the page's business: a hook turns a datum into the text a reader sees, while the
+     passport (popover) keeps the string exactly as served. hook(datum, unit, context, kind) returns text or null. */
+  function setFormat(fn) { fmtHook = typeof fn === "function" ? fn : null; }
+  /* the page may also tidy free text (dates) and name a gap's missing item in plain words; the passport keeps the served strings */
+  function setTextHook(fn) { textHook = typeof fn === "function" ? fn : null; }
+  function setFieldLabel(fn) { fieldHook = typeof fn === "function" ? fn : null; }
+  function tidy(t) { return textHook ? textHook(String(t)) : String(t); }
+  function digitsOf(t) { return String(t).replace(/[^0-9.]/g, ""); }
+  function shown(d, unit, ctx, kind) {
+    var served = String(d.v), t = fmtHook ? fmtHook(d, unit, ctx, kind) : null;
+    if (t === null || t === undefined) t = unit ? withUnit(d.v, unit) : served;
+    return { text: t, served: digitsOf(t) !== digitsOf(served) ? served : null };
+  }
+  function hit() { return h("span", { class: "hit", "aria-hidden": "true" }); }
   function chip(ref, prov) {
     var cls = ref.charAt(0) === "K" ? "calc" : ref.charAt(0) === "G" ? "gapref" : "cite";
-    if (cls === "gapref") return h("button", { type: "button", class: "gapref", "data-ref": ref, "aria-label": "Gap " + ref + ": not in the sources, open the reason", text: ref });
-    return h("button", { type: "button", class: cls, "data-ref": ref, "aria-label": (cls === "calc" ? "Calculation " : "Citation ") + ref + (prov ? ", " + prov : ""), text: ref });
+    if (cls === "gapref") return h("button", { type: "button", class: "gapref", "data-ref": ref, "aria-label": "Gap " + ref + ": not in the sources, open the reason" }, [ref, hit()]);
+    return h("button", { type: "button", class: cls, "data-ref": ref, "aria-label": (cls === "calc" ? "Calculation " : "Citation ") + ref + (prov ? ", " + prov : "") }, [ref, hit()]);
   }
-  /* value(datum, unit): text node + chip, or the n/a gap with its reason */
-  function value(d, unit) {
+  /* value(datum, unit, context): the figure and its provenance, or the n/a gap with its reason.
+     context "prose": the figure itself is the button and carries a corner mark; no bracket chip. */
+  function value(d, unit, ctx) {
     var f = document.createDocumentFragment();
     if (isMissing(d)) {
-      f.appendChild(h(d && d.ref ? "button" : "span", { type: d && d.ref ? "button" : null, class: "gap", "data-ref": d && d.ref || null }, [h("span", { class: "gap__reason", text: (d && d.reason) || "not in the sources" })]));
+      f.appendChild(h(d && d.ref ? "button" : "span", { type: d && d.ref ? "button" : null, class: "gap", "data-ref": d && d.ref || null }, [h("span", { class: "gap__reason", text: (d && d.reason) || "not in the sources" }), d && d.ref ? hit() : null]));
       return f;
     }
-    f.appendChild(h("span", { class: "num", text: unit ? withUnit(d.v, unit) : String(d.v) }));
+    var sh = shown(d, unit, ctx || "table", "value");
+    if (ctx === "prose" || ctx === "figure") {
+      /* a span, not a button: a figure inside a sentence must wrap with the text around it */
+      if (d.ref) f.appendChild(h("span", { class: "figref prov--" + (d.prov || "cited") + (sh.text.length > 26 ? " figref--long" : ""), role: "button", tabindex: 0, "data-ref": d.ref, "data-served": sh.served,
+        "aria-label": sh.text + ", " + provWord(d) }, [sh.text]));
+      else f.appendChild(h("span", { class: "num", text: sh.text }));
+      return f;
+    }
+    f.appendChild(h("span", { class: "num", text: sh.text }));
     if (d.ref) f.appendChild(chip(d.ref));
     if (d.prov === "illustrative") f.appendChild(h("span", { class: "illus", text: "Illustrative" }));
     if (d.prov === "model") f.appendChild(h("span", { class: "tag-model", text: "Model" }));
@@ -1138,11 +1220,17 @@
     if (wired) return;
     wired = true;
     document.addEventListener("click", function (e) {
-      var t = e.target.closest ? e.target.closest("button[data-ref]") : null;
+      var t = e.target.closest ? e.target.closest("button[data-ref], .figref[data-ref]") : null;
       if (t) { e.preventDefault(); if (popAnchor === t && pop && !pop.hidden) close(false); else open(t.getAttribute("data-ref"), t); return; }
       if (pop && !pop.hidden && !pop.contains(e.target) && !(e.target.closest && e.target.closest(".mark"))) close(false);
     });
-    document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(true); });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") { close(true); return; }
+      var fr = e.target.closest ? e.target.closest(".figref[data-ref]") : null;
+      if (fr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); fr.click(); return; }
+      rvKeys(e);
+    });
+    document.addEventListener("focusin", rvFocus);
   }
   /* House scale badge. kind: "rec" | "score" | "val" ; pos 1..5 or null (Avoid, N/A). */
   var SCALE_WORDS = {
@@ -1165,26 +1253,71 @@
     return el;
   }
   var STATUS = { pass: "pass", fits: "pass", restricted: "restricted", watch: "watch", blocked: "blocked", breaches: "breach", breach: "breach", "n/a": "na" };
+  /* the reader-facing word: qa_status Restricted reads "With limitations" (the internal data keeps Restricted) */
+  var STATUS_LABEL = { restricted: "With limitations" };
+  function statusLabel(word) { return STATUS_LABEL[String(word).toLowerCase()] || word; }
   function status(word) {
-    return h("span", { class: "status status--" + (STATUS[String(word).toLowerCase()] || "na"), text: word });
+    return h("span", { class: "status status--" + (STATUS[String(word).toLowerCase()] || "na"), text: statusLabel(word) });
   }
   function illus(text) { return h("span", { class: "illus", title: "No RBOT run exists; this judgement is written for the mockup", text: text || "Illustrative" }); }
-  /* Dense-table cell: the figure is the button, the td carries prov--<kind>. */
-  function cell(td, d, unit) {
+  /* Dense-table cell: the figure is the button, the td carries prov--<kind>. kind hints the format ("rate", "date"). */
+  function cell(td, d, unit, kind) {
     td.classList.add("prov");
     if (isMissing(d)) {
       td.classList.add("prov--gap");
       if (td.classList.contains("num")) td.style.textAlign = "right";
       td.appendChild(h(d && d.ref ? "button" : "span", { type: d && d.ref ? "button" : null, class: "gap", "data-ref": d && d.ref || null,
         title: (d && d.reason) || "not in the sources", "aria-label": "n/a, " + ((d && d.reason) || "not in the sources") },
-        [h("span", { class: "gap__reason", text: (d && d.reason) || "" })]));
+        [h("span", { class: "gap__reason", text: (d && d.reason) || "" }), d && d.ref ? hit() : null]));
       return td;
     }
     td.classList.add("prov--" + (d.prov || "cited"));
-    var txt = unit ? withUnit(d.v, unit) : String(d.v);
-    if (d.ref) td.appendChild(h("button", { type: "button", class: "cellref", "data-ref": d.ref, "aria-label": txt + ", " + provWord(d), text: txt }));
+    var sh = shown(d, unit, "table", kind), txt = sh.text;
+    if (d.ref) td.appendChild(h("button", { type: "button", class: "cellref", "data-ref": d.ref, "data-served": sh.served, "aria-label": txt + ", " + provWord(d) }, [txt, hit()]));
     else td.appendChild(h("span", { text: txt }));
     return td;
   }
-  window.RBOTUI = { cell: cell, init: init, open: open, close: close, chip: chip, value: value, tabs: tabs, el: h, scale: scale, status: status, illus: illus };
+  /* Roving focus: one tab stop per block of provenance buttons (a table, a list, a paragraph); arrow keys move within it. */
+  var RV = "button.cellref, button.cite, button.calc, button.gap, button.gapref, .figref";
+  function groupOf(b) { return b.closest("table, ol, ul, p, dl, figure, [data-roving]") || b.parentElement; }
+  function roving(root) {
+    var groups = [], seen = new Map();
+    Array.prototype.forEach.call((root || document).querySelectorAll(RV), function (b) {
+      var g = groupOf(b), list = seen.get(g);
+      if (!list) { list = []; seen.set(g, list); groups.push(list); }
+      list.push(b);
+    });
+    groups.forEach(function (list) {
+      list.forEach(function (b, i) { b.tabIndex = i === 0 ? 0 : -1; b.setAttribute("data-rv", "1"); });
+    });
+    return groups.length;
+  }
+  function rvKeys(e) {
+    var b = e.target.closest ? e.target.closest("[data-rv]") : null;
+    if (!b) return;
+    var dx = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0, dy = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
+    var home = e.key === "Home", end = e.key === "End";
+    if (!dx && !dy && !home && !end) return;
+    var g = groupOf(b), list = Array.prototype.filter.call(g.querySelectorAll(RV), function (x) { return groupOf(x) === g && x.offsetParent !== null; });
+    var i = list.indexOf(b), next = null;
+    if (i < 0) return;
+    if (dy && g.tagName === "TABLE") {
+      var td = b.closest("td, th"), tr = td && td.parentElement, col = td ? td.cellIndex : 0;
+      for (var r = tr ? (dy > 0 ? tr.nextElementSibling : tr.previousElementSibling) : null; r && !next; r = dy > 0 ? r.nextElementSibling : r.previousElementSibling) {
+        var c = r.cells[col], cand = c && c.querySelector(RV);
+        if (cand && cand.offsetParent !== null) next = cand;
+      }
+    }
+    if (!next) next = home ? list[0] : end ? list[list.length - 1] : list[Math.max(0, Math.min(list.length - 1, i + (dx || dy)))];
+    if (next === b) return;
+    e.preventDefault();
+    next.focus();
+  }
+  function rvFocus(e) {
+    var b = e.target.closest ? e.target.closest("[data-rv]") : null;
+    if (!b) return;
+    var g = groupOf(b);
+    Array.prototype.forEach.call(g.querySelectorAll("[data-rv]"), function (x) { if (groupOf(x) === g) x.tabIndex = x === b ? 0 : -1; });
+  }
+  window.RBOTUI = { cell: cell, init: init, open: open, close: close, chip: chip, value: value, tabs: tabs, el: h, scale: scale, status: status, statusLabel: statusLabel, illus: illus, setFormat: setFormat, setTextHook: setTextHook, setFieldLabel: setFieldLabel, tidy: tidy, roving: roving };
 })();

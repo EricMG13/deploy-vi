@@ -21,6 +21,7 @@ Usage: python3 build-data.py [czr.json] [portfolio-dir]
 
 from __future__ import annotations
 
+import re
 import csv
 import json
 import sys
@@ -91,6 +92,7 @@ def cite(key: str, rec: dict, label: str | None = None) -> str:
 
 def gap(field: str, reason: str, origin: str = "czr.json") -> str:
     gid = f"G{len(GAPS) + 1}"
+    reason = re.sub(r"\s*\(recorded as [^)]*\)", "", reason)  # the extraction's own field names are not for the reader
     GAPS[gid] = {"id": gid, "field": field, "reason": reason, "origin": origin}
     GAP_BY_KEY[field] = gid
     return gid
@@ -186,7 +188,7 @@ def load_czr(path: Path) -> dict:
 def derive() -> None:
     # Gaps this build adds (the extraction carries no such figure).
     gap("total_debt_cash_fy2023_fy2024",
-        "FY2023 and FY2024 year-end debt and cash were not extracted (czr.json carries balance-sheet "
+        "FY2023 and FY2024 year-end debt and cash were not extracted (the extraction carries balance-sheet "
         "figures at 2025-12-31 and 2026-06-30 only)", "build-data.py")
     gap("liquidity_fy2023_fy2025",
         "total liquidity is stated only at 2026-06-30 (Q2 2026 earnings release liquidity table)", "build-data.py")
@@ -212,7 +214,7 @@ def derive() -> None:
     gap("morningstar_issuer_id", "Morningstar Issuer ID is not in the sources", "build-data.py")
     gap("issuer_ratings",
         "no issuer or corporate family rating in the sources; only issue-level ratings on the FINRA TRACE "
-        "pages (see rating_outlooks_moodys_sp)", "build-data.py")
+        "pages (see the rating outlooks gap)", "build-data.py")
     gap("cash_flow_detail_h1_2026",
         "investing (other than capex) and financing cash flows for H1 2026 were not extracted", "build-data.py")
     gap("equity_market_value",
@@ -355,11 +357,32 @@ def derive() -> None:
          "{trace_penn_707569av1_last_yield})",
          ["trace_czr_12769gac4_last_yield", "trace_czr_12769gad2_last_yield", "trace_mgm_552953ck5_last_yield",
           "trace_penn_707569av1_last_yield"])
+    # the other side of the H1 2026 cash bridge: closing cash built from the extracted lines (the residual is stated minus this)
+    calc("cash_bridge_closing_from_lines_h1_2026", "Closing cash built from the extracted lines, H1 2026", "H1 2026",
+         val("cash_2025_12_31") + val("cfo_h1_2026") + val("capex_h1_2026"), 0, "USD millions",
+         "{cash_2025_12_31} + {cfo_h1_2026} + {capex_h1_2026}", ["cash_2025_12_31", "cfo_h1_2026", "capex_h1_2026"],
+         note="Opening cash plus cash from operations less capex; financing and other investing flows were not extracted.")
 
 
 # ---------------------------------------------------------------- tables and charts
 def D(key: str) -> dict:
     return strip(FIG[key])
+
+
+REV_KEYS = ("net_revenues_fy2023", "net_revenues_fy2024", "net_revenues_fy2025", "ltm_net_revenues_q2_2026")
+
+
+def rev_extremes() -> tuple[str, str, str, str]:
+    """(low, high, low key, high key) over every net-revenue bar the Report draws, so the prose matches the chart."""
+    vals = {k: float(FIG[k]["v"].replace(",", "")) for k in REV_KEYS}
+    lo, hi = min(vals, key=vals.get), max(vals, key=vals.get)
+    return FIG[lo]["v"], FIG[hi]["v"], lo, hi
+
+
+def rate(text: str) -> str:
+    """A yield or coupon for prose: 3 decimals at most, trailing zeros trimmed to two (display only)."""
+    out = f"{float(text):.3f}"
+    return out[:-1] if out.endswith("0") else out
 
 
 def G(field: str) -> dict:
@@ -507,14 +530,14 @@ def tables() -> dict:
         },
     }
     ebitda_adj = {
-        "title": "EBITDA adjustments", "unit": "US$ m", "columns": ["Q2 2026", "LTM Q2 2026", "PF LTM"],
+        "title": "EBITDA adjustments", "unit": "US$ m", "columns": ["Q2 2026", "LTM Q2 2026", "PF-LTM"],
         "rows": [
             {"label": "Reported EBITDA", "kind": "total", "cells": [D("reported_ebitda_q2_2026"), G("reported_ebitda_ltm"), G("pf_ltm")]},
             {"label": "Transaction costs and other, net", "kind": "indent", "cells": [D("recon_transaction_costs_q2_2026"), G("reported_ebitda_ltm"), G("pf_ltm")]},
             {"label": "Stock-based compensation", "kind": "indent", "cells": [D("recon_sbc_q2_2026"), G("reported_ebitda_ltm"), G("pf_ltm")]},
             {"label": "Structuring EBITDA", "kind": "total", "cells": [D("structuring_ebitda_q2_2026"), D("ltm_adj_ebitda_q2_2026"), G("pf_ltm")]},
             {"label": "unrealized add-backs", "kind": "sub", "cells": [G("unrealized_addbacks"), G("unrealized_addbacks"), G("pf_ltm")]},
-            {"label": "State Street IM EBITDA", "kind": "total", "cells": [D("structuring_ebitda_q2_2026"), D("ltm_adj_ebitda_q2_2026"), G("pf_ltm")]},
+            {"label": "SSIM EBITDA", "kind": "total", "cells": [D("structuring_ebitda_q2_2026"), D("ltm_adj_ebitda_q2_2026"), G("pf_ltm")]},
         ],
         "note": "Owner's definitions: Reported = before any adjustments; Structuring = Reported + every issuer add-back; "
                 "SSIM = Structuring - unrealized add-backs. With none marketed, SSIM equals Structuring.",
@@ -560,7 +583,7 @@ def charts(portfolio: dict) -> dict:
     nf = G("total_debt_cash_fy2023_fy2024")
     lq = G("liquidity_fy2023_fy2025")
     cats = ["FY2023", "FY2024", "FY2025", "LTM Q2 2026"]
-    src_fin = "Caesars FY2025 10-K, Q2 2026 10-Q and earnings release; calculations by build-data.py"
+    src_fin = "Caesars FY2025 10-K, Q2 2026 10-Q and earnings release; calculations from the cited figures"
     leverage = {
         "id": "fig-leverage", "title": "Leverage", "unit": "x", "categories": cats, "categoryLabel": "Period",
         "summary": "Total leverage " + FIG["total_leverage_ltm"]["v"] + "x at LTM Q2 2026 against "
@@ -600,7 +623,7 @@ def charts(portfolio: dict) -> dict:
     rev_ebitda = {
         "id": "fig-rev-ebitda", "title": "Net revenues and Adjusted EBITDA", "unit": "US$ m", "categories": cats,
         "categoryLabel": "Period",
-        "summary": "Net revenues held between " + FIG["net_revenues_fy2024"]["v"] + " and " + FIG["net_revenues_fy2023"]["v"] + "; Adjusted EBITDA eased from " + FIG["adj_ebitda_fy2023"]["v"] + " in FY2023 to "
+        "summary": "Net revenues ranged from " + rev_extremes()[0] + " to " + rev_extremes()[1] + " across the four periods; Adjusted EBITDA eased from " + FIG["adj_ebitda_fy2023"]["v"] + " in FY2023 to "
                    + FIG["ltm_adj_ebitda_q2_2026"]["v"] + " at LTM Q2 2026.",
         "series": [
             {"key": "rev", "label": "Net revenues", "values": [D("net_revenues_fy2023"), D("net_revenues_fy2024"), D("net_revenues_fy2025"), D("ltm_net_revenues_q2_2026")]},
@@ -660,7 +683,7 @@ def charts(portfolio: dict) -> dict:
                   {"label": "Purchase of property and equipment", "kind": "delta", "d": D("capex_h1_2026")},
                   {"label": "Financing and other", "kind": "residual", "d": D("cash_bridge_residual_h1_2026")},
                   {"label": "Cash, 30 Jun 2026", "kind": "total", "d": D("cash_2026_06_30")}],
-        "source": "Caesars Q2 2026 10-Q cash flow statement and balance sheet; residual by build-data.py",
+        "source": "Caesars Q2 2026 10-Q cash flow statement and balance sheet; residual calculated from the cited lines",
     }
     pts = []
     for lab, short, t, grp in (("CZR 6.50% senior secured 2032", "CZR 6.50% SS 2032", "czr_12769gac4", "CZR"),
@@ -673,8 +696,8 @@ def charts(portfolio: dict) -> dict:
     scatter = {
         "id": "fig-yield-curve", "title": "Yield against maturity, CZR and peers", "unit": "%", "yLabel": "Last trade yield",
         "xLabel": "Maturity", "groupLabel": "Issuer", "asOf": "2026-10-02",
-        "summary": "CZR's unsecured 2032s yield " + FIG["trace_czr_12769gad2_last_yield"]["v"] + "%, above its secured 2032s at "
-                   + FIG["trace_czr_12769gac4_last_yield"]["v"] + "%; the MGM and PENN 2029s yield " + FIG["trace_mgm_552953ck5_last_yield"]["v"] + "% and " + FIG["trace_penn_707569av1_last_yield"]["v"] + "%.",
+        "summary": "CZR's unsecured 2032s yield " + rate(FIG["trace_czr_12769gad2_last_yield"]["v"]) + "%, above its secured 2032s at "
+                   + rate(FIG["trace_czr_12769gac4_last_yield"]["v"]) + "%; the MGM and PENN 2029s yield " + rate(FIG["trace_mgm_552953ck5_last_yield"]["v"]) + "% and " + rate(FIG["trace_penn_707569av1_last_yield"]["v"]) + "%.",
         "points": pts, "groupColors": {"CZR": 1, "MGM": 2, "PENN": 4},
         "curve": {"group": None, "label": "Fitted curve, all four bonds (calculated; positions only)", "prov": "calculated"},
         "gap": G("spread_to_treasury"),
@@ -911,7 +934,7 @@ def illustrative() -> dict:
                     [C["ltm_adj_ebitda_q2_2026"], C["trace_czr_12769gac4_last_price"], GAP_BY_KEY["merger_committed_debt_financing_amount"]]),
         "catalysts": [
             r("Go-shop period ended July 11, 2026.", [C["merger_go_shop_end"]]),
-            r("Merger End Date May 27, 2027, extendable to August 27 and November 27, 2027.",
+            r("Merger End Date May 27, 2027, extendable to August 27, 2027 and November 27, 2027.",
               [C["merger_initial_end_date"], C["merger_first_extended_end_date"], C["merger_second_extended_end_date"]]),
             r("Ticking fee accrues from June 26, 2027.", [C["merger_ticking_fee_date"]]),
             r("Disclosure of the committed debt financing (amount and tranches) for the merger.", [GAP_BY_KEY["merger_committed_debt_financing_amount"]]),
@@ -920,7 +943,7 @@ def illustrative() -> dict:
             {"label": "Scale and cash generation", **r(f"LTM Adjusted EBITDA of {F('ltm_adj_ebitda_q2_2026')} on net revenues of {F('ltm_net_revenues_q2_2026')}.", [C["ltm_adj_ebitda_q2_2026"], C["ltm_net_revenues_q2_2026"]])},
             {"label": "Liquidity", **r(f"Cash and revolver capacity of {F('liq_total')} at 30 June 2026 against {F('debt_maturity_remaining_2026')} of debt due in the rest of 2026.", [C["liq_total"], C["debt_maturity_remaining_2026"]])},
             {"label": "Regional growth", **r(f"Regional Adjusted EBITDA rose to {F('seg_adj_ebitda_regional_q2_2026')} from {F('seg_adj_ebitda_regional_q2_2025')} in Q2 2026.", [C["seg_adj_ebitda_regional_q2_2026"], C["seg_adj_ebitda_regional_q2_2025"]])},
-            {"label": "Committed bid", **r(f"An all-cash offer at {F('merger_price_per_share_pr')} per share, not subject to a financing condition.", [C["merger_price_per_share_pr"], C["issuer.merger.financing_condition"]])},
+            {"label": "Committed bid", **r(f"An all-cash offer at {F('merger_price_per_share_pr')}, not subject to a financing condition.", [C["merger_price_per_share_pr"], C["issuer.merger.financing_condition"]])},
         ],
         "weaknesses": [
             {"label": "Merger debt unknown", **r("The committed debt financing has no stated amount; leverage after closing cannot be computed.", [GAP_BY_KEY["merger_committed_debt_financing_amount"]])},
@@ -928,24 +951,182 @@ def illustrative() -> dict:
             {"label": "Las Vegas softness", **r(f"Las Vegas Adjusted EBITDA fell to {F('seg_adj_ebitda_las_vegas_q2_2026')} from {F('seg_adj_ebitda_las_vegas_q2_2025')} in Q2 2026.", [C["seg_adj_ebitda_las_vegas_q2_2026"], C["seg_adj_ebitda_las_vegas_q2_2025"]])},
             {"label": "Thin GAAP earnings", **r(f"Net loss attributable to Caesars of {F('net_income_attrib_q2_2026')} in Q2 2026 and {F('net_income_attrib_fy2025')} in FY2025.", [C["net_income_attrib_q2_2026"], C["net_income_attrib_fy2025"]])},
         ],
-        "historicalPerformance": r(f"Net revenues have held between {FIG['net_revenues_fy2024']['v']} and {FIG['net_revenues_fy2023']['v']} since FY2023 while Adjusted EBITDA has eased each year, from {FIG['adj_ebitda_fy2023']['v']} to {FIG['adj_ebitda_fy2025']['v']} in FY2025.",
-                                   [C["net_revenues_fy2023"], C["adj_ebitda_fy2023"], C["adj_ebitda_fy2025"]]),
+        "historicalPerformance": r(f"Net revenues have ranged from {rev_extremes()[0]} to {rev_extremes()[1]} between FY2023 and LTM Q2 2026 while Adjusted EBITDA has eased each year, from {FIG['adj_ebitda_fy2023']['v']} to {FIG['adj_ebitda_fy2025']['v']} in FY2025.",
+                                   [C[rev_extremes()[2]], C[rev_extremes()[3]], C["adj_ebitda_fy2023"], C["adj_ebitda_fy2025"]]),
         "businessDescription": r("Caesars Entertainment reports four operating segments: Las Vegas, Regional, Caesars Digital, and Managed and Branded. "
                                  "It agreed on May 27, 2026 to be acquired by Fertitta Entertainment in an all-cash transaction valued at approximately $17.6 billion including assumed debt.",
                                  [C["seg_rev_las_vegas_q2_2026"], C["issuer.merger.agreement_date"], C["merger_transaction_value"]]),
-        "transactionSummary": r("Fertitta Entertainment will acquire Caesars for 31.00 per share in cash, funded by Fertitta equity, assumed Caesars debt "
+        "transactionSummary": r("Fertitta Entertainment will acquire Caesars for 31.00 in cash, funded by Fertitta equity, assumed Caesars debt "
                                 "and new committed debt financing from a group of 10 banks. The amount, tranches and pricing of the new debt are not in the sources.",
                                 [C["merger_price_per_share_pr"], C["issuer.merger.financing"], GAP_BY_KEY["merger_committed_debt_financing_amount"]]),
         "keyFindings": [
             r(f"Total leverage {F('total_leverage_ltm')}x on LTM Adjusted EBITDA, before any merger debt.", [C["total_leverage_ltm"]]),
             r(f"Interest cover {F('interest_cover_ltm')}x including lease financing obligations; {F('cash_interest_cover_ltm')}x on debt cash interest alone.",
               [C["interest_cover_ltm"], C["cash_interest_cover_ltm"]]),
-            r(f"No debt maturity before {F('cei_rcf_maturity')}; 2030 carries {F('debt_maturity_2030')} of maturities.", [C["cei_rcf_maturity"], C["debt_maturity_2030"]]),
+            r(f"No final maturity before {F('cei_rcf_maturity')}; {F('debt_maturity_2030')} is scheduled for 2030 in the 10-Q table, amortisation included.", [C["cei_rcf_maturity"], C["debt_maturity_2030"]]),
             r(f"Unsecured 2032s at {F('trace_czr_12769gad2_last_price')} ({F('trace_czr_12769gad2_moodys')}) against secured 2032s at {F('trace_czr_12769gac4_last_price')} ({F('trace_czr_12769gac4_moodys')}).",
               [C["trace_czr_12769gad2_last_price"], C["trace_czr_12769gac4_last_price"]]),
         ],
     }
 
+
+
+# ---------------------------------------------------------------- operating model (cited from the filings)
+DOCS_DIR = Path("/Users/ericguei/Documents/caos-databricks/qualification/czr-2026q2-full-credit-assessment/documents")
+K10 = "CZR_FY2025_10K.txt"
+Q10 = "CZR_Q2_2026_10Q.txt"
+# (key, label, period, value, unit, file, line, verbatim excerpt of at most 15 words)
+OPM_FACTS: list[tuple[str, str, str, str, str, str, int, str]] = [
+    ("opm_founded", "Founded", "—", "1973", "year", K10, 90, "founded in 1973 by the Carano family"),
+    ("opm_description", "Business description", "—", "geographically diversified gaming and hospitality company", "text", K10, 90,
+     "geographically diversified gaming and hospitality company"),
+    ("opm_revenue_source", "Primary source of revenue", "FY2025", "gaming operations", "text", K10, 93,
+     "Our primary source of revenue is generated by our gaming operations"),
+    ("opm_segments_count", "Reportable segments", "FY2025", "four reportable segments", "text", K10, 1071,
+     "four reportable segments: (1) Las Vegas, (2) Regional, (3) Caesars Digital"),
+    ("opm_mb_fees", "Managed and Branded earns", "FY2025", "fees", "text", K10, 130,
+     "We earn revenue from fees paid for the management of other hotels and casinos"),
+    ("opm_casino_share_fy2025", "Casino share of net revenues", "FY2025", "58", "%", K10, 105,
+     "approximately 58% of our total net revenues in 2025"),
+    ("opm_fb_share_fy2025", "Food and beverage share of net revenues", "FY2025", "15", "%", K10, 124,
+     "represented approximately 15% of our total net revenues in 2025"),
+    ("opm_hotel_share_fy2025", "Hotel share of net revenues", "FY2025", "17", "%", K10, 127,
+     "represented approximately 17% of our total net revenues in 2025"),
+    ("opm_properties", "Properties owned, leased or managed", "30 Jun 2026", "54", "count", Q10, 983,
+     "aggregate of 54 properties in 20 jurisdictions in North America"),
+    ("opm_jurisdictions", "Jurisdictions with properties", "30 Jun 2026", "20", "count", Q10, 983,
+     "54 properties in 20 jurisdictions in North America"),
+    ("opm_slots", "Slot machines, VLTs and e-tables", "30 Jun 2026", "53,800", "count", Q10, 983,
+     "approximately 53,800 slot machines, video lottery terminals and e-tables"),
+    ("opm_tables", "Table games", "30 Jun 2026", "2,800", "count", Q10, 983, "approximately 2,800 table games"),
+    ("opm_rooms", "Hotel rooms", "30 Jun 2026", "46,300", "count", Q10, 983,
+     "approximately 46,300 hotel rooms as of June 30, 2026"),
+    ("opm_owned_casinos", "Casinos owned", "30 Jun 2026", "22", "count", Q10, 986, "we owned 22 of our casinos"),
+    ("opm_leased_casinos", "Casinos leased", "30 Jun 2026", "25", "count", Q10, 986,
+     "leased 25 casinos in North America"),
+    ("opm_vici_casinos", "Casinos leased from VICI", "30 Jun 2026", "18", "count", Q10, 987,
+     "We lease 18 casinos from VICI Properties L.P."),
+    ("opm_glpi_casinos", "Casinos leased from GLPI", "30 Jun 2026", "six", "count", Q10, 988,
+     "We also lease six casinos from GLP Capital, L.P."),
+    ("opm_windsor", "Caesars Windsor lessor", "30 Jun 2026", "Ontario Lottery and Gaming Corporation", "text", Q10, 989,
+     "we lease Caesars Windsor from the Ontario Lottery and Gaming Corporation"),
+    ("opm_vici_term", "VICI lease initial term", "31 Dec 2025", "15-year", "text", K10, 1474,
+     "a 15-year initial term with four five-year renewal options"),
+    ("opm_vici_rent", "VICI initial annual fixed rent", "31 Dec 2025", "$1.1 billion", "text", K10, 1474,
+     "initial annual fixed rent payments of $1.1 billion"),
+    ("opm_vici_obligation", "VICI financing obligation", "31 Dec 2025", "$11.7 billion", "text", K10, 1480,
+     "Our VICI Leases are accounted for as a financing obligation and totaled $11.7 billion"),
+    ("opm_glpi_term", "GLPI Master Lease initial term", "31 Dec 2025", "20 years", "text", K10, 1485,
+     "an initial term of 20 years (through September 2038)"),
+    ("opm_glpi_obligation", "GLPI financing obligation", "31 Dec 2025", "$1.3 billion", "text", K10, 1488,
+     "The GLPI Leases are accounted for as financing obligations and totaled $1.3 billion"),
+    ("opm_sports_jurisdictions", "Sports wagering jurisdictions", "30 Jun 2026", "34", "count", Q10, 992,
+     "across 34 jurisdictions in North America, 27 of which offer online sports betting"),
+    ("opm_online_sports_jurisdictions", "Online sports betting jurisdictions", "30 Jun 2026", "27", "count", Q10, 992,
+     "27 of which offer online sports betting"),
+    ("opm_igaming_jurisdictions", "iGaming jurisdictions", "30 Jun 2026", "five", "count", Q10, 993,
+     "we operate iGaming in five jurisdictions in North America"),
+    ("opm_racebook_states", "Caesars Racebook states", "30 Jun 2026", "23", "count", Q10, 995,
+     "operate the Caesars Racebook app in 23 states as of June 30, 2026"),
+]
+OPM_SEGS = [("Las Vegas", "las_vegas"), ("Regional", "regional"), ("Caesars Digital", "caesars_digital"),
+            ("Managed and Branded", "managed_branded")]
+OPM_TYPES = [("Casino", "casino"), ("Food and beverage", "fb"), ("Hotel", "hotel"), ("Other", "other")]
+# segment net revenues and Adjusted EBITDA, FY2025: the 10-K MD&A results table (first value is 2025)
+_SEG_REV = [("4,049", "Las Vegas | $4,049 | $4,274 | $4,470"), ("5,756", "Regional | 5,756 | 5,539 | 5,778"),
+            ("1,408", "Caesars Digital | 1,408 | 1,163 | 973"), ("279", "Managed and Branded | 279 | 274 | 307")]
+_SEG_EBITDA = [("1,728", "Las Vegas | $1,728 | $1,907 | $2,016"), ("1,789", "Regional | 1,789 | 1,810 | 1,962"),
+               ("236", "Caesars Digital | 236 | 117 | 38"), ("67", "Managed and Branded | 67 | 71 | 76")]
+for _i, (_lab, _s) in enumerate(OPM_SEGS):
+    OPM_FACTS.append((f"opm_seg_rev_{_s}_fy2025", f"{_lab} net revenues", "FY2025", _SEG_REV[_i][0], "USD millions", K10, 1098 + _i, _SEG_REV[_i][1]))
+    OPM_FACTS.append((f"opm_seg_ebitda_{_s}_fy2025", f"{_lab} Adjusted EBITDA", "FY2025", _SEG_EBITDA[_i][0], "USD millions", K10, 1106 + _i, _SEG_EBITDA[_i][1]))
+# net revenues by type: FY2025 (10-K) and H1 2026 (10-Q consolidated table, third value)
+_TYPE_FY = [("6,617", "Casino | $6,617 | $6,267 | $6,367"), ("1,714", "Food and beverage | 1,714 | 1,716 | 1,728"),
+            ("1,945", "Hotel | 1,945 | 2,016 | 2,090"), ("1,210", "Other | 1,210 | 1,246 | 1,343")]
+_TYPE_H1 = [("3,425", "Casino | $1,759 | $1,668 | $3,425 | $3,262"), ("850", "Food and beverage | 426 | 428 | 850 | 863"),
+            ("982", "Hotel | 495 | 509 | 982 | 991"), ("606", "Other | 313 | 302 | 606 | 585")]
+for _i, (_lab, _t) in enumerate(OPM_TYPES):
+    OPM_FACTS.append((f"opm_type_{_t}_fy2025", f"{_lab} net revenues", "FY2025", _TYPE_FY[_i][0], "USD millions", K10, 1128 + _i, _TYPE_FY[_i][1]))
+    OPM_FACTS.append((f"opm_type_{_t}_h1_2026", f"{_lab} net revenues", "H1 2026", _TYPE_H1[_i][0], "USD millions", Q10, 109 + _i, _TYPE_H1[_i][1]))
+# net revenues by segment and type, Q2 2026 (10-Q Note 7); Corporate and Other eliminations are not drawn
+_Q2_MATRIX = {  # type -> (line, [Las Vegas, Regional, Caesars Digital, Managed and Branded], row excerpt)
+    "casino": (612, ["277", "1,144", "340", "—"], "Casino | $277 | $1,144 | $340 | $— | $(2) | $1,759"),
+    "fb": (613, ["267", "160", "—", "—"], "Food and beverage | 267 | 160 | — | — | (1) | 426"),
+    "hotel": (614, ["315", "180", "—", "—"], "Hotel | 315 | 180 | — | — | — | 495"),
+    "other": (615, ["158", "86", "11", "57"], "Other | 158 | 86 | 11 | 57 | 1 | 313"),
+}
+for _lab, _t in OPM_TYPES:
+    _ln, _vals, _ex = _Q2_MATRIX[_t]
+    for _j, (_sl, _s) in enumerate(OPM_SEGS):
+        if _vals[_j] != "—":
+            OPM_FACTS.append((f"opm_mix_{_s}_{_t}_q2_2026", f"{_sl}: {_lab.lower()} net revenues", "Q2 2026", _vals[_j],
+                              "USD millions", Q10, _ln, _ex))
+
+
+def _norm(text: str) -> str:
+    return " ".join(text.split())
+
+
+def register_operating_model() -> None:
+    """Cite every operating-model fact. Each is checked against the filing: the line must contain the
+    verbatim excerpt (at most 15 words) and the value must appear in that excerpt."""
+    source: dict[str, list[str]] = {}
+    for key, label, period, value, unit, file, line, excerpt in OPM_FACTS:
+        lines = source.setdefault(file, (DOCS_DIR / file).read_text(encoding="utf-8").split("\n"))
+        if not 1 <= line <= len(lines) or _norm(excerpt) not in _norm(lines[line - 1]):
+            raise ValueError(f"{key}: excerpt not found at {file} line {line}: {excerpt!r}")
+        if len(excerpt.split()) > 15:
+            raise ValueError(f"{key}: excerpt longer than 15 words")
+        if value.lower() not in excerpt.lower():
+            raise ValueError(f"{key}: value {value!r} not in excerpt {excerpt!r}")
+        cid = cite(key, {"label": label, "period": period, "value": value, "unit": unit, "file": file, "line": line, "excerpt": excerpt})
+        FIG[key] = {"v": paren(value), "raw": value, "unit": unit, "label": label, "period": period, "prov": "cited", "ref": cid}
+
+
+def operating_model() -> tuple[dict, dict]:
+    """Calculated shares and margins, the operating-model tables and the segment-mix chart."""
+    tot = "net_revenues_fy2025"
+    for lab, s in OPM_SEGS:
+        calc(f"opm_seg_share_{s}_fy2025", f"{lab} share of net revenues", "FY2025", val(f"opm_seg_rev_{s}_fy2025") / val(tot) * 100, 1, "%",
+             "{opm_seg_rev_%s_fy2025} / {%s} x 100" % (s, tot), [f"opm_seg_rev_{s}_fy2025", tot])
+        calc(f"opm_seg_margin_{s}_fy2025", f"{lab} Adjusted EBITDA margin", "FY2025",
+             val(f"opm_seg_ebitda_{s}_fy2025") / val(f"opm_seg_rev_{s}_fy2025") * 100, 1, "%",
+             "{opm_seg_ebitda_%s_fy2025} / {opm_seg_rev_%s_fy2025} x 100" % (s, s), [f"opm_seg_ebitda_{s}_fy2025", f"opm_seg_rev_{s}_fy2025"])
+    stated = {"casino": "opm_casino_share_fy2025", "fb": "opm_fb_share_fy2025", "hotel": "opm_hotel_share_fy2025"}
+    other_share = {"v": None, "prov": "gap", "reason": "the 10-K states shares for casino, food and beverage and hotel only"}
+    t = {
+        "segments": {
+            "title": "Segments, FY2025", "unit": "US$ m",
+            "columns": ["Net revenues FY2025", "Share of net revenues, %", "Adj. EBITDA FY2025", "Adj. EBITDA margin, %"],
+            "rows": [{"label": lab, "cells": [D(f"opm_seg_rev_{s}_fy2025"), D(f"opm_seg_share_{s}_fy2025"),
+                                              D(f"opm_seg_ebitda_{s}_fy2025"), D(f"opm_seg_margin_{s}_fy2025")]} for lab, s in OPM_SEGS],
+            "note": "Corporate and Other (net revenues (6), Adjusted EBITDA (196)) is not shown; shares are of consolidated net revenues of "
+                    + FIG[tot]["v"] + ".",
+        },
+        "revenueType": {
+            "title": "Net revenues by type", "unit": "US$ m", "columns": ["FY2025", "H1 2026", "Share of FY2025, % as stated"],
+            "rows": [{"label": lab, "cells": [D(f"opm_type_{x}_fy2025"), D(f"opm_type_{x}_h1_2026"),
+                                              D(stated[x]) if x in stated else other_share]} for lab, x in OPM_TYPES],
+        },
+    }
+    mix_series = []
+    for lab, x in OPM_TYPES:
+        vals = []
+        for _sl, s in OPM_SEGS:
+            k = f"opm_mix_{s}_{x}_q2_2026"
+            vals.append(D(k) if k in FIG else None)
+        mix_series.append({"label": lab, "color": {"casino": 1, "fb": 2, "hotel": 5, "other": 4}[x], "values": vals})
+    c = {
+        "segmentMix": {
+            "id": "fig-segment-mix", "title": "Net revenues by segment and type, Q2 2026", "unit": "US$ m", "categoryLabel": "Segment",
+            "categories": [lab for lab, _ in OPM_SEGS],
+            "summary": "Regional is the largest segment and casino the largest revenue type; Managed and Branded earns fees recorded in Other.",
+            "series": mix_series,
+            "note": "A cell the 10-Q prints as — (nil) is not drawn. Corporate and Other eliminations of (2) casino and (1) food and beverage are not shown.",
+            "source": "Caesars Q2 2026 10-Q, Note 7 Revenue Recognition",
+        },
+    }
+    return t, c
 
 # ---------------------------------------------------------------- run metadata, modules, limitations
 def meta_block() -> dict:
@@ -962,12 +1143,12 @@ def meta_block() -> dict:
 
 def modules() -> list[dict]:
     g = GAP_BY_KEY
-    return [
-        {"id": "CP-0", "name": "Intake and readiness", "status": "Restricted",
+    mods = [
+        {"id": "CP-0", "name": "Source readiness", "status": "Restricted",
          "reason": "Ratings outlooks, Fitch and the merger's debt commitment terms are missing from the Source Pack.",
          "refs": [g["rating_fitch"], g["rating_outlooks_moodys_sp"], g["merger_committed_debt_financing_amount"]]},
         {"id": "CP-1", "name": "Financial analysis and capital structure", "status": "Pass", "reason": "Historical financials, debt table and liquidity reconcile to the filings.", "refs": []},
-        {"id": "CP-1B", "name": "Earnings Delta", "status": "Restricted",
+        {"id": "CP-1B", "name": "Earnings delta", "status": "Restricted",
          "reason": "Q2 2026 against Q2 2025 revenue, Adjusted EBITDA, segments and the EBITDA reconciliation are cited; "
                    "quarterly cash flows, cash interest and cash taxes are disclosed for six months only, so the cash side of the delta is H1.",
          "refs": [g["cfo_q2_2026 / q2_2025"], g["cash_interest_paid_q2_2026 / q2_2025"], g["income_taxes_paid_q2_2026 / q2_2025"]]},
@@ -984,6 +1165,19 @@ def modules() -> list[dict]:
          "reason": "Synthetic mandate; the eligibility of senior secured bonds is not stated and loan ratings are missing.",
          "refs": [g["issuer_ratings"]]},
     ]
+    questions = {  # the reader question each module answers (module role, not a finding)
+        "CP-0": "Is the Source Pack complete enough to analyse this issuer, and what is missing?",
+        "CP-1": "What are the issuer's earnings base, capital structure and leverage today?",
+        "CP-1B": "What changed between Q2 2025 and Q2 2026, and where did it come from?",
+        "CP-2": "Can the issuer meet its obligations over the next twelve months, and what breaks first in a downside?",
+        "CP-3": "How do the issuer's bonds and loans price against peers, and what score and valuation follow?",
+        "CP-4": "What do the documents allow the issuer to do, and how much covenant headroom is there?",
+        "CP-5": "Does every figure trace to a source, and do the reconciliations close?",
+        "CP-6": "Does the issuer fit the portfolio's mandate and constraints?",
+    }
+    for m in mods:
+        m["question"] = questions[m["id"]]
+    return mods
 
 
 def limitations() -> list[dict]:
@@ -1001,7 +1195,9 @@ def main() -> None:
     czr_path = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_CZR
     port_path = Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_PORTFOLIO
     load_czr(czr_path)
+    register_operating_model()
     derive()
+    om_tables, om_charts = operating_model()
     portfolio = load_portfolio(port_path)
     for sid, s in portfolio["sources"].items():
         if isinstance(s, dict):
@@ -1012,8 +1208,8 @@ def main() -> None:
         "calcs": CALCS,
         "gaps": GAPS,
         "figures": FIG,
-        "tables": tables(),
-        "charts": charts(portfolio),
+        "tables": {**tables(), "operatingModel": om_tables},
+        "charts": {**charts(portfolio), **om_charts},
         "modules": modules(),
         "limitations": limitations(),
         "illustrative": illustrative(),

@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -284,19 +285,12 @@ sys.exit(main(['version']))
     assert result.returncode == 0 and result.stdout.startswith("rbot 0.1.0 ")
 
 
-@pytest.mark.parametrize("change", ["missing-contract", "missing-cli", "private-source"])
-def test_reproven_incomplete_or_nonruntime_export_refuses(
-    source: Path, tmp_path: Path, change: str
-) -> None:
+def reproven(source: Path, tmp_path: Path, mutate: Callable[[Path], None]) -> tuple[Path, Path]:
+    """Re-commit the exported tree after `mutate(rbot_folder)`; return the new export and target."""
     repo = tmp_path / "owned malformed repository"
     shutil.copytree(source, repo / "rbot")
     (repo / "rbot/runtime.json").unlink()
-    if change == "missing-contract":
-        (repo / "rbot/modules/CP-6/contract.json").unlink()
-    elif change == "missing-cli":
-        (repo / "rbot/scripts/rbotlib/cli.py").unlink()
-    else:
-        (repo / "rbot/private-source.xlsx").write_bytes(b"owned private-data sentinel")
+    mutate(repo / "rbot")
     git(repo, "init", "-q")
     git(repo, "add", "rbot")
     git(
@@ -309,12 +303,52 @@ def test_reproven_incomplete_or_nonruntime_export_refuses(
         "-qm",
         "Owned incomplete runtime fixture; no provider claim",
     )
-    malformed = tmp_path / "reproven export"
-    build(repo, "HEAD", malformed)
+    export = tmp_path / "reproven export"
+    build(repo, "HEAD", export)
+    return export, tmp_path / "rbot"
+
+
+@pytest.mark.parametrize("change", ["missing-contract", "missing-cli", "private-source"])
+def test_reproven_incomplete_or_nonruntime_export_refuses(
+    source: Path, tmp_path: Path, change: str
+) -> None:
+    def mutate(root: Path) -> None:
+        if change == "missing-contract":
+            (root / "modules/CP-6/contract.json").unlink()
+        elif change == "missing-cli":
+            (root / "scripts/rbotlib/cli.py").unlink()
+        else:
+            (root / "private-source.xlsx").write_bytes(b"owned private-data sentinel")
+
+    malformed, destination = reproven(source, tmp_path, mutate)
     before = snapshot(malformed)
-    result = install(malformed, tmp_path / "rbot")
-    assert result.returncode == 1 and not (tmp_path / "rbot").exists()
+    result = install(malformed, destination)
+    assert result.returncode == 1 and not destination.exists()
     assert snapshot(malformed) == before
+
+
+@pytest.mark.parametrize(
+    ("name", "accepted"),
+    [
+        ("report/extra.js", True),
+        ("report/fonts/inter-400.woff2", True),
+        ("report/page.html", False),
+        ("report/inter-400.woff2", False),
+        ("report/fonts/inter.css", False),
+        ("report/deep/extra.css", False),
+    ],
+)
+def test_install_accepts_report_assets_and_refuses_other_extensions(
+    source: Path, tmp_path: Path, name: str, accepted: bool
+) -> None:
+    def mutate(root: Path) -> None:
+        (root / name).parent.mkdir(parents=True, exist_ok=True)
+        (root / name).write_bytes(b"asset")
+
+    export, destination = reproven(source, tmp_path, mutate)
+    result = install(export, destination)
+    assert (result.returncode == 0) == accepted, result.stderr
+    assert destination.exists() == accepted
 
 
 def test_valid_different_destination_refuses(source: Path, tmp_path: Path) -> None:

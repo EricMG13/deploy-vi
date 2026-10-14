@@ -13,6 +13,7 @@ installer_here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 import hashlib
 import json
 import os
+import re
 import runpy
 import shutil
 import stat
@@ -80,7 +81,11 @@ def runtime_only(contents: dict[str, bytes]) -> None:
     if not modules or not required.issubset(contents):
         raise ValueError("incomplete runtime skill/contracts")
     if any(
-        not (name.startswith("scripts/rbotlib/") and name.endswith(".py"))
+        not (
+            (name.startswith("scripts/rbotlib/") and name.endswith(".py"))
+            or re.fullmatch(r"report/(fonts/)?[A-Za-z0-9._-]+\.(css|js|png|woff2)", name)
+            and (name.endswith(".woff2") == name.startswith("report/fonts/"))
+        )
         for name in set(contents) - required
     ):
         raise ValueError("nonruntime content in export")
