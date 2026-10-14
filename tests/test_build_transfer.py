@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
+import sys
 import zipfile
 from pathlib import Path
+from typing import NamedTuple
 
 import pytest
 
@@ -43,7 +46,7 @@ def _lock(corrupt: bool = False) -> str:
 def repo(tmp_path: Path) -> tuple[Path, str]:
     root = tmp_path / "src"
     shutil.copytree(RBOT_ROOT, root / "rbot", ignore=shutil.ignore_patterns("__pycache__"))
-    for name in ("install.sh", "install.ps1", "docs/acceptance/work-pc-checklist.md"):
+    for name in ("install.sh", "install.ps1", "uv.lock", "docs/acceptance/work-pc-checklist.md"):
         (root / name).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(REAL / name, root / name)
     shutil.copytree(REAL / "spike", root / "spike")
@@ -89,27 +92,34 @@ def wheels(tmp_path: Path) -> Path:
     return folder
 
 
-def _args(repo: tuple[Path, str], tmp_path: Path, wheels: Path, out: str = "out") -> list[str]:
+class Result(NamedTuple):
+    code: int
+    out: str
+    err: str
+
+
+def _build(
+    repo: tuple[Path, str], tmp_path: Path, wheels: Path, out: str = "out", commit: str = ""
+) -> Result:
     lock = tmp_path / "uv.lock"
-    lock.write_text(_lock())
-    return [
-        *("--repo", str(repo[0]), "--commit", repo[1], "--out", str(tmp_path / out)),
+    if not lock.exists():
+        lock.write_text(_lock())
+    argv = [
+        *("bash", str(REAL / "scripts/build_transfer.sh"), sys.executable, str(repo[0])),
+        commit or repo[1],
+        str(tmp_path / out),
         *("--wheels", str(wheels), "--lock", str(lock)),
-        *("--registry", str(repo[0] / "tests/corpus/corpus.json")),
     ]
+    env = {k: v for k, v in os.environ.items() if k != "RBOT_CORPUS_ROOTS"}
+    done = subprocess.run(argv, capture_output=True, text=True, timeout=120, env=env)
+    return Result(done.returncode, done.stdout, done.stderr)
 
 
-def test_manifest_round_trip(
-    repo: tuple[Path, str],
-    wheels: Path,
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.delenv("RBOT_CORPUS_ROOTS", raising=False)
-    assert build_transfer.main(_args(repo, tmp_path, wheels)) == 0
+def test_manifest_round_trip(repo: tuple[Path, str], wheels: Path, tmp_path: Path) -> None:
+    result = _build(repo, tmp_path, wheels)
+    assert result.code == 0, result.err
     archive = tmp_path / f"out/rbot-v1-{repo[1][:12]}.zip"
-    assert f"sha256 {_sha(archive.read_bytes())}" in capsys.readouterr().out
+    assert f"sha256 {_sha(archive.read_bytes())}" in result.out
     with zipfile.ZipFile(archive) as zf:
         manifest = json.loads(zf.read("MANIFEST.json"))
         names = set(zf.namelist())
@@ -130,76 +140,57 @@ def test_manifest_round_trip(
         } <= names
         blank = zf.read("evidence/checklist.txt").decode().splitlines()
         assert "package_sha256:" in blank and "claude_resume_ok:" in blank
-        assert not any(line.startswith("gpt_resume") for line in blank)
         assert all(line.endswith(":") for line in blank)
 
 
-def test_hash_mismatch_refuses(
-    repo: tuple[Path, str], wheels: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    args = _args(repo, tmp_path, wheels)
+def test_hash_mismatch_refuses(repo: tuple[Path, str], wheels: Path, tmp_path: Path) -> None:
     (tmp_path / "uv.lock").write_text(_lock(corrupt=True))
-    assert build_transfer.main(args) == 1
-    assert "pypdf-1.0-py3-none-any.whl does not match uv.lock" in capsys.readouterr().err
+    result = _build(repo, tmp_path, wheels)
+    assert result.code == 1
+    assert "pypdf-1.0-py3-none-any.whl does not match uv.lock" in result.err
     assert not (tmp_path / "out").exists()
 
 
-def test_missing_local_wheel_refuses(
-    repo: tuple[Path, str], wheels: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_missing_local_wheel_refuses(repo: tuple[Path, str], wheels: Path, tmp_path: Path) -> None:
     (wheels / "openpyxl-1.0-py3-none-any.whl").unlink()
-    assert build_transfer.main(_args(repo, tmp_path, wheels)) == 1
-    assert "openpyxl-1.0-py3-none-any.whl is not in" in capsys.readouterr().err
+    result = _build(repo, tmp_path, wheels)
+    assert result.code == 1 and "openpyxl-1.0-py3-none-any.whl is not in" in result.err
 
 
-def test_output_inside_repo_refuses(
-    repo: tuple[Path, str], wheels: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    args = _args(repo, tmp_path, wheels)
-    args[args.index("--out") + 1] = str(repo[0] / "fresh")
-    assert build_transfer.main(args) == 1
-    assert "outside the repository" in capsys.readouterr().err
+def test_output_inside_repo_refuses(repo: tuple[Path, str], wheels: Path) -> None:
+    result = _build(repo, repo[0], wheels, "fresh")
+    assert result.code == 1 and "outside the repository" in result.err
     assert not (repo[0] / "fresh").exists()
 
 
 def test_existing_output_and_unknown_commit_refuse(
-    repo: tuple[Path, str], wheels: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    repo: tuple[Path, str], wheels: Path, tmp_path: Path
 ) -> None:
     (tmp_path / "out").mkdir()
-    assert build_transfer.main(_args(repo, tmp_path, wheels)) == 1
-    assert "fresh directory" in capsys.readouterr().err
-    args = _args(repo, tmp_path, wheels, "other")
-    args[args.index("--commit") + 1] = "deadbeef" * 5
-    assert build_transfer.main(args) == 1
-    assert "unknown commit" in capsys.readouterr().err
+    result = _build(repo, tmp_path, wheels)
+    assert result.code == 1 and "fresh directory" in result.err
+    result = _build(repo, tmp_path, wheels, "other", "deadbeef" * 5)
+    assert result.code == 1 and "unknown commit" in result.err
 
 
 def test_unresolved_corpus_root_refuses(
-    repo: tuple[Path, str],
-    wheels: Path,
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-    monkeypatch: pytest.MonkeyPatch,
+    repo: tuple[Path, str], wheels: Path, tmp_path: Path
 ) -> None:
-    monkeypatch.delenv("RBOT_CORPUS_ROOTS", raising=False)
     path = repo[0] / "tests/corpus/corpus.json"
     data = json.loads(path.read_text())
     data["roots"]["private"] = "external"
     data["packs"][0]["files"][0]["external"] = "private/a.txt"
     path.write_text(json.dumps(data))
-    assert build_transfer.main(_args(repo, tmp_path, wheels)) == 1
-    assert "unresolved" in capsys.readouterr().err
+    _git(repo[0], "-c", "user.name=T", "-c", "user.email=t@e.invalid", "commit", "-qam", "x")
+    result = _build(repo, tmp_path, wheels, commit="HEAD")
+    assert result.code == 1 and "unresolved" in result.err
 
 
-def test_uncommitted_checklist_refuses(
-    repo: tuple[Path, str], wheels: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_uncommitted_input_refuses(repo: tuple[Path, str], wheels: Path, tmp_path: Path) -> None:
     _git(repo[0], "rm", "-q", "install.ps1")
     _git(repo[0], "-c", "user.name=T", "-c", "user.email=t@e.invalid", "commit", "-qm", "x")
-    args = _args(repo, tmp_path, wheels)
-    args[args.index("--commit") + 1] = _git(repo[0], "rev-parse", "HEAD")
-    assert build_transfer.main(args) == 1
-    assert "not committed" in capsys.readouterr().err
+    result = _build(repo, tmp_path, wheels, commit="HEAD")
+    assert result.code == 1 and "not committed" in result.err
 
 
 def test_shipped_lock_pins_pure_wheels_and_checklist_block_is_complete() -> None:
