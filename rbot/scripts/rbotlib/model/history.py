@@ -98,7 +98,7 @@ from rbotlib.model.periods import (
 from rbotlib.model.periods import (
     historical_columns as historical_columns,
 )
-from rbotlib.model.registers import Cp1Registers, PeriodRow
+from rbotlib.model.registers import AccountRow, Cp1Registers, PeriodRow
 
 FLOW_METRICS = frozenset(
     {
@@ -218,11 +218,21 @@ def _row(value: Decimal | None, source: SourceRef | None, outflow: bool = False)
     return cell
 
 
+def _no_cost_of_revenue(row: AccountRow) -> bool:
+    """CP-1's marker for an issuer reporting expenses by nature: a `cogs` row
+    with no figure and `NOT AVAILABLE`. It reads as no row, as `_income` expects."""
+    return (
+        row.metric_id == "cogs" and row.value is None and row.calculation_status == "NOT AVAILABLE"
+    )
+
+
 def _entries(regs: Cp1Registers) -> Iterator[_Entry]:
     """(key, kind, period id, cell) for every register row."""
     for a in regs.accounts:
         kind = _account_kind(a.metric_id)
         cell = _row(a.value, a.source, a.metric_id in OUTFLOW_METRICS)
+        if _no_cost_of_revenue(a):
+            cell = ABSENT
         yield f"acct:{a.metric_id}", kind, a.period_id, cell
     for s in regs.segments:
         yield f"bu:{s.segment_id}", "flow", s.period_id, _row(s.revenue, s.source)
