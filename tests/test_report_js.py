@@ -228,8 +228,20 @@ def test_print_fills_page_one_keeps_labels_whole_and_leaves_nothing_out(
     pages = _printed_pages(path, snapshot_only=True)
     assert "INVESTMENT THESIS; CATALYSTS" in _flat(pages[0]), "page 1 holds no content row"
     lines = [ln for page in pages for ln in page.splitlines()]
-    for label in ("Morningstar issuer id", "Corp rating moodys", "Sponsor quality", "Shareholders"):
-        assert any(label in ln for ln in lines), f"profile label {label!r} is split across lines"
+    labels = (
+        "Morningstar issuer id",  # company profile
+        "Corp rating moodys",
+        "Sponsor quality",
+        "Shareholders",
+        "Bloomberg id",  # capital structure
+        "Maturity date",
+        "Structuring multiple",
+        "Outstanding",
+        "Realization status",  # EBITDA adjustments
+        "Currency",
+    )
+    for label in labels:
+        assert any(label in ln for ln in lines), f"table label {label!r} is split across lines"
     flat = _flat("\n".join(pages))
     for text in (
         "Net leverage, adjusted by period, as the Model computes it.",

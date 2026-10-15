@@ -322,36 +322,40 @@
   /* The Snapshot prints at full scale, laid out at the printable page width and spread over pages (report.css is frozen
      to the template, so the print rules live here and go with printRestore). Small units (call items, sub-blocks) stay
      whole; the big sections may break between their children, so page 1 carries the first content row. Everything the
-     page hides on screen is shown on paper (source lines, notes, summaries) except the chart data tables. The wide
-     company-profile table prints as label/value pairs, the labels taken from its header cells. */
+     page hides on screen is shown on paper (block source lines, summaries) except the chart data tables. Words never
+     break inside a table cell: a table too wide for the page at whole-word widths prints each row as label/value pairs,
+     the labels taken from its header cells. */
   var PAGE_W = 985;   /* CSS px inside @page margins; fits both US Letter and A4 landscape */
-  var PROFILE = ".p-co > .cb__body > .table-scroll > table", P = "html.printing #view-snapshot ";
+  var P = "html.printing #view-snapshot ", CARDS = P + "table[data-cards]";
   var PRINT_CSS = [
     P + "[data-block]:not(details) { break-inside: avoid; }",
     P + ".cb__foot { display: block !important; padding: 0.25rem 0; }",
     P + ".cb__full { display: none; }",
-    "html.printing details.srcs { display: block !important; }",
-    P + ".mnotes { display: block; }",
     P + ".chart__summary, " + P + ".chart__source { display: block; }",
     P + ".p-rv, " + P + ".p-tx { display: block; }",
-    P + PROFILE + " thead { display: none; }",
-    P + PROFILE + ", " + P + PROFILE + " tbody { display: block; }",
-    P + PROFILE + " tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem 0.8rem; padding: 0.4rem; }",
-    P + PROFILE + " td { display: block; padding: 0; border: 0; overflow-wrap: normal; word-break: normal; }",
-    P + PROFILE + " td::before { content: attr(data-label); display: block; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-2); }",
-    P + PROFILE + " td[data-wide] { grid-column: 1 / -1; }"
+    P + ".dt th, " + P + ".dt td { overflow-wrap: normal; word-break: normal; }",
+    CARDS + " thead { display: none; }",
+    CARDS + ", " + CARDS + " tbody { display: block; }",
+    CARDS + " tr { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 0.4rem 0.8rem; padding: 0.4rem; border-bottom: var(--rule); }",
+    CARDS + " tr > * { display: block; min-width: 0 !important; padding: 0; border: 0; text-align: left; }",
+    CARDS + " tr > *::before { content: attr(data-label); display: block; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-2); }",
+    CARDS + " tr > [data-label='']::before { display: none; }",
+    CARDS + " tr > [data-wide] { grid-column: 1 / -1; }"
   ].join("\n");
-  var WIDE_CELL = 60;   /* characters: longer profile values take the full row */
-  var wasOpen = null, printCss = null, labelled = null;
-  function labelProfile() {
-    var table = VIEWS.snapshot.el.querySelector(PROFILE);
-    labelled = [];
-    if (!table) return;
-    var names = all("thead th", table).map(function (th) { return th.textContent; });
-    all("tbody td", table).forEach(function (td, i) {
-      td.setAttribute("data-label", names[i] || "");
-      if (td.textContent.length > WIDE_CELL) td.setAttribute("data-wide", "");
-      labelled.push(td);
+  var WIDE_CELL = 60;   /* characters: longer values take the full row of a label/value table */
+  var wasOpen = null, printCss = null;
+  function labelWideTables() {
+    all(".dt", VIEWS.snapshot.el).forEach(function (table) {
+      if (table.closest(".chart__twin, .chart-twin")) return;
+      if (table.getBoundingClientRect().width <= table.parentElement.clientWidth + 1) return;
+      var names = all("thead th", table).map(function (th) { return th.textContent; });
+      all("tbody tr", table).forEach(function (tr) {
+        [].forEach.call(tr.children, function (cell, i) {
+          cell.setAttribute("data-label", names[i] || "");
+          if (cell.textContent.length > WIDE_CELL) cell.setAttribute("data-wide", "");
+        });
+      });
+      table.setAttribute("data-cards", "");
     });
   }
   function printPrepare() {
@@ -365,7 +369,7 @@
     printCss = document.createElement("style");
     printCss.textContent = PRINT_CSS;
     document.head.appendChild(printCss);
-    labelProfile();
+    labelWideTables();
     charts.forEach(function (c) { c.redraw(); });
   }
   function printRestore() {
@@ -374,8 +378,9 @@
     document.documentElement.classList.remove("printing");
     snap.style.width = "";
     printCss.remove(); printCss = null;
-    labelled.forEach(function (td) { td.removeAttribute("data-label"); td.removeAttribute("data-wide"); });
-    labelled = null;
+    all("[data-cards], [data-label], [data-wide]", snap).forEach(function (el) {
+      ["data-cards", "data-label", "data-wide"].forEach(function (a) { el.removeAttribute(a); });
+    });
     wasOpen.forEach(function (x) { x[0].open = x[1]; });
     wasOpen = null;
     charts.forEach(function (c) { c.redraw(); });
