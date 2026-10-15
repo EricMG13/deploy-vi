@@ -25,7 +25,6 @@ Full Credit Assessment at `full` depth, run unattended as sub-agents in Copilot:
 - F7: CP-3 comparables may mix secured and unsecured seniority without disclosure; indenture Schedule II is not examined.
 - F8: an expected (term-sheet) rating counts as rated in FIT bucket limits and can oversize a new tranche. Owner decision.
 - F9: CP-6 recovery stress may rank sale-leaseback obligations ahead of secured lenders.
-- F10: the Credit Snapshot print is zoomed to one page and is unreadable for long snapshots. Owner decision.
 - F11: negative add-backs are excluded with their category, so FY2024 Adjusted EBITDA can exceed the issuer's figure. Owner decision.
 - F12: opening report.html with a hash shows two panes until a nav item is clicked.
 - R5 measurement is keyed on worker-chosen facility ids.

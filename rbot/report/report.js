@@ -319,10 +319,10 @@
   }
 
   /* ------------------------------------------------------------ print (report-a.js:1646) */
-  /* The Snapshot is re-flowed into a grid and scaled to fit one landscape page; every view after it
-     prints with every section open. */
-  var PAGE_W = 985, PAGE_H = 712;   /* CSS px inside @page margins; fits both US Letter and A4 landscape */
-  var wasOpen = null;
+  /* The Snapshot prints at full scale, laid out at the printable page width and spread over pages, each block kept
+     whole by a rule added here (report.css is frozen to the template); every view after it prints with every section open. */
+  var PAGE_W = 985;   /* CSS px inside @page margins; fits both US Letter and A4 landscape */
+  var wasOpen = null, wholeBlocks = null;
   function printPrepare() {
     if (wasOpen) return;
     var root = document.documentElement, snap = VIEWS.snapshot.el;
@@ -330,29 +330,18 @@
     all("details").forEach(function (d) { wasOpen.push([d, d.open]); d.open = true; });
     UI.close(false);
     root.classList.add("printing");
-    function settle(V) {
-      snap.style.width = V + "px"; snap.style.zoom = "1";
-      charts.forEach(function (c) { c.redraw(); });
-      var r0 = snap.getBoundingClientRect(), z = Math.min(PAGE_W / r0.width, PAGE_H / r0.height);
-      for (var k = 0; k < 5; k++) {
-        snap.style.zoom = String(Math.floor(z * 1000) / 1000);
-        var r = snap.getBoundingClientRect();
-        if (r.height <= PAGE_H && r.width <= PAGE_W) break;
-        z = z * Math.min(PAGE_H / r.height, PAGE_W / r.width) * 0.995;
-      }
-      return Math.floor(z * 1000) / 1000;
-    }
-    var best = null;
-    [1700, 2000, 2300, 2600].forEach(function (V) { var z = settle(V); if (!best || z > best.z) best = { V: V, z: z }; });
-    settle(best.V);
-    root.setAttribute("data-print-zoom", snap.style.zoom);
+    snap.style.width = PAGE_W + "px";
+    wholeBlocks = document.createElement("style");
+    wholeBlocks.textContent = "html.printing #view-snapshot [data-block] { break-inside: avoid; }";
+    document.head.appendChild(wholeBlocks);
     charts.forEach(function (c) { c.redraw(); });
   }
   function printRestore() {
     if (!wasOpen) return;
     var snap = VIEWS.snapshot.el;
     document.documentElement.classList.remove("printing");
-    snap.style.width = ""; snap.style.zoom = "";
+    snap.style.width = "";
+    wholeBlocks.remove(); wholeBlocks = null;
     wasOpen.forEach(function (x) { x[0].open = x[1]; });
     wasOpen = null;
     charts.forEach(function (c) { c.redraw(); });
