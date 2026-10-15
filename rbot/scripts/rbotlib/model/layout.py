@@ -310,7 +310,7 @@ def _addback_spec(row: AddbackRow, statuses: list[str], excluded: frozenset[str]
     status = _REALISATION.get(shown, shown)
     key = f"addback:{row.addback_id}"
     if row.addback_id in excluded:
-        return _Spec(key, key, f"Add-back: {row.label} ({status}), excluded", "MEMO")
+        return _Spec(key, key, f"Add-back: {row.label} ({status}), excluded if positive", "MEMO")
     return _Spec(key, key, f"Add-back: {row.label} ({status})", "ACCOUNT")
 
 

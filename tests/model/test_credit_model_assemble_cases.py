@@ -159,7 +159,7 @@ def test_an_add_back_label_shows_the_status_that_excludes_it() -> None:
 
     line = _line(_model(regs=regs, exclude_unrealised=True), "addback:restructuring")
     assert (line.label, line.kind) == (
-        "Add-back: Restructuring (unrealised), excluded",
+        "Add-back: Restructuring (unrealised), excluded if positive",
         "MEMO",
     )
     line = _line(_model(regs=regs), "addback:restructuring")

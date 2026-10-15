@@ -24,9 +24,11 @@ add-back with no row for the column's periods adds nothing to adjusted EBITDA
 (its `addback:` cell stays `NOT_SOURCED`); one whose row has no figure leaves
 adjusted EBITDA `COMPONENT_MISSING`. With `exclude_unrealised`, an add-back
 with any row `UNREALIZED` or `NOT_STATED` is left out of adjusted EBITDA on
-every column (spec M7); CP-1's figure is kept as `stated` and compared only on
-a column where nothing was left out (an excluded add-back of zero or none
-leaves nothing out).
+every column (spec M7), but only its positive amounts: a negative amount is a
+deduction (a net gain, say) and stays, so exclusion never raises adjusted
+EBITDA (owner decision F11, 2026-10-15). CP-1's figure is kept as `stated` and
+compared only on a column where nothing was left out (an excluded add-back of
+zero, none or a negative amount leaves nothing out).
 
 The PF-LTM shows no KPI, working-capital balance or days ratio
 (`NOT_APPLICABLE`), as the worked example does; a PF `ebitda` adjustment
@@ -174,12 +176,20 @@ def excluded_addbacks(regs: Cp1Registers, exclude_unrealised: bool) -> frozenset
     return frozenset(b.addback_id for b in regs.addbacks if b.realization_status in UNREALISED)
 
 
+def is_deduction(cell: Cell) -> bool:
+    """Whether an add-back's amount is negative: excluding the add-back keeps
+    it (F11)."""
+    return cell.value is not None and cell.value < 0
+
+
 def _left_out(accounts: dict[str, Cell], excluded: frozenset[str]) -> bool:
     """Whether an excluded add-back leaves anything out on this column: a
-    figure other than zero, or a row without one (an unknown amount)."""
+    positive figure, or a row without one (an unknown amount)."""
     # Every add-back has a cell on every column (`account_frame`).
     cells = (accounts[f"addback:{addback}"] for addback in excluded)
-    return any(cell.reason != "NOT_SOURCED" and cell.value != 0 for cell in cells)
+    return any(
+        cell.reason != "NOT_SOURCED" and (cell.value is None or cell.value > 0) for cell in cells
+    )
 
 
 def _income(get: _Get, accounts: dict[str, Cell], excluded: frozenset[str]) -> dict[str, Cell]:
@@ -198,7 +208,7 @@ def _income(get: _Get, accounts: dict[str, Cell], excluded: frozenset[str]) -> d
         (cell, 1)
         for key, cell in accounts.items()
         if key.startswith("addback:")
-        and key.removeprefix("addback:") not in excluded
+        and (key.removeprefix("addback:") not in excluded or is_deduction(cell))
         and cell.reason != "NOT_SOURCED"
     ]
     adjusted = _stated(
@@ -353,7 +363,7 @@ def _column(
     cells = dict(accounts)
     for addback in excluded:
         key = f"addback:{addback}"
-        if key in cells:
+        if key in cells and not is_deduction(cells[key]):
             cells[key] = replace(cells[key], note=_EXCLUDED)
     cells.update(debt)
     cells.update({key: _line(accounts, metric) for key, metric in _LINES.items()})

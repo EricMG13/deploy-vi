@@ -33,6 +33,7 @@ from rbotlib.model.house import HouseView, cell, cumulative, percent_of, ratio, 
 from rbotlib.model.house_inputs import HouseInputs
 from rbotlib.model.layout import Line
 from rbotlib.model.registers import Cp1Registers, iso_date
+from rbotlib.model.statements import is_deduction
 
 GAP = "\N{EM DASH}"
 SLOTS = ("FY-2", "FY-1", "FY", "PYTD", "YTD", "LTM")
@@ -424,7 +425,8 @@ def _status(ctx: Context, line: Line, column: Column, fixed: dict[str, str]) -> 
 def ebitda_adjustments(ctx: Context) -> Table:
     """Reported EBITDA, every add-back (realized and not) and the PF rows to
     adjusted EBITDA, Structuring EBITDA, each unrealized add-back taken off
-    again, SSIM EBITDA: a bridge that foots on the snapshot column (D19)."""
+    again (a negative one stays in, F11), SSIM EBITDA: a bridge that foots on
+    the snapshot column (D19)."""
     column = ctx.view.column
     if column is None:
         return Table(_ADJUSTMENT_COLUMNS, [])
@@ -447,7 +449,7 @@ def ebitda_adjustments(ctx: Context) -> Table:
     rows += [
         _adjustment_row(ctx, x.label, "Unrealized add-back", c, _status(ctx, x, column, status))
         for x, c in shown
-        if x.kind == "MEMO"
+        if x.kind == "MEMO" and not is_deduction(c)
     ]
     ssim = ctx.view.item("ssim_ebitda").cell
     rows.append(_adjustment_row(ctx, "SSIM EBITDA", "Total", ssim, GAP))

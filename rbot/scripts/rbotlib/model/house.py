@@ -7,8 +7,9 @@ it would always equal SSIM EBITDA (controller ruling, 2026-10-11).
 Every figure is read on the snapshot column: the PF-LTM where the Model has
 one, else the host's LTM (the first LTM column, the one the PF-LTM adds to).
 The Model runs with `exclude_unrealised`, so its adjusted EBITDA is SSIM
-EBITDA; Structuring EBITDA adds back every excluded add-back (an add-back
-with no row for the period adds nothing). PF interest is the column's cash
+EBITDA; Structuring EBITDA adds back every excluded add-back's positive
+amount (a negative one stays in SSIM EBITDA, F11; an add-back with no row for
+the period adds nothing). PF interest is the column's cash
 interest as a positive amount. A denominator at or below zero gives no figure
 (`ZERO_OR_NEGATIVE_DENOMINATOR`); a missing input gives the first missing
 input's reason noted with why each missing input is missing, as the Model's
@@ -39,6 +40,7 @@ from rbotlib.model.house_inputs import DebtLikeItem, HouseInputs, debt_like_key
 from rbotlib.model.layout import BANDS, Line
 from rbotlib.model.periods import LTM_DAYS
 from rbotlib.model.registers import Cp1Registers
+from rbotlib.model.statements import is_deduction
 
 Unit = Literal["MONEY", "MULTIPLE", "PERCENT"]
 _SCALE = {"UNITS": Decimal(1), "THOUSANDS": Decimal(10) ** 3, "MILLIONS": Decimal(10) ** 6}
@@ -197,9 +199,11 @@ def with_debt_like_lines(
 def _structuring(model: CreditModel, column: Column, ssim: Cell) -> HouseItem:
     excluded = [x for x in model.lines if x.line_id.startswith("addback:") and x.kind == "MEMO"]
     cells = [(cell(model, x.line_id, column), x.line_id) for x in excluded]
-    parts = [(c, 1) for c, _ in cells if c.reason != "NOT_SOURCED"]
-    ids = tuple(i for c, i in cells if c.reason != "NOT_SOURCED")
-    formula = "adjusted_ebitda + excluded (unrealized) add-backs"
+    # A negative amount stays in SSIM EBITDA (F11), so only the rest is added.
+    kept = [(c, i) for c, i in cells if c.reason != "NOT_SOURCED" and not is_deduction(c)]
+    parts = [(c, 1) for c, _ in kept]
+    ids = tuple(i for _, i in kept)
+    formula = "adjusted_ebitda + excluded (unrealized) positive add-backs"
     total = _sum([(ssim, 1), *parts])
     return HouseItem(
         "Structuring EBITDA",
@@ -274,21 +278,6 @@ def _pf_limitations(
         why = "no sourced PF cash interest: PF interest is the LTM's cash interest"
         found.append(("PF_INTEREST_NOT_SOURCED", why))
     return found
-
-
-def _above_structuring(model: CreditModel, column: Column) -> list[tuple[str, str]]:
-    """A negative excluded add-back puts SSIM EBITDA above Structuring EBITDA:
-    more likely a CP-1 sign slip than a dis-synergy, so it is named."""
-    negative = [
-        f"{x.line_id} ({cell(model, x.line_id, column).value})"
-        for x in model.lines
-        if x.line_id.startswith("addback:") and x.kind == "MEMO"
-        if (cell(model, x.line_id, column).value or 0) < 0
-    ]
-    if not negative:
-        return []
-    why = f"excluded add-backs below zero: {', '.join(negative)}"
-    return [("SSIM_ABOVE_STRUCTURING", why)]
 
 
 def twelve_months(column: Column | None) -> bool:
@@ -400,7 +389,6 @@ def house_view(model: CreditModel, regs: Cp1Registers, inputs: HouseInputs) -> H
         *_pf_limitations(model, regs, column),
         *ev_limits,
         *debt_limits,
-        *_above_structuring(model, column),
     )
     positions = _positions(model, regs, column)
     return HouseView(column, _annual(column, items), positions, equity, basis, limits)

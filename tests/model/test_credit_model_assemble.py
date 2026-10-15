@@ -105,7 +105,7 @@ def test_exclude_unrealised_drops_unrealised_addbacks_from_adjusted_ebitda_every
     assert _line(included, addback).kind == "ACCOUNT"
     assert _line(excluded, addback).kind == "MEMO"
     assert _line(excluded, addback).label == (
-        "Add-back: Run-rate cost savings (unrealised), excluded"
+        "Add-back: Run-rate cost savings (unrealised), excluded if positive"
     )
     dropped = 0
     for column in excluded.columns:

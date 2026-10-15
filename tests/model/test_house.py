@@ -270,14 +270,19 @@ def _addbacks(draw: st.DrawFn) -> Cp1Registers:
 
 @settings(max_examples=30, deadline=None)
 @given(regs=_addbacks())
-def test_structuring_less_ssim_is_the_excluded_add_backs(regs: Cp1Registers) -> None:
+def test_structuring_less_ssim_is_the_excluded_positive_add_backs(regs: Cp1Registers) -> None:
     view = _view(regs)
     column = view.column
     assert column is not None
     excluded = {b.addback_id for b in regs.addbacks if b.realization_status != "REALIZED"}
     model = credit_model(ModelInputs(regs, exclude_unrealised=True))
+    # A negative amount stays in SSIM EBITDA (F11): only the positive ones differ.
     total = sum(
-        (cell(model, f"addback:{a}", column).value or Decimal(0) for a in excluded), Decimal(0)
+        (
+            max(cell(model, f"addback:{a}", column).value or Decimal(0), Decimal(0))
+            for a in excluded
+        ),
+        Decimal(0),
     )
     with localcontext(CONTEXT):
         assert _value(view, "structuring_ebitda") - _value(view, "ssim_ebitda") == total
