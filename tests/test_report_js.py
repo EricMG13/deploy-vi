@@ -217,6 +217,15 @@ def _printed_pages(path: Path, *, snapshot_only: bool) -> list[str]:
     return [page.extract_text() for page in PdfReader(pdf).pages]
 
 
+MAX_SNAPSHOT_PAGES = 30
+HEADINGS = (  # block heading band, first label of its content: always on the same page
+    ("COMPANY PROFILE", "Morningstar issuer id"),
+    ("CAPITAL STRUCTURE", "Facility id"),
+    ("EBITDA ADJUSTMENTS", "Line"),
+    ("LOAN RELATIVE VALUE", "Block"),
+)
+
+
 def _flat(text: str) -> str:
     return " ".join(text.upper().split())
 
@@ -242,6 +251,11 @@ def test_print_fills_page_one_keeps_labels_whole_and_leaves_nothing_out(
     )
     for label in labels:
         assert any(label in ln for ln in lines), f"table label {label!r} is split across lines"
+    assert len(pages) <= MAX_SNAPSHOT_PAGES, f"the printed Snapshot runs to {len(pages)} pages"
+    for heading, first_label in HEADINGS:
+        home = [pg for pg in pages if any(ln.upper().startswith(heading) for ln in pg.splitlines())]
+        assert home, f"heading {heading!r} is not printed"
+        assert first_label in home[0], f"{heading!r} prints without {first_label!r} on its page"
     flat = _flat("\n".join(pages))
     for text in (
         "Net leverage, adjusted by period, as the Model computes it.",
