@@ -14,6 +14,7 @@ For one portfolio (`prepared/portfolios/<id>.json`) and one instrument:
    current value bounds every bucket. A sector or country that is in neither the listed values
    nor the portfolio's own taxonomy (its positions' and limits' values) is `Not computed`, never
    "does not touch"; so is a limit without a `scope_value` that is not a largest-bucket limit.
+   An expected (term-sheet) rating is not assigned and counts as no rating (F8).
    An instrument with no rating, or one RBOT cannot read, counts toward the CCC bucket limit
    (and is flagged in `notes`). Headroom is the limit less the current value in the limit's unit
    (for a maturity limit in years, the limit less the instrument's tenor); `headroom_amount`
@@ -183,16 +184,22 @@ class Fit:
 def rating_bucket(ratings: Sequence[str]) -> str:
     """The lowest bucket over the agencies' ratings (IG, BB, B, CCC).
 
-    `Unrated` when there is no rating (or only NR / WR); `Unreadable` when any non-NR
-    agency rating cannot be read.
+    `Unrated` when there is no rating (or only NR / WR / expected ones); `Unreadable` when any
+    other agency rating cannot be read. An expected or indicative rating (`Ba3 (expected)`) is
+    not assigned (owner decision F8) and is left out; Moody's `(P)` is assigned and stays.
     """
-    written = [r for r in ratings if r.strip().casefold() not in _NOT_RATED]
+    written = [r for r in ratings if r.strip().casefold() not in _NOT_RATED and not is_expected(r)]
     if not written:
         return UNRATED
     found = [_bucket(r) for r in written]
     if any(b is None for b in found):
         return UNREADABLE
     return max((b for b in found if b is not None), key=BUCKETS.index)
+
+
+def is_expected(rating: str) -> bool:
+    """A rating marked `expected`, `exp` or `indicative` (a term-sheet or presentation rating)."""
+    return re.search(r"\b(?:expected|exp|indicative)\b", rating, re.IGNORECASE) is not None
 
 
 def _bucket(rating: str) -> str | None:
@@ -523,11 +530,23 @@ def concerns(portfolio: Portfolio, held: Held, rows: Sequence[Headroom]) -> list
 
 
 def _notes(instrument: Instrument, rows: Sequence[Headroom]) -> tuple[str, ...]:
+    expected = [r for r in instrument.ratings if is_expected(r)]
+    said = (
+        [
+            f"{instrument.facility_id}: rating expected ({', '.join(expected)}), "
+            "not assigned; treated as Unrated"
+        ]
+        if expected and rating_bucket(instrument.ratings) == UNRATED
+        else []
+    )
     return tuple(
-        f"{instrument.facility_id}: missing or unreadable rating, "
-        f"counted toward {r.limit['limit_id']}"
-        for r in rows
-        if counted_as_ccc(r.limit, instrument)
+        said
+        + [
+            f"{instrument.facility_id}: missing or unreadable rating, "
+            f"counted toward {r.limit['limit_id']}"
+            for r in rows
+            if counted_as_ccc(r.limit, instrument)
+        ]
     )
 
 
