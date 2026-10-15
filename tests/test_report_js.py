@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from pypdf import PdfReader
 from report_run import complete_run
 
 from rbotlib.catalog import load_catalog, load_contracts
@@ -118,7 +119,8 @@ def _report_page(
 PRINT_PROBE = """<script>(function () {
   var snap = document.getElementById("view-snapshot"), root = document.documentElement;
   function look() {
-    var blocks = [].slice.call(snap.querySelectorAll("[data-block]"));
+    var blocks = [].slice.call(snap.querySelectorAll("[data-block]:not(details)"));
+    var big = [].slice.call(snap.querySelectorAll("details[data-block]"));
     var shut = [].slice.call(document.querySelectorAll("details"));
     return {
       zoom: snap.style.zoom,
@@ -126,6 +128,10 @@ PRINT_PROBE = """<script>(function () {
       scrollWidth: snap.scrollWidth,
       printing: root.classList.contains("printing"),
       blocks: blocks.length,
+      bigSplit: big.filter(function (b) {
+        return getComputedStyle(b).breakInside !== "avoid";
+      }).length,
+      big: big.length,
       whole: blocks.filter(function (b) {
         return getComputedStyle(b).breakInside === "avoid";
       }).length,
@@ -168,6 +174,7 @@ def test_print_keeps_the_snapshot_at_full_scale_with_whole_blocks(
     assert during["zoom"] in ("", "1")
     assert during["width"] <= 985 and during["scrollWidth"] <= 985
     assert during["blocks"] > 0 and during["whole"] == during["blocks"]
+    assert during["big"] > 0 and during["bigSplit"] == during["big"]  # big sections may split
     assert (after["printing"], after["zoom"], after["width"]) == (
         False,
         "",
@@ -175,6 +182,63 @@ def test_print_keeps_the_snapshot_at_full_scale_with_whole_blocks(
     )
     assert after["whole"] < after["blocks"]
     assert after["closed"] == seen["before"]["closed"]
+
+
+PRINT_NOW = """<script>window.addEventListener("load", function () {
+  setTimeout(function () { window.RBOTPrint.prepare(); }, 300);
+});</script></body>"""
+SNAPSHOT_ONLY = "<style>.view:not(.view--snapshot) { display: none !important; }</style>"
+
+
+def _printed_pages(path: Path, *, snapshot_only: bool) -> list[str]:
+    """Prepare the report for print, print it to PDF in headless Chrome, return each page's text."""
+    extra = SNAPSHOT_ONLY if snapshot_only else ""
+    html_text = path.read_text(encoding="utf-8").replace("</body>", extra + PRINT_NOW)
+    probed = path.with_name("printing.html")
+    probed.write_text(html_text, encoding="utf-8")
+    pdf = path.with_name("printed.pdf")
+    pdf.unlink(missing_ok=True)
+    # headless Chrome can exit non-zero at teardown after writing the PDF; the file is the proof
+    subprocess.run(
+        [
+            _chrome(),
+            "--headless=new",
+            "--disable-gpu",
+            "--virtual-time-budget=3000",
+            "--no-pdf-header-footer",
+            f"--print-to-pdf={pdf}",
+            probed.as_uri(),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    assert pdf.exists(), "Chrome did not write the PDF"
+    return [page.extract_text() for page in PdfReader(pdf).pages]
+
+
+def _flat(text: str) -> str:
+    return " ".join(text.upper().split())
+
+
+def test_print_fills_page_one_keeps_labels_whole_and_leaves_nothing_out(
+    corpus_pack: Callable[[str], Any], tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    path = _report_page(corpus_pack, tmp_path_factory)
+    pages = _printed_pages(path, snapshot_only=True)
+    assert "INVESTMENT THESIS; CATALYSTS" in _flat(pages[0]), "page 1 holds no content row"
+    lines = [ln for page in pages for ln in page.splitlines()]
+    for label in ("Morningstar issuer id", "Corp rating moodys", "Sponsor quality", "Shareholders"):
+        assert any(label in ln for ln in lines), f"profile label {label!r} is split across lines"
+    flat = _flat("\n".join(pages))
+    for text in (
+        "Net leverage, adjusted by period, as the Model computes it.",
+        "Source: Model, model.metrics",
+        "Source: CP-1A",
+        "Loan relative value; high-yield relative value",
+        "Transaction summary and new debt issues",
+    ):
+        assert _flat(text) in flat, f"{text!r} is missing from the printed Snapshot"
 
 
 def test_opening_with_a_hash_shows_only_the_target_view(
