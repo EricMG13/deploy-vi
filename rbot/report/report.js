@@ -334,6 +334,7 @@
     P + ".chart__summary, " + P + ".chart__source { display: block; }",
     P + ".p-rv, " + P + ".p-tx { display: block; }",
     P + ".dt th, " + P + ".dt td { overflow-wrap: normal; word-break: normal; }",
+    P + ".dt thead th { white-space: nowrap !important; }",
     CARDS + " thead { display: none; }",
     CARDS + ", " + CARDS + " tbody { display: block; }",
     CARDS + " tr { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 0.3rem 0.8rem; padding: 0.4rem; border-bottom: var(--rule); break-inside: auto; }",
@@ -341,9 +342,9 @@
     CARDS + " tr > *::before { content: attr(data-label); display: block; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-2); }",
     CARDS + " tr > [data-label='']::before { display: none; }",
     CARDS + " tr > [data-wide] { grid-column: 1 / -1; }",
-    P + "details.cb[data-cards-block] { grid-column: 1 / -1 !important; }",
+    P + ".fp > [data-block] { grid-column: 1 / -1; }",
     P + "details.cb > summary { break-after: avoid; break-inside: avoid; }",
-    P + "details.cb > .cb__body { break-before: avoid; }"
+    P + "details.cb > .cb__body, " + P + ".cb__body > :first-child, " + P + ".cb__body > .na-note + * { break-before: avoid; }"
   ].join("\n");
   var WIDE_CELL = 60;   /* characters: longer values take the full row of a label/value table */
   var wasOpen = null, printCss = null;
@@ -359,8 +360,6 @@
         });
       });
       table.setAttribute("data-cards", "");
-      var block = table.closest("details.cb");   /* a block of label/value rows takes the full page width */
-      if (block) block.setAttribute("data-cards-block", "");
     });
   }
   function printPrepare() {
@@ -383,8 +382,8 @@
     document.documentElement.classList.remove("printing");
     snap.style.width = "";
     printCss.remove(); printCss = null;
-    all("[data-cards], [data-cards-block], [data-label], [data-wide]", snap).forEach(function (el) {
-      ["data-cards", "data-cards-block", "data-label", "data-wide"].forEach(function (a) { el.removeAttribute(a); });
+    all("[data-cards], [data-label], [data-wide]", snap).forEach(function (el) {
+      ["data-cards", "data-label", "data-wide"].forEach(function (a) { el.removeAttribute(a); });
     });
     wasOpen.forEach(function (x) { x[0].open = x[1]; });
     wasOpen = null;

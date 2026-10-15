@@ -126,6 +126,8 @@ PRINT_PROBE = """<script>(function () {
       zoom: snap.style.zoom,
       width: snap.getBoundingClientRect().width,
       scrollWidth: snap.scrollWidth,
+      thesis: snap.querySelector("#thesis_catalysts").getBoundingClientRect().width,
+      strip: snap.querySelector("#chart_strip").getBoundingClientRect().width,
       printing: root.classList.contains("printing"),
       blocks: blocks.length,
       bigSplit: big.filter(function (b) {
@@ -173,6 +175,9 @@ def test_print_keeps_the_snapshot_at_full_scale_with_whole_blocks(
     assert during["printing"] and during["closed"] == 0
     assert during["zoom"] in ("", "1")
     assert during["width"] <= 985 and during["scrollWidth"] <= 985
+    # the thesis block spans the 12 columns like the chart strip (985 px less the Snapshot's
+    # screen padding under --dump-dom, which lays out for the screen)
+    assert during["strip"] > 900 and abs(during["thesis"] - during["strip"]) <= 2, during["thesis"]
     assert during["blocks"] > 0 and during["whole"] == during["blocks"]
     assert during["big"] > 0 and during["bigSplit"] == during["big"]  # big sections may split
     assert (after["printing"], after["zoom"], after["width"]) == (
@@ -223,6 +228,14 @@ HEADINGS = (  # block heading band, first label of its content: always on the sa
     ("CAPITAL STRUCTURE", "Facility id"),
     ("EBITDA ADJUSTMENTS", "Line"),
     ("LOAN RELATIVE VALUE", "Block"),
+    ("NET LEVERAGE, INTEREST COVER AND LIQUIDITY", "Fig. S.1"),  # the band moves with its figures
+)
+PAGE_ONE = (  # full-width thesis: its first two catalysts and the profile start fit on page 1
+    "INVESTMENT THESIS; CATALYSTS",
+    "2026-10-08: Commitments due on the new Term Loan B",
+    "Fertitta Entertainment completes the acquisition",
+    "COMPANY PROFILE",
+    "Morningstar issuer id",
 )
 
 
@@ -235,7 +248,8 @@ def test_print_fills_page_one_keeps_labels_whole_and_leaves_nothing_out(
 ) -> None:
     path = _report_page(corpus_pack, tmp_path_factory)
     pages = _printed_pages(path, snapshot_only=True)
-    assert "INVESTMENT THESIS; CATALYSTS" in _flat(pages[0]), "page 1 holds no content row"
+    for text in PAGE_ONE:
+        assert _flat(text) in _flat(pages[0]), f"page 1 does not hold {text!r}"
     lines = [ln for page in pages for ln in page.splitlines()]
     labels = (
         "Morningstar issuer id",  # company profile
