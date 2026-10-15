@@ -547,6 +547,64 @@ def test_an_unrated_or_unreadable_instrument_counts_toward_the_ccc_bucket(
     assert fa.fit(portfolio(ccc), loan(ratings=("B2",)), RUN).rows == ()  # a rated B is not in it
 
 
+@pytest.mark.parametrize(
+    "rating",
+    [
+        "Ba3 (expected)",
+        "BB- (exp)",
+        "BB- (exp.)",
+        "expected Ba3",
+        "Ba3 expected",
+        "BB (Indicative)",
+    ],
+)
+def test_an_expected_rating_is_unrated_for_buckets(rating: str) -> None:
+    """F8 (owner): an expected or indicative rating is not assigned; the instrument is Unrated."""
+    assert fa.rating_bucket((rating,)) == "Unrated"
+    assert fa.rating_bucket((rating, "NR")) == "Unrated"
+
+
+def test_an_assigned_rating_beside_an_expected_one_decides_the_bucket() -> None:
+    assert fa.rating_bucket(("Ba3 (expected)", "B2")) == "B"
+    assert fa.rating_bucket(("BB- (S&P)", "Caa1 (expected)")) == "BB"
+
+
+@pytest.mark.parametrize("rating", ["(P)Ba3", "Ba3 (P)", "BB (sf)", "Ba3 (Moody's)", "BB- (S&P)"])
+def test_a_provisional_or_labelled_rating_stays_assigned(rating: str) -> None:
+    assert fa.rating_bucket((rating,)) == "BB"
+
+
+def test_an_expected_rating_instrument_is_counted_in_the_ccc_limit_and_says_so() -> None:
+    """F8: NEW-1 (Ba3 / BB- expected) must touch C-04 (CCC incl. unrated) and be bound by it."""
+    ccc = limit(
+        "C-04", "rating_bucket", "7.5", "pct_nav", "Hard", scope_value="CCC", current_value="7.36"
+    )
+    ccc["largest"] = False
+    f = fa.fit(portfolio(ccc), loan(ratings=("Ba3 (expected)", "BB- (expected)")), RUN)
+    assert (f.max_size, f.binding_limit) == (Decimal("0.88326"), "C-04")
+    assert f.notes == (
+        "TLB: rating expected (Ba3 (expected), BB- (expected)), not assigned; treated as Unrated",
+        "TLB: missing or unreadable rating, counted toward C-04",
+    )
+    assigned = fa.fit(portfolio(ccc), loan(ratings=("Ba3", "BB-")), RUN)
+    assert (assigned.rows, assigned.notes) == ((), ())
+    mixed = fa.fit(portfolio(ccc), loan(ratings=("Ba3 (expected)", "BB-")), RUN)
+    assert (mixed.rows, mixed.notes) == ((), ())  # an assigned rating decides; nothing to flag
+
+
+def test_the_expected_mark_is_a_whole_word() -> None:
+    assert fa.rating_bucket(("Ba3 expedited",)) == "Unreadable"
+    assert fa.rating_bucket(("Ba3 export",)) == "Unreadable"
+    assert fa.rating_bucket(("Ba3 unexpected",)) == "Unreadable"
+
+
+@given(st.sampled_from(["Aaa", "Ba3", "BB-", "B2", "CCC+", "Caa1", "NR"]), st.booleans())
+@settings(max_examples=50)
+def test_marking_a_rating_expected_always_makes_it_unrated(rating: str, before: bool) -> None:
+    marked = f"expected {rating}" if before else f"{rating} (expected)"
+    assert fa.rating_bucket((marked,)) == "Unrated"
+
+
 def test_a_limit_without_a_scope_value_that_is_not_a_largest_bucket_limit_is_not_computed() -> None:
     """I2: `Asset Type, Max bonds` must not bind a loan, nor `Non-USD` make a USD loan Avoid."""
     bonds = limit("C-20", "asset_type", "5", "pct_nav", "Hard", current_value="5", largest=False)
