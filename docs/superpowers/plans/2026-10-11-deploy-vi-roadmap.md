@@ -15,7 +15,7 @@ Plan just in time against the executed/tested predecessor. Fresh implementation 
 | 05 | Core module rewrites (CP-1, CP-1A, CP-1B, CP-1D, CP-2, CP-3 + bond_analytics, FIT, CP-5, CP-6) with the A/B harness | 02, 03, 04 | — (plan file is uncommitted on main's working tree) | combined final-base `7d5cfe1` independently approved; 2,182 tests, all 16 gates and 49 exact task-tree/lock replays pass; live qualification pending; open stacked PRs #65–#89, CI green |
 | 06 | Orchestrator: run state, dispatch, resume, `SKILL.md`, install, proxy run | 03, 04, 05 | [06 orchestrator](2026-10-12-deploy-vi-06-orchestrator.md) | executed; 06.15 first worker-written proxy run recorded; 06.16 integration in progress |
 | 07 | Report: owner-picked mockup as template, chart engine, renderer, embedded run JSON, Credit Snapshot blocks | 06 | [07 report](2026-10-14-deploy-vi-07-report.md) | executed (07.1–07.8); template frozen (mockup A, DESIGN.md at design/report-a-refine b44aac0) |
-| 08 | v1 acceptance on the corpus | 06, 07 | — | in progress: (A) on this Mac; (B) pending the owner on the work PC |
+| 08 | v1 acceptance on the corpus | 06, 07 | — | (A) complete; live pending |
 | 09 | Quick depth (CP-L10, CP-6 screening) | 05, 07 | — | backlog (after v1) |
 | 10 | Deep Research (CP-DR with fetch) | 06, 07 | — | backlog (after v1) |
 | 11 | Prior Case (CP-8 diff, What changed tab) | 07 | — | backlog (after v1) |
