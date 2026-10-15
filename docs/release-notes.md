@@ -2,7 +2,7 @@
 
 ## v1 (draft)
 
-RC: build/v1-rc4 `daa45c3` (supersedes RC3 `2d19018`). Live status: **pending** (work-PC acceptance by the owner; see [acceptance/v1.md](acceptance/v1.md)).
+RC: build/v1-rc4 `daa45c3` (supersedes RC3 `2d19018`). Live status: **deferred** (owner, 2026-10-15: the work PC is available only once the first functional version is complete; see [acceptance/v1.md](acceptance/v1.md)).
 
 ### What v1 does
 
@@ -30,4 +30,4 @@ Full Credit Assessment at `full` depth, run unattended as sub-agents in Copilot:
 
 ### Live acceptance
 
-Pending: L1-L11 and R1-R8 on one Claude and one GPT model on the work PC. The package (rbot-v1-daa45c3facff.zip, 2,421,316 bytes, sha256 `5663898462578bd989e8f9adf3ca9e6648c55f29d749b2df768df84f1d79bf95`) was handed over to the owner in-session on 2026-10-15.
+Deferred by the owner (2026-10-15): the work PC is available only once the first functional version is complete, so live acceptance has not been run and nothing is waived. Still to run: L1-L11 and R1-R8 on one Claude and one GPT model on the work PC. The package (rbot-v1-daa45c3facff.zip, 2,421,316 bytes, sha256 `5663898462578bd989e8f9adf3ca9e6648c55f29d749b2df768df84f1d79bf95`) was handed over to the owner in-session on 2026-10-15.
