@@ -37,30 +37,30 @@ Sources: the controller's `gates-summary.txt`, `gate-*.log`, `corpus-verify-afte
 Prior reports name commits near these files, but I could not tie any of them to a file plus a commit `C` with an empty `git log C..2d19018 -- <file>`. So **no prior evidence was reused**. Every file below was mutated afresh in scratch worktrees (removed afterwards; the RC3 trees were never written).
 
 - Method: scripted operator mutants, not mutmut. Four per file, spread across guard conditions (comparison flip, `not` removal, `and`/`or` swap). Judged by the test files that import the module, with `-x -m "not corpus"`. Survivors were re-run against every test file naming the module. A baseline passed first, so each kill is a real failure.
-- Result: **136 mutants over 34 files; 121 killed, 15 survived.**
+- Result: **136 mutants over 34 files; 121 killed, 15 survived.** Follow-up (06.16-mutants, tests only): 14 of the 15 survivors now killed by new tests, 1 proven equivalent, so 135 killed, 1 equivalent, 0 open.
 - `install.sh` and `install.ps1` share one payload (the test asserts they are equal): 7 hand mutants applied to both, each killed by the guard's own test (linked ancestor, existing differs, late destination, entry hash, lock collision, overlap, oversized entry).
 
 Files with 4 of 4 killed: origins, ownership, current, host_evidence, attempts, runlog, accept, resume, model/qualification, runs, fit_host, isolation_capture, isolation_manifest, isolation_code_roots, isolation_preparation, model/snapshot, model/house, model/run, host_preflight, report/assets, report/blocks, report/charts, validate. Also `install.sh`/`install.ps1` (7 of 7).
 
 | File:line | Mutant | Result | Reading of the cause |
 |---|---|---|---|
-| command_receipts.py:33 | `or`→`and` pending-intent guard | SURVIVED | only `test_resume_log.py` drives it; no test has a pending non-latest intent |
-| command_receipts.py:168 | `<`→`>=` following-receipt bound | SURVIVED | no test with more than one following receipt |
-| state.py:234 | `or`→`and` approved-origin lineage guard | SURVIVED | 53 test files; no partial-lineage case |
-| next.py:165 | `and`→`or` host-vs-module selection | SURVIVED | no test gives `module=None` with a module kind |
-| bootstrap.py:130 | `and`→`or` completion_origin capture | SURVIVED | no test with an `accept_history` step and no origin |
-| approve.py:441 | `or`→`and` Approval readback | SURVIVED | partial divergence (brief or CP-0 hash alone) is untested |
-| model/host.py:329 | `or`→`and` inputs-changed guard | SURVIVED | no test changes only the inputs or only the host context |
-| dispatch.py:382 | `==`→`!=` CP-3 calculator paths | SURVIVED | no test asserts the calculator list in a message |
-| fit.py:121 | `or`→`and` header/period guard | SURVIVED | half-bad inputs fail later by another route |
-| fit.py:198 | `or`→`and` object-list guard | SURVIVED | list of non-objects is untested |
-| fit.py:390 | `is`→`is not` headroom note | SURVIVED | note text is not asserted |
-| report/run_json.py:55 | `and`→`or` anchored finding | SURVIVED | no finding naming another citation with a source set |
-| report/run_json.py:158 | `is`→`is not` FIT step guard | SURVIVED | no test with a missing FIT step |
-| scripts/scorecard.py:399 | `or`→`and` expectations guard | SURVIVED | `expectations` None vs not-a-file split is untested |
-| scripts/proxy_isolated.py:260 | `or`→`and` native-next CP-0 guard | SURVIVED | wrong kind with right step is untested |
+| command_receipts.py:33 | `or`→`and` pending-intent guard | KILLED by `test_resume_log.py::test_pending_intent_must_be_latest_even_with_pending_text` | only `test_resume_log.py` drives it; no test has a pending non-latest intent |
+| command_receipts.py:168 | `<`→`>=` following-receipt bound | KILLED by `test_resume_log.py::test_each_following_receipt_is_bounded_by_the_next_prefix` | no test with more than one following receipt |
+| state.py:234 | `or`→`and` approved-origin lineage guard | KILLED by `test_state.py::test_lineage_refuses_either_malformed_approved_origin_shape` | 53 test files; no partial-lineage case |
+| next.py:165 | `and`→`or` host-vs-module selection | EQUIVALENT: `kind` is `host`/`module` (state validation) or `done` only when `module` is None, so `kind == "module"` and `module is not None` select the same branch for every record `state.read` accepts; the `host` case is taken by the preceding `if`. Mutant also survives `test_next.py` and `test_model_host.py` | no test gives `module=None` with a module kind |
+| bootstrap.py:130 | `and`→`or` completion_origin capture | KILLED by `test_edit_origins.py::test_completion_origin_is_not_captured_over_registered_accept_history` | no test with an `accept_history` step and no origin |
+| approve.py:441 | `or`→`and` Approval readback | KILLED by `test_approve.py::test_readback_refuses_when_only_one_published_file_differs` (brief and cp0) | partial divergence (brief or CP-0 hash alone) is untested |
+| model/host.py:329 | `or`→`and` inputs-changed guard | KILLED by `test_model_host.py::test_either_input_or_context_change_during_execution_is_named` (inputs and context) | no test changes only the inputs or only the host context |
+| dispatch.py:382 | `==`→`!=` CP-3 calculator paths | KILLED by `test_model_host.py::test_cp3_message_declares_the_calculator_and_its_write_paths` | no test asserts the calculator list in a message |
+| fit.py:121 | `or`→`and` header/period guard | KILLED by `test_fit.py::test_run_context_needs_one_header_row_and_a_period` | half-bad inputs fail later by another route |
+| fit.py:198 | `or`→`and` object-list guard | KILLED by `test_fit.py::test_prepared_positions_must_be_a_list_of_objects` | list of non-objects is untested |
+| fit.py:390 | `is`→`is not` headroom note | KILLED by `test_fit.py::test_headroom_note_appears_only_when_some_limit_caps_no_size` | note text is not asserted |
+| report/run_json.py:55 | `and`→`or` anchored finding | KILLED by `test_report_run_json.py::test_anchored_ignores_findings_naming_another_citation_and_source` | no finding naming another citation with a source set |
+| report/run_json.py:158 | `is`→`is not` FIT step guard | KILLED by `test_report_run_json.py::test_fit_is_read_only_for_an_accepted_step` | no test with a missing FIT step |
+| scripts/scorecard.py:399 | `or`→`and` expectations guard | KILLED by `test_scorecard.py::test_front_page_section_without_an_expectations_file_is_unknown` | `expectations` None vs not-a-file split is untested |
+| scripts/proxy_isolated.py:260 | `or`→`and` native-next CP-0 guard | KILLED by `test_proxy_isolated.py::test_native_next_must_select_the_cp0_module_before_approval` | wrong kind with right step is untested |
 
-None is proven equivalent. All 15 are open test gaps. Killing them needs new tests, which this docs-only task did not add. The money, ordering and security cases to address first: `model/host.py:329`, `approve.py:441`, `state.py:234`, `command_receipts.py:33/168`, `dispatch.py:382`.
+One survivor (`next.py:165`) is equivalent; the other 14 were test gaps and are killed (see Result column; each mutant applied by hand, failed the new test, restored, test passed).
 
 NOT COVERED: the PowerShell wrapper lines of `install.ps1` outside the shared payload (`pwsh` is not installed). `model/xlsx.py` and `model/statements.py` were outside the brief's list and not mutated.
 
