@@ -29,8 +29,8 @@ def test_the_example_outputs_are_unchanged(tmp_path: Path) -> None:
     run = run_folder(tmp_path, cp1_handoff(example_registers()), run_brief(), cp1d_handoff())
     run_model(run, AT)
     assert _digests(run) == {
-        "model.json": "d294d0e97df95cbd51be152e96197c04a46cda8b9fcdad947beea6b108f54049",
-        "MODEL.md": "ab2acb6a73b15f38df293af8d213710d3389fa032b12134e7931e31b7009fd0a",
+        "model.json": "8b1c80a346e2282b00657b596774dec439a1fb57a410359a88286fdd49078ad1",
+        "MODEL.md": "fdd663a5b8d902b263a5b1999eb0a5a5d1bf8cd408c01ac3251b0832ae731ad9",
     }
 
 
@@ -40,8 +40,8 @@ def test_the_czr_outputs_are_unchanged(tmp_path: Path) -> None:
     run = run_folder(tmp_path, cp1, brief)
     run_model(run, AT)
     assert _digests(run) == {
-        "model.json": "0d381dd9733a88ade20185f68c56f77d0749b605b0290245d403f699c433306a",
-        "MODEL.md": "c8cac47ade480d7c38ce82f0243abff19f4d72184642fca787868cf0c483355f",
+        "model.json": "a5dadb6a444f5d30322956114bed7f4fcf2fc1c8e126cf697aaa760a66fc1383",
+        "MODEL.md": "e28502639299bd2cc2c034b98432abb98d7c2dc0afc750e0197641b8bc8e5748",
     }
 
 
@@ -52,16 +52,16 @@ def test_the_czr_outputs_are_unchanged(tmp_path: Path) -> None:
             "UNREALIZED",
             "Challenged",
             {
-                "model.json": "a474171567027750320ab42d471f53dd9b9febc9bb22bccd095fe68e336e67ed",
-                "MODEL.md": "925800330923671ef51e42e7c4a17b9fe9472c3baa0ffdd5a13ab26e70c69eca",
+                "model.json": "2240de32ce0c8797b34d2f6596618848eb6862056242c0eab826986a259f1dc4",
+                "MODEL.md": "800871e1c1208cd9d56b0ce04d5377acf9e9ca0c016b2e04991ef2cfc12c361d",
             },
         ),
         (
             "REALIZED",
             "Supported",
             {
-                "model.json": "f4d30406a660e3b098617b8cef25a9a529170b856ca71baf755d6b4050dac9ef",
-                "MODEL.md": "a0329aafcea953f543082a84920ce2791620cc136498d6a171880e3bcf74d8fb",
+                "model.json": "e07877409ef5f7fb38f9351349cbaefae5015395703644b5237e2b2e86f3584d",
+                "MODEL.md": "8421f47aedd3bb8c2c73c293a726b880cf178bac17dac66e726fe0e22ebf57c3",
             },
         ),
     ],

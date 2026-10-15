@@ -158,11 +158,16 @@ def test_ebitda_adjustments_bridge_reported_to_ssim() -> None:
         ("Add-back: Restructuring (realised)", "Add-back", "32", "REALIZED"),
         ("Add-back: Stock-based compensation (realised)", "Add-back", "92", "REALIZED"),
         ("Add-back: Transaction costs (realised)", "Add-back", "21", "REALIZED"),
-        ("Add-back: Run-rate cost savings (unrealised), excluded", "Add-back", "40", "UNREALIZED"),
+        (
+            "Add-back: Run-rate cost savings (unrealised), excluded if positive",
+            "Add-back",
+            "40",
+            "UNREALIZED",
+        ),
         ("PF adjustment: Silverlake Resort LTM adjusted EBITDA", "Add-back", "45", GAP),
         ("Structuring EBITDA", "Total", "4134", GAP),
         (
-            "Add-back: Run-rate cost savings (unrealised), excluded",
+            "Add-back: Run-rate cost savings (unrealised), excluded if positive",
             "Unrealized add-back",
             "-40",
             "UNREALIZED",
@@ -172,6 +177,27 @@ def test_ebitda_adjustments_bridge_reported_to_ssim() -> None:
     amounts = [Decimal(r["amount"]) for r in rows]
     assert sum(amounts[:6], Decimal(0)) == amounts[6]
     assert amounts[6] + amounts[7] == amounts[8]
+
+
+def test_a_negative_excluded_add_back_stays_in_the_bridge_and_is_not_taken_off() -> None:
+    regs = example_registers()
+    regs = replace(
+        regs,
+        addbacks=tuple(
+            replace(b, value=-(b.value or Decimal(0)))
+            if b.addback_id == "run_rate_cost_savings"
+            else b
+            for b in regs.addbacks
+        ),
+    )
+    tables, _ = build_tables(_context(regs))
+    rows = _rows(tables["snapshot.ebitda_adjustments"])
+    kinds = [r["kind"] for r in rows]
+    assert "Unrealized add-back" not in kinds
+    savings = next(r for r in rows if r["line"].startswith("Add-back: Run-rate"))
+    assert savings["amount"] == "-40"
+    amounts = [Decimal(r["amount"]) for r in rows]
+    assert sum(amounts[:-2], Decimal(0)) == amounts[-2] == amounts[-1]
 
 
 def test_house_summary_metrics_and_maturity_wall() -> None:

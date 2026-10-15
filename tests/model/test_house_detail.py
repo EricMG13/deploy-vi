@@ -46,7 +46,8 @@ def _view(regs: Cp1Registers | None = None, inputs: HouseInputs | None = None) -
 def test_every_item_states_its_unit_formula_components_and_basis() -> None:
     view = _view()
     assert [(i.key, i.unit, i.formula, i.components, i.cell.basis) for i in view.items] == [
-        ("structuring_ebitda", "MONEY", "adjusted_ebitda + excluded (unrealized) add-backs",
+        ("structuring_ebitda", "MONEY",
+         "adjusted_ebitda + excluded (unrealized) positive add-backs",
          ("adjusted_ebitda", "addback:run_rate_cost_savings"), "CALCULATED"),
         ("ssim_ebitda", "MONEY", "adjusted_ebitda, unrealized add-backs excluded",
          ("adjusted_ebitda",), "PRO_FORMA"),

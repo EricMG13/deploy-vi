@@ -165,8 +165,10 @@ def test_ev_from_the_multiple_needs_positive_ssim_ebitda() -> None:
     assert "at or below zero" in _codes(view)["EV_NOT_APPLICABLE"]
 
 
-def test_ssim_above_structuring_names_the_negative_excluded_add_backs() -> None:
-    # Probe p11_neg_addback: run_rate_cost_savings at -40.
+def test_a_negative_excluded_add_back_stays_in_ssim_so_ssim_never_exceeds_structuring() -> None:
+    # F11 (was probe p11_neg_addback): run_rate_cost_savings at -40 stays in SSIM
+    # EBITDA, so Structuring EBITDA (every add-back in) equals it and no
+    # SSIM-above-Structuring signal is needed.
     regs = example_registers()
     regs = replace(
         regs,
@@ -178,10 +180,12 @@ def test_ssim_above_structuring_names_the_negative_excluded_add_backs() -> None:
         ),
     )
     _, view = _built(regs)
-    assert _codes(view)["SSIM_ABOVE_STRUCTURING"] == (
-        "excluded add-backs below zero: addback:run_rate_cost_savings (-40)"
-    )
-    assert "SSIM_ABOVE_STRUCTURING" not in _codes(_built()[1])
+    assert view.column is not None
+    everything = cell(credit_model(ModelInputs(regs)), "adjusted_ebitda", view.column)
+    ssim, structuring = view.item("ssim_ebitda").cell, view.item("structuring_ebitda").cell
+    assert ssim.value == structuring.value == everything.value
+    assert view.item("structuring_ebitda").components == ("adjusted_ebitda",)
+    assert "SSIM_ABOVE_STRUCTURING" not in _codes(view)
 
 
 def test_a_snapshot_column_other_than_twelve_months_gives_no_multiple() -> None:
@@ -234,21 +238,6 @@ def test_all_debt_like_items_off_the_snapshot_date_are_named() -> None:
     )
 
 
-@pytest.mark.parametrize(("value", "status"), [(0, "UNREALIZED"), (-40, "REALIZED")])
-def test_only_negative_excluded_add_backs_signal_ssim_above_structuring(
-    value: int, status: str
-) -> None:
-    regs = example_registers()
-    addbacks = tuple(
-        replace(b, value=Decimal(value), realization_status=status)
-        if b.addback_id == "run_rate_cost_savings"
-        else b
-        for b in regs.addbacks
-    )
-    _, view = _built(replace(regs, addbacks=addbacks))
-    assert "SSIM_ABOVE_STRUCTURING" not in _codes(view)
-
-
 def test_all_unapplied_pf_periods_are_named() -> None:
     regs = example_registers()
     pro_forma = tuple(
@@ -298,20 +287,3 @@ def test_a_debt_like_item_cannot_be_placed_on_an_unknown_balance_date() -> None:
     assert column.end_date is None
     found = cell(model, "debt_like:pension_deficit", column)
     assert found.value is None and found.reason == "NOT_SOURCED"
-
-
-def test_multiple_negative_excluded_add_backs_name_all_amounts() -> None:
-    regs = example_registers()
-    addbacks = tuple(
-        replace(b, value=Decimal(-20), realization_status="UNREALIZED")
-        if b.addback_id == "transaction_costs"
-        else replace(b, value=Decimal(-40))
-        if b.addback_id == "run_rate_cost_savings"
-        else b
-        for b in regs.addbacks
-    )
-    _, view = _built(replace(regs, addbacks=addbacks))
-    assert _codes(view)["SSIM_ABOVE_STRUCTURING"] == (
-        "excluded add-backs below zero: addback:transaction_costs (-20), "
-        "addback:run_rate_cost_savings (-40)"
-    )

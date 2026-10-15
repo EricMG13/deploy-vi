@@ -12,7 +12,8 @@ every model notes `NO_PROJECTIONS` and has no rate deck.
 and column, on exact Decimal equality (the calculator never rounds):
 
 - `ebitda`: EBIT less D&A (negative) plus the EBITDA PF rows;
-- `adjusted_ebitda`: EBITDA plus the add-backs in it and its PF rows;
+- `adjusted_ebitda`: EBITDA plus the add-backs in it, the negative amounts
+  of the add-backs left out (F11) and its PF rows;
 - `ffo`: adjusted EBITDA, cash interest, cash taxes, other operating items
   and lease cash not in EBITDA;
 - `cfo`: FFO plus the working-capital change, as the adjusted CFO;
@@ -175,12 +176,15 @@ _Parts = tuple[tuple[str, int], ...]
 @dataclass(frozen=True, slots=True)
 class _Bridge:
     """`total` equals the `parts` and the `optional` parts (zero when
-    absent), each added (+1) or subtracted (-1)."""
+    absent), each added (+1) or subtracted (-1), and the `deductions` that
+    are below zero on the column (an excluded add-back keeps its negative
+    amounts, F11)."""
 
     name: str
     total: str
     parts: _Parts
     optional: _Parts = ()
+    deductions: _Parts = ()
 
 
 def _ids(lines: list[Line]) -> _Parts:
@@ -254,6 +258,11 @@ def _bridges(lines: tuple[Line, ...]) -> list[_Bridge]:
         for line in _in_band(lines, _ADJUSTED_BAND, "ACCOUNT")
         if line.line_id.startswith("addback:")
     ]
+    left_out = [
+        line
+        for line in _in_band(lines, _ADJUSTED_BAND, "MEMO")
+        if line.line_id.startswith("addback:")
+    ]
     return [
         _Bridge(
             "ebitda",
@@ -266,6 +275,7 @@ def _bridges(lines: tuple[Line, ...]) -> list[_Bridge]:
             "adjusted_ebitda",
             (("ebitda", 1),),
             _ids(addbacks + _in_band(lines, _ADJUSTED_BAND, "PF")),
+            _ids(left_out),
         ),
         _Bridge(
             "ffo",
@@ -323,6 +333,10 @@ def _sum(cells: Mapping[str, Cell], bridge: _Bridge) -> Decimal | None:
             total += cell.value * sign
         elif cell.reason not in _ZERO_WHEN_ABSENT:
             return None
+    for key, sign in bridge.deductions:
+        value = cells[key].value
+        if value is not None and value < 0:
+            total += value * sign
     return total
 
 
