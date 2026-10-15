@@ -265,7 +265,7 @@
     if (activeId === v.id) return false;
     if (activeId) { VIEWS[activeId].el.hidden = true; if (VIEWS[activeId].nav) VIEWS[activeId].nav.removeAttribute("aria-current"); }
     activeId = v.id;
-    v.el.hidden = false;
+    ORDER.forEach(function (id) { VIEWS[id].el.hidden = id !== v.id; });   /* the first route also hides the Snapshot, which ships unhidden */
     if (v.nav) v.nav.setAttribute("aria-current", "page");
     document.title = v.title + " · " + baseTitle;
     document.getElementById("route-live").textContent = v.title;
