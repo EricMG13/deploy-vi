@@ -185,3 +185,38 @@ def test_registered_host_corrupt_row_refuses_without_traceback(tmp_path: Path) -
     assert cli.main(["state", "--run", str(run)]) == 1
     assert (run / state.STATE).read_bytes() == before
     assert runlog.path(run).read_bytes() == raw
+
+
+def _receipt_entry(invocation: str, end: int | None, observation: str) -> dict[str, object]:
+    import hashlib
+
+    from rbotlib import host_evidence
+
+    intent = {
+        "invocation": invocation,
+        "code": 0,
+        "prefix_size": 0,
+        "prefix_sha256": hashlib.sha256(b"").hexdigest(),
+        "row": b"2026-10-13T00:00:00+00:00\tx\t".hex(),
+    }
+    intent["binding"] = host_evidence.digest(intent)
+    return {"intent": intent, "observation": observation, "end": end}
+
+
+def test_pending_intent_must_be_latest_even_with_pending_text() -> None:
+    from rbotlib import command_receipts
+    from rbotlib.inventory import RunError
+
+    pending_first = _receipt_entry("a" * 32, None, "pending")
+    settled_last = _receipt_entry("b" * 32, 0, "missing row; exit unknown")
+    with pytest.raises(RunError, match="only latest intent may be pending"):
+        command_receipts.checked({"command_receipts": [pending_first, settled_last]})
+
+
+def test_each_following_receipt_is_bounded_by_the_next_prefix() -> None:
+    from rbotlib import command_receipts
+
+    following = [{"prefix_size": 10}, {"prefix_size": 20}, {"prefix_size": 30}]
+    invocation = {"id": "host-model/1", "following_receipts": following}
+    bounds = [item[3] for item in command_receipts._invocation_intents(invocation, 99)]
+    assert bounds == [20, 30, 99]

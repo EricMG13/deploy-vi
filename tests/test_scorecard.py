@@ -382,3 +382,12 @@ def test_g6_a_record_of_another_run_is_never_replaced(
     assert scorecard.main(["--run", str(run), "--out", str(out), "--pack-id", PACK]) == 2
     assert "records another run" in capsys.readouterr().out
     assert path.read_text(encoding="utf-8") == other
+
+
+@pytest.mark.parametrize("missing", ["none", "absent_file"])
+def test_front_page_section_without_an_expectations_file_is_unknown(
+    tmp_path: Path, missing: str
+) -> None:
+    expectations = None if missing == "none" else tmp_path / "absent.json"
+    section = scorecard.front_page_section({}, {}, expectations, load_rules())
+    assert section[-1] == f"{scorecard.UNKNOWN}: no expectations file for this pack."

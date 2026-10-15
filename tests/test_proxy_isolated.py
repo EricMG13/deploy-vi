@@ -232,3 +232,28 @@ def test_only_the_front_matter_run_id_line_is_rewritten() -> None:
     assert proxy_isolated.rewrite_run_id(b"no front matter run_id: old", "new") == (
         b"no front matter run_id: old"
     )
+
+
+@pytest.mark.parametrize("wrong", [{"kind": "host"}, {"step": "CP-1"}])
+def test_native_next_must_select_the_cp0_module_before_approval(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    wrong: dict[str, str],
+) -> None:
+    registry, _ = source_run(tmp_path)
+    real = proxy_run._native
+    seen: list[str] = []
+
+    def native(run: Path, command: str, extra: list[str] | None = None) -> str:
+        text = real(run, command, extra)
+        if command == "next" and not seen:
+            seen.append(text)
+            return json.dumps(json.loads(text) | wrong)
+        return text
+
+    monkeypatch.setattr(proxy_run, "_native", native)
+    capsys.readouterr()
+    assert proxy_run.main(run_flag(registry, "--module", "CP-1B")) == 1
+    assert seen
+    assert "native next did not select CP-0 before Approval" in capsys.readouterr().out

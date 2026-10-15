@@ -515,3 +515,31 @@ def test_unapproved_analysis_steps_cannot_be_carried_into_approval(
 def test_an_issuer_id_without_a_slug_is_refused(tmp_path: Path) -> None:
     with pytest.raises(ApprovalError, match="issuer_id '株式' gives no folder name"):
         new_name(tmp_path / "20261011-x-pending", "株式", "RELATIVE_VALUE")
+
+
+@pytest.mark.parametrize("damaged", ["brief", "cp0"])
+def test_readback_refuses_when_only_one_published_file_differs(
+    root: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    damaged: str,
+) -> None:
+    from rbotlib import brief as rb
+    from rbotlib import state as rs
+    from rbotlib.inventory import output_path
+
+    run = _ready(root, tmp_path)
+    real = rs.read
+
+    def read_then_damage(path: Path) -> dict[str, Any]:
+        record = real(path)
+        if path.name == TARGET:
+            name = path / rb.BRIEF if damaged == "brief" else output_path(path, rb.CP0)
+            name.write_bytes(name.read_bytes() + b"\ndamaged after publication\n")
+        return record
+
+    monkeypatch.setattr(rs, "read", read_then_damage)
+    capsys.readouterr()
+    assert _approve(root, run) == 1
+    assert "Approval readback differs" in capsys.readouterr().out

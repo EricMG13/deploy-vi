@@ -163,3 +163,56 @@ def test_retired_workbook_leftover_does_not_block_managed_pair(tmp_path: Path) -
     assert set(state.read(run)["steps"]["MODEL"]["outputs"]) == {"model.json", "handoffs/MODEL.md"}
     assert next_step.select(run, RBOT_ROOT)["step"] == "CP-3"
     assert legacy.read_bytes() == b"legacy analyst workbook"
+
+
+@pytest.mark.parametrize("change", ["inputs", "context"])
+def test_either_input_or_context_change_during_execution_is_named(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, change: str
+) -> None:
+    import dataclasses
+
+    from rbotlib.model import qualification
+    from rbotlib.model import run as writer
+    from rbotlib.model.host import Model
+
+    root = shutil.copytree(RBOT_ROOT, tmp_path / "qualified-root")
+    run = eligible(tmp_path, root)
+    build, inputs = Model.build, Model.inputs
+    built = False
+
+    def changed_build(
+        captured: qualification.Inputs, generated_at: str
+    ) -> tuple[writer.Written, dict[str, bytes]]:
+        nonlocal built
+        result = build(captured, generated_at)
+        built = True
+        if change == "context":  # same qualified inputs, different installed host context
+            path = root / "canon.md"
+            path.write_bytes(path.read_bytes() + b"\nchanged during execution\n")
+        return result
+
+    def changed_inputs(run: Path, root: Path, record: state.Record) -> qualification.Inputs:
+        result = inputs(run, root, record)
+        if change == "inputs" and built:  # same host context, different qualified inputs
+            return dataclasses.replace(result, missing=result.missing + " (changed)")
+        return result
+
+    monkeypatch.setattr(Model, "build", staticmethod(changed_build))
+    monkeypatch.setattr(Model, "inputs", staticmethod(changed_inputs))
+    assert cli.main(["--root", str(root), "model", "--run", str(run)]) == 1
+    assert built
+    current = state.read(run)["steps"]["MODEL"]
+    assert current["status"] == "failed"
+    assert "MODEL: qualified inputs changed during execution" in current["reason"]
+
+
+def test_cp3_message_declares_the_calculator_and_its_write_paths(tmp_path: Path) -> None:
+    run = eligible(tmp_path, RBOT_ROOT)
+    assert cli.main(["model", "--run", str(run)]) == 0
+    assert next_step.select(run, RBOT_ROOT)["step"] == "CP-3"
+    cp3 = (run / "dispatch/CP-3.md").read_text()
+    inputs = json.dumps(str(run / "calc/CP-3-bond_analytics.json"))
+    outputs = json.dumps(str(run / "calc/CP-3-bond_analytics.out.json"))
+    own = json.dumps(str(run / "handoffs/CP-3.md"))
+    assert 'Allowed calculator: "bond_analytics"' in cp3
+    assert f"May write only: [{own}, {inputs}, {outputs}]" in cp3

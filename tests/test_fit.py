@@ -22,9 +22,10 @@ import pytest
 from builders import make_run
 from conftest import CORPUS, FIXTURES
 from cp0_fixture import cp0_handoff, registry_classification
+from rbotlib import fit
 from rbotlib.cli import main
 from rbotlib.fit import FIT_COLUMNS, HEADROOM_COLUMNS, FitError, instruments
-from rbotlib.handoff import Handoff, parse
+from rbotlib.handoff import Handoff, Table, parse
 
 HANDOFFS = FIXTURES / "handoffs"
 TEST_CLO_I: dict[str, Any] = {
@@ -446,3 +447,53 @@ def test_fit_runs_on_the_czr_portfolio_packs(
     fits = _fits(run)
     assert fits["CEI-TLB"]["verdict"] == "Watch" and fits["CEI-SN-2032"]["verdict"] == "Watch"
     assert fits["CEI-TLB"]["max_size"] == "15.7725" and fits["CEI-SN-2032"]["max_size"] == "0.88326"
+
+
+NO_SIZE_NOTE = (
+    "- `headroom_amount` is `—` where a limit caps no size (count, maturity, a book statistic)."
+)
+
+
+def test_headroom_note_appears_only_when_some_limit_caps_no_size(tmp_path: Path) -> None:
+    run = _run(tmp_path)
+    assert main(["fit", "--run", str(run)]) == 0
+    assert NO_SIZE_NOTE not in (run / "handoffs" / "FIT.md").read_text(encoding="utf-8")
+    count = TEST_CLO_I["limits"][0] | {
+        "limit_id": "C-99",
+        "parameter": "Max issuers",
+        "limit_value": "50",
+        "unit": "count",
+        "current_value": "10",
+    }
+    run = _run(tmp_path / "count", TEST_CLO_I | {"limits": [*TEST_CLO_I["limits"], count]})
+    assert main(["fit", "--run", str(run)]) == 0
+    assert NO_SIZE_NOTE in (run / "handoffs" / "FIT.md").read_text(encoding="utf-8")
+
+
+def _handoff_with(tables: dict[str, Table]) -> Handoff:
+    return Handoff({}, [], tables, [], [], "")
+
+
+@pytest.mark.parametrize(
+    ("header_rows", "period_rows"),
+    [
+        ([["ACME", "2026-05-29"], ["ACME", "2026-05-29"]], [["FY2025", "USD", "MILLIONS"]]),
+        ([["ACME", "2026-05-29"]], []),
+    ],
+)
+def test_run_context_needs_one_header_row_and_a_period(
+    header_rows: list[list[str]], period_rows: list[list[str]]
+) -> None:
+    header = Table(["issuer_id", "as_of_date"], header_rows)
+    periods = Table(["period_id", "currency", "unit"], period_rows)
+    with pytest.raises(FitError, match=r"needs one snapshot\.run_header row and CP-1 a period"):
+        fit._run(
+            _handoff_with({"snapshot.run_header": header}),
+            _handoff_with({"cp1.model_period_register": periods}),
+        )
+
+
+@pytest.mark.parametrize("positions", [["not an object"], {}])
+def test_prepared_positions_must_be_a_list_of_objects(positions: object) -> None:
+    with pytest.raises(FitError, match="positions must be a list of objects"):
+        fit.portfolio_data(TEST_CLO_I | {"positions": positions}, "TEST_CLO_I.json")

@@ -400,3 +400,33 @@ def test_valid_run_failed_command_retains_honest_log(tmp_path: Path) -> None:
     assert outcome_bytes(run) == before
     log = (run / "log/rbot.log").read_text().splitlines()
     assert len(log) == 1 and "NOPE=failed" in log[0] and log[0].endswith("\t1")
+
+
+def _lineage_record(approved_origins: object) -> dict[str, Any]:
+    digest = "a" * 64
+    return {
+        "cp0_lineage": {
+            "pending_run_id": "20261013-acme-pending",
+            "issuer_id": "ACME",
+            "sha256": digest,
+        },
+        "steps": {"CP-0": {"status": "accepted", "sha256": digest}},
+        "approval": {},
+        "run_id": "20261013-acme",
+        "approved_origins": approved_origins,
+    }
+
+
+def test_lineage_accepts_hash_bound_cp0_without_approved_origin() -> None:
+    from rbotlib import state
+
+    state._lineage(_lineage_record({}))
+
+
+@pytest.mark.parametrize("approved_origins", [[], {"CP-0": "not-a-binding"}])
+def test_lineage_refuses_either_malformed_approved_origin_shape(approved_origins: object) -> None:
+    from rbotlib import state
+    from rbotlib.inventory import RunError
+
+    with pytest.raises(RunError, match="malformed CP-0 binding"):
+        state._lineage(_lineage_record(approved_origins))

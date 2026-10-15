@@ -413,3 +413,14 @@ def test_repeated_selection_preserves_state_after_clock_advances(
     monkeypatch.setattr(state, "datetime", Clock)
     selection.select(run, RBOT_ROOT)
     assert outcome_bytes(run) == before
+
+
+def test_completion_origin_is_not_captured_over_registered_accept_history(tmp_path: Path) -> None:
+    run = pending(tmp_path, RBOT_ROOT)
+    send(run, RBOT_ROOT)
+    assert accept.accept(run, RBOT_ROOT, "CP-0")["exit"] == 0
+    record = state.read(run)
+    assert record["steps"]["CP-0"]["accept_history"]
+    assert "completion_origin" not in record
+    bootstrap.complete_cp0(run, RBOT_ROOT, load_rules(RBOT_ROOT))
+    assert "completion_origin" not in state.read(run)

@@ -266,3 +266,26 @@ def test_pass_handoff_is_not_listed_as_restricted() -> None:
     handoffs["CP-6"]["qa_status"] = "Pass"
     got = run_json.limitations(record, {}, handoffs, None)
     assert [x["step"] for x in got["unforeseen"] if x["kind"] == "restricted"] == ["CP-5"]
+
+
+def test_anchored_ignores_findings_naming_another_citation_and_source() -> None:
+    other = {
+        "exit": 1,
+        "findings": [
+            {"code": "citation_unanchored", "message": "C3: excerpt"},
+            {"code": "source_unknown", "message": "'b.csv' is not in x"},
+        ],
+    }
+    assert run_json.anchored(other, "C2", "a.csv") is True
+
+
+def test_fit_is_read_only_for_an_accepted_step(tmp_path: Path) -> None:
+    from rbotlib.handoff import Handoff, Table
+
+    (tmp_path / "fit").mkdir()
+    (tmp_path / "fit/FUND.json").write_text('{"schema": "rbot-fit/1"}', encoding="utf-8")
+    table = Table(["portfolio_id"], [["FUND"]])
+    brief = Handoff({}, [], {"brief.portfolios": table}, [], [], "")
+    assert run_json._fit(tmp_path, None, brief) == []
+    assert run_json._fit(tmp_path, {"status": "failed"}, brief) == []
+    assert run_json._fit(tmp_path, {"status": "accepted"}, brief) == [{"schema": "rbot-fit/1"}]
