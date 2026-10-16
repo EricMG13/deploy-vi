@@ -1,5 +1,11 @@
 # Release notes
 
+## Unreleased (Plan 09: Quick depth)
+
+- Full Credit Assessment now offers `quick`: CP-0, CP-1, CP-1A, CP-1B, MODEL, CP-L10, CP-3, FIT, CP-5, CP-6. CP-8 joins the list in Plan 11.
+- CP-L10 (Financial change screen) is the new quick module; CP-6 gains a Screening basis (Restricted, never Committee Ready, with a linked Full run recommended).
+- Quick output is screening-only. The "Screening only" report label arrives in task 09.6; the notes are finalized in 09.8.
+
 ## v1 (draft)
 
 RC: build/v1-rc5 `9f049c8` (supersedes RC4 `daa45c3` and RC3 `2d19018`). Live status: **deferred** (owner, 2026-10-15: the work PC is available only once the first functional version is complete; see [acceptance/v1.md](acceptance/v1.md)).
