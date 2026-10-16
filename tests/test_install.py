@@ -352,8 +352,12 @@ def test_install_accepts_report_assets_and_refuses_other_extensions(
 
 
 def test_valid_different_destination_refuses(source: Path, tmp_path: Path) -> None:
-    destination = tmp_path / "rbot"
-    build(REPO, "HEAD~1", destination)
+    def mutate(root: Path) -> None:
+        (root / "report/extra.js").write_bytes(b"asset")
+
+    export, destination = reproven(source, tmp_path, mutate)
+    installed = install(export, destination)
+    assert installed.returncode == 0, installed.stderr
     before = snapshot(destination)
     assert before["runtime.json"] != (source / "runtime.json").read_bytes()
     result = install(source, destination)
