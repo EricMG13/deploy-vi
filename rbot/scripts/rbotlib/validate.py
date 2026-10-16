@@ -524,35 +524,40 @@ def _column(table: Table, name: str) -> int | None:
     return names.index(name) if name in names else None
 
 
+def _topic_policy(topic: str, materiality: str, evidence: str, disposition: str) -> list[Finding]:
+    found: list[Finding] = []
+    if (
+        materiality == "High"
+        and evidence in ("Missing", "Conflicted")
+        and disposition != "Gap only"
+    ):
+        found.append(
+            Finding("screen_policy", f"{topic}: High with {evidence} evidence must be Gap only")
+        )
+    if disposition == "Immaterial" and evidence != "Sufficient":
+        found.append(Finding("screen_policy", f"{topic}: Immaterial needs Sufficient evidence"))
+    return found
+
+
 def _screen_policy(h: Handoff, rules: Rules) -> list[Finding]:
     """High with Missing/Conflicted evidence is Gap only, Immaterial needs Sufficient evidence,
     and every screen family has a row. A Blocked Handoff may leave topics short or at `—` (like
     `min_rows`), so it is not held to these. Messages name ids and values, never source text."""
-    if h.front_matter.get("qa_status") == "Blocked":
-        return []
     table = h.tables.get(SCREEN_TABLE)
     at = [_column(table, n) for n in SCREEN_COLUMNS] if table else []
-    if table is None or None in at:
+    if table is None or None in at or h.front_matter.get("qa_status") == "Blocked":
         return []  # column_missing is already reported for an absent column
     topic_at, family_at, materiality_at, evidence_at, disposition_at = (i or 0 for i in at)
     rows = [r for r in table.rows if len(r) == len(table.columns)]
     found: list[Finding] = []
-    for row in rows:
-        topic, evidence, disposition = row[topic_at], row[evidence_at], row[disposition_at]
-        weak = row[materiality_at] == "High" and evidence in ("Missing", "Conflicted")
-        if weak and disposition != "Gap only":
-            found.append(
-                Finding("screen_policy", f"{topic}: High with {evidence} evidence must be Gap only")
-            )
-        if disposition == "Immaterial" and evidence != "Sufficient":
-            found.append(Finding("screen_policy", f"{topic}: Immaterial needs Sufficient evidence"))
+    for r in rows:
+        found += _topic_policy(r[topic_at], r[materiality_at], r[evidence_at], r[disposition_at])
     present = {r[family_at] for r in rows}
-    found += [
+    return found + [
         Finding("screen_policy", f"no screen topic row for the family {f!r}")
         for f in rules.scales["screen_family"]
         if f not in present
     ]
-    return found
 
 
 def _run_depth(run: Path | None) -> str | None:
