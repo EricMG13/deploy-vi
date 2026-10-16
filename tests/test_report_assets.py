@@ -82,7 +82,7 @@ def test_fonts_optional_then_inlined(tmp_path: Path) -> None:
 
 
 def test_the_registry_names_the_ten_charts() -> None:
-    assert tuple(REGISTRY) == CHART_IDS and len(CHART_IDS) == 10
+    assert tuple(REGISTRY) == CHART_IDS and len(CHART_IDS) == 11
 
 
 def test_a_linked_fonts_folder_is_refused_not_ignored(tmp_path: Path) -> None:

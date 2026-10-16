@@ -36,9 +36,11 @@ CHART_IDS = (
     "chart.talk_range",
     "chart.fit_bullets",
     "chart.issue_counts",
+    "chart.topic_counts",
 )
 CITE = re.compile(r"\[(C\d+)\]")
 CALC_INPUT = "calc/CP-3-bond_analytics.json"
+TOPICS = "cpl10.screen_topics"
 FIT_UNITS = {"pct_nav": "% NAV", "pct_par": "% par", "count": "count", "years": "years"}
 
 
@@ -548,6 +550,36 @@ def issue_counts(view: Record) -> Record:
     return _drawn(entry, data, "Findings by module", summary, "CP-5, cp5.findings")
 
 
+def _topic_part(family: str, topics: list[Record], scales: dict[str, tuple[str, ...]]) -> Record:
+    slug = re.sub(r"[^a-z0-9]+", "_", family.casefold()).strip("_")
+    entry = _entry(f"chart.topic_counts.{slug}", "CP-L10", "stackedColumns", "host", [TOPICS])
+    levels = scales["materiality"]
+    series = []
+    for disposition in scales["disposition"]:
+        counts = [
+            sum(1 for t in topics if t["materiality"] == m and t["disposition"] == disposition)
+            for m in levels
+        ]
+        series.append({"label": disposition, "values": [host(str(c), None) for c in counts]})
+    summary = f"{len(topics)} {family} topic(s) by materiality and screening disposition."
+    data = {"categories": list(levels), "series": series, "unit": "topics"}
+    data["categoryLabel"] = "Materiality"
+    return _drawn(entry, data, f"{family} topics", summary, f"CP-L10, {TOPICS}")
+
+
+def topic_counts(view: Record) -> Record:
+    parent = _entry("chart.topic_counts", "CP-L10", "stackedColumns", "host", [TOPICS])
+    rows, why = _rows(view, "CP-L10", TOPICS)
+    if why:
+        return _undrawable(parent, why)
+    scales = load_rules(RBOT_ROOT).scales
+    families = list(dict.fromkeys(r["family"] for r in rows))
+    parent["parts"] = [
+        _topic_part(f, [r for r in rows if r["family"] == f], scales) for f in families
+    ]
+    return parent
+
+
 REGISTRY: dict[str, ChartBuilder] = {
     "chart.model_strip": model_strip,
     "chart.maturity_wall": maturity_wall,
@@ -559,13 +591,14 @@ REGISTRY: dict[str, ChartBuilder] = {
     "chart.talk_range": talk_range,
     "chart.fit_bullets": fit_bullets,
     "chart.issue_counts": issue_counts,
+    "chart.topic_counts": topic_counts,
 }
 
 
 def build_all(
     run: Record, wanted: Iterable[str] | None = None, run_dir: Path | None = None
 ) -> list[Record]:
-    """The chart entries for `wanted` ids (default: all ten); split charts are flattened."""
+    """The chart entries for `wanted` ids (default: all eleven); split charts are flattened."""
     view = {"run": run, "run_dir": run_dir}
     out: list[Record] = []
     for chart_id in wanted if wanted is not None else CHART_IDS:

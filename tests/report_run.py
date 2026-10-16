@@ -7,10 +7,13 @@ and `accept` of the fixture bytes, `brief`/`grade`/`approve`, then `next` until 
 
 from __future__ import annotations
 
+import re
 import shutil
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 
+import proxy_isolated
 from test_accept import accept, send
 from test_bootstrap import ready
 
@@ -19,19 +22,30 @@ from rbotlib import state
 from rbotlib.cli import main
 from rbotlib.rules import RBOT_ROOT
 
-FIXTURES = Path(__file__).parent / "fixtures/handoffs"
 PACK = "czr-2026q2-primary"
 
 
-def fixture_text(module: str, run: Path) -> str:
-    """The module's fixture Handoff with its `run_id` rewritten to `run`."""
-    lines = (FIXTURES / f"{module}.md").read_text(encoding="utf-8").splitlines(keepends=True)
+@dataclass(frozen=True)
+class RunShape:
+    """The depth a run is approved at, and whether its pack holds a Portfolio Context."""
+
+    depth: str = "full"
+    portfolios: bool = True
+
+
+FULL = RunShape()
+
+
+def fixture_text(module: str, run: Path, depth: str = "full") -> str:
+    """The module's fixture Handoff at `depth` with its `run_id` rewritten to `run`."""
+    path = proxy_isolated.fixture_path(module, depth)
+    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
     return "".join(f"run_id: {run.name}\n" if x.startswith("run_id: ") else x for x in lines)
 
 
-def _approve(run: Path, primary: bool) -> Path:
+def _approve(run: Path, primary: bool, depth: str) -> Path:
     args = ["--root", str(RBOT_ROOT), "approve", "--run", str(run)]
-    args += ["--pathway", "FULL_CREDIT_ASSESSMENT", "--depth", "full"]
+    args += ["--pathway", "FULL_CREDIT_ASSESSMENT", "--depth", depth]
     args += ["--primary", "yes" if primary else "no", "--analyst", "Approver"]
     assert main(args) == 0
     return next(run.parent.iterdir())
@@ -43,21 +57,30 @@ def complete_run(
     *,
     primary: bool = True,
     fail: str | None = None,
+    shape: RunShape = FULL,
 ) -> Path:
     """A finished run of the czr synthetic pack; `fail` sets that pending step failed."""
+    depth, portfolios = shape.depth, shape.portfolios
     pack = shutil.copytree(
         corpus_pack(PACK), tmp_path / "working pack", ignore=shutil.ignore_patterns("rbot-runs")
     )
+    if not portfolios:
+        for held in pack.rglob("*TEST_CLO_I*"):
+            held.unlink()
     assert main(["new-run", "--pack", str(pack)]) == 0
     run = next((pack / "rbot-runs").iterdir())
     for command in ("inventory", "prepare"):
         assert main([command, "--run", str(run)]) == 0
     (run / "handoffs").mkdir()
-    (run / "handoffs/CP-0.md").write_text(fixture_text("CP-0", run), encoding="utf-8")
+    cp0 = fixture_text("CP-0", run, depth)
+    if not portfolios:  # no Portfolio Context in the pack or in CP-0: FIT is skipped
+        kept = [x for x in cp0.splitlines(keepends=True) if "TEST_CLO_I" not in x[:60]]
+        cp0 = re.sub(r" ?\[C1[67]\]", "", "".join(kept))
+    (run / "handoffs/CP-0.md").write_text(cp0, encoding="utf-8")
     send(run, RBOT_ROOT)
     assert accept(run) == 0
     ready(run, RBOT_ROOT)
-    run = _approve(run, primary)
+    run = _approve(run, primary, depth)
     for _ in range(len(state.read(run)["plan"]) + 1):
         chosen = next_step.select(run, RBOT_ROOT)
         step = chosen["step"]
@@ -69,7 +92,9 @@ def complete_run(
         elif chosen["kind"] == "host":
             assert main([step.lower(), "--run", str(run)]) == 0
         else:
-            (run / f"handoffs/{step}.md").write_text(fixture_text(step, run), encoding="utf-8")
+            (run / f"handoffs/{step}.md").write_text(
+                fixture_text(step, run, depth), encoding="utf-8"
+            )
             send(run, RBOT_ROOT, step)
             code = accept(run, module=step)
             assert code in (0, 3), f"{step}: acceptance exit {code}"

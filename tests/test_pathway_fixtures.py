@@ -15,6 +15,7 @@ import shutil
 from collections.abc import Callable
 from pathlib import Path
 
+import proxy_isolated
 import pytest
 
 from conftest import FIXTURES
@@ -29,8 +30,8 @@ BY_SUM = {2: 0, 3: 0, 4: 1, 5: 1, 6: 2, 7: 3, 8: 3, 9: 4, 10: 4}
 LOANS = {"RCF", "1L Term Loan", "2L Term Loan"}
 
 
-def _handoff(module_id: str) -> Handoff:
-    return parse((HANDOFFS / f"{module_id}.md").read_text(encoding="utf-8"))
+def _handoff(module_id: str, depth: str = "full") -> Handoff:
+    return parse(proxy_isolated.fixture_path(module_id, depth).read_text(encoding="utf-8"))
 
 
 def _rows(h: Handoff, table_id: str) -> list[dict[str, str]]:
@@ -90,11 +91,12 @@ def test_cp6_caps_are_fits(prepared_run: Callable[[str], Path], tmp_path: Path) 
         assert row["final"] == ORDER[max(ORDER.index(row["uncapped"]), ORDER.index(row["cap"]))]
 
 
-def test_cp5_traces_every_step_before_it() -> None:
+@pytest.mark.parametrize("depth", ["full", "quick"])
+def test_cp5_traces_every_step_before_it(depth: str) -> None:
     pathway = load_catalog(RBOT_ROOT).pathway("FULL_CREDIT_ASSESSMENT")
     assert pathway is not None
-    steps = list(pathway.depths["full"])
-    traced = [r["module_id"] for r in _rows(_handoff("CP-5"), "cp5.module_status")]
+    steps = list(pathway.depths[depth])
+    traced = [r["module_id"] for r in _rows(_handoff("CP-5", depth), "cp5.module_status")]
     assert traced == steps[: steps.index("CP-5")]
 
 

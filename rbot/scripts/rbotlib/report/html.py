@@ -237,6 +237,8 @@ def _snapshot(ctx: Ctx, by: dict[str, Record], run: Record) -> str:
         f"{run['pathway']}, {run['depth']} depth",
         "Primary" if run["primary"] else "",
     ]
+    if run["depth"] == "quick":
+        meta.insert(2, "Screening only")
     meta += [f"As of {row.get('as_of_date', '')}", f"Run {run['run_id']}"]
     spans = "".join(h("span", escape(m)) for m in meta if m)
     top = h("h1", escape(str(issuer)), cls="vtitle", id="view-snapshot-h", tabindex="-1") + h(
