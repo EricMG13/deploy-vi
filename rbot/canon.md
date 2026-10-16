@@ -17,6 +17,20 @@ The rules every module follows. Your MODULE.md adds your inputs, process, tables
 
 Each `[C<n>]` marker points to one row of your citations table: the source file name exactly as in the run's inventory, a locator (page, section, sheet and cell, or clause), and a short verbatim excerpt of at most 15 words that shows the cited value or statement. Cite the most specific locator you have. A citation you cannot anchor is a gap, not a guess.
 
+## Figures and tables
+
+1. **One figure per cell**, in the column's form: a column ending `_x` holds a multiple (`4.2x`), `_pct` a percentage (`12.5%`), `_bps` whole basis points, `_date` an ISO date; any other figure column a plain decimal (`-` sign, `.` decimal point, no thousands separator). A table with an amount carries its `currency` (ISO code) and `unit` (`UNITS`, `THOUSANDS` or `MILLIONS`).
+2. **A `cite` cell** holds one or more `[C<n>]` markers, or `calc: <formula or source>` for a figure calculated from cited figures, or both.
+3. **Canonical metric bases:** Total Debt = balance-sheet carrying value: current portion of debt + long-term debt, net of unamortized issuance costs and discounts. Gross principal outstanding is never the canonical basis for Total Debt, Net Debt, or any leverage ratio; where it is disclosed and materially different from carrying value, log both figures. Net Debt = canonical Total Debt − cash and cash equivalents. Interest coverage denominators state their basis (P&L interest expense vs cash interest paid).
+4. **Multi-figure events:** when one economic event carries different figures in different statements or notes, extract all figures, label each with its statement role, and record them as one conflict explaining why they differ.
+
+## Upstream Handoffs, the Model and calculators
+
+1. **Use an upstream figure as it stands** and copy its citation row (same source, locator and excerpt) into your citations table under your own id. Never restate it with a different value; a disagreement is a gap.
+2. **The Model and Portfolio Fit are host-computed** (`handoffs/MODEL.md`, `handoffs/FIT.md`). Cite their figures `calc: MODEL <table> <line or item>` or `calc: FIT <table> <instrument>`; never recompute one by hand.
+3. **A module calculator** (`rbot calc <name>`) owns its figures: write its input JSON from your cited inputs, run it, and copy its output exactly, cited `calc: <name> <row>`.
+4. **A Blocked input** is used for what it carries, with its gaps; a missing optional input is a named limitation, never inferred.
+
 ## Analytical depth
 
 1. Complete every step of your process; a populated table is not proof the step ran.
@@ -28,6 +42,16 @@ Each `[C<n>]` marker points to one row of your citations table: the source file 
 
 Missing evidence produces explicit gaps and narrower conclusions, never shorter reasoning or filler.
 
+## Shared analytical rules
+
+These govern content inside your existing Analysis and Gaps sections; they add no tables or columns. A module with no analytical conclusion (a readiness or classification step) applies each rule to its classification or verdict and says so in one line.
+
+1. **Counter-argument.** Against the headline conclusion, state the strongest supported opposing case, what evidence would make it win, and how it would change conviction or monitoring. A classification step states the strongest case for the next-nearest class.
+2. **One reconciliation.** Put every conflict across sources, periods, definitions and upstream Handoffs in one place: each value with its citation, which governs and why, or a named gap. Do not leave a conflict only in a footnote.
+3. **Causal downside.** Give the starting condition, the first break with a threshold or magnitude, the quantified transmission, a dated consequence, and the observable triggers. Where the data cannot quantify a step, name the gap instead of skipping it.
+4. **Search before declaring absent.** Before a gap says a fact is missing, search the whole Source Pack, including notes, exhibits and attachments to amendments, and state what you searched. A fact found there is used and cited.
+5. **Recompute upstream figures.** Before relying on an upstream figure, check it from its cited inputs: components (does a benchmark include the issuer itself), differences and signs, and stated repayments or events in a pro forma. A mismatch is a conflict under rule 2. Host-computed Model and Fit figures are exempt.
+
 ## Gaps and status
 
 Under `## Gaps`, each gap names the missing data, why it matters, what it limits in your output, and the source that would close it.
@@ -35,8 +59,8 @@ Under `## Gaps`, each gap names the missing data, why it matters, what it limits
 Set `qa_status`:
 - **Pass** — your reader question is answered from the evidence.
 - **Restricted** — it is answered with limitations you name under `## Gaps`.
-- **Blocked** — it cannot be answered; say exactly what is missing. A Blocked Handoff still carries every table your contract requires, with `—` and gaps where values are missing.
+- **Blocked** — it cannot be answered; say exactly what is missing. A Blocked Handoff still carries every table your contract requires and every column, with `—` in the critical cells you cannot fill (a table may then have fewer rows than its minimum, or none), no citation, and the gaps under `## Gaps`; the checker then exits 3, not 2.
 
 ## Scope
 
-Answer your reader question and nothing else. Never state a conclusion your MODULE.md prohibits. House scales (Credit Score, Valuation, Recommendation, Credit Direction, Sector Outlook, Portfolio Fit) take exactly the values printed in your MODULE.md.
+Answer your reader question and nothing else. Never state a conclusion your MODULE.md prohibits. House scales take exactly the values printed in your MODULE.md: Credit Score grades fundamentals (1 - Strong to 5 - Stressed); Valuation grades compensation for risk (V1 - Very attractive to V5 - Very unattractive); Recommendation combines the two per Strategy (CLO, Indexed Loans, Indexed HY) and per instrument (1 - Strong OW to 5 - Strong UW, Avoid, N/A where the Strategy owns no instrument of the issuer); Credit Direction is the fundamental trend; Sector Outlook the sector's direction; Portfolio Fit is Fits, Watch or Breaches.

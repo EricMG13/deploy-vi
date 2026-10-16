@@ -23,7 +23,8 @@ def test_module_md_carries_the_contract_and_the_checked_rules(rules: Rules) -> N
     assert "<!-- table: citations -->\n| id | source | locator | excerpt |" in text
     assert "Each citation id appears on exactly one row." in text
     assert "- No investment opinion." in text
-    assert "rbot.py validate handoffs/CP-X.md --module CP-X" in text
+    assert "- Write a literal pipe inside any cell, excerpts included, as `\\|`." in text
+    assert "rbot.py validate <RUN>/handoffs/CP-X.md --module CP-X --run <RUN>" in text
     for placeholder in rules.placeholders:
         assert placeholder in text
 
@@ -82,6 +83,14 @@ def test_front_matter_rule_names_non_empty_values_and_the_module_id(rules: Rules
     assert "`module_id` is `CP-X`" in text
 
 
+def test_the_inputs_key_lists_handoff_ids_or_none(rules: Rules) -> None:
+    assert "- `inputs: <Handoff ids comma-separated, or none>`." in _cp_x_text(rules)
+
+
+def test_the_rules_block_says_not_to_indent_a_table(rules: Rules) -> None:
+    assert "- Do not indent a table or put it in a code block." in _cp_x_text(rules)
+
+
 def test_tags_are_one_per_table_directly_above_it(rules: Rules) -> None:
     assert (
         "Tag each table exactly once, with its `<!-- table: <id> -->` line "
@@ -121,3 +130,10 @@ def test_the_printed_headers_pass_the_checker_once_the_asterisk_is_stripped(
         text = text[: old.start()] + block + text[old.end() :]
     _, findings = check(text, contract, rules)
     assert [f for f in findings if f.code == "column_missing"] == []
+
+
+def test_document_types_print_beside_their_source_class(rules: Rules) -> None:
+    data = fixture_json("contract_cp_x.json")
+    data["inputs"][0]["document_types"] = ["Credit agreement", "Indenture"]
+    text = render_module(contract_from_dict(data, rules), rules)
+    assert "| Sources: issuer (Credit agreement, Indenture) | the filings |" in text

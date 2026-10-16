@@ -19,7 +19,7 @@ Surface roll (impeccable concept-seed key 1943d727, mode read): ranked structure
 
 A — IC paper (THE ROLL)
 THESIS: the Report as a numbered committee paper whose page one is the Credit Snapshot; refuses the dashboard-of-cards default.
-OWN-WORLD: house navy bars as section rules, paper-white sheet on #F0F2F5, numbered sections, figures numbered and captioned, margin notes carry citations.
+OWN-WORLD: house navy bars as section rules, paper-white sheet on #F0F2F5, view codes (S, CP-1, M, PF, E) and numbered figures (Fig. S.1, Fig. CP-1.2) as the citable anchors in place of numbered sections, figures captioned, inline provenance marks with popovers carry citations in place of margin notes.
 STORY: read page one, see the call and five charts; open any numbered section for the analysis.
 FIRST VIEWPORT: title band with recommendation per Strategy; Credit Snapshot blocks in template order with the Model chart strip and capital-structure chart above the fold; sticky contents rail.
 FORM: IC paper, rank 6, seed 1943d727.
@@ -40,3 +40,33 @@ STORY: read the call, scrub the spine, watch metrics and blocks update to the ch
 FIRST VIEWPORT: verdict band; the spine with the leverage / coverage / liquidity strip aligned to it; Snapshot blocks keyed to the selected period.
 FORM: period spine, rank 7, seed 1943d727.
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+
+## Owner decision (2026-10-11)
+
+Chosen: **A — IC paper**, amended:
+1. A persistent left navigation pane through which the reader reaches every part of the Report without scrolling the whole document: the Report becomes an app shell of views (hash-routed), not one long page.
+2. The Credit Snapshot is a summary screen only; each module's output is its own view with its full analysis (reader question, headline, status and limitations, charts, detailed tables, findings with citations, gaps).
+3. Sections are collapsible; the company description moves near the top of the Snapshot and gains the issuer's operating model (segments, revenue mix, property footprint, owned versus leased real estate, digital), every fact cited.
+4. Clarity and polish: impeccable critique by Opus at max effort; implementation by a different model (Sonnet).
+
+Amended FIRST VIEWPORT (A): left pane (logo, issuer, run line, navigation: Snapshot, each module with status, Model, Portfolio Fit, Evidence, Limitations); main: title band with the call per Strategy and Valuation, key findings, company description with operating model, then the Model chart strip and capital structure; every block collapsible and linked to its module view.
+
+### Critique fixes (owner answers, 2026-10-11)
+
+After the dual-assessment critique (23/40) the owner chose to fix every issue and ruled:
+1. **Scope:** all issues, the five priority issues and the minor ones.
+2. **Snapshot company description:** one sentence plus a five-row cited operating-model fact table (segments, revenue mix, footprint, owned versus leased real estate, digital), set beside Key findings. The full prose stays in the Financial analysis module behind "Full analysis". The KPI tile strip is removed. Acceptance: at 1440x900 all four Model-strip plots and the capital-structure bar are inside the first viewport.
+3. **Status label:** the reader-facing word for `qa_status` Restricted is "With limitations". Pass stays Pass and Blocked stays Blocked. The internal data keeps Restricted and is mapped only at display.
+4. **Call band:** neutral. Every position box is white on navy and the word ("Modest OW") carries the meaning, with no tone colours in the band. This also fixes the 2.75:1 contrast failure. The meter stays visible at laptop widths. The H1 is the issuer. "Collapse all" moves out of the band.
+
+### Critique 2 fixes (owner answers, 2026-10-11, second round)
+
+After the re-critique (26/40) the owner chose to fix every issue and ruled:
+1. **Scope:** all issues above, apart from the phone items (outside the stated platform; do not regress).
+2. **Navigation:** the pane holds only the Report's 11 destinations (Snapshot; the Analysis modules; Model, Portfolio Fit, Evidence, Limitations), always visible without scrolling at 1280x800. Each view's section list moves into the page as a contents line under the view H1. The Key moves out of the pane into a "How to read a figure" popover in the view header. "Collapse all / Expand all" moves to the view header.
+3. **Scale colour:** neutral everywhere. Every scale badge (Recommendation, Valuation, Credit Score, Credit Direction, Sector Outlook, in the Report and in the Key) is white on navy or navy on white, with the word carrying the meaning. Colour stays only for status (Pass, With limitations, Blocked) and Fit outcomes (Breach, Watch). Credit Direction is the sixth item of the call band.
+4. **Figure numbers by pane label:** Fig. S.1 (Snapshot), Fig. CP-1.1, Fig. CP-2.3, Fig. M.1 (Model), Fig. PF.1 (Portfolio Fit), Fig. E.1 (Evidence). A figure redrawn in another view keeps its first number.
+
+### Anchors and provenance (owner decision, 2026-10-11)
+
+In direction A, view codes plus figure numbers (Fig. S.1, Fig. CP-1.2) are the citable anchors and replace numbered sections. Inline provenance marks with popovers replace margin notes. The A contract's OWN-WORLD line is amended to say so. Recorded here; not a build item.

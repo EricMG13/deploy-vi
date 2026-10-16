@@ -12,3 +12,12 @@ useDefault = true
 description = "design mockup sample data: identifier-shaped key fields"
 targetRules = ["generic-api-key"]
 paths = ['''design/mockups/shared/data\.js$''']
+
+# tests/test_report_assets.py pins the frozen house report assets by git blob id and
+# sha256 (content digests only, e.g. `"tokens.css": "baf86efa..."`), which trip
+# generic-api-key. Exempt that one rule in that one file; every other rule still
+# scans it.
+[[allowlists]]
+description = "frozen report-asset pins: git blob ids and sha256 content digests"
+targetRules = ["generic-api-key"]
+paths = ['''tests/test_report_assets\.py$''']

@@ -1,0 +1,649 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-11T19:47:40+00:00",
+  "title": "Design System: RBOT Report",
+  "extensions": {
+    "colorMeta": {
+      "navy": {
+        "role": "primary",
+        "displayName": "House Navy",
+        "canonical": "#000533",
+        "oklch": "oklch(15.9% 0.091 263.9)",
+        "tonalRamp": [
+          "#000330",
+          "#0D2150",
+          "#284072",
+          "#466095",
+          "#6682B9",
+          "#88A5DF",
+          "#B0C9FC",
+          "#E7EFFE"
+        ]
+      },
+      "blue": {
+        "role": "primary",
+        "displayName": "Electric Blue",
+        "canonical": "#0017E5",
+        "oklch": "oklch(42.7% 0.282 264.2)",
+        "tonalRamp": [
+          "#000036",
+          "#000976",
+          "#0105C8",
+          "#043BFD",
+          "#4278F9",
+          "#7AA3F8",
+          "#AFC9FF",
+          "#E7EFFF"
+        ]
+      },
+      "blue-deep": {
+        "role": "primary",
+        "displayName": "Pressed Blue",
+        "canonical": "#0012B8",
+        "oklch": "oklch(36.4% 0.238 264.2)",
+        "tonalRamp": [
+          "#000036",
+          "#000976",
+          "#001BBD",
+          "#154BE5",
+          "#4278F9",
+          "#7AA3F8",
+          "#AFC9FF",
+          "#E7EFFF"
+        ]
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Cool Grey Ground",
+        "canonical": "#F0F2F5",
+        "oklch": "oklch(96.0% 0.005 258.3)",
+        "tonalRamp": [
+          "#0A0B0D",
+          "#242527",
+          "#404244",
+          "#606164",
+          "#818285",
+          "#A3A5A8",
+          "#C7C9CC",
+          "#EDEFF2"
+        ]
+      },
+      "sheet": {
+        "role": "neutral",
+        "displayName": "Sheet White",
+        "canonical": "#FFFFFF",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#A5A5A5",
+          "#C9C9C9",
+          "#EEEEEE"
+        ]
+      },
+      "grey-100": {
+        "role": "neutral",
+        "displayName": "Rule Grey",
+        "canonical": "#E1E3E6",
+        "oklch": "oklch(91.5% 0.005 258.3)",
+        "tonalRamp": [
+          "#0A0B0D",
+          "#242527",
+          "#404244",
+          "#606164",
+          "#818285",
+          "#A3A5A8",
+          "#C7C9CC",
+          "#ECEFF2"
+        ]
+      },
+      "grey-200": {
+        "role": "neutral",
+        "displayName": "Sheet Edge",
+        "canonical": "#C5C8CC",
+        "oklch": "oklch(83.2% 0.006 255.5)",
+        "tonalRamp": [
+          "#090B0E",
+          "#232528",
+          "#404245",
+          "#5F6165",
+          "#808386",
+          "#A2A5A9",
+          "#C6C9CD",
+          "#ECEFF3"
+        ]
+      },
+      "grey-400": {
+        "role": "neutral",
+        "displayName": "Mark Grey",
+        "canonical": "#8D939D",
+        "oklch": "oklch(66.2% 0.016 260.7)",
+        "tonalRamp": [
+          "#070B12",
+          "#21252D",
+          "#3D424B",
+          "#5C626B",
+          "#7D838C",
+          "#9FA5B0",
+          "#C3CAD4",
+          "#E8EFFA"
+        ]
+      },
+      "grey-600": {
+        "role": "neutral",
+        "displayName": "Slate",
+        "canonical": "#55585E",
+        "oklch": "oklch(46.0% 0.010 264.5)",
+        "tonalRamp": [
+          "#090B10",
+          "#22252A",
+          "#3F4248",
+          "#5E6167",
+          "#7F8289",
+          "#A2A5AC",
+          "#C6C9D0",
+          "#EBEFF6"
+        ]
+      },
+      "soft-blue": {
+        "role": "secondary",
+        "displayName": "Soft Blue",
+        "canonical": "#CBE4FE",
+        "oklch": "oklch(90.9% 0.045 249.4)",
+        "tonalRamp": [
+          "#000C1B",
+          "#13273A",
+          "#2F4459",
+          "#4E647A",
+          "#6E859C",
+          "#90A8C0",
+          "#B4CCE6",
+          "#E2F0FF"
+        ]
+      },
+      "soft-blue-50": {
+        "role": "secondary",
+        "displayName": "Faint Blue",
+        "canonical": "#E7F5FF",
+        "oklch": "oklch(96.3% 0.020 238.7)",
+        "tonalRamp": [
+          "#040C13",
+          "#1C272E",
+          "#38444C",
+          "#57636C",
+          "#78848D",
+          "#9AA7B0",
+          "#BECBD5",
+          "#E3F1FB"
+        ]
+      },
+      "mint": {
+        "role": "tertiary",
+        "displayName": "Mint",
+        "canonical": "#1EFF8F",
+        "oklch": "oklch(87.9% 0.220 153.4)",
+        "tonalRamp": [
+          "#001004",
+          "#042E16",
+          "#025029",
+          "#09743E",
+          "#1F9A57",
+          "#2CC370",
+          "#2FEE88",
+          "#C9FED8"
+        ]
+      },
+      "mint-soft": {
+        "role": "tertiary",
+        "displayName": "Mint Soft",
+        "canonical": "#A5FFD2",
+        "oklch": "oklch(93.1% 0.107 161.6)",
+        "tonalRamp": [
+          "#000F07",
+          "#032D1C",
+          "#014F34",
+          "#06734E",
+          "#3B966E",
+          "#61BA90",
+          "#86DFB3",
+          "#C5FEE0"
+        ]
+      },
+      "lemon": {
+        "role": "tertiary",
+        "displayName": "Lemon",
+        "canonical": "#F7FF99",
+        "oklch": "oklch(97.2% 0.126 112.4)",
+        "tonalRamp": [
+          "#0B0C00",
+          "#262703",
+          "#434602",
+          "#636708",
+          "#84891B",
+          "#A7AD47",
+          "#CAD26D",
+          "#F0F892"
+        ]
+      },
+      "positive": {
+        "role": "status",
+        "displayName": "Positive",
+        "canonical": "#0F8048",
+        "oklch": "oklch(52.8% 0.128 154.4)",
+        "tonalRamp": [
+          "#000F05",
+          "#012E16",
+          "#06502B",
+          "#107441",
+          "#34985E",
+          "#5BBC80",
+          "#81E2A3",
+          "#C6FFD7"
+        ]
+      },
+      "positive-text": {
+        "role": "status",
+        "displayName": "Pass Green",
+        "canonical": "#0C6639",
+        "oklch": "oklch(45.0% 0.107 154.5)",
+        "tonalRamp": [
+          "#000F05",
+          "#012E16",
+          "#06502B",
+          "#207345",
+          "#479565",
+          "#6BB987",
+          "#8FDEAA",
+          "#C6FED8"
+        ]
+      },
+      "negative": {
+        "role": "status",
+        "displayName": "Negative",
+        "canonical": "#D4625D",
+        "oklch": "oklch(63.4% 0.145 24.6)",
+        "tonalRamp": [
+          "#1E0102",
+          "#4C0208",
+          "#7D0B15",
+          "#A43635",
+          "#CB5A55",
+          "#F27D77",
+          "#FEB3AD",
+          "#FEE9E7"
+        ]
+      },
+      "negative-text": {
+        "role": "status",
+        "displayName": "Critical Red",
+        "canonical": "#A6100F",
+        "oklch": "oklch(46.2% 0.181 28.4)",
+        "tonalRamp": [
+          "#1F0000",
+          "#4B0504",
+          "#800305",
+          "#B1201B",
+          "#D94B3F",
+          "#FC7667",
+          "#FCB5AA",
+          "#FFE9E5"
+        ]
+      },
+      "caution-text": {
+        "role": "status",
+        "displayName": "Caution Brown",
+        "canonical": "#7A4A00",
+        "oklch": "oklch(45.4% 0.100 68.1)",
+        "tonalRamp": [
+          "#140800",
+          "#361F02",
+          "#5D3908",
+          "#865513",
+          "#A9763B",
+          "#CE995E",
+          "#F4BD81",
+          "#FEEBD7"
+        ]
+      },
+      "caution-fill": {
+        "role": "status",
+        "displayName": "Caution Cream",
+        "canonical": "#FFF8D6",
+        "oklch": "oklch(97.6% 0.045 97.5)",
+        "tonalRamp": [
+          "#0F0B00",
+          "#2B2508",
+          "#484226",
+          "#686244",
+          "#898364",
+          "#ACA686",
+          "#D1CAA9",
+          "#F6EFCE"
+        ]
+      },
+      "negative-on-navy": {
+        "role": "status",
+        "displayName": "Negative on Navy",
+        "canonical": "#FFB4B0",
+        "oklch": "oklch(84.0% 0.088 22.5)",
+        "tonalRamp": [
+          "#1E0102",
+          "#470C10",
+          "#692C2C",
+          "#8D4C4A",
+          "#B16D6A",
+          "#D78F8C",
+          "#FEB3AF",
+          "#FEE9E7"
+        ]
+      },
+      "chart-orange": {
+        "role": "chart",
+        "displayName": "Burnt Orange",
+        "canonical": "#C4410C",
+        "oklch": "oklch(55.7% 0.176 38.2)",
+        "tonalRamp": [
+          "#1C0300",
+          "#451102",
+          "#722408",
+          "#A43912",
+          "#D65224",
+          "#FE774B",
+          "#FDB59F",
+          "#FEE9E3"
+        ]
+      },
+      "chart-mid-blue": {
+        "role": "chart",
+        "displayName": "Mid Blue",
+        "canonical": "#2B8FD6",
+        "oklch": "oklch(62.7% 0.139 244.8)",
+        "tonalRamp": [
+          "#000C19",
+          "#002742",
+          "#05456F",
+          "#0F669F",
+          "#2289CF",
+          "#4EADF6",
+          "#9BD0FD",
+          "#E2F1FE"
+        ]
+      },
+      "risk-high": {
+        "role": "chart",
+        "displayName": "Risk Tint",
+        "canonical": "#F6D4D2",
+        "oklch": "oklch(89.8% 0.038 21.9)",
+        "tonalRamp": [
+          "#180405",
+          "#361D1D",
+          "#553A39",
+          "#765957",
+          "#987A78",
+          "#BC9C9A",
+          "#E1C0BE",
+          "#FEE9E7"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "report-title": {
+        "displayName": "Report title",
+        "purpose": "H1 of a paper view."
+      },
+      "view-title": {
+        "displayName": "View title",
+        "purpose": "Snapshot H1 in the title band; folded module titles."
+      },
+      "section-title": {
+        "displayName": "Section title",
+        "purpose": "Collapsible paper-section heads; issuer in the pane."
+      },
+      "subhead": {
+        "displayName": "Subhead",
+        "purpose": "Sub-heads inside sections."
+      },
+      "headline-finding": {
+        "displayName": "Headline finding",
+        "purpose": "A module's one headline sentence, 62ch cap."
+      },
+      "bar": {
+        "displayName": "Bar",
+        "purpose": "Navy section bars, uppercase, Snapshot blocks."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Prose at 64ch."
+      },
+      "table": {
+        "displayName": "Table",
+        "purpose": "Data tables and nav links; tabular numerals on number cells."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Captions, chips, axis labels, figure numbers, contents line."
+      }
+    },
+    "shadows": [
+      {
+        "name": "popover",
+        "value": "0 6px 18px rgba(0, 5, 51, 0.16)",
+        "purpose": "Source passport popover."
+      },
+      {
+        "name": "key-popover",
+        "value": "0 6px 18px rgba(0, 5, 51, 0.18)",
+        "purpose": "How to read a figure popover."
+      }
+    ],
+    "motion": [
+      {
+        "name": "chevron",
+        "value": "transform 160ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Disclosure chevron rotation; removed under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide",
+        "value": "1500px"
+      },
+      {
+        "name": "call-band-compact",
+        "value": "1400px"
+      },
+      {
+        "name": "snapshot-stack",
+        "value": "1150px"
+      },
+      {
+        "name": "pane-to-topbar",
+        "value": "1000px"
+      },
+      {
+        "name": "narrow",
+        "value": "760px"
+      },
+      {
+        "name": "small",
+        "value": "640px"
+      }
+    ],
+    "chartPalette": [
+      {
+        "series": 1,
+        "token": "blue"
+      },
+      {
+        "series": 2,
+        "token": "chart-orange"
+      },
+      {
+        "series": 3,
+        "token": "navy"
+      },
+      {
+        "series": 4,
+        "token": "grey-600"
+      },
+      {
+        "series": 5,
+        "token": "chart-mid-blue"
+      },
+      {
+        "series": "neutral",
+        "token": "grey-400"
+      },
+      {
+        "series": "critical",
+        "token": "negative-text"
+      }
+    ],
+    "focus": [
+      {
+        "name": "on-light",
+        "value": "2px solid #0017E5, offset 2px"
+      },
+      {
+        "name": "on-navy",
+        "value": "2px solid #1EFF8F"
+      }
+    ],
+    "hitArea": "24px"
+  },
+  "components": [
+    {
+      "name": "Collapsible block bar (Snapshot)",
+      "kind": "custom",
+      "refersTo": "section-bar",
+      "description": "The one disclosure affordance on the Snapshot: navy bar, chevron, uppercase title, state in words, 1px navy frame.",
+      "html": "<details class=\"ds-cb\" open><summary><span class=\"ds-cb__t\">Key findings</span><span class=\"ds-cb__meta\">x LTM Adjusted EBITDA</span></summary><div class=\"ds-cb__body\">Total leverage 3.29x on LTM Adjusted EBITDA.</div></details>",
+      "css": ".ds-cb{border:1px solid var(--navy, #000533);background:var(--sheet, #FFFFFF);font-family:\"Inter\", system-ui, sans-serif;font-size:14px;color:var(--navy, #000533)}.ds-cb>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;min-height:2.25rem;padding:.3rem .6rem;background:var(--navy, #000533);color:#fff}.ds-cb>summary::-webkit-details-marker{display:none}.ds-cb>summary::before{content:'';width:.45rem;height:.45rem;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform 160ms cubic-bezier(.16,1,.3,1)}.ds-cb[open]>summary::before{transform:rotate(45deg)}.ds-cb>summary::after{content:'Expand';margin-left:auto;font-size:12px;font-weight:500;color:var(--on-navy-2, #CBE4FE);text-decoration:underline;text-underline-offset:.2em}.ds-cb[open]>summary::after{content:'Collapse'}.ds-cb>summary:hover::after{color:var(--mint, #1EFF8F)}.ds-cb>summary:focus-visible{outline:2px solid var(--mint, #1EFF8F);outline-offset:-4px}.ds-cb__t{font-family:\"Inter Tight\", \"Inter\", system-ui, sans-serif;font-weight:700;font-size:13px;letter-spacing:.04em;text-transform:uppercase}.ds-cb__meta{font-size:12px;font-weight:500;color:var(--on-navy-2, #CBE4FE);padding-left:8px}.ds-cb__body{padding:8px 12px 12px;font-size:13px}"
+    },
+    {
+      "name": "Paper section head",
+      "kind": "custom",
+      "refersTo": "paper-section-head",
+      "description": "Collapsible section inside a white paper view: 3px navy top rule, sentence-case 20px title, state word in blue.",
+      "html": "<details class=\"ds-ps\" open><summary><span class=\"ds-ps__t\">Debt stack</span></summary><div class=\"ds-ps__b\">Fig. CP-1.1 Debt stack by rank, 30 June 2026</div></details>",
+      "css": ".ds-ps{border-top:3px solid var(--navy, #000533);font-family:\"Inter\", system-ui, sans-serif;color:var(--navy, #000533)}.ds-ps>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;min-height:2.75rem;padding:8px 0}.ds-ps>summary::-webkit-details-marker{display:none}.ds-ps>summary::before{content:'';width:.45rem;height:.45rem;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg)}.ds-ps[open]>summary::before{transform:rotate(45deg)}.ds-ps>summary::after{content:'Expand';margin-left:auto;font-size:12px;color:var(--blue, #0017E5);text-decoration:underline}.ds-ps[open]>summary::after{content:'Collapse'}.ds-ps>summary:hover::after{color:var(--blue-deep, #0012B8)}.ds-ps>summary:focus-visible{outline:2px solid var(--blue, #0017E5);outline-offset:-4px}.ds-ps__t{font-family:\"Inter Tight\", \"Inter\", system-ui, sans-serif;font-weight:800;font-size:20.2px;letter-spacing:-.01em}.ds-ps__b{padding:4px 0 16px;font-size:13px}"
+    },
+    {
+      "name": "Neutral scale badge (call band)",
+      "kind": "chip",
+      "refersTo": "scale-badge-on-navy",
+      "description": "A house scale on navy: white position box, the word, a five-step rising meter. Never tone-coloured.",
+      "html": "<span class=\"ds-band\"><span class=\"ds-scale\" role=\"img\" aria-label=\"Indexed HY: 2 Modest OW of 5, illustrative\"><span class=\"ds-scale__pos\">2</span><span class=\"ds-scale__w\">Modest OW</span><span class=\"ds-scale__m\"><i class=\"on\"></i><i class=\"on\"></i><i></i><i></i><i></i></span></span></span>",
+      "css": ".ds-band{display:inline-block;padding:12px;background:var(--navy, #000533);font-family:\"Inter\", system-ui, sans-serif}.ds-scale{display:inline-flex;align-items:center;gap:.45em;padding:.2rem .6rem .2rem .2rem;border:1px solid var(--on-navy-2, #CBE4FE);border-radius:2px;color:#fff;font-size:16.8px}.ds-scale__pos{display:inline-grid;place-items:center;min-width:2.1rem;height:2.1rem;background:#fff;color:var(--navy, #000533);font-family:\"Inter Tight\", \"Inter\", system-ui, sans-serif;font-weight:800;font-size:24.2px;font-variant-numeric:tabular-nums lining-nums}.ds-scale__w{font-weight:700}.ds-scale__m{display:inline-flex;align-items:flex-end;gap:2px}.ds-scale__m i{width:5px;height:6px;border:1px solid var(--on-navy-2, #CBE4FE)}.ds-scale__m i:nth-child(2){height:8px}.ds-scale__m i:nth-child(3){height:10px}.ds-scale__m i:nth-child(4){height:12px}.ds-scale__m i:nth-child(5){height:14px}.ds-scale__m i.on{background:#fff}"
+    },
+    {
+      "name": "Status chips",
+      "kind": "chip",
+      "refersTo": "status-pass",
+      "description": "The only meaningful colour: Pass, With limitations, Blocked, Watch, Breaches; each with icon and word.",
+      "html": "<span class=\"ds-st ds-st--pass\">Pass</span> <span class=\"ds-st ds-st--lim\">With limitations</span> <span class=\"ds-st ds-st--blk\">Blocked</span> <span class=\"ds-st ds-st--brc\">Breaches</span>",
+      "css": ".ds-st{display:inline-flex;align-items:center;gap:.35em;padding:.05rem .45rem .05rem .35rem;border:1px solid currentColor;border-radius:2px;font:700 12px/1.4 \"Inter\", system-ui, sans-serif;background:#fff}.ds-st::before{content:'';width:.7rem;height:.7rem;background:currentColor;border-radius:50%}.ds-st--pass{color:var(--positive-text, #0C6639)}.ds-st--lim{color:#7A4A00;background:#FFF8D6}.ds-st--blk{color:var(--negative-text, #A6100F)}.ds-st--brc{color:#fff;background:var(--negative-text, #A6100F);border-color:var(--negative-text, #A6100F)}"
+    },
+    {
+      "name": "Provenance marks on figures",
+      "kind": "custom",
+      "refersTo": "cite-chip",
+      "description": "The figure is the button: blue corner triangle for cited, navy square for calculated, n/a with gap id, ILLUSTRATIVE and Model tags.",
+      "html": "<p class=\"ds-prov\">Total leverage <button class=\"ds-fig ds-fig--c\">3.29x</button> on LTM Adjusted EBITDA of <button class=\"ds-fig ds-fig--k\">US$3,592m</button>; pro forma <button class=\"ds-gap\">n/a G8</button> <span class=\"ds-illus\">Illustrative</span> <span class=\"ds-model\">Model</span></p>",
+      "css": ".ds-prov{font:14px/1.5 \"Inter\", system-ui, sans-serif;color:var(--navy, #000533)}.ds-fig{appearance:none;border:0;background:none;padding:0;font:inherit;color:inherit;cursor:pointer;font-variant-numeric:tabular-nums lining-nums;white-space:nowrap}.ds-fig::after{content:'';display:inline-block;width:6px;height:6px;margin-left:1px;vertical-align:.55em}.ds-fig--c::after{background:var(--blue, #0017E5);clip-path:polygon(0 0,100% 0,100% 100%)}.ds-fig--k::after{width:5px;height:5px;background:var(--navy, #000533)}.ds-fig:hover{color:var(--blue, #0017E5);text-decoration:underline}.ds-fig:focus-visible{outline:2px solid var(--blue, #0017E5);outline-offset:2px}.ds-gap{appearance:none;padding:0 .3rem;border:1px dashed var(--grey-600, #55585E);border-radius:2px;background:#fff;color:var(--grey-600, #55585E);font:italic 600 12px/1.1 \"Inter\", system-ui, sans-serif;cursor:pointer}.ds-gap:hover{border-color:var(--navy, #000533);color:var(--navy, #000533)}.ds-illus,.ds-model{display:inline-block;padding:0 .35rem;border-radius:2px;font-size:12px;line-height:1.4}.ds-illus{border:1px dashed var(--navy, #000533);font-weight:700;letter-spacing:.08em;text-transform:uppercase}.ds-model{border:1px dashed var(--grey-600, #55585E);color:var(--grey-600, #55585E);font-weight:600}"
+    },
+    {
+      "name": "Source popover (passport)",
+      "kind": "card",
+      "refersTo": "cite-chip",
+      "description": "One popover for every source: id and kind, Served as, File, Locator, verbatim excerpt; navy edge, the only shadowed layer.",
+      "html": "<div class=\"ds-pop\" role=\"dialog\" aria-label=\"Source C12\"><div class=\"ds-pop__h\"><span class=\"ds-pop__id\">C12</span><span class=\"ds-pop__k\">Cited</span></div><dl><dt>Served as</dt><dd>3,592</dd><dt>File</dt><dd>czr-10q-2026q2.htm</dd><dt>Locator</dt><dd>line 4127</dd></dl><blockquote>Adjusted EBITDA ... 3,592</blockquote></div>",
+      "css": ".ds-pop{width:min(28rem,100%);padding:12px;background:#fff;color:var(--navy, #000533);border:1px solid var(--navy, #000533);border-top:4px solid var(--navy, #000533);box-shadow:0 6px 18px rgba(0,5,51,.16);font:13px/1.35 \"Inter\", system-ui, sans-serif}.ds-pop__h{display:flex;justify-content:space-between;margin-bottom:8px}.ds-pop__id{font-family:\"Inter Tight\", \"Inter\", system-ui, sans-serif;font-weight:700}.ds-pop__k{font-size:12px;color:var(--grey-600, #55585E);text-transform:uppercase;letter-spacing:.06em}.ds-pop dl{display:grid;grid-template-columns:auto 1fr;gap:.15rem 12px;margin:0 0 8px}.ds-pop dt{color:var(--grey-600, #55585E)}.ds-pop dd{margin:0}.ds-pop blockquote{margin:0;padding:8px 12px;background:var(--ground, #F0F2F5);border-left:1px solid var(--navy, #000533);white-space:pre-wrap}"
+    },
+    {
+      "name": "Navigation pane links",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Navy pane: destinations in Inter Tight, current view with mint left rule and soft-blue tint, module rows with code and round status mark.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Report views\"><a class=\"ds-nav__a ds-nav__a--top\" href=\"#snapshot\">Snapshot</a><a class=\"ds-nav__a\" href=\"#module-cp-1\" aria-current=\"page\"><span>Financial analysis and capital structure</span><span class=\"ds-nav__c\">CP-1</span></a><a class=\"ds-nav__a ds-nav__a--top\" href=\"#model\">Model</a></nav>",
+      "css": ".ds-nav{display:grid;width:16.5rem;padding:8px 0;background:var(--navy, #000533);font-family:\"Inter\", system-ui, sans-serif}.ds-nav__a{display:flex;gap:8px;min-height:2rem;padding:.3rem 16px .3rem 13px;border-left:3px solid transparent;color:#fff;text-decoration:none;font-size:13px;line-height:1.35}.ds-nav__a--top{font-family:\"Inter Tight\", \"Inter\", system-ui, sans-serif;font-weight:700;font-size:14px}.ds-nav__a:hover{background:rgba(203,228,254,.12)}.ds-nav__a:focus-visible{outline:2px solid var(--mint, #1EFF8F);outline-offset:-3px}.ds-nav__a[aria-current=page]{background:rgba(203,228,254,.18);border-left-color:var(--mint, #1EFF8F);font-weight:700}.ds-nav__c{margin-left:auto;font:600 12px \"Inter Tight\", \"Inter\", system-ui, sans-serif;color:var(--on-navy-2, #CBE4FE)}"
+    },
+    {
+      "name": "Button and quiet button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Blue-outlined button filling blue on hover; quiet grey-bordered variant for view-header tools.",
+      "html": "<button class=\"ds-btn\">Show table</button> <button class=\"ds-btn ds-btn--q\">How to read a figure</button>",
+      "css": ".ds-btn{appearance:none;display:inline-flex;align-items:center;min-height:2rem;padding:.3rem .8rem;border:1px solid var(--blue, #0017E5);border-radius:2px;background:#fff;color:var(--blue, #0017E5);font:600 13px \"Inter\", system-ui, sans-serif;cursor:pointer}.ds-btn:hover,.ds-btn[aria-expanded=true]{background:var(--blue, #0017E5);color:#fff}.ds-btn:focus-visible{outline:2px solid var(--blue, #0017E5);outline-offset:2px}.ds-btn--q{border-color:var(--grey-200, #C5C8CC);color:var(--navy, #000533)}.ds-btn--q:hover{border-color:var(--blue, #0017E5);background:var(--soft-blue-50, #E7F5FF);color:var(--blue, #0017E5)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Committee Paper",
+    "overview": "The Report is a State Street investment-committee paper rendered as an app shell. A navy navigation pane holds the Report's eleven destinations; the main column shows one view at a time. Page one is the Credit Snapshot, the house Excel template PMs already know: navy section bars with white bold capitals, dense bordered tables, the cool grey ground, the logo on navy. Every other view is a white paper sheet whose sections are ruled by a 3px navy line. View codes and figure numbers (S, CP-n, M, PF, E; Fig. CP-1.2) are the citable anchors, standing in for numbered sections.\n\nDensity is high and deliberate: 13px tables, 14px body, 12px small print, a 4px spacing rhythm, square corners. The interface is flat. The only colour that carries meaning is status (Pass, With limitations, Blocked) and Portfolio Fit (Watch, Breaches). Every house scale is neutral, so the word carries the call. Provenance is drawn into the figure itself: a corner mark on the value, a dotted rule on model-written blocks, a dashed outline on illustrative judgements, an n/a with its gap id where the sources are silent.\n\nConfirmed rejections (owner rounds, 2026-10-11): the dashboard of cards and KPI tiles; tone-coloured scales; margin notes as the citation carrier; section numbering in place of view codes.",
+    "keyCharacteristics": [
+      "App shell: a 16.5rem navy pane, hash-routed views, one view visible.",
+      "The Snapshot keeps the template's framed blocks under navy bars; the other views are white papers with navy-ruled sections.",
+      "Neutral scales: the call band is white on navy, words carry meaning.",
+      "Provenance by shape: triangle for cited, square for calculated, dashes for illustrative, dots for model.",
+      "Every block collapses, says its state in words, and links one step to its owning module.",
+      "Every chart has a table twin, an n/a frame when it cannot draw, and provenance in its marks."
+    ],
+    "rules": [
+      {
+        "name": "The Word Carries the Call Rule",
+        "body": "Every house scale (Recommendation, Valuation, Credit Score, Credit Direction, Sector Outlook) is white on navy or navy on white, in the call band, in tables and in the Key. Colour is used for status (Pass, With limitations, Blocked) and Portfolio Fit outcomes (Watch, Breaches) and nothing else. A green or red scale box tilts the call; it does not ship.",
+        "section": "colors"
+      },
+      {
+        "name": "The Blue Is a Verb Rule",
+        "body": "Electric blue marks what can be clicked or focused, plus the cited mark and the issuer series. Labels, numerals and figure numbers are navy or slate, never blue.",
+        "section": "colors"
+      },
+      {
+        "name": "The Mint Lives on Navy Rule",
+        "body": "Mint, mint-soft and lemon appear only on navy grounds. On white the same states use the status colours above.",
+        "section": "colors"
+      },
+      {
+        "name": "The Numbers Align Rule",
+        "body": "Tabular lining numerals apply to numbers only (`.num` cells, chart text, chips, figure refs), never to running prose. Negatives print in parentheses as the filings do; colour is not the carrier.",
+        "section": "typography"
+      },
+      {
+        "name": "The Capitals Belong to the Bar Rule",
+        "body": "Uppercase is used where the house uses it: navy bars, the ILLUSTRATIVE and SYNTHETIC tags, the pane's ANALYSIS group heading. Headings inside papers are sentence case.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Paper Rule",
+        "body": "Blocks, sheets, cards and charts are flat at rest and on hover. Only a popover that floats over the paper casts a shadow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** keep every house scale neutral: navy position box on white, white box on navy, the word in bold beside it, the five-step meter after it.",
+      "**Do** keep the pane to the Report's 11 destinations, all visible at 1280×800; put each view's sections in its \"On this page\" contents line under the H1.",
+      "**Do** build every block as one collapsible bar that names its state in words (\"Collapse\" / \"Expand\") and links its owning module from the footer line, never from inside the toggle.",
+      "**Do** make the figure itself the button, marked by origin: blue corner triangle for cited, navy corner square for calculated, slate triangle for synthetic.",
+      "**Do** tag every judgement ILLUSTRATIVE and every model-written block Model, once per block.",
+      "**Do** show a missing value as n/a with its gap id and reason, in cells, prose and charts; state each gap once, under the module's Gaps and limitations.",
+      "**Do** number figures by the pane label of the view that first draws them (Fig. S.1, CP-1.2, M.1, PF.1, E.1) and keep that number wherever the figure is redrawn.",
+      "**Do** give every chart a table twin, provenance in its marks, and an n/a frame when it cannot draw.",
+      "**Do** give every interactive target a 24px minimum hit area, and use mint for focus on navy."
+    ],
+    "donts": [
+      "**Don't** colour a scale. Green, grey or red position boxes for Recommendation, Valuation, Credit Score, Credit Direction or Sector Outlook do not ship, in the band, in tables or in the Key.",
+      "**Don't** use colour for anything except status (Pass, With limitations, Blocked) and Portfolio Fit outcomes (Watch, Breaches), and always pair it with an icon and a word.",
+      "**Don't** put electric blue on labels, numerals or figure numbers; blue means clickable.",
+      "**Don't** put mint, mint-soft or lemon on white; they are states on navy only.",
+      "**Don't** use grey-400 for text; it is a mark colour (3.09:1).",
+      "**Don't** set a small uppercase kicker label above a heading; uppercase belongs to the navy bars, the ILLUSTRATIVE and SYNTHETIC tags and the pane group heading.",
+      "**Don't** add shadows, gradients or rounded cards; only floating popovers cast a shadow, and the radius is 2px on chips and buttons.",
+      "**Don't** repeat a gap, a headline or a figure within a module view; each thing is said once.",
+      "**Don't** load fonts from the network in a shipped Report; embed Inter and Inter Tight."
+    ]
+  }
+}

@@ -17,6 +17,8 @@ def _input_row(i: Input) -> str:
         label = f"Handoff `{i.values[0]}` ({'required' if i.required else 'optional'})"
     elif i.kind == "sources":
         label = "Sources: " + ", ".join(i.values)
+        if i.document_types:
+            label += " (" + ", ".join(i.document_types) + ")"
     else:
         label = "Run Brief: " + ", ".join(i.values)
     return f"| {label} | {i.why} |"
@@ -46,10 +48,13 @@ def _rules_block(rules: Rules, module_id: str) -> list[str]:
         "",
         "- Front matter keys, one non-empty `key: value` per line: "
         f"{', '.join(rules.front_matter)}; `module_id` is `{module_id}`.",
+        "- `inputs: <Handoff ids comma-separated, or none>`.",
         f"- `qa_status` is one of: {', '.join(rules.qa_status)}.",
         f"- H2 sections, exactly and in order: {', '.join(rules.sections)}.",
         "- Tag each table exactly once, with its `<!-- table: <id> -->` line "
         "directly above the table.",
+        "- Write a literal pipe inside any cell, excerpts included, as `\\|`.",
+        "- Do not indent a table or put it in a code block.",
         "- Emit no table the contract does not list.",
         "- Column names exactly as printed, without the `*` that marks a critical column.",
         f"- A critical cell (column marked *) is never empty or `{rules.gap_marker}`,",
@@ -106,9 +111,10 @@ def render_module(contract: Contract, rules: Rules) -> str:
     lines += [
         "## Before you finish",
         "",
-        f"Run `python <RBOT>/scripts/rbot.py validate handoffs/{contract.module_id}.md "
-        f"--module {contract.module_id}` (`<RBOT>` is the RBOT folder named in your task) "
-        "and fix every finding until it exits 0, or 3 when the run is genuinely Blocked.",
+        f"Run `python <RBOT>/scripts/rbot.py validate <RUN>/handoffs/{contract.module_id}.md "
+        f"--module {contract.module_id} --run <RUN>` (`<RBOT>` is the RBOT folder and `<RUN>` "
+        "the run folder named in your task) and fix every finding until it exits 0, or 3 when "
+        "the run is genuinely Blocked.",
         "",
     ]
     return "\n".join(lines)

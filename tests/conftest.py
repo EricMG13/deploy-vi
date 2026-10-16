@@ -1,15 +1,19 @@
-"""Shared fixtures: the real rules, the example contracts and a throwaway RBOT tree."""
+"""Shared fixtures: the real rules, the example contracts, a throwaway RBOT tree and the corpus."""
 
 from __future__ import annotations
 
 import json
+import os
 import shutil
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from rbotlib.cli import main
 from rbotlib.contract import contract_from_dict
+from rbotlib.corpus import Problem, load_registry, materialise, resolve_roots, verify
 from rbotlib.render import render_module
 from rbotlib.rules import RBOT_ROOT, Rules, load_rules
 
@@ -66,3 +70,59 @@ def tree(tmp_path: Path, rules: Rules) -> Path:
     write_module(tmp_path, fixture_json("contract_cp_x.json"), rules)
     write_module(tmp_path, fixture_json("contract_cp_y.json"), rules)
     return tmp_path
+
+
+CORPUS = load_registry()
+REQUIRE_ENV = "RBOT_REQUIRE_CORPUS"
+REQUIRE_VALUES = {"", "1", "synthetic"}
+
+
+def corpus_gate(problems: list[Problem]) -> None:
+    """Fail or skip a corpus test whose files are not usable (interfaces spec section 12.3).
+
+    RBOT_REQUIRE_CORPUS=1 fails on any problem (the owner's machine); =synthetic fails
+    only on in-repo files and skips the external ones (CI); otherwise the test skips.
+    The message names the unresolved root or the mismatched file either way.
+    """
+    level = os.environ.get(REQUIRE_ENV, "")
+    if level not in REQUIRE_VALUES:
+        pytest.fail(f"{REQUIRE_ENV} is {level!r}; expected '', '1' or 'synthetic'")
+    if not problems:
+        return
+    message = "; ".join(p.message for p in problems)
+    if level == "1" or (level == "synthetic" and any(p.in_repo for p in problems)):
+        pytest.fail(message)
+    pytest.skip(message)
+
+
+@pytest.fixture(scope="session")
+def corpus_pack(tmp_path_factory: pytest.TempPathFactory) -> Callable[[str], Path]:
+    """Materialise a corpus pack once per session as a throwaway Source Pack."""
+    made: dict[str, Path] = {}
+
+    def get(pack_id: str) -> Path:
+        if pack_id not in made:
+            pack = CORPUS.pack(pack_id)
+            roots = resolve_roots(CORPUS)
+            corpus_gate(verify(CORPUS, pack, roots))
+            made[pack_id] = materialise(CORPUS, pack, roots, tmp_path_factory.mktemp(pack_id))
+        return made[pack_id]
+
+    return get
+
+
+@pytest.fixture(scope="session")
+def prepared_run(corpus_pack: Callable[[str], Path]) -> Callable[[str], Path]:
+    """A run folder per corpus pack with `rbot inventory` and `rbot prepare` done, once."""
+    made: dict[str, Path] = {}
+
+    def get(pack_id: str) -> Path:
+        if pack_id not in made:
+            run = corpus_pack(pack_id) / "rbot-runs" / f"20261011-{pack_id}-prepared"
+            run.mkdir(parents=True)
+            assert main(["inventory", "--run", str(run)]) == 0
+            assert main(["prepare", "--run", str(run)]) == 0
+            made[pack_id] = run
+        return made[pack_id]
+
+    return get

@@ -1,0 +1,106 @@
+{
+  "module_id": "CP-1A",
+  "title": "Business and transaction fact pack",
+  "reader_question": "Which business, ownership, transaction and operating facts matter most to the creditor?",
+  "inputs": [
+    {"handoff": "CP-0", "required": true, "why": "which readable Issuer Sources describe the business, its owners and the current transaction"},
+    {"handoff": "CP-1", "required": false, "why": "the entity profile and pro forma register, so facts and figures name the same entity, perimeter and transaction"},
+    {"sources": ["issuer"], "required": true, "why": "annual and quarterly reports, merger and offering documents, term sheets and rating reports"},
+    {"sources": ["issuer", "market"], "document_types": ["Rating report", "Market levels export"], "required": false, "why": "agency ratings: a rating report, or the ratings shown in a Market Levels export"},
+    {"run_brief": ["issuer", "as_of_date", "objective", "morningstar_issuer_id"], "why": "the issuer and date in scope and the Morningstar Issuer ID for the company profile"}
+  ],
+  "process": [
+    "Source Basis. Identify all source materials from `handoffs/CP-0.md`. Record: name, type, date, issuer relevance, period, evidence tier. Assess sufficiency per section. Flag limitations. Gate: no sources -> Blocked. Classify sources: transaction doc, FS, lender/sponsor pres, rating, mgmt commentary, regulatory, internal, external, other. Assign quality tier. Subsequent events: the date of each source is the reference point; scan every source for events dated after it (dividends declared, refinancings, buybacks, disposals) and carry each into the timeline as a flagged subsequent event with its event date; never fold it into the transaction or business facts as if already reflected in the cited period.",
+    "Transaction Summary (`cp1a.transactions_events`, the current transaction's rows). Structured summary: type (LBO/refi/recap/add-on/acq/IPO/other), date, borrower, sponsor, target, size, facilities, use of proceeds, structure, maturity, conditions. Each element cited. Where one transaction carries different quantum figures across documents, extract ALL figures, label each by source document and say which governs. Gate: no transaction sources -> skip.",
+    "Business Description (`snapshot.business_description`, one row, and `snapshot.company_profile`). Credit-focused: what issuer does, products/services, revenue model, end-markets, customers, geography, competitive position, regulatory, operational dependencies, business-model risks. Five-category separation: Documentary Fact (source citation), Management Language (quoted and labelled as management's), Analyst Interpretation (labelled), Credit Implication, Gap/Limitation. Gate: no business sources -> skip. The profile row carries `sector`, `country`, `shareholders`, `management` (names and roles as the sources state them), the issuer-level agency ratings and outlooks (`—` when none is in the pack; an instrument rating is not a corporate rating), `listed`, `ticker` and the Run Brief's `morningstar_issuer_id`.",
+    "Ownership Register (`cp1a.ownership_governance`). Ownership structure, sponsor identity/history, changes, acquisitions, equity transactions, minorities, management participation, creditor alignment. Each cited. Gate: no ownership sources -> skip. Assess issuer-level governance quality, sponsor/shareholder conduct, financial policy, capital allocation, disclosure quality and creditor treatment from a creditor perspective; management quality means observable issuer-level behavior affecting creditor outcomes; you do not evaluate individuals. Translate behavior into mechanics, not adjectives: documented dividend recap -> higher leverage / reduced FCF retained -> increased refinancing risk; equity injection / cure -> liquidity support -> reduced near-term PD; transparent reporting -> stronger monitoring ability; uptier / drop-down / priming -> weakened priority -> higher LGD. Always distinguish legal capacity (what documents may permit) from willingness evidence (what the sponsor or issuer has actually done or stated). `risk_direction` is Positive, Neutral or Negative for creditors.",
+    "Sponsor Quality (`snapshot.company_profile.sponsor_quality`, the house scale). Judge the Sponsor / Governance risk: Low risk -> High; Medium -> Medium; High risk (evidence supports creditor-adverse or extraction conduct, weak disclosure blocking monitoring, or governance facts materially increasing PD, LGD, refinancing risk or recovery leakage) -> Low; N/A when no sponsor or controlling shareholder exists. Do not infer sponsor willingness from sponsor identity, brand, private-equity ownership or generalized market reputation.",
+    "Operating Model (`cp1a.business_facts`, at least three rows). Revenue drivers/mix, cost structure, margin mechanics, capex, WC, cash conversion, seasonality, KPIs. Connect each to credit implication: every captured fact carries its credit relevance (`risk_mechanism`, `credit_implication`) and its `evidence_quality` (Audited, Issuer-stated, Third-party, Analyst). Gate: no operating data -> flag, continue. Do not silently harmonize source-defined operating or financial metrics with CP-1; if definitions differ, show both.",
+    "History/Timeline (`cp1a.transactions_events`). Timeline of credit events: founding, acquisitions, ownership changes, restructurings, refinancings, covenant events, defaults, rating changes, regulatory. Dated + cited; `status` as of the as-of date; `perimeter_change` Yes when the event adds or removes businesses. Gate: no events -> skip.",
+    "Ratings (`cp1a.ratings_register`): every dated agency rating the pack shows, with its scope (issuer or instrument), outlook (`Not stated` when the source gives none) and date; expected ratings of a new tranche from its term sheet.",
+    "Credit Translation (`## Analysis`). Synthesize Steps 2-7: Revenue Durability, Margin/CF Risk, Concentration Risk, Sponsor Alignment, Key Uncertainties. Analytical chain required: Evidence (source+locator) -> Risk Mechanic -> Credit Implication. No new evidence. Gate: all prior insufficient -> skip.",
+    "Gaps Ledger (`## Gaps`). All gaps + limitations + unresolved conflicts. Per gap: description, section, source limitation, downstream impact, severity, remediation. Always executes. `qa_status`: Pass when complete; Restricted with gaps or limitations; Blocked when no sources."
+  ],
+  "tables": [
+    {
+      "id": "snapshot.company_profile",
+      "title": "Company profile",
+      "min_rows": 1,
+      "columns": [
+        {"name": "morningstar_issuer_id"}, {"name": "sector", "critical": true},
+        {"name": "country", "critical": true}, {"name": "shareholders", "critical": true},
+        {"name": "management", "critical": true}, {"name": "corp_rating_moodys"},
+        {"name": "corp_rating_sp"}, {"name": "corp_rating_fitch"}, {"name": "outlook_moodys"},
+        {"name": "outlook_sp"}, {"name": "outlook_fitch"},
+        {"name": "sponsor_quality", "critical": true, "scale": "sponsor_quality"},
+        {"name": "listed", "critical": true, "scale": "yes_no"}, {"name": "ticker"},
+        {"name": "cite", "critical": true}
+      ],
+      "consumers": ["REPORT", "CP-2", "CP-3", "CP-6", "FIT"]
+    },
+    {
+      "id": "snapshot.business_description",
+      "title": "Business description",
+      "min_rows": 1,
+      "columns": [
+        {"name": "description", "critical": true}, {"name": "cite", "critical": true}
+      ],
+      "consumers": ["REPORT", "CP-2"]
+    },
+    {
+      "id": "cp1a.business_facts",
+      "title": "Business facts",
+      "min_rows": 3,
+      "columns": [
+        {"name": "item", "critical": true}, {"name": "fact", "critical": true},
+        {"name": "risk_mechanism", "critical": true},
+        {"name": "credit_implication", "critical": true},
+        {"name": "evidence_quality", "critical": true, "scale": "evidence_quality"},
+        {"name": "cite", "critical": true}
+      ],
+      "consumers": ["CP-2", "CP-3"]
+    },
+    {
+      "id": "cp1a.ownership_governance",
+      "title": "Ownership and governance",
+      "min_rows": 1,
+      "columns": [
+        {"name": "topic", "critical": true}, {"name": "fact", "critical": true},
+        {"name": "risk_direction", "critical": true, "scale": "risk_direction"},
+        {"name": "credit_implication", "critical": true}, {"name": "cite", "critical": true}
+      ],
+      "consumers": ["CP-2", "CP-6"]
+    },
+    {
+      "id": "cp1a.transactions_events",
+      "title": "Transactions and events",
+      "min_rows": 1,
+      "columns": [
+        {"name": "event_date", "critical": true}, {"name": "event", "critical": true},
+        {"name": "status", "critical": true}, {"name": "credit_relevance", "critical": true},
+        {"name": "perimeter_change", "critical": true, "scale": "yes_no"},
+        {"name": "cite", "critical": true}
+      ],
+      "consumers": ["CP-2", "CP-6"]
+    },
+    {
+      "id": "cp1a.ratings_register",
+      "title": "Ratings register",
+      "min_rows": 0,
+      "columns": [
+        {"name": "agency", "critical": true}, {"name": "scope", "critical": true},
+        {"name": "rating", "critical": true}, {"name": "outlook", "critical": true},
+        {"name": "rating_date", "critical": true}, {"name": "rationale"},
+        {"name": "cite", "critical": true}
+      ],
+      "consumers": ["CP-3", "CP-2", "REPORT"]
+    }
+  ],
+  "prohibited": [
+    "No peer ranking, instrument recommendation, or recovery conclusion.",
+    "Marketing language without qualification: reject; promotional language is converted to fact or flagged.",
+    "Inference without source: `—` + gap. No transaction sources: do NOT fabricate.",
+    "Conflicting sources: log them; no silent reconciliation. Do not cite a source that does not support the claim.",
+    "Do not evaluate individual employee performance, personal qualities or leadership style; do not convert missing evidence into an adverse conclusion."
+  ]
+}

@@ -13,3 +13,7 @@ node_modules/
 .DS_Store
 # Analyst runs never enter the repo.
 rbot-runs/
+# Proxy runs on the corpus (interfaces spec section 12.4); scorecards go to docs/corpus-runs/.
+/corpus-runs/
+# Plan 03 port kit, rebuilt from caos by Task 1 (never committed).
+/.port-03/

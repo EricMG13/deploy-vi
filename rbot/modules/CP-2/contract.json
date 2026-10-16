@@ -1,0 +1,88 @@
+{
+  "module_id": "CP-2",
+  "title": "Fundamental credit synthesis",
+  "reader_question": "What is the fundamental credit profile, its strongest support and its primary downside?",
+  "inputs": [
+    {"handoff": "CP-0", "required": true, "why": "the readable Issuer Sources"},
+    {"handoff": "CP-1", "required": true, "why": "the canonical figures, debt stack and definition conflicts"},
+    {"handoff": "CP-1A", "required": true, "why": "the business, ownership, events and ratings"},
+    {"handoff": "MODEL", "required": true, "why": "the house view: SSIM and Structuring EBITDA, PF interest, multiples, adjusted debt, credit metrics"},
+    {"handoff": "CP-1B", "required": false, "why": "the earnings deltas, drivers and early-warning signals"},
+    {"handoff": "CP-1C", "required": false, "why": "the borrower's position against peers"},
+    {"handoff": "CP-1D", "required": false, "why": "the add-back verdicts, cash conversion and debt-like items"},
+    {"handoff": "CP-DR", "required": false, "why": "researched answers on the sector, competitors, regulation and outlook"},
+    {"sources": ["issuer"], "required": true, "why": "the evidence behind each driver and watch item"},
+    {"run_brief": ["issuer", "as_of_date", "objective"], "why": "the issuer, date and question the credit view answers"}
+  ],
+  "process": [
+    "Role and inputs. Integrated fundamental credit synthesis from a creditor / leveraged-finance perspective, not equity valuation: downside risk, cash-flow durability, margin resilience, liquidity, debt service capacity, leverage tolerance, refinancing capacity, recovery relevance, governance / financial-policy risk, and the primary path to credit deterioration. Source gate and readiness: read every Handoff your task names; take financial figures from CP-1's registers and the Model (`handoffs/MODEL.md`: house view, credit metrics, capital structure) without recomputing them, citing a Model figure `calc: MODEL <table> <item>` and copying an upstream citation row for any other. A Blocked or missing optional input is a named limitation.",
+    "Business and operating model (company description, ownership and group structure, revenue drivers and pricing power, cost structure and margin resilience, capital intensity and FCF conversion), each with the analytical chain Evidence -> Risk Mechanic -> Credit Implication. Market frameworks (Porter, PEST, SWOT) only where they change the conclusion, translated into creditor consequences.",
+    "Key Strengths & Weaknesses (`snapshot.strengths_weaknesses`). Provide the top 1-5 credit strengths and top 1-5 credit weaknesses, each `label` with `text` compressing [Evidence] -> [Risk Mechanic] -> [Credit Implication].",
+    "Financial Profile & Credit Quality. Evaluate issuer financial durability using a ratings-style lens. Complete the 9-dimension Financial Profile (Strong / Average / Weak / Not Assessable) in `## Analysis`: scale / market position; competitive advantage; business diversification; cost and capex flexibility; margin stability; free cash flow stability; ability to refinance / access capital markets; liquidity position; financial policy and governance. After it, synthesize: main credit supports, constraints, trend, and key missing datapoints. If detailed financial data is unavailable, state: \"Financial profile assessment is qualitative because detailed financial data is not available in the provided materials.\"",
+    "Outlook, Tailwinds & Headwinds. Assess the short-term outlook (12-24 months), the medium-term outlook (3-5 years), sector tailwinds / headwinds and company-specific tailwinds / headwinds; for each material item, explain whether it supports or pressures revenue, margin resilience, cash-flow visibility, liquidity, deleveraging, refinancing confidence, PD, LGD, recovery, or monitoring posture.",
+    "Qualitative Downside Scenario. Provide one realistic downside scenario tailored to the issuer's sector and capital structure. Explain: operational event, revenue effect, margin effect, FCF effect, liquidity effect, leverage/refinancing effect, management levers, and whether resilience appears sufficient to avoid liquidity distress. Do not assume default risk unless supported by evidence. Do not produce a generic recession scenario: the downside must be issuer-specific and source-supported.",
+    "Materiality Filter (`cp2.drivers`). Rank the most important PD, LGD, liquidity, refinancing, or relative-value drivers. Prioritize drivers material to default probability, recovery value, maturity-wall risk, refinancing access, liquidity runway, or downside-case formation. `direction` Positive or Negative: a driver that cuts both ways is split into a Positive row and a Negative row, each with its own credit implication. Rank at least one Positive and one Negative driver. Where the evidence supports no driver in a direction, write one row for that direction saying so, never an invented driver: `driver` `None supported`, `evidence` naming what was reviewed, `risk_mechanism` and `credit_implication` saying no supported mechanism was found, `confidence` Low.",
+    "Issuer Matrix. Assess six business quality factors (revenue durability, margin resilience, FCF conversion, liquidity buffer, refinancing capacity, governance / financial policy) as Strong / Average / Weak / Not Assessable, each with its primary downside path, and conclude with: Primary downside path: [one concise sentence].",
+    "Monitoring Triggers (`cp2.watch_items`). Generate specific, observable monitoring triggers. Use quantitative thresholds only if source-supported. If thresholds are unsupported, state: \"Quantitative threshold not available in provided materials.\" Standard rows: revenue decline, EBITDA margin pressure, FCF deterioration, liquidity reduction, leverage increase, refinancing delay, sponsor/shareholder action, sector deterioration.",
+    "Overall Credit View (`snapshot.credit_view`, one row; synthesis only, no new data). Answer: primary credit strengths, primary credit constraints, business profile vs typical leveraged-credit issuers in the sector, financial profile trend, primary downside path, key refinancing risks, and information needed for a more definitive credit opinion. Express it on the house scales: `credit_score` 1 - Strong to 5 - Stressed (5 when liquidity or refinancing is at risk within 12 months, or a distress event), judged on SSIM EBITDA and adjusted debt; `credit_direction` Improving, Stable or Deteriorating; `sector_outlook` Positive, Neutral or Negative from the sector evidence in the pack (Deep Research's where it ran); `primary_support`, `primary_downside`, `confidence`, `basis` Full. Close `## Analysis` with: \"Overall, [Issuer] presents a [strong/adequate/weak/not fully assessable] business profile supported by [key strengths], but credit quality is constrained by [key weaknesses]. The primary downside path is [risk path].\" Gaps under `## Gaps`; `qa_status` Pass, Restricted (an input Blocked or a dimension not assessable) or Blocked (no LTM figures)."
+  ],
+  "tables": [
+    {
+      "id": "snapshot.credit_view",
+      "title": "Credit view",
+      "min_rows": 1,
+      "columns": [
+        {"name": "credit_score", "critical": true, "scale": "credit_score"},
+        {"name": "credit_direction", "critical": true, "scale": "credit_direction"},
+        {"name": "sector_outlook", "critical": true, "scale": "sector_outlook"},
+        {"name": "primary_support", "critical": true},
+        {"name": "primary_downside", "critical": true},
+        {"name": "confidence", "critical": true, "scale": "confidence"},
+        {"name": "basis", "critical": true, "scale": "depth_basis"},
+        {"name": "cite", "critical": true}
+      ],
+      "consumers": ["REPORT", "CP-3", "CP-5", "CP-6"]
+    },
+    {
+      "id": "snapshot.strengths_weaknesses",
+      "title": "Strengths and weaknesses",
+      "min_rows": 2,
+      "columns": [
+        {"name": "kind", "critical": true, "scale": "sw_kind"}, {"name": "label", "critical": true},
+        {"name": "text", "critical": true}, {"name": "cite", "critical": true}
+      ],
+      "consumers": ["REPORT", "CP-6", "CP-5"]
+    },
+    {
+      "id": "cp2.drivers",
+      "title": "Credit drivers",
+      "min_rows": 3,
+      "columns": [
+        {"name": "rank", "critical": true}, {"name": "driver", "critical": true},
+        {"name": "evidence", "critical": true}, {"name": "risk_mechanism", "critical": true},
+        {"name": "credit_implication", "critical": true},
+        {"name": "direction", "critical": true, "scale": "risk_direction"},
+        {"name": "confidence", "critical": true, "scale": "confidence"},
+        {"name": "cite", "critical": true}
+      ],
+      "consumers": ["CP-3", "CP-6", "CP-5"]
+    },
+    {
+      "id": "cp2.watch_items",
+      "title": "Watch items",
+      "min_rows": 1,
+      "columns": [
+        {"name": "trigger", "critical": true}, {"name": "threshold_or_signal", "critical": true},
+        {"name": "why_it_matters", "critical": true}, {"name": "credit_impact", "critical": true},
+        {"name": "cite"}
+      ],
+      "consumers": ["CP-6", "REPORT"]
+    }
+  ],
+  "prohibited": [
+    "Do not fabricate financial metrics, leverage, liquidity, maturity profiles, covenant headroom, customer concentration, ownership details, market share, ratings-agency views, or sponsor behavior.",
+    "Do not assign a formal rating.",
+    "Do not perform full legal/covenant basket analysis, formal recovery waterfall, standalone relative-value recommendation, portfolio position-sizing, or equity valuation thesis; hand off to the downstream module.",
+    "Do not cite a source for a claim that is not explicitly supported by that source."
+  ]
+}

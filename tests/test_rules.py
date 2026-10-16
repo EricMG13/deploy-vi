@@ -12,6 +12,17 @@ def test_rules_load_the_handoff_shape_and_house_scales(rules: Rules) -> None:
     assert "MODEL" in rules.host_producers
 
 
+def test_amendment_a1_adds_host_producers_and_scales(rules: Rules) -> None:
+    assert rules.host_producers == ("MODEL", "RUN_BRIEF", "PROJECTION", "FIT")
+    assert len(rules.scales) == 76
+    assert rules.scales["yes_no"] == ("Yes", "No")
+    assert rules.scales["document_type"][:2] == ("Annual report", "Quarterly report")
+    assert rules.scales["document_type"][-2:] == ("RBOT Report", "Other")
+    assert rules.scales["level_basis"] == ("Market", "Talk", "Image-Read", "None")
+    assert rules.scales["unit"] == ("UNITS", "THOUSANDS", "MILLIONS")
+    assert rules.scales["rate_basis"] == ("Fixed", "Deck plus spread", "Implied")
+
+
 @pytest.mark.parametrize(
     ("cell", "expected"),
     [
