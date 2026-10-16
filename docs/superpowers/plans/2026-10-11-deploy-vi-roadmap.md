@@ -19,7 +19,7 @@ Plan just in time against the executed/tested predecessor. Fresh implementation 
 | 09 | Quick depth (CP-L10, CP-6 screening) | 05, 07 | [2026-10-16-deploy-vi-09-quick-depth.md](2026-10-16-deploy-vi-09-quick-depth.md) | executed 2026-10-16 on stacked local branches build/09.1-module-gates → build/09.8-records (not pushed; PR #90 still open, base build/v1 d1774df); record run at rbot tree d7c0542: R1–R8 PASS (FIT switched off by approval; owner 2026-10-16); CP-L10 A/B PASS; CP-6 screening record B-only (R5) |
 | 10 | Deep Research (CP-DR with fetch) | 06, 07 | — | backlog (after v1) |
 | 11 | Prior Case (CP-8 diff, What changed tab) | 07 | — | backlog (after v1) |
-| 12 | Full Credit Assessment remaining A (CP-1C, CP-2A, CP-2E, CP-4, CP-2D + calculators) | 05, 07 | [2026-10-16-deploy-vi-09-quick-depth.md](2026-10-16-deploy-vi-09-quick-depth.md) | executed 2026-10-16 on stacked local branches build/09.1-module-gates → build/09.8-records (not pushed; PR #90 still open, base build/v1 d1774df); record run at rbot tree d7c0542: R1–R8 PASS (FIT switched off by approval; owner 2026-10-16); CP-L10 A/B PASS; CP-6 screening record B-only (R5) |
+| 12 | Full Credit Assessment remaining A (CP-1C, CP-2A, CP-2E, CP-4, CP-2D + calculators) | 05, 07 | — | backlog (after v1) |
 | 13 | Full Credit Assessment remaining B and projections (projection + CP-CF ports, CP-2G, CP-2H, CP-3D, CP-3C, CP-4C) | 12 | — | backlog (after v1) |
 | 14 | Earnings Update Pathway and Front Page | 09, 10, 11 | — | backlog (after v1) |
 | 15 | Relative Value Pathway and Front Page | 12, 13, 14 | — | backlog (after v1) |
