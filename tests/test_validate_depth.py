@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -163,3 +164,69 @@ def test_a_blocked_handoff_with_a_wrong_real_basis_is_still_flagged(
     text = blocked.replace(row, "|" + " — |" * 6 + " Full | — |", 1)
     findings = check(text, contract, rules, run)[1]
     assert "basis_depth" in [f.code for f in findings]
+
+
+QUICK = HANDOFFS / "quick"
+
+
+def _quick(module_id: str) -> str:
+    return (QUICK / f"{module_id}.md").read_text(encoding="utf-8")
+
+
+def _depth_codes(text: str, module_id: str, rules: Rules, tmp_path: Path) -> list[str]:
+    """Finding codes at quick; the empty run has no sources, so `source_unknown` is expected."""
+    run = _run(tmp_path, "quick")
+    return [c for c in _codes(text, module_id, rules, run) if c != "source_unknown"]
+
+
+@pytest.mark.parametrize("module_id", ["CP-3", "CP-5", "CP-6"])
+def test_the_quick_fixtures_validate_at_quick(tmp_path: Path, rules: Rules, module_id: str) -> None:
+    text = _quick(module_id)
+    assert check(text, _contract(module_id, rules), rules)[0] == EXIT_VALID
+    assert _depth_codes(text, module_id, rules, tmp_path) == []  # basis_depth is active here
+    front = text.split("---")[1]
+    assert "CP-L10" in front and "CP-2," not in front and "CP-1D" not in front
+
+
+@pytest.mark.corpus
+@pytest.mark.parametrize("module_id", ["CP-3", "CP-5", "CP-6"])
+def test_the_quick_fixtures_cite_real_pack_sources(
+    module_id: str, prepared_run: Callable[[str], Path], rules: Rules
+) -> None:
+    run = prepared_run("czr-2026q2-primary")
+    assert check(_quick(module_id), _contract(module_id, rules), rules, run) == (0, [])
+
+
+def test_the_quick_cp6_is_restricted_and_screening_on_every_row(rules: Rules) -> None:
+    text = _quick("CP-6")
+    assert "qa_status: Restricted" in text
+    rows = [ln for ln in text.splitlines() if ln.startswith(("| CLO |", "| Indexed"))]
+    assert len(rows) == 3
+    assert all("| Screening | Screening basis:" in ln for ln in rows)
+
+
+def test_the_quick_cp5_traces_the_quick_list_before_it(rules: Rules) -> None:
+    text = _quick("CP-5")
+    inputs = next(ln for ln in text.splitlines() if ln.startswith("inputs:"))
+    assert inputs == "inputs: CP-0, CP-1, CP-1A, CP-1B, MODEL, CP-L10, CP-3, FIT"
+    status = text.split("<!-- table: cp5.module_status -->")[1].split("## Gaps")[0]
+    ids = [ln.split(" | ")[0][2:] for ln in status.splitlines()[3:] if ln.startswith("| ")]
+    assert ids == ["CP-0", "CP-1", "CP-1A", "CP-1B", "MODEL", "CP-L10", "CP-3", "FIT"]
+
+
+def test_a_quick_run_without_a_portfolio_is_restricted_with_no_fit_caps(
+    tmp_path: Path, rules: Rules
+) -> None:
+    """Review Focus 1: FIT skipped, CP-6 recommends without caps and is Restricted, not failed."""
+    text = _quick("CP-6")
+    head, rest = text.split("<!-- table: cp6.portfolio_recommendation -->")
+    table, tail = rest.split("\n## Gaps", 1)
+    header = table.strip().splitlines()[:2]
+    bare = head.replace("CP-5, CP-L10, FIT,", "CP-5, CP-L10,")
+    bare += "<!-- table: cp6.portfolio_recommendation -->\n" + "\n".join(header) + "\n\n## Gaps"
+    bare += (
+        "\n\n- No portfolio context: FIT was skipped, so there are no Portfolio Fit caps." + tail
+    )
+    assert bare != text and "FIT," not in bare.split("---")[1]
+    assert check(bare, _contract("CP-6", rules), rules)[0] == EXIT_VALID
+    assert _depth_codes(bare, "CP-6", rules, tmp_path) == []

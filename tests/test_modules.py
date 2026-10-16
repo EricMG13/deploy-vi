@@ -123,6 +123,14 @@ def test_cp6_gate_names_only_handoffs_it_may_read(rules: Rules) -> None:
     assert "Full Run when CP-1" not in text
 
 
+def test_cp6_states_the_quick_screening_gate_and_bars_a_full_basis_claim() -> None:
+    """R4b / r14 D2: at Quick depth CP-6 is Restricted and never committee-ready."""
+    text = (FOLDERS / "CP-6" / "MODULE.md").read_text(encoding="utf-8")
+    assert "Screening Run when CP-L10 and CP-3 are available" in text
+    assert "each rationale opens" in text and "Screening basis:" in text
+    assert "Claim committee-ready or Full-basis conviction at Quick depth" in text
+
+
 def test_cp1b_builds_no_ltm_figure_of_its_own(rules: Rules) -> None:
     """Rest review M13: the Model owns LTM; CP-1B compares only what CP-1 registers."""
     text = (FOLDERS / "CP-1B" / "MODULE.md").read_text(encoding="utf-8")
