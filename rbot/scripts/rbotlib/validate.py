@@ -489,10 +489,42 @@ def run_findings(h: Handoff, run: Path) -> list[Finding]:
         return [Finding("run_error", str(exc))]
 
 
+def _blocked_gate(h: Handoff, rules: Rules) -> list[Finding]:
+    """CP-3 step 12: Blocked only with no market level and no talk (else Restricted)."""
+    if h.front_matter.get("qa_status") != "Blocked":
+        return []
+    levels, talk = h.tables.get("snapshot.instrument_levels"), h.tables.get("cp3.talk_valuation")
+    held: list[str] = []
+    for table, key, col in (
+        (levels, "facility_id", "level_basis"),
+        (talk, "facility_id", "talk_mid"),
+    ):
+        if table is None or key not in table.columns or col not in table.columns:
+            continue
+        at, ident = table.columns.index(col), table.columns.index(key)
+        held += [
+            row[ident]
+            for row in table.rows
+            if len(row) == len(table.columns) and not rules.is_placeholder(row[at])
+        ]
+    if not held:
+        return []
+    return [
+        Finding(
+            "blocked_gate",
+            f"qa_status is Blocked but {held[0]} holds a market level or talk; the contract "
+            "allows Blocked only with no market level and no talk, so a missing "
+            "level, call schedule or comparable makes it Restricted",
+        )
+    ]
+
+
 def _module_findings(
     h: Handoff, contract: Contract, rules: Rules, run: Path | None
 ) -> list[Finding]:
-    """A module's own checks beyond its tables: CP-0's in `rbotlib.cp0` (Plan 04)."""
+    """A module's own checks beyond its tables: CP-0's in `rbotlib.cp0` (Plan 04), CP-3's gate."""
+    if contract.module_id == "CP-3":
+        return _blocked_gate(h, rules)
     if contract.module_id != "CP-0":
         return []
     from rbotlib import cp0  # imported here: cp0 builds on this module's Finding
