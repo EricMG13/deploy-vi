@@ -7,7 +7,9 @@ import json
 import re
 import shutil
 import subprocess
+import sys
 from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -81,9 +83,18 @@ def _chrome() -> str:
     return found
 
 
+def _dump_dom(command: list[str]) -> subprocess.CompletedProcess[str]:
+    run = partial(subprocess.run, command, capture_output=True, text=True, timeout=120)
+    done = run()
+    # Loaded machines make Chrome exit 2 after the dump ("Teardown watchdog expired"): retry once.
+    if done.returncode != 0 and "Teardown watchdog expired" in done.stderr:
+        done = run()
+    return done
+
+
 def _visible_views(page: Path, fragment: str) -> list[str]:
     """Open the page in headless Chrome at `fragment`; return the view ids left unhidden."""
-    done = subprocess.run(
+    done = _dump_dom(
         [
             _chrome(),
             "--headless=new",
@@ -91,10 +102,7 @@ def _visible_views(page: Path, fragment: str) -> list[str]:
             "--virtual-time-budget=3000",
             "--dump-dom",
             f"{page.as_uri()}{fragment}",
-        ],
-        capture_output=True,
-        text=True,
-        timeout=120,
+        ]
     )
     assert done.returncode == 0, done.stderr
     assert 'data-ready="1"' in done.stdout, "report.js did not finish its first route"
@@ -154,7 +162,7 @@ def test_print_keeps_the_snapshot_at_full_scale_with_whole_blocks(
     probed.write_text(
         path.read_text(encoding="utf-8").replace("</body>", PRINT_PROBE), encoding="utf-8"
     )
-    done = subprocess.run(
+    done = _dump_dom(
         [
             _chrome(),
             "--headless=new",
@@ -162,10 +170,7 @@ def test_print_keeps_the_snapshot_at_full_scale_with_whole_blocks(
             "--virtual-time-budget=3000",
             "--dump-dom",
             probed.as_uri(),
-        ],
-        capture_output=True,
-        text=True,
-        timeout=120,
+        ]
     )
     assert done.returncode == 0, done.stderr
     found = re.search(r"data-f10=\"([^\"]+)\"", done.stdout)
@@ -288,3 +293,46 @@ def test_opening_with_a_hash_shows_only_the_target_view(
     shown = {f: _visible_views(path, f) for f in ("#model", "#nosuchview", "")}
     snapshot = ["view-snapshot"]
     assert shown == {"#model": ["view-model"], "#nosuchview": snapshot, "": snapshot}
+
+
+CRASH = "Trying to load the allocator multiple times.\nTeardown watchdog expired; terminating.\n"
+GOOD_DOM = '<html data-ready="1"><section class="view" id="view-snapshot"></section></html>'
+
+
+def _fake_chrome(monkeypatch: pytest.MonkeyPatch, results: list[tuple[int, str, str]]) -> list[int]:
+    calls: list[int] = []
+
+    def run(cmd: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        code, out, err = results[len(calls)]
+        calls.append(code)
+        return subprocess.CompletedProcess(cmd, code, out, err)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    monkeypatch.setattr(sys.modules[__name__], "_chrome", lambda: "chrome")
+    return calls
+
+
+def test_a_teardown_watchdog_crash_is_retried_once(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    calls = _fake_chrome(monkeypatch, [(2, GOOD_DOM, CRASH), (0, GOOD_DOM, "")])
+    assert _visible_views(tmp_path / "r.html", "") == ["view-snapshot"]
+    assert len(calls) == 2
+
+
+def test_any_other_chrome_failure_is_not_retried(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    calls = _fake_chrome(monkeypatch, [(2, "", "GPU process died"), (0, GOOD_DOM, "")])
+    with pytest.raises(AssertionError, match="GPU process died"):
+        _visible_views(tmp_path / "r.html", "")
+    assert len(calls) == 1
+
+
+def test_a_second_watchdog_crash_fails_with_stderr(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    calls = _fake_chrome(monkeypatch, [(2, "", CRASH), (2, "", CRASH)])
+    with pytest.raises(AssertionError, match="Teardown watchdog expired"):
+        _visible_views(tmp_path / "r.html", "")
+    assert len(calls) == 2
