@@ -47,7 +47,7 @@ Also read:
   - every report ends with a `Not verified:` line;
   - a defect fix starts with a failing test for the reported cause.
 
-## Rulings (defaults; owner may override — cost if wrong in the last column)
+## Rulings (approved by the owner as written, 2026-10-16 — cost if wrong in the last column)
 
 | # | Gap or conflict in the spec | Ruling | If wrong |
 |---|---|---|---|
@@ -226,7 +226,7 @@ Also read:
 
 ## Open points (owner)
 
-- R1 family mapping, R3 Sector Outlook fallback, and R5 the B-only CP-6 record. Each default is above.
+- R1–R9 approved by the owner as written (2026-10-16).
 - A Quick→Full upgrade command, which "can later be upgraded to Full" (CONTEXT.md), is **not** in Plan 09. No plan owns it yet.
 - `ccl-fy2025-lite-full-credit-screen` (`exercises`) is graded in 09.5 but gets no record run in Plan 09. Plan 19 scores every Pathway × depth.
 
