@@ -257,7 +257,9 @@ def test_topic_counts_gives_one_chart_per_family_with_exact_counts(run: Record) 
         assert all(len(r) == len(entry["twin"]["columns"]) for r in entry["twin"]["rows"])
 
 
-def test_topic_counts_is_undrawable_without_cpl10(run: Record) -> None:
+def test_topic_counts_needs_cpl10_in_the_run(run: Record) -> None:
     del run["steps"]["CP-L10"], run["handoffs"]["CP-L10"]
+    assert build_all(run, ["chart.topic_counts"]) == []  # a depth without CP-L10 has no such view
+    run["steps"]["CP-L10"] = {"status": "failed", "reason": "no source"}
     (entry,) = build_all(run, ["chart.topic_counts"])
-    assert entry["data"] is None and "CP-L10 is not in this run" in entry["note"]
+    assert entry["data"] is None and "CP-L10 failed: no source" in entry["note"]

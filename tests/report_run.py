@@ -11,6 +11,7 @@ import re
 import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 
 import proxy_isolated
@@ -72,7 +73,8 @@ def complete_run(
     for command in ("inventory", "prepare"):
         assert main([command, "--run", str(run)]) == 0
     (run / "handoffs").mkdir()
-    cp0 = fixture_text("CP-0", run, depth)
+    read = fixture_text if depth == "full" else partial(fixture_text, depth=depth)
+    cp0 = read("CP-0", run)
     if not portfolios:  # no Portfolio Context in the pack or in CP-0: FIT is skipped
         kept = [x for x in cp0.splitlines(keepends=True) if "TEST_CLO_I" not in x[:60]]
         cp0 = re.sub(r" ?\[C1[67]\]", "", "".join(kept))
@@ -92,9 +94,7 @@ def complete_run(
         elif chosen["kind"] == "host":
             assert main([step.lower(), "--run", str(run)]) == 0
         else:
-            (run / f"handoffs/{step}.md").write_text(
-                fixture_text(step, run, depth), encoding="utf-8"
-            )
+            (run / f"handoffs/{step}.md").write_text(read(step, run), encoding="utf-8")
             send(run, RBOT_ROOT, step)
             code = accept(run, module=step)
             assert code in (0, 3), f"{step}: acceptance exit {code}"

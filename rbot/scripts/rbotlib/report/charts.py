@@ -569,6 +569,9 @@ def _topic_part(family: str, topics: list[Record], scales: dict[str, tuple[str, 
 
 def topic_counts(view: Record) -> Record:
     parent = _entry("chart.topic_counts", "CP-L10", "stackedColumns", "host", [TOPICS])
+    if "CP-L10" not in view["run"]["steps"]:
+        parent["parts"] = []  # an Analysis chart of a module this depth does not run: no view
+        return parent
     rows, why = _rows(view, "CP-L10", TOPICS)
     if why:
         return _undrawable(parent, why)
@@ -605,5 +608,6 @@ def build_all(
         if chart_id not in REGISTRY:
             raise ReportError(f"unknown chart {chart_id}")
         built = REGISTRY[chart_id](view)
-        out.extend(built.pop("parts", None) or [built])
+        parts = built.pop("parts", None)
+        out.extend([built] if parts is None else parts)
     return out
