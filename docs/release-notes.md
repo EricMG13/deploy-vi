@@ -8,7 +8,7 @@
 - Validator: new findings `screen_policy` (LITE rules on cpl10.screen_topics), `basis_depth` (basis must match the run depth) and `blocked_gate` (CP-3 may be Blocked only with no market level and no talk).
 - Report: "Screening only" in the Credit Snapshot title band at quick; new Analysis chart `chart.topic_counts` (topics by materiality and disposition, one per family).
 - Module and depth gates read the installed catalog (module ids from rbot/modules/*/contract.json).
-- Record run on czr-2026q2-lite-full-credit-screen (quick): R1, R2, R4–R8 PASS; R3 FAIL only because approval skips FIT on a pack with no portfolio (owner decision, docs/acceptance/v1.md: only the owner can lower R3). Scorecard: docs/corpus-runs/2026-10-16-czr-2026q2-lite-full-credit-screen-full-credit-assessment-quick.md.
+- Record run on czr-2026q2-lite-full-credit-screen (quick): R1–R8 PASS. FIT was switched off by approval (no portfolio context), which R3 counts as satisfied (owner, 2026-10-16). Scorecard: docs/corpus-runs/2026-10-16-czr-2026q2-lite-full-credit-screen-full-credit-assessment-quick.md.
 - A/B: CP-L10 PASS (docs/ab/2026-10-16-CP-L10-czr-2026q2-lite-full-credit-screen.md); CP-6 screening B-only, non-equivalent (docs/ab/2026-10-16-CP-6-czr-2026q2-lite-full-credit-screen-screening.md).
 
 ## v1 (draft)

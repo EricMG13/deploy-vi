@@ -25,7 +25,7 @@ import report_run
 import scorecard
 from report_run import complete_run
 
-from rbotlib import attempts, dispatch, state
+from rbotlib import approve, attempts, dispatch, state
 from rbotlib.inventory import RunError
 from rbotlib.report import run_json
 from rbotlib.report.html_parts import embed_json
@@ -230,6 +230,52 @@ def test_failed_step_fails_r3_and_r7_stays_consistent(
     assert code == 1
     assert got["R3"][0] == "FAIL" and "failed: CP-1B" in got["R3"][2]
     assert got["R7"][0] == "PASS"
+
+
+def r3_rows(**steps: tuple[str, str | None]) -> acceptance.Scored:
+    """Scored rows as `step_row` makes them: a skipped or failed step carries `reason: ...`."""
+    rows = [scorecard.Row("CP-0", "module", "accepted")]
+    for name, (status, reason) in steps.items():
+        row = scorecard.Row(name.replace("_", "-"), "module", status)
+        if reason:
+            row.notes.append(f"reason: {reason}")
+        rows.append(row)
+    return [(r, None) for r in rows]
+
+
+def test_step_switched_off_by_approval_satisfies_r3_and_is_named() -> None:
+    got = acceptance.r3(r3_rows(FIT=("skipped", approve.SKIPS["FIT"])))
+    assert got[1] == "PASS"
+    assert got[2] == "0 failed, 0 skipped, 0 blocked"
+    assert "switched off by approval: FIT (no portfolio context)" in got[3]
+
+
+def test_runtime_skip_fails_r3() -> None:
+    reason = "required input CP-3: failed"
+    got = acceptance.r3(r3_rows(CP_6=("skipped", reason)))
+    assert got[1] == "FAIL" and "skipped: CP-6" in got[3]
+
+
+@pytest.mark.parametrize("reason", ["not approved", None])
+def test_mismatched_or_missing_reason_fails_r3(reason: str | None) -> None:
+    got = acceptance.r3(r3_rows(FIT=("skipped", reason)))
+    assert got[1] == "FAIL" and "skipped: FIT" in got[3]
+
+
+def test_reason_of_another_step_fails_r3() -> None:
+    got = acceptance.r3(r3_rows(FIT=("skipped", approve.SKIPS["CP-8"])))
+    assert got[1] == "FAIL"
+
+
+def test_switch_off_does_not_hide_failed_or_blocked_steps() -> None:
+    rows = r3_rows(
+        FIT=("skipped", approve.SKIPS["FIT"]),
+        CP_1B=("failed", "x"),
+        CP_3=("blocked", None),
+    )
+    got = acceptance.r3(rows)
+    assert got[1] == "FAIL"
+    assert "failed: CP-1B" in got[3] and "blocked: CP-3" in got[3]
 
 
 def test_failed_step_missing_from_limitations_fails_r7(

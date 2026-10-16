@@ -30,7 +30,7 @@ Task 09.8, records only. Nothing was pushed.
 
 ## Record run
 
-Pre-RC run 1 at `440819b` found D1 (CP-3 wrote Blocked with two TRACE levels; fixed by validator `blocked_gate`, `d7c0542`). Final run at `d7c0542`: R1 10/10, R2 PASS, R3 FAIL (skipped: FIT), R4 8 measured 0 failing, R5 76/79, R6 12 unchanged, R7 10 limitations, R8 PASS.
+Pre-RC run 1 at `440819b` found D1 (CP-3 wrote Blocked with two TRACE levels; fixed by validator `blocked_gate`, `d7c0542`). Final run at `d7c0542`: R1 10/10, R2 PASS, R3 FAIL (skipped: FIT), R4 8 measured 0 failing, R5 76/79, R6 12 unchanged, R7 10 limitations, R8 PASS. Owner decision 2026-10-16: a step switched off by approval counts as satisfied for R3; acceptance.py re-check on the same run: R1–R8 PASS, exit 0.
 
 ## Known flake
 
