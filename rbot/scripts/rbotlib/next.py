@@ -32,7 +32,11 @@ def _plan(root: Path, record: state.Record) -> list[str]:
             raise RunError("bootstrap requires the declared CP-0 plan")
     else:
         pathway = catalog.pathway(record["pathway"])
-        if pathway is None or list(pathway.depths.get(record["depth"], ())) != plan:
+        if (
+            pathway is None
+            or record["depth"] not in pathway.depths
+            or list(pathway.depths[record["depth"]]) != plan
+        ):
             raise RunError("selected root: unsupported or corrupt approved plan")
     checked: list[str] = plan
     return checked

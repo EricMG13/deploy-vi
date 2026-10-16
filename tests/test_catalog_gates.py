@@ -106,6 +106,7 @@ def test_next_plan_accepts_the_quick_list(stand_root: Path) -> None:
         ("FULL_CREDIT_ASSESSMENT", "standard", QUICK),
         ("FULL_CREDIT_ASSESSMENT", "quick", QUICK[::-1]),
         ("NO_SUCH_PATHWAY", "quick", QUICK),
+        ("FULL_CREDIT_ASSESSMENT", "standard", []),
     ],
 )
 def test_next_plan_refuses_unknown_or_divergent(
