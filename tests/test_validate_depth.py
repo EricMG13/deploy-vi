@@ -6,12 +6,13 @@ import json
 from pathlib import Path
 
 import pytest
+from test_modules import _blocked
 from test_state import seeded
 
 from conftest import FIXTURES
 from rbotlib.contract import Contract, load_contract
 from rbotlib.rules import Rules
-from rbotlib.validate import EXIT_MALFORMED, EXIT_VALID, check
+from rbotlib.validate import EXIT_BLOCKED, EXIT_MALFORMED, EXIT_VALID, check
 
 MODULES = Path(__file__).resolve().parents[1] / "rbot" / "modules"
 HANDOFFS = FIXTURES / "handoffs"
@@ -137,3 +138,28 @@ def test_a_blocked_screen_may_leave_a_family_without_a_row(rules: Rules) -> None
     text = _text("CP-L10").replace("qa_status: Restricted", "qa_status: Blocked", 1)
     kept = [ln for ln in text.splitlines() if "| Distress |" not in ln]
     assert check("\n".join(kept) + "\n", _contract("CP-L10", rules), rules)[1] == []
+
+
+@pytest.mark.parametrize(
+    ("module_id", "depth"), [("CP-2", "full"), ("CP-6", "full"), ("CP-L10", "quick")]
+)
+def test_a_blocked_handoff_with_placeholder_basis_exits_blocked(
+    tmp_path: Path, rules: Rules, module_id: str, depth: str
+) -> None:
+    run = _run(tmp_path, depth)
+    contract = _contract(module_id, rules)
+    code, findings = check(_blocked(_text(module_id), contract), contract, rules, run)
+    assert (code, findings) == (EXIT_BLOCKED, [])
+
+
+def test_a_blocked_handoff_with_a_wrong_real_basis_is_still_flagged(
+    tmp_path: Path, rules: Rules
+) -> None:
+    run = _run(tmp_path, "quick")
+    contract = _contract("CP-2", rules)
+    row = "|" + " — |" * 8
+    blocked = _blocked(_text("CP-2"), contract)
+    assert row in blocked
+    text = blocked.replace(row, "|" + " — |" * 6 + " Full | — |", 1)
+    findings = check(text, contract, rules, run)[1]
+    assert "basis_depth" in [f.code for f in findings]

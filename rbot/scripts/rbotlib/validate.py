@@ -570,7 +570,7 @@ def _run_depth(run: Path | None) -> str | None:
     return depth if isinstance(depth, str) else None
 
 
-def _basis_depth(spec: TableSpec, h: Handoff, depth: str) -> list[Finding]:
+def _basis_depth(spec: TableSpec, h: Handoff, depth: str, rules: Rules) -> list[Finding]:
     table = h.tables.get(spec.id)
     labelled = any(c.name == "basis" and c.scale == "depth_basis" for c in spec.columns)
     at = _column(table, "basis") if table and labelled else None
@@ -582,7 +582,7 @@ def _basis_depth(spec: TableSpec, h: Handoff, depth: str) -> list[Finding]:
             "basis_depth", f"{spec.id} row {n} basis is {row[at]!r}; a {depth} run needs {want!r}"
         )
         for n, row in enumerate(table.rows, 1)
-        if len(row) == len(table.columns) and row[at] != want
+        if len(row) == len(table.columns) and row[at] != want and not rules.is_placeholder(row[at])
     ]
 
 
@@ -592,7 +592,7 @@ def _depth_findings(
     found = _screen_policy(h, rules) if any(t.id == SCREEN_TABLE for t in contract.tables) else []
     depth = _run_depth(run)
     for spec in contract.tables if depth else []:
-        found += _basis_depth(spec, h, depth or "")
+        found += _basis_depth(spec, h, depth or "", rules)
     return found
 
 
