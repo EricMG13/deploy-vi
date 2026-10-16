@@ -147,7 +147,7 @@ def _current_duplicate(
 
 
 def _accept_event(run: Path, root: Path, module: str, record: state.Record) -> state.Record:
-    step = attempts.target(record, module)
+    step = attempts.target(record, module, root)
     events = attempts.read_history(run, module, step)
     _initial_completion(run, root, module, record, events)
     if step["status"] == "skipped":

@@ -74,7 +74,7 @@ def checked(record: state.Record) -> state.Record | None:
     ):
         raise RunError("Module recovery: malformed or changed prospective intent/state")
     module = intent["module"]
-    step = attempts.target(record, module)
+    step = attempts.declared(record, module)
     if step["status"] not in ("pending", "running") or step.get("current_edits"):
         raise RunError("Module recovery: terminal/current-edited step cannot publish")
     event = intent["event"]
@@ -187,7 +187,7 @@ def recover(owner: state._Locked, root: Path) -> None:
         return
     owner.owner.check()
     module, event = intent["module"], intent["event"]
-    step = attempts.target(record, module)
+    step = attempts.target(record, module, root)
     events = _prefix(owner.run, module, step, event)
     attempts._history_identity(record, module, [*events, event])
     after = _projection(step, events, event)
