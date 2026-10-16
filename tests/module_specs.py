@@ -505,3 +505,46 @@ TABLES["CP-1"] = [
 INPUTS["CP-1"] = Inputs(
     "CP-0", "", "issuer market", "issuer issuer_id as_of_date primary transaction_summary"
 )
+
+
+TABLES["CP-L10"] = [
+    TableSpec(
+        "snapshot.credit_view",
+        1,
+        (
+            "credit_score*:credit_score credit_direction*:credit_direction "
+            "sector_outlook*:sector_outlook primary_support* primary_downside* "
+            "confidence*:confidence basis*:depth_basis cite*"
+        ),
+        "REPORT CP-2D CP-2H CP-3 CP-3C CP-3D CP-4 CP-4C CP-5 CP-6 CP-8",
+    ),
+    TableSpec(
+        "snapshot.strengths_weaknesses",
+        2,
+        "kind*:sw_kind label* text* cite*",
+        "REPORT CP-6 CP-8 CP-5",
+    ),
+    TableSpec(
+        "cpl10.screen_topics",
+        6,
+        (
+            "topic_id* family*:screen_family topic* materiality*:materiality "
+            "evidence_status*:evidence_status disposition*:disposition priority_rank* summary* "
+            "upgrade_module cite"
+        ),
+        "CP-3 CP-4 CP-2D CP-2H CP-3C CP-3D CP-4C CP-6 CP-5 CP-8 REPORT",
+    ),
+    TableSpec(
+        "cpl10.screen_items",
+        3,
+        "item* assessment* evidence* transmission* implication* confidence*:confidence cite*",
+        "CP-6 CP-3 REPORT",
+    ),
+    TableSpec(
+        "cpl10.upgrade_triggers",
+        0,
+        "topic_id* trigger* decision_impact* required_source* target_full_module* blocking*:yes_no",
+        "REPORT CP-6",
+    ),
+]
+INPUTS["CP-L10"] = Inputs("CP-0 CP-1 CP-1A MODEL", "CP-1B", "issuer market", "objective as_of_date")

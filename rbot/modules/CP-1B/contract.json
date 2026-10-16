@@ -32,7 +32,7 @@
       "columns": [
         {"name": "text", "critical": true}, {"name": "cite", "critical": true}
       ],
-      "consumers": ["REPORT", "CP-2"]
+      "consumers": ["REPORT", "CP-2", "CP-L10"]
     },
     {
       "id": "cp1b.period_comparison",
@@ -49,7 +49,7 @@
         {"name": "perimeter_change", "critical": true, "scale": "yes_no"},
         {"name": "cite", "critical": true}
       ],
-      "consumers": ["CP-2", "REPORT"]
+      "consumers": ["CP-2", "CP-L10", "REPORT"]
     },
     {
       "id": "cp1b.variance_drivers",
@@ -60,7 +60,7 @@
         {"name": "analyst_driver", "critical": true},
         {"name": "credit_implication", "critical": true}, {"name": "cite", "critical": true}
       ],
-      "consumers": ["CP-2", "REPORT"]
+      "consumers": ["CP-2", "CP-L10", "REPORT"]
     },
     {
       "id": "cp1b.kpi_changes",

@@ -24,6 +24,7 @@ from spec_fixture import INPUTS, PATHWAYS
 FRONT_PAGE = "credit_snapshot"
 CREDIT_VIEW = ("snapshot.credit_view", "snapshot.strengths_weaknesses")
 ALWAYS = ("CP-0", "CP-5", "CP-8")
+CREDIT_OWNER = {"full": "CP-2", "quick": "CP-L10"}  # one owner per table per depth list
 
 
 def _inputs(rules: Rules) -> dict[str, tuple[list[str], list[str]]]:
@@ -38,13 +39,29 @@ def _inputs(rules: Rules) -> dict[str, tuple[list[str], list[str]]]:
 
 def _owners(rules: Rules, depth: str) -> set[str]:
     catalog = load_catalog(RBOT_ROOT)
-    owner = {t.id: m for m, c in load_contracts(RBOT_ROOT, rules, []).items() for t in c.tables}
+    credit_owner = CREDIT_OWNER[depth]
+    owner = {
+        t.id: m
+        for m, c in load_contracts(RBOT_ROOT, rules, []).items()
+        for t in c.tables
+        if t.id not in CREDIT_VIEW or m == credit_owner
+    }
     owner |= catalog.host_tables
-    if depth == "quick":
-        owner |= dict.fromkeys(CREDIT_VIEW, "CP-L10")
     tables = {t for b in catalog.blocks[FRONT_PAGE] for t in b.tables}
     owners = {owner[t] for t in tables} - {"RUN_BRIEF"}
     return owners - {"PROJECTION"} if depth == "quick" else owners
+
+
+def test_the_credit_view_has_one_owner_per_depth_list(rules: Rules) -> None:
+    """CP-2 and CP-L10 both declare the credit-view tables; the depth list picks the owner."""
+    declared = {
+        m
+        for m, c in load_contracts(RBOT_ROOT, rules, []).items()
+        if {t.id for t in c.tables} >= set(CREDIT_VIEW)
+    }
+    assert declared == {"CP-2", "CP-L10"}
+    assert {"CP-2", "CP-L10"} & _owners(rules, "full") == {"CP-2"}
+    assert {"CP-2", "CP-L10"} & _owners(rules, "quick") == {"CP-L10"}
 
 
 def derive(rules: Rules, depth: str) -> set[str]:
