@@ -2,9 +2,14 @@
 
 ## Unreleased (Plan 09: Quick depth)
 
-- Full Credit Assessment now offers `quick`: CP-0, CP-1, CP-1A, CP-1B, MODEL, CP-L10, CP-3, FIT, CP-5, CP-6. CP-8 joins the list in Plan 11.
-- CP-L10 (Financial change screen) is the new quick module; CP-6 gains a Screening basis (Restricted, never Committee Ready, with a linked Full run recommended).
-- Quick output is screening-only. The "Screening only" report label arrives in task 09.6; the notes are finalized in 09.8.
+- FCA offers `quick`: CP-0, CP-1, CP-1A, CP-1B, MODEL, CP-L10, CP-3, FIT, CP-5, CP-6 (CP-8 joins in Plan 11). Deep Research and the Full-only modules (CP-2, CP-1D, CP-2A, CP-2E, CP-2G, PROJECTION) do not run at quick.
+- CP-L10 (Quick-depth screen) is new: one topics table by family (financial change, liquidity, covenant and refinancing, distress, relative value, portfolio), screen items, upgrade triggers; it owns the credit view and strengths/weaknesses at quick.
+- CP-6 writes `basis` Screening at quick: Restricted, never Committee Ready, a linked Full run named as the upgrade.
+- Validator: new findings `screen_policy` (LITE rules on cpl10.screen_topics), `basis_depth` (basis must match the run depth) and `blocked_gate` (CP-3 may be Blocked only with no market level and no talk).
+- Report: "Screening only" in the Credit Snapshot title band at quick; new Analysis chart `chart.topic_counts` (topics by materiality and disposition, one per family).
+- Module and depth gates read the installed catalog (module ids from rbot/modules/*/contract.json).
+- Record run on czr-2026q2-lite-full-credit-screen (quick): R1, R2, R4–R8 PASS; R3 FAIL only because approval skips FIT on a pack with no portfolio (owner decision, docs/acceptance/v1.md: only the owner can lower R3). Scorecard: docs/corpus-runs/2026-10-16-czr-2026q2-lite-full-credit-screen-full-credit-assessment-quick.md.
+- A/B: CP-L10 PASS (docs/ab/2026-10-16-CP-L10-czr-2026q2-lite-full-credit-screen.md); CP-6 screening B-only, non-equivalent (docs/ab/2026-10-16-CP-6-czr-2026q2-lite-full-credit-screen-screening.md).
 
 ## v1 (draft)
 
