@@ -18,11 +18,12 @@
   const planHas = (run, id) => (run.plan || []).includes(id);
   const fmtDate = (iso) => WB.fmtDate(iso);
 
-  /* a chart from the run by id, with no fixture summary; a missing or declared n/a chart is handled by the slot */
+  /* a chart from the run by id, with no fixture summary; a missing or declared n/a chart is handled by the slot.
+     Every chart on these pages sits under a panel title or a sub-heading that names it, so the caption is for assistive technology. */
   function chart(run, id, opts) {
     const c = (run.charts || []).find((x) => x.chart_id === id);
     if (!c) return WB.conditionLine('The chart "' + WB.chartTitle(id) + '" is not in this run.');
-    return WB.chartSlot(Object.assign({}, c, { summary: (opts && opts.summary) || '' }), opts);
+    return WB.chartSlot(c, Object.assign({ caption: false }, opts || {}));
   }
   /* a run table as a dense table, or a condition line when the table is absent or has no rows */
   function table(tid, opts) {
@@ -134,6 +135,8 @@
     const root = el('div', { class: 'view view-front fpa' });
     canvas.appendChild(root);
     root.appendChild(barFrag(root));
+    // the page added or removed call lines after the bar was built: cap them again in the content doc's order
+    WB.capCallLines(root.querySelector('.verdict-lines'));
     const grid = el('div', { class: 'fp-grid' });
     items.forEach((it) => {
       it.node.style.gridColumn = 'span ' + (it.span || 12);
@@ -248,7 +251,13 @@
   function companyKV(run, full) {
     const cp = WB.table('snapshot.company_profile');
     if (!cp || !cp.rows.length) return WB.conditionLine('No company profile in this run.');
-    const pair = (a, b) => el('span', { class: 'fpa-pair' }, [cell(cp, 0, a), ' ', cell(cp, 0, b)]);
+    // a rating and its outlook that are both n/a for the same gaps show one chip, not the same ids twice
+    const pair = (a, b) => {
+      const ga = WB.cellOrigin(cp, 0, col(cp, a)).kind === 'gap' ? WB.cellGap(cp, 0, col(cp, a)) : null;
+      const gb = WB.cellOrigin(cp, 0, col(cp, b)).kind === 'gap' ? WB.cellGap(cp, 0, col(cp, b)) : null;
+      const same = ga && gb && ga.item && gb.item && ga.item === gb.item;
+      return el('span', { class: 'fpa-pair' }, same ? [cell(cp, 0, a)] : [cell(cp, 0, a), ' ', cell(cp, 0, b)]);
+    };
     const rows = [
       ['Sector', cell(cp, 0, 'sector')],
       ['Country', cell(cp, 0, 'country')],
@@ -461,10 +470,9 @@
           b.lines.appendChild(callLine('WATCH', 'cau', kids));
         }
         const absent = ['CP-3', 'CP-6', 'FIT'].filter((id) => !planHas(run, id));
-        const rt = b.frag.querySelector('.tile[data-key="recommendation"] .tile-rs');
-        if (rt && absent.length) rt.textContent = 'No ' + absent.map((id) => (id === 'FIT' ? 'Portfolio Fit' : id)).join(', ') + ' in this Pathway';
         if (absent.length) {
-          b.lines.appendChild(callLine('NO RECOMMENDATION', 'neu', 'This Pathway runs no ' + absent.map((id) => (id === 'FIT' ? 'Portfolio Fit' : id)).join(', ') + ', so it produces no Recommendation, Valuation or Portfolio Fit: the page answers whether the credit view moves, not whether to own the issuer.'));
+          const names = absent.map((id) => (id === 'FIT' ? 'Portfolio Fit' : id));
+          b.lines.appendChild(callLine('NO RECOMMENDATION', 'neu', 'No ' + names.slice(0, -1).join(', ') + (names.length > 1 ? ' or ' : '') + names[names.length - 1] + ' in this Pathway, so no Recommendation, Valuation or Fit: the page answers whether the credit view moves, not whether to own the issuer.'));
         }
       }
       return b.frag;
@@ -483,7 +491,7 @@
     const kb = block(run, 'earnings_update.6');
     const kpi = WB.table('cp1b.kpi_changes');
     if (kb && kb.shown && kpi && kpi.rows.length) {
-      items.push(item(P({ title: 'KPI changes', tables: ['cp1b.kpi_changes'], anchor: 'fp-kpi', body: [table(kpi, {}), el('div', { class: 'fpa-pad' }, chart(run, 'chart.kpi_changes'))] }), 'KPI changes', 'fp-kpi', 6, ['CP-1B']));
+      items.push(item(P({ title: 'KPI changes', tables: ['cp1b.kpi_changes'], anchor: 'fp-kpi', body: el('div', { class: 'fpa-split' }, [table(kpi, {}), el('div', { class: 'fpa-pad' }, chart(run, 'chart.kpi_changes'))]) }), 'KPI changes', 'fp-kpi', 12, ['CP-1B']));
     } else items.push(item(condPanel('KPI changes', 'fp-kpi', 'Not shown: no KPI rows in this run.', 'CP-1B'), 'KPI changes', 'fp-kpi', 12, [], true));
 
     const gd = WB.table('cp1b.guidance_vs_delivery');
@@ -492,7 +500,7 @@
       const gi = WB.gapItems('CP-1B').find((g) => /guidance/i.test(g.text));
       guidance = WB.conditionLine(gi ? 'Guidance against delivery: n/a. ' + gi.text : 'Guidance against delivery: not provided in this run.', { module: 'CP-1B' });
     } else guidance = table(gd, {});
-    items.push(item(P({ title: 'Guidance and early signals', tables: ['cp1b.signals'], anchor: 'fp-signals', body: [sub('Guidance against delivery'), el('div', { class: 'fpa-pad' }, guidance), sub('Early signals'), table('cp1b.signals', {})] }), 'Guidance and early signals', 'fp-signals', 6, ['CP-1B']));
+    items.push(item(P({ title: 'Guidance and early signals', tables: ['cp1b.signals'], anchor: 'fp-signals', body: [sub('Guidance against delivery'), el('div', { class: 'fpa-pad' }, guidance), sub('Early signals'), table('cp1b.signals', {})] }), 'Guidance and early signals', 'fp-signals', 12, ['CP-1B']));
 
     const bridge = [table('snapshot.ebitda_adjustments', { hide: ['basis'] }), el('div', { class: 'fpa-pad' }, chart(run, 'chart.ebitda_bridge'))];
     items.push(item(P({ title: 'EBITDA bridge', tables: ['snapshot.ebitda_adjustments'], owner: 'MODEL', anchor: 'fp-bridge', body: bridge }), 'EBITDA bridge', 'fp-bridge', 12, ['MODEL']));
@@ -553,8 +561,13 @@
   function impliedTable(reason) {
     const t = WB.table('cp3d.implied_risk');
     if (!t.rows.length || allEmpty(t)) return tableOrReason('cp3d.implied_risk', reason, {});
-    const withModel = (t2, r) => ({ node: el('div', null, [WB.renderCell(t2, r, col(t2, 'security_id')).node, el('div', { class: 'fpa-sub' }, [WB.renderCell(t2, r, col(t2, 'model')).node]), el('div', { class: 'fpa-sub' }, [el('span', { class: 'fpa-sub-k' }, 'Limit: '), WB.renderCell(t2, r, col(t2, 'limitation')).node])]), cls: 'c-prose' });
-    return custom(t, ['security_id', 'horizon_years', 'recovery_assumption_pct', 'implied_pd_pct', 'implied_loss_pct', 'break_even_spread_bps'], { security_id: withModel }, { heads: { security_id: 'Security, model and limitation' } });
+    // a model and limitation shared by every row are said once, under the table, not repeated on each security
+    const same = (n) => t.rows.every((row) => row[col(t, n)] === t.rows[0][col(t, n)]);
+    const shared = same('model') && same('limitation') && t.rows.length > 1;
+    const withModel = (t2, r) => ({ node: el('div', null, [WB.renderCell(t2, r, col(t2, 'security_id')).node, shared ? null : el('div', { class: 'fpa-sub' }, [WB.renderCell(t2, r, col(t2, 'model')).node]), shared ? null : el('div', { class: 'fpa-sub' }, [el('span', { class: 'fpa-sub-k' }, 'Limit: '), WB.renderCell(t2, r, col(t2, 'limitation')).node])]), cls: 'c-prose' });
+    const tbl = custom(t, ['security_id', 'horizon_years', 'recovery_assumption_pct', 'implied_pd_pct', 'implied_loss_pct', 'break_even_spread_bps'], { security_id: withModel }, { heads: { security_id: shared ? 'Security' : 'Security, model and limitation' } });
+    if (!shared) return tbl;
+    return el('div', null, [tbl, el('p', { class: 'fpa-note' }, [el('span', { class: 'fpa-sub-k' }, 'Model: '), WB.renderCell(t, 0, col(t, 'model')).node, ' ', el('span', { class: 'fpa-sub-k' }, 'Limit: '), WB.renderCell(t, 0, col(t, 'limitation')).node])]);
   }
 
   function relativeValue(canvas, run) {
@@ -571,7 +584,10 @@
           const fit = b.find('PORTFOLIO FIT');
           b.lines.insertBefore(pl, fit || null);
         }
-        if (blocked) b.lines.insertBefore(callLine('BLOCKED', 'neg', [el('b', null, 'CP-3D ' + WB.moduleName('CP-3D') + ' is Blocked. '), WB.inline(String(reason).replace(/^Blocked:?\s*/i, '').replace(/\s*$/, '').replace(/([^.!?])$/, '$1.'), 'CP-3D'), ' Its panels keep that reason and the spread curve is not drawn.']), b.lines.firstChild);
+        if (blocked) {
+          const why = String(reason).replace(/^Blocked:?\s*/i, '').replace(/\s*$/, '').replace(/([^.!?])$/, '$1.');
+          b.lines.insertBefore(callLine('BLOCKED', 'neg', [el('b', null, 'CP-3D ' + WB.moduleName('CP-3D') + ' is Blocked: '), WB.inline(why.charAt(0).toLowerCase() + why.slice(1), 'CP-3D')]), b.lines.firstChild);
+        }
       }
       return b.frag;
     };
@@ -585,7 +601,11 @@
       if (rec && rec.rows.length) addColumn(levels, 'Recommendation', (r) => recCell(rec, lv, r), 'The Recommendation table has no row for this instrument.');
     } else levels = WB.conditionLine('Instrument levels are not in this run.');
     const talk = WB.table('cp3.talk_valuation');
-    const levelsBody = [honestNote(), levels, talk && talk.rows.length ? sub('Talk against comparables') : null, talk && talk.rows.length ? table(talk, { hide: ['facility_id', 'comparable_basis', 'metric_basis', 'implied_low', 'implied_high'] }) : null];
+    // the talk rows sit behind a disclosure so the spread curve, the page's second first-viewport item, comes up the page
+    const talkBox = talk && talk.rows.length
+      ? el('details', { class: 'fpa-more' }, [el('summary', { class: 'fpa-more-s' }, [WB.icon('chevron-down', { size: 12, stroke: 1.8 }), el('span', null, 'Talk against comparables'), el('span', { class: 'muted' }, talk.rows.length + ' tranche' + (talk.rows.length === 1 ? '' : 's') + ' at initial talk')]), table(talk, { hide: ['facility_id', 'comparable_basis', 'metric_basis', 'implied_low', 'implied_high'] })])
+      : null;
+    const levelsBody = [honestNote(), levels, talkBox];
     items.push(item(P({ title: 'Instrument levels and Valuation', tables: ['snapshot.instrument_levels'], anchor: 'fp-levels', body: levelsBody }), 'Instrument levels and Valuation', 'fp-levels', 12, ['CP-3']));
 
     const obs = WB.table('cp3d.observations');

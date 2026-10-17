@@ -17,7 +17,8 @@
 .wbc-toggle[aria-expanded="true"] { background: var(--blue-tint); }
 .wbc-twin { margin-top: 6px; overflow-x: auto; }
 .wbc-notes { margin-top: 6px; }
-.wbc-note { display: flex; gap: 6px; align-items: flex-start; font-size: 11.5px; color: var(--ink-2); padding: 4px 8px; border-left: 3px solid var(--neg); background: var(--neg-fill); margin-top: 3px; }
+/* a reconciliation fault: an icon-led note on a wash, no coloured stripe */
+.wbc-note { display: flex; gap: 6px; align-items: flex-start; font-size: 11.5px; color: var(--ink); padding: 5px 8px; border: 1px solid var(--neg-fill); background: var(--neg-wash); margin-top: 3px; border-radius: var(--r-chip); }
 .wbc-note svg { color: var(--neg); margin-top: 2px; }
 .wbc-err { padding: 10px; border: 1px dashed var(--neg); color: var(--neg); font-size: 12px; }
 
@@ -50,10 +51,11 @@ pattern .hp-ln { stroke: var(--c); stroke-width: 1.8; }
 .grid line.zero { stroke: var(--ink-3); }
 .wbc text { font-family: var(--font-text); }
 .wbc .ax { font: 10.5px var(--font-mono); fill: var(--ink-3); }
+.wbc .ax.cx { font-family: var(--font-text); }
 .wbc .ax.unit { font-family: var(--font-text); fill: var(--ink-2); }
 .wbc .ax.proj-w { font-family: var(--font-text); fill: var(--ink-2); }
 .wbc .ttl { font: 600 11.5px var(--font-text); fill: var(--ink); }
-.wbc .cat { font: 11px var(--font-text); fill: var(--ink-2); }
+.wbc .cat { font: 11px var(--font-text); fill: var(--ink-2); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; }
 .wbc .cat.strong { font-size: 11.5px; fill: var(--ink); font-weight: 500; }
 .wbc .cat.sub { font-size: 10.5px; fill: var(--ink-3); font-weight: 400; }
 .wbc .val { font: 10.5px var(--font-mono); fill: var(--ink); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; }
@@ -61,7 +63,8 @@ pattern .hp-ln { stroke: var(--c); stroke-width: 1.8; }
 .wbc .val.thr { fill: var(--ink-2); }
 .wbc .val.dotv { font-weight: 500; }
 .wbc .val.neg { fill: var(--neg); font-weight: 500; }
-.wbc .val.fulcrum-w { fill: var(--cau); font-weight: 600; font-family: var(--font-text); }
+.wbc .val.fulcrum-w { fill: var(--neg); font-weight: 600; font-family: var(--font-text); }
+.wbc .val.lbl { font-family: var(--font-text); }
 .wbc .wd { font: 600 11px var(--font-text); }
 .wbc .na { font: 600 11px var(--font-mono); fill: var(--ink-2); }
 .wbc .na-id { font: 9.5px var(--font-mono); fill: var(--ink-3); }
@@ -79,7 +82,8 @@ pattern .hp-ln { stroke: var(--c); stroke-width: 1.8; }
 .rule-mk { stroke: var(--navy); stroke-width: 2; }
 .rule-mk.dash { stroke-dasharray: 4 3; }
 .conn { stroke: var(--mark-quiet); stroke-width: 1; shape-rendering: crispEdges; }
-.fulcrum-ring { fill: none; stroke: var(--cau); stroke-width: 2; }
+/* the fulcrum class is a negative signal for the creditor (colour doc §1) */
+.fulcrum-ring { fill: none; stroke: var(--neg); stroke-width: 2; }
 .sg-neg.res { fill: var(--neg); stroke: none; }
 .proj-dot { fill: var(--panel); stroke: var(--navy); stroke-width: 1.75; stroke-dasharray: 2 1.5; }
 .proj-dot.breach { stroke: var(--neg); fill: var(--neg-fill); }

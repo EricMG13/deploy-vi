@@ -39,19 +39,29 @@
     return best < 0 ? null : { table: t, r: best };
   }
   const HONEST = {
-    rec: { reason: 'CP-6 never ran in the live CAOS run, so no Recommendation exists.', producer: 'CP-6' },
-    valuation: { reason: 'The live CAOS run returned Requires More Work for CP-3: no Valuation.', producer: 'CP-3' },
-    score: { reason: 'The live CP-3 fundamental score is Not Scorable: no factor weights were supplied.', producer: 'CP-3' },
+    rec: { reason: 'CP-6 never ran in the live CAOS run, so no Recommendation exists.', short: 'CP-6 did not run live', producer: 'CP-6' },
+    valuation: { reason: 'The live CAOS run returned Requires More Work for CP-3: no Valuation.', short: 'CP-3: Requires More Work', producer: 'CP-3' },
+    score: { reason: 'The live CP-3 fundamental score is Not Scorable: no factor weights were supplied.', short: 'CP-3: Not Scorable', producer: 'CP-3' },
   };
   const NO_CP6 = 'This Pathway runs no CP-6, so it produces no Recommendation.';
   const NO_CP3 = 'This Pathway runs no CP-3, so it produces no Valuation.';
+  /* call lines in the order each Front Page's content doc gives them; the bar shows the first three, the rest sit behind a disclosure */
+  WB.CALL_ORDER = {
+    credit_snapshot: ['SCREENING BASIS', 'MAIN RISK', 'RELATIVE VALUE', 'PORTFOLIO FIT', 'INSTRUMENT'],
+    earnings_update: ['THE QUARTER', 'WATCH', 'NO RECOMMENDATION', 'MAIN RISK'],
+    relative_value: ['BLOCKED', 'PREFERRED', 'RELATIVE VALUE', 'PORTFOLIO FIT', 'MAIN RISK', 'INSTRUMENT'],
+    covenant_refinancing: ['COVENANTS', 'LIQUIDITY', 'NEW TRANCHES', 'NOT IN THIS PATHWAY'],
+    distressed_restructuring: ['FULCRUM', 'INSTRUMENT', 'PORTFOLIO FIT', 'GATE', 'LIQUIDITY', 'MAIN RISK'],
+    portfolio_decision: ['PORTFOLIO FIT', 'INSTRUMENT', 'MAIN RISK'],
+  };
+  WB.CALL_MAX = { covenant_refinancing: 4 };
 
   function mkTile(label, key, scale, table, r, col, miss, honest) {
     if (honest && !WB.state.honest) honest = null;
-    if (WB.state.honest && honest) return { label, key, scale, value: null, reason: honest.reason, producer: honest.producer };
-    if (!table || r < 0 || r == null) return { label, key, scale, value: null, reason: miss.reason, producer: miss.producer };
+    if (WB.state.honest && honest) return { label, key, scale, value: null, reason: honest.reason, short: honest.short, producer: honest.producer };
+    if (!table || r < 0 || r == null) return { label, key, scale, value: null, reason: miss.reason, short: miss.short, producer: miss.producer };
     const v = WB.cellValue(table, r, col);
-    if (WB.isEmpty(v)) return { label, key, scale, value: null, reason: miss.reason, producer: miss.producer };
+    if (WB.isEmpty(v)) return { label, key, scale, value: null, reason: miss.reason, short: miss.short, producer: miss.producer };
     const o = WB.cellOrigin(table, r, table.columns.indexOf(col));
     return { label, key, scale, value: v, ref: cellRef(table, r, col), illustrative: o.kind === 'illustrative' };
   }
@@ -71,15 +81,15 @@
     const strategyTiles = () => {
       for (const s of ['CLO', 'Indexed Loans', 'Indexed HY']) {
         const r = rec ? pickRow(rec, 'strategy', s) : -1;
-        tiles.push(mkTile(s === 'CLO' ? 'CLO' : s, 'recommendation', 'rec', rec, r, 'recommendation', { reason: NO_CP6, producer: 'CP-6' }, HONEST.rec));
+        tiles.push(mkTile(s === 'CLO' ? 'CLO' : s, 'recommendation', 'rec', rec, r, 'recommendation', { reason: NO_CP6, short: 'CP-6 not in this Pathway', producer: 'CP-6' }, HONEST.rec));
       }
     };
     const valuationTile = () => {
       const b = bestInstrument();
-      tiles.push(mkTile('Valuation', 'valuation', 'val', b && b.table, b ? b.r : -1, 'valuation', { reason: NO_CP3, producer: 'CP-3' }, HONEST.valuation));
+      tiles.push(mkTile('Valuation', 'valuation', 'val', b && b.table, b ? b.r : -1, 'valuation', { reason: NO_CP3, short: 'CP-3 not in this Pathway', producer: 'CP-3' }, HONEST.valuation));
     };
     const cvTile = (label, key, scale, col, honestKey) => {
-      tiles.push(mkTile(label, key, scale, cv, cv && cv.rows.length ? 0 : -1, col, { reason: 'No credit view in this run.', producer: 'CP-2' }, honestKey));
+      tiles.push(mkTile(label, key, scale, cv, cv && cv.rows.length ? 0 : -1, col, { reason: 'No credit view in this run.', short: 'No credit view', producer: 'CP-2' }, honestKey));
     };
     if (fp === 'credit_snapshot' || fp === 'relative_value') {
       strategyTiles();
@@ -95,7 +105,7 @@
       tiles.push(mkTile('Since last Report', 'change', 'plain', wc, r, 'change', { reason: 'No Prior Case was accepted at Approval, so the page cannot say what changed.', producer: 'CP-8' }));
       const cp = WB.table('snapshot.company_profile');
       tiles.push(mkTile('Sponsor Quality', 'sponsor_quality', 'plain', cp, cp && cp.rows.length ? 0 : -1, 'sponsor_quality', { reason: 'No company profile in this run.', producer: 'CP-1A' }));
-      tiles.push({ label: 'Recommendation', key: 'recommendation', scale: 'rec', value: null, reason: NO_CP6 + ' The page answers whether the view moves, not whether to own.', producer: 'CP-6' });
+      // content doc 02: the absent Recommendation is stated as a call line (NO RECOMMENDATION), not as a tile
     } else if (fp === 'covenant_refinancing') {
       cvTile('Credit Score', 'credit_score', 'score', 'credit_score', HONEST.score);
       const ct = WB.table('cp4.covenant_tests');
@@ -149,7 +159,7 @@
             if (row[pidx] === pid && digit(row[fi]) < digit(pr.rows[best][fi])) best = i;
           });
           const name = (WB.table('cp0.portfolios') && WB.cellValue(WB.table('cp0.portfolios'), pickRow(WB.table('cp0.portfolios'), 'portfolio_id', pid), 'portfolio_name')) || pid;
-          tiles.push(mkTile(String(name).replace(/ Ltd.*$/, '') + ' final', 'final', 'rec', pr, best, 'final', { reason: 'No portfolio Recommendation in this run.', producer: 'CP-6' }, HONEST.rec));
+          tiles.push(mkTile(String(name).replace(/ Ltd.*$/, '') + ' final', 'final', 'rec', pr, best, 'final', { reason: 'No portfolio Recommendation in this run.', short: 'No portfolio Recommendation', producer: 'CP-6' }, HONEST.rec));
         }
       }
       valuationTile();
@@ -213,7 +223,7 @@
         const fi = rc.columns.indexOf('fulcrum');
         const si = rc.columns.indexOf('scenario');
         const ci = rc.columns.indexOf('class_id');
-        const f = rc.rows.filter((r) => r[fi] === 'Yes').map((r) => r[ci] + ' (' + r[si] + ')');
+        const f = rc.rows.filter((r) => r[fi] === 'Yes').map((r) => WB.claimName(r[ci]) + ' (' + String(r[si]).replace(/: /, ', ') + ')');
         lines.push({ label: 'FULCRUM', tone: 'neg', children: f.length ? f.join('; ') : 'No fulcrum class in the scenarios shown.' });
       }
     }
@@ -231,17 +241,18 @@
       distressed_restructuring: 'Is the distress gate met, which path and fulcrum are most credible, and what recoveries follow?',
       portfolio_decision: 'Should each portfolio own it, how much, and which instrument?',
     };
-    const byline = [String(meta.analyst || '').replace(/\s*\(design fixture\)/i, ''), meta.asOf ? fmtDate(meta.asOf) : ''].filter(Boolean).join(' · ');
     const tools = el('span', { class: 'v-tools' }, extra || null);
     return WB.verdictBar({
       title: fpName,
       question: questions[run.front_page] || '',
       illustrative: true,
-      byline,
+      bylineNodes: WB.bylineNodes(meta),
       tiles: cfg.tiles,
       lines: cfg.lines,
       honest: WB.state.honest ? 'Honest state: the live CAOS run produced no Recommendation' : null,
       tools,
+      maxLines: WB.CALL_MAX[run.front_page] || 3,
+      order: WB.CALL_ORDER[run.front_page] || [],
     });
   };
   function fmtDate(iso) {
@@ -254,10 +265,15 @@
 
   /* ---------- Front Page (generic) ---------- */
   /* A short, unique panel title from a block title ("Chart: maturity wall" gives "Maturity wall"; a repeated lead keeps its qualifier). */
+  /* "What changed since ⟨date⟩": the placeholder names the Prior Case Report's date when there is one, else "the last Report" */
+  WB.fillTitle = function (title) {
+    const pc = (WB.run && WB.run.prior_case) || {};
+    return String(title).replace(/⟨date⟩/g, pc.report_date ? fmtDate(pc.report_date) : 'the last Report');
+  };
   WB.blockTitles = function (blocks) {
     const seen = new Set();
     return blocks.map((b) => {
-      let t = String(b.title).split(/[(;]/)[0].trim();
+      let t = WB.fillTitle(String(b.title)).split(/[(;]/)[0].trim();
       t = t.replace(/^Chart: /, '');
       t = t.charAt(0).toUpperCase() + t.slice(1);
       let short = t.split(':')[0].trim();
@@ -266,7 +282,7 @@
       return short;
     });
   };
-  WB.blockTitle = (b) => String(b.title).split(/[:(;]/)[0].trim();
+  WB.blockTitle = (b) => WB.fillTitle(String(b.title)).split(/[:(;]/)[0].trim();
   WB.genericFrontPage = function (canvas, run) {
     const root = el('div', { class: 'view view-front' });
     canvas.appendChild(root);
@@ -398,7 +414,9 @@
       return;
     }
     const q = WB.moduleQuestion(id);
-    const statusBody = el('div', { class: 'pad' }, [WB.statusChip(st), ' ', el('span', { class: 'm-reason' }, WB.inline(reason || (st === 'pass' ? 'No limitations recorded for this module.' : ''), id))]);
+    // the chip already says Blocked: a reason that starts "Blocked:" drops the repeated word
+    const reasonText = String(reason || '').replace(/^Blocked:?\s*/i, '');
+    const statusBody = el('div', { class: 'pad' }, [WB.statusChip(st), ' ', el('span', { class: 'm-reason' }, WB.inline(reasonText ? reasonText.charAt(0).toUpperCase() + reasonText.slice(1) : st === 'pass' ? 'No limitations recorded for this module.' : '', id))]);
     const qs = el('div', { class: 'm-qs' }, [
       q ? WB.panel({ title: 'Question', anchor: 'question', collapsible: false, className: 'panel-q', body: el('p', { class: 'm-q' }, q) }) : null,
       WB.panel({ title: 'Status', anchor: 'status', collapsible: false, body: statusBody }),
@@ -436,15 +454,16 @@
     const code = id;
     WB.chartsForModule(id).forEach((c) => {
       n++;
-      root.appendChild(
-        WB.panel({ title: WB.chartTitle(c.chart_id), fig: WB.figNumber(code, n), anchor: 'c-' + c.chart_id, body: WB.chartSlot(c), tags: [{ kind: c.origin === 'host' ? 'text' : 'model', label: c.origin === 'host' ? 'Host-computed' : 'Model-authored' }], className: 'panel-chart' })
-      );
+      // the panel names the chart, so its caption is for assistive technology; the source line under the chart states where it comes from
+      root.appendChild(WB.panel({ title: WB.chartTitle(c.chart_id), fig: WB.figNumber(code, n), anchor: 'c-' + c.chart_id, body: WB.chartSlot(c, { caption: false }), className: 'panel-chart' }));
       outline.push({ id: 'p-' + WB.cssId('c-' + c.chart_id), label: WB.chartTitle(c.chart_id) });
     });
     for (const tid of Object.keys(h.tables || {})) {
       const t = WB.table(tid);
       n++;
-      const p = WB.tablePanel(t, { fig: WB.figNumber(code, n), link: false, anchor: tid, maxRows: 40 });
+      // a table whose every value is n/a (a Blocked module) starts collapsed with that said in its head, not as a wall of n/a
+      const allNa = t.rows.length > 0 && t.rows.every((row) => row.every((v, i) => t.columns[i] === 'cite' || WB.isEmpty(v)));
+      const p = WB.tablePanel(t, { fig: WB.figNumber(code, n), link: false, anchor: tid, maxRows: 40, code: null, state: false, collapsed: allNa, note: allNa ? 'Every value is n/a' + (st === 'blocked' ? ': the module is Blocked' : '') : undefined });
       root.appendChild(p);
       outline.push({ id: p.id, label: WB.tableTitle(tid) });
     }

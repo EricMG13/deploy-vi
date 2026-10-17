@@ -121,6 +121,7 @@
       requestAnimationFrame(() => WB.scrollToAnchor(h.anchor));
     } else canvas.scrollTop = prevScroll || 0;
     canvas.scrollLeft = 0;
+    WB.initRovingIn(canvas);
     updateSpy();
     if (booted && !force) canvas.focus({ preventScroll: true });
     const de = document.documentElement.dataset;
@@ -385,6 +386,8 @@
     };
     for (const c of run.charts || []) items.push({ type: 'Figures', title: WB.chartTitle(c.chart_id), code: 'Chart', sub: '', href: chartHref(c), hay: (WB.chartTitle(c.chart_id) + ' ' + c.chart_id).toLowerCase() });
     for (const [tid, t] of run._tables) {
+      // chart twins and Design system specimens are not tables of the Report: the chart itself is listed above
+      if (tid.indexOf('@') >= 0 || /^ds\./.test(tid)) continue;
       const href = t.owner === 'RUN_BRIEF' ? WB.href('front') : WB.href('module/' + t.owner + '/t-' + WB.cssId(tid), null, run._id);
       items.push({ type: 'Figures', title: WB.tableTitle(tid), code: t.owner === 'RUN_BRIEF' ? 'BRIEF' : t.owner, sub: WB.moduleName(WB.citeModule(t.owner)), href, hay: (WB.tableTitle(tid) + ' ' + tid).toLowerCase() });
     }
@@ -514,7 +517,7 @@
         el('span', null, [el('kbd', null, '/'), ' search']),
         el('span', null, [el('kbd', null, '?'), ' this key']),
         el('span', null, [el('kbd', null, 'Tab'), ' rail, navigator, canvas, inspector']),
-        el('span', null, [el('kbd', null, '←↑→↓'), ' within a table or chart']),
+        el('span', null, [el('kbd', null, '←↑→↓'), ' within a table, chart or group of figures']),
         el('span', null, [el('kbd', null, 'Enter'), ' open passport']),
         el('span', null, [el('kbd', null, 'Esc'), ' back to the figure']),
       ]),
@@ -568,16 +571,23 @@
     return [el('dt', null, label), el('dd', { class: mono ? 'num wrap' : '' }, value)];
   }
   function chipButton(desc, id, label, synthetic) {
-    const b = el('button', { type: 'button', class: 'pchip', 'data-pdesc': '1' }, [synthetic ? WB.mark('synthetic') : id && /^C\d+/.test(id) ? WB.mark('cited') : WB.mark('calculated'), el('span', { class: 'pc-id num' }, id), el('span', { class: 'pc-l' }, label)]);
+    // an input's id: a code (C12, total_debt) prints mono; a label (Current value) prints as text
+    const code = /^[A-Za-z]{0,3}\d+$|^[a-z0-9_:.@-]+$|^[A-Z0-9_:.@-]+$/.test(String(id));
+    const b = el('button', { type: 'button', class: 'pchip', 'data-pdesc': '1' }, [synthetic ? WB.mark('synthetic') : id && /^C\d+/.test(id) ? WB.mark('cited') : WB.mark('calculated'), el('span', { class: 'pc-id' + (code ? ' num' : ' pc-id-t') }, id), el('span', { class: 'pc-l' }, label)]);
     b.addEventListener('click', () => WB.inspect(desc, b));
     return b;
   }
-  function renderPassportEl(p) {
+  /* a short code (C12, G8, CP-6) heads the passport; a long id (a table, Model line or chart id) is a quiet line at its foot */
+  const shortCode = (c) => !!c && c.length <= 10 && !/[._:@]/.test(c);
+  function renderPassportEl(p, opts) {
+    const o = opts || {};
     const kindWord = WB.originWord[p.kind] || 'No source stated';
     const root = el('div', { class: 'pp pp-' + p.kind });
-    root.appendChild(el('div', { class: 'pp-top' }, [WB.mark(p.kind, { size: 12 }), p.code ? el('span', { class: 'pp-code num' }, p.code) : null, el('span', { class: 'pp-kind' }, kindWord.toUpperCase()), p.sub ? el('span', { class: 'pp-sub' }, p.sub) : null]));
-    root.appendChild(el('h3', { class: 'pp-title', tabindex: '-1' }, p.title));
-    if (insp.history.length) {
+    const head = shortCode(p.code) ? p.code : '';
+    const foot = [p.code && !head ? p.code : '', p.id || ''].filter(Boolean).join(' · ');
+    root.appendChild(el('div', { class: 'pp-top' }, [WB.mark(p.kind, { size: 12 }), head ? el('span', { class: 'pp-code num' }, head) : null, el('span', { class: 'pp-kind' }, kindWord.toUpperCase()), p.sub ? el('span', { class: 'pp-sub' }, p.sub) : null]));
+    root.appendChild(el(o.static ? 'h4' : 'h3', { class: 'pp-title', tabindex: o.static ? false : '-1' }, p.title));
+    if (!o.static && insp.history.length) {
       const back = el('button', { type: 'button', class: 'pp-back' }, [WB.icon('arrow-left', { size: 12, stroke: 1.8 }), 'Back']);
       back.addEventListener('click', () => {
         const prev = insp.history.pop();
@@ -629,8 +639,10 @@
       root.appendChild(el('h4', { class: 'pp-h' }, 'Gaps in this module'));
       root.appendChild(gapList(p.gaps));
     }
+    if (foot) root.appendChild(el('p', { class: 'pp-id num', title: 'Raw id in the run file' }, foot));
     return root;
   }
+  WB.renderPassport = (p) => renderPassportEl(p, { static: true });
   function gapList(items) {
     return el('ul', { class: 'pp-gaps' }, items.map((g) => el('li', null, [el('span', { class: 'pg-ids num' }, g.ids.join(' ') || 'gap'), el('span', { class: 'pg-t' }, [el('strong', null, g.missing + '. '), g.text.slice(g.missing.length).replace(/^[\s:.]+/, '')])])));
   }
@@ -699,7 +711,7 @@
     root.replaceChildren(
       el('header', { class: 'insp-h' }, [el('h2', null, 'Inspector'), bar]),
       el('div', { class: 'insp-body', id: 'insp-panel', role: 'tabpanel', 'aria-labelledby': 'it-' + insp.tab }, body),
-      el('footer', { class: 'insp-f' }, [el('strong', null, 'Keys'), ' ', el('span', { class: 'num' }, '←↑→↓'), ' cells · ', el('span', { class: 'num' }, 'Enter'), ' passport · ', el('span', { class: 'num' }, 'Esc'), ' back'])
+      el('footer', { class: 'insp-f' }, [el('strong', null, 'Keys'), ' ', el('span', { class: 'num' }, '←↑→↓'), ' figures · ', el('span', { class: 'num' }, 'Enter'), ' passport · ', el('span', { class: 'num' }, 'Esc'), ' back'])
     );
   }
 
@@ -713,6 +725,9 @@
       p._setOpen(true);
     });
     WB.qsa('.tw', canvas).forEach((w) => w._expand && w._expand());
+    // disclosures print open: the extra call lines and the Sources lists
+    printState.details = WB.qsa('details:not([open])', canvas);
+    printState.details.forEach((d) => (d.open = true));
     const notes = [];
     const index = new Map();
     const add = (key, make) => {
@@ -734,7 +749,7 @@
       if (d.t === 'cite' && p.kind !== 'none') nums.push(add('cite:' + d.module + ':' + d.id, () => ({ code: p.code, text: p.title + ' · ' + (p.fields[1] ? p.fields[1][1] : ''), excerpt: p.excerpt, kind: p.kind })));
       if (p.formula) nums.push(add('calc:' + p.formula, () => ({ code: 'calc', text: p.formula, kind: 'calculated' })));
       if (p.kind === 'gap' && p.gaps[0]) nums.push(add('gap:' + p.gaps[0].text, () => ({ code: p.gaps[0].ids.join(' ') || 'gap', text: p.gaps[0].text, kind: 'gap' })));
-      if (nums.length) node.dataset.endnote = Array.from(new Set(nums)).slice(0, 3).join(',') + (nums.length > 3 ? '+' : '');
+      if (nums.length) node.dataset.endnote = endnoteMark(Array.from(new Set(nums)).sort((a, b) => a - b));
     });
     if (notes.length) {
       const sec = el('section', { class: 'endnotes', id: 'endnotes', 'aria-label': 'Endnotes' }, [
@@ -745,9 +760,17 @@
       printState.notes = sec;
     }
   }
+  /* [7], [7–9] for a consecutive run, [7,12+] when there are more */
+  function endnoteMark(nums) {
+    if (nums.length === 1) return String(nums[0]);
+    const run = nums.every((n, i) => i === 0 || n === nums[i - 1] + 1);
+    if (run) return nums[0] + '\u2013' + nums[nums.length - 1];
+    return nums.slice(0, 2).join(',') + (nums.length > 2 ? '+' : '');
+  }
   function afterPrint() {
     if (!printState) return;
     printState.panels.forEach((p) => p._setOpen(false));
+    (printState.details || []).forEach((d) => (d.open = false));
     if (printState.notes) printState.notes.remove();
     WB.qsa('[data-endnote]', shell.canvas).forEach((n) => delete n.dataset.endnote);
     printState = null;

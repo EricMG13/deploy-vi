@@ -186,6 +186,14 @@
   }
   const shape = (ctx, tag, attrs, cls, k) => S(tag, Object.assign({}, attrs, paintAttrs(ctx, cls, k)));
   const nm = (...p) => p.filter((x) => x !== '' && x != null && x !== false).join(', ');
+  /* a value with its unit in the house style: 3.48x, 12%, US$12m; other units follow after a space */
+  const withUnitTight = (v, unit) => {
+    if (!v) return '';
+    const u = String(unit || '');
+    if (u === 'x' || u === '%') return v + u;
+    if (/^US\$ ?m$/.test(u)) return /^\(/.test(v) ? '(US$' + v.slice(1, -1) + 'm)' : 'US$' + v + 'm';
+    return u ? v + ' ' + u : v;
+  };
   const withUnit = (raw, unit) => lab(raw) + (unit ? ' ' + unit : '');
   function itemName(it, series, cat, unit) {
     if (it.k === 'gap') return gapName(it, series, cat);
@@ -276,6 +284,7 @@
         if (c.rule && !isNaN(c.rule.v)) hi = Math.max(hi, c.rule.v);
       })
     );
+    if (sp.max != null) hi = Math.max(hi, sp.max);
     const sc = niceScale(lo, hi, horiz ? 5 : 4, true, sp.integer);
     const valueLabel = (i) => i.txt || lab(i.raw);
     if (horiz) return columnsH(ctx, sp, sc, stack, nS, valueLabel);
@@ -285,8 +294,9 @@
     const bandMin = (grid.pw - 50) / maxCats;
     let maxLines = 1;
     sp.panels.forEach((p) => p.cats.forEach((c) => (maxLines = Math.max(maxLines, wrapText(c.label, Math.max(40, (grid.pw - 50) / p.cats.length - 6), 11).length))));
+    const hasSub = sp.panels.some((p) => p.cats.some((c) => c.sub));
     const titleH = sp.panels.some((p) => p.title) ? 20 : 0;
-    const panelH = titleH + 14 + plotH + 8 + maxLines * 12.5 + 8;
+    const panelH = titleH + 14 + plotH + 8 + maxLines * 12.5 + (hasSub ? 12.5 : 0) + 8;
     const rows = Math.ceil(sp.panels.length / grid.cols);
     sp.panels.forEach((p, pi) => {
       const ox = (pi % grid.cols) * (grid.pw + grid.gap);
@@ -302,6 +312,8 @@
       p.cats.forEach((c, ci) => {
         const cx = L + band * (ci + 0.5);
         catLabel(ctx, cx, bot + 14, c.label, Math.max(40, band - 6), 'middle');
+        // a second line under every category (e.g. the recovery %), at one height across the panel
+        if (c.sub) ctx.svg.appendChild(T(cx, bot + 14 + maxLines * 12.5, c.sub, 'cat sub', 'middle'));
         const bw = stack ? Math.min(54, band - 14) : Math.max(8, Math.min(36, Math.floor((band - 12) / nS)));
         let pos = 0;
         let neg = 0;
@@ -340,7 +352,8 @@
           else {
             const yy = y(r.v);
             const rw = Math.min(band - 4, 64);
-            mark(ctx, { x: cx - rw / 2, y: yy - 1, w: rw, h: 2, label: itemName(r, r.label, c.label, sp.unit), desc: r.desc, kids: [S('line', { x1: cx - rw / 2, x2: cx + rw / 2, y1: yy, y2: yy, class: 'rule-mk' }), T(cx, yy - 5, lab(r.raw), 'val', 'middle')] });
+            const overBar = stack && !allGap && yy > y(pos) + 4;
+            mark(ctx, { x: cx - rw / 2, y: yy - 1, w: rw, h: 2, label: itemName(r, r.label, c.label, sp.unit), desc: r.desc, kids: [S('line', { x1: cx - rw / 2, x2: cx + rw / 2, y1: yy, y2: yy, class: 'rule-mk' }), overBar ? null : T(cx, yy - 5, lab(r.raw), 'val', 'middle')] });
           }
         }
       });
@@ -410,7 +423,7 @@
           if (running != null && Math.abs(running - s.v) > 0.0051) {
             const diff = s.v - running;
             steps.push({ kind: 'residual', label: 'Unexplained residual', v: diff, from: running, to: s.v, raw: fmtComputed(diff, Math.max(decimals(s.raw), 0)), residual: true, stated: s });
-            ctx.notes.push((p.title ? p.title + ': ' : '') + 'does not reconcile. The steps add up to ' + fmtComputed(running, decimals(s.raw)) + ' but the table states ' + lab(s.raw) + ' (' + (s.label || 'total') + '), a residual of ' + fmtComputed(diff, decimals(s.raw)) + ', drawn as the unexplained step.');
+            ctx.notes.push((p.title ? p.title + ': the steps do not reconcile. ' : 'The steps do not reconcile. ') + 'They add up to ' + fmtComputed(running, decimals(s.raw)) + ' but the table states ' + lab(s.raw) + ' (' + (s.label || 'total') + '), a residual of ' + fmtComputed(diff, decimals(s.raw)) + ', drawn as the unexplained step.');
           }
           steps.push(Object.assign({}, s, { from: 0, to: s.v }));
           running = s.v;
@@ -427,6 +440,9 @@
     panels.forEach((p) => p.steps.forEach((s) => ((lo = Math.min(lo, s.from, s.to)), (hi = Math.max(hi, s.from, s.to)))));
     const sc = niceScale(lo, hi, 4);
     const grid = gridLayout(W, panels.length, sp.minPanelW || 420);
+    // narrow bands (many steps, or a half-width slot): the bridge turns on its side, step names on the left as rows
+    const maxSteps = Math.max.apply(null, panels.map((p) => p.steps.length));
+    if ((grid.pw - 52) / maxSteps < 58) return waterfallH(ctx, sp, panels, sc);
     const plotH = ctx.opts.compact ? 130 : sp.plotH || 170;
     let maxLines = 1;
     panels.forEach((p) => p.steps.forEach((s) => (maxLines = Math.max(maxLines, wrapText(s.label, Math.max(36, (grid.pw - 50) / p.steps.length - 4), 11).length))));
@@ -476,12 +492,84 @@
     return Math.ceil(panels.length / grid.cols) * panelH;
   }
 
+  /* ---------- engine: waterfall on its side (rows of steps; labels left, bars from the running total) ---------- */
+  function waterfallH(ctx, sp, panels, sc0) {
+    const W = ctx.W;
+    const grid = gridLayout(W, panels.length, 330, 22);
+    const sc = niceScale(sc0.lo, sc0.hi, grid.pw < 420 ? 3 : 4);
+    const titleH = panels.some((p) => p.title) ? 20 : 0;
+    const geo = panels.map((p) => {
+      const LW = Math.max(104, Math.min(grid.pw * 0.42, 210));
+      const rows = p.steps.map((s) => Math.max(22, wrapText(s.label, LW - 10, 11).length * 12 + 8));
+      return { LW, rows, h: titleH + 6 + rows.reduce((a, b) => a + b, 0) + 22 };
+    });
+    const rowH = [];
+    panels.forEach((p, pi) => {
+      const r = Math.floor(pi / grid.cols);
+      rowH[r] = Math.max(rowH[r] || 0, geo[pi].h);
+    });
+    const rowTop = rowH.map((h, i) => rowH.slice(0, i).reduce((a, b) => a + b + 10, 0));
+    panels.forEach((p, pi) => {
+      const g = geo[pi];
+      const ox = (pi % grid.cols) * (grid.pw + grid.gap);
+      const oy = rowTop[Math.floor(pi / grid.cols)];
+      const L = ox + g.LW;
+      const R = ox + grid.pw - 44;
+      const top = oy + titleH + 6;
+      const bot = top + g.rows.reduce((a, b) => a + b, 0);
+      const x = lin(sc.lo, sc.hi, L, R);
+      if (p.title) ctx.svg.appendChild(T(ox + 2, oy + 12, p.title, 'ttl'));
+      axisH(ctx, sc, x, top, bot);
+      let yy = top;
+      const mids = [];
+      p.steps.forEach((s, i) => {
+        const rh = g.rows[i];
+        const mid = yy + rh / 2;
+        mids.push(mid);
+        const lines = wrapText(s.label, g.LW - 10, 11);
+        const t = S('text', { class: 'cat', x: L - 8, y: mid - ((lines.length - 1) * 12) / 2 + 4, 'text-anchor': 'end' });
+        lines.forEach((ln, k) => t.appendChild(S('tspan', { x: L - 8, dy: k === 0 ? 0 : 12, text: ln })));
+        ctx.svg.appendChild(t);
+        yy += rh;
+      });
+      // connectors: the running total carries from one step's end to the next step
+      p.steps.forEach((s, i) => {
+        if (i === p.steps.length - 1) return;
+        const xx = Math.round(x(s.to)) + 0.5;
+        ctx.svg.appendChild(S('line', { class: 'conn', x1: xx, x2: xx, y1: mids[i] + 6, y2: mids[i + 1] - 6, 'aria-hidden': 'true' }));
+      });
+      p.steps.forEach((s, i) => {
+        const mid = mids[i];
+        const x0 = Math.min(x(s.from), x(s.to));
+        const ww = Math.max(Math.abs(x(s.to) - x(s.from)), 1.5);
+        const cls = s.cls || (s.kind === 'total' ? 'sr-2' : s.v >= 0 ? 'sr-0' : 'sr-1');
+        const kids = [];
+        if (s.residual) {
+          ctx.seen.residual = true;
+          kids.push(S('rect', { x: x0, y: mid - 6, width: ww, height: 12, class: 'sh sg-neg res' }));
+        } else kids.push(shape(ctx, 'rect', { x: x0, y: mid - 6, width: ww, height: 12, class: s.dashed ? 'dashed' : '' }, cls, s.k));
+        if (s.fulcrum) kids.push(S('rect', { x: x0 - 2, y: mid - 8, width: ww + 4, height: 16, class: 'fulcrum-ring' }));
+        const txt = (s.txt || lab(s.raw)) + (s.fulcrum ? '  Fulcrum' : s.residual ? '  Residual' : '');
+        const right = x0 + ww + 5;
+        const fits = right + tw(txt, 10.5, true) <= ox + grid.pw;
+        kids.push(T(fits ? right : x0 - 5, mid + 4, txt, 'val' + (s.residual ? ' neg' : s.fulcrum ? ' fulcrum-w' : ''), fits ? 'start' : 'end'));
+        mark(ctx, { x: x0, y: mid - 6, w: ww, h: 12, label: s.residual ? 'Unexplained residual ' + s.raw + ': the stated total does not equal the steps before it' : itemName(s, s.label, p.title, sp.unit) + (s.fulcrum ? ', fulcrum class' : ''), desc: s.residual ? { t: 'note', kind: 'calculated', code: 'residual', title: 'Unexplained residual', sub: s.stated.label, fields: [['Residual', s.raw, true], ['Stated total', s.stated.raw, true]], note: 'The steps before this total do not add up to it. The difference is drawn as its own step instead of being hidden.', table: s.stated.desc && s.stated.desc.table ? { id: s.stated.desc.table, row: s.stated.desc.r, col: s.stated.desc.c } : null } : s.desc, kids });
+      });
+      if (sp.unit && pi === panels.length - 1) ctx.svg.appendChild(T(ox + grid.pw - 2, bot + 28, sp.unit, 'ax unit', 'end'));
+    });
+    return rowTop[rowTop.length - 1] + rowH[rowH.length - 1] + 14;
+  }
+
   /* ---------- engine: bullets ---------- */
+  /* a unit group's heading in words */
+  const groupWord = (u) => ({ x: 'Ratios (x)', 'US$ m': 'Amounts (US$ m)', '% NAV': 'Share of NAV (%)', '%': 'Percentages' }[u] || u);
   function engineBullets(ctx, sp) {
     const W = ctx.W;
-    const LW = Math.max(120, Math.min(W * 0.3, 230));
-    const RW = Math.max(100, Math.min(150, W * 0.2));
-    const L = LW + 8;
+    // in a narrow slot the test's name sits above its track, so the track keeps the width and the name keeps one or two lines
+    const stacked = W < 520;
+    const LW = stacked ? 0 : Math.max(120, Math.min(W * 0.3, 230));
+    const RW = stacked ? Math.max(92, Math.min(120, W * 0.26)) : Math.max(100, Math.min(150, W * 0.2));
+    const L = stacked ? 2 : LW + 8;
     const R = W - RW - 6;
     const groups = [];
     sp.rows.forEach((r) => {
@@ -495,21 +583,43 @@
       g.rows.forEach((r) => [r.cur, r.thr, r.proj].forEach((v) => v != null && !isNaN(v) && vals.push(v)));
       const gsc = sp.scale === 'row' ? null : niceScale(0, Math.max.apply(null, vals.concat([0])) * 1.08, 4);
       if (groups.length > 1 && g.label) {
-        ctx.svg.appendChild(T(2, yy + 10, g.label, 'ttl'));
+        ctx.svg.appendChild(T(2, yy + 10, groupWord(g.label), 'ttl'));
         yy += 18;
       }
       const gTop = yy;
       g.rows.forEach((r) => {
-        const lines = wrapText(r.label, LW - 8, 11.5);
-        const rh = Math.max(r.projI ? 58 : 46, lines.length * 13 + (r.sub ? 13 : 0) + 12);
-        const mid = yy + rh / 2 + 4;
+        let mid;
+        let rh;
         const sc = gsc || niceScale(0, Math.max(r.cur || 0, r.thr || 0, r.proj || 0) * 1.1 || 1, 3);
         const x = lin(sc.lo, sc.hi, L, R);
-        const t = S('text', { class: 'cat strong', x: 0, y: mid - ((lines.length - 1) * 13) / 2 - (r.sub ? 4 : 0) + 3 });
-        lines.forEach((ln, i) => t.appendChild(S('tspan', { x: 0, dy: i === 0 ? 0 : 13, text: ln })));
-        ctx.svg.appendChild(t);
-        if (r.sub) ctx.svg.appendChild(T(0, mid + ((lines.length - 1) * 13) / 2 + 11, r.sub, 'cat sub'));
+        if (stacked) {
+          const lines = wrapText(r.label, W - 6, 11.5).slice(0, 3);
+          const t = S('text', { class: 'cat strong', x: 0, y: yy + 12 });
+          lines.forEach((ln, i) => t.appendChild(S('tspan', { x: 0, dy: i === 0 ? 0 : 13, text: ln })));
+          // the test's kind follows its name on the last line when it fits, else on a line of its own
+          const lastW = tw(lines[lines.length - 1], 11.5);
+          const subInline = r.sub && lastW + tw(' · ' + r.sub, 10.5) < W - 6;
+          if (subInline) t.appendChild(S('tspan', { class: 'cat sub', dx: 0, text: ' · ' + r.sub }));
+          ctx.svg.appendChild(t);
+          const labelH = lines.length * 13 + (r.sub && !subInline ? 12 : 0);
+          if (r.sub && !subInline) ctx.svg.appendChild(T(0, yy + 12 + lines.length * 13, r.sub, 'cat sub'));
+          mid = yy + labelH + 28;
+          rh = labelH + (r.projI ? 60 : 48);
+        } else {
+          const lines = wrapText(r.label, LW - 8, 11.5);
+          rh = Math.max(r.projI ? 58 : 46, lines.length * 13 + (r.sub ? 13 : 0) + 12);
+          mid = yy + rh / 2 + 4;
+          const t = S('text', { class: 'cat strong', x: 0, y: mid - ((lines.length - 1) * 13) / 2 - (r.sub ? 4 : 0) + 3 });
+          lines.forEach((ln, i) => t.appendChild(S('tspan', { x: 0, dy: i === 0 ? 0 : 13, text: ln })));
+          ctx.svg.appendChild(t);
+          if (r.sub) ctx.svg.appendChild(T(0, mid + ((lines.length - 1) * 13) / 2 + 11, r.sub, 'cat sub'));
+        }
         ctx.svg.appendChild(S('rect', { x: L, y: mid - 6, width: R - L, height: 12, class: 'trk' }));
+        if (stacked && gsc) {
+          const gt = S('g', { class: 'grid', 'aria-hidden': 'true' });
+          gsc.ticks.forEach((tk) => gt.appendChild(S('line', { x1: Math.round(x(tk)) + 0.5, x2: Math.round(x(tk)) + 0.5, y1: mid - 9, y2: mid + 9, class: tk === 0 ? 'zero' : '' })));
+          ctx.svg.appendChild(gt);
+        }
         if (sp.scale === 'row') {
           ctx.svg.appendChild(T(L, mid + 19, '0', 'ax', 'start'));
           ctx.svg.appendChild(T(R, mid + 19, fmtTick(sc.hi, sc.step), 'ax', 'end'));
@@ -542,7 +652,7 @@
       });
       if (gsc && sp.scale !== 'row') {
         const ax = lin(gsc.lo, gsc.hi, L, R);
-        axisH(ctx, gsc, ax, gTop, yy);
+        axisH(ctx, gsc, ax, stacked ? yy : gTop, yy);
         yy += 24;
       }
     });
@@ -563,7 +673,11 @@
         if (r.a && !isNaN(r.a.v)) vals.push(r.a.v);
         if (r.b && !isNaN(r.b.v)) vals.push(r.b.v);
       });
-      dom = niceScale(0, Math.max.apply(null, vals.concat([1])) * 1.05, 5);
+      // a dumbbell encodes position, not length: the shared axis spans the values (padded), not zero to the maximum
+      const vmin = Math.min.apply(null, vals);
+      const vmax = Math.max.apply(null, vals.concat([1]));
+      const span = vmax - vmin || Math.abs(vmax) || 1;
+      dom = niceScale(vmin - span * 0.12, vmax + span * 0.12, 5, sp.zero === true);
     }
     let yy = 4;
     sp.rows.forEach((r) => {
@@ -710,11 +824,14 @@
       const ox = (pi % grid.cols) * (grid.pw + grid.gap);
       const oy = Math.floor(pi / grid.cols) * panelH;
       const L = ox + 40;
-      const R = ox + grid.pw - 12;
-      const top = oy + 24;
-      const bot = top + plotH;
       const vals = [];
       p.series.forEach((s) => s.pts.forEach((q) => !isNaN(q.v) && vals.push(q.v)));
+      // a series that reaches the last period is labelled at its end, in a gutter right of the plot
+      const lastLabels = p.series.map((s) => s.pts.filter((q) => !isNaN(q.v)).pop()).filter(Boolean);
+      const gutter = lastLabels.some((q) => q.i === nC - 1) ? Math.max.apply(null, lastLabels.map((q) => tw(lab(q.raw), 10.5, true))) + 10 : 0;
+      const R = ox + grid.pw - Math.max(12, gutter);
+      const top = oy + 24;
+      const bot = top + plotH;
       const sc = niceScale(Math.min.apply(null, vals.concat([0])), Math.max.apply(null, vals.concat([0])), 3);
       const y = lin(sc.lo, sc.hi, bot, top);
       const band = (R - L) / nC;
@@ -722,11 +839,15 @@
       ctx.svg.appendChild(T(ox + 2, oy + 12, p.title, 'ttl'));
       if (p.unit) ctx.svg.appendChild(T(ox + grid.pw - 2, oy + 12, p.unit, 'ax unit', 'end'));
       axisV(ctx, sc, y, L, R);
-      sp.cats.forEach((c, i) => ctx.svg.appendChild(T(xAt(i), bot + 14, c.short, 'ax cx', 'middle')));
+      // in a tight band the fiscal-year prefix is written once: FY23 24 25 LTM PF 26E
+      const firstFY = sp.cats.findIndex((c) => /^FY\d\d$/.test(c.short));
+      const tight = band < 36;
+      sp.cats.forEach((c, i) => ctx.svg.appendChild(T(xAt(i), bot + 14, tight && i > firstFY && firstFY >= 0 && /^FY\d\d$/.test(c.short) ? c.short.slice(2) : c.short, 'ax cx', 'middle')));
       if (divider != null && divider > 0 && divider < nC) {
         const dx = L + band * divider;
-        ctx.svg.appendChild(S('line', { class: 'divider', x1: dx, x2: dx, y1: top - 4, y2: bot, 'aria-hidden': 'true' }));
-        ctx.svg.appendChild(T(dx + 3, top + 6, 'Projected', 'ax proj-w'));
+        ctx.svg.appendChild(S('line', { class: 'divider', x1: dx, x2: dx, y1: top - 10, y2: bot, 'aria-hidden': 'true' }));
+        // the divider's word sits above the plot, clear of the data labels
+        ctx.svg.appendChild(T(dx + 3, top - 3, 'Projected', 'ax proj-w'));
         ctx.seen.proj = true;
       }
       p.series.forEach((s) => {
@@ -745,21 +866,36 @@
           ctx.svg.appendChild(S('polyline', { class: 'ln ' + s.cls + (s.proj ? ' proj' : ''), points: run.map((q) => xAt(q.i).toFixed(1) + ',' + y(q.v).toFixed(1)).join(' '), fill: 'none', 'aria-hidden': 'true' }));
         });
       });
+      const ends = [];
       p.series.forEach((s, si) => {
         const last = s.pts.filter((q) => !isNaN(q.v)).pop();
         s.pts.forEach((q) => {
           const cx = xAt(q.i);
           const cat = sp.cats[q.i].full;
           if (isNaN(q.v)) {
-            gapMark(ctx, cx, bot - 10, q, s.label, cat);
+            // in a tight band neighbouring gaps alternate height, so each n/a stays legible on its own period
+            gapMark(ctx, cx, bot - (tight && q.i % 2 ? 24 : 10), q, s.label, cat);
             return;
           }
           const cy = y(q.v);
           const kids = [s.proj ? (ctx.seen.proj = true) && S('circle', { cx, cy, r: 3.6, class: 'ring ' + s.cls }) : shape(ctx, 'circle', { cx, cy, r: 3.6 }, s.cls, q.k)];
-          if (q === last) kids.push(T(cx, cy + (si > 0 ? 13 : -7), lab(q.raw), 'val', cx > R - 18 ? 'end' : 'middle'));
-          mark(ctx, { x: cx - 4, y: cy - 4, w: 8, h: 8, label: itemName(q, s.label, cat, p.unit) + (s.proj ? ', projected' : ''), desc: q.desc, kids });
+          const g = mark(ctx, { x: cx - 4, y: cy - 4, w: 8, h: 8, label: itemName(q, s.label, cat, p.unit) + (s.proj ? ', projected' : ''), desc: q.desc, kids });
+          if (q === last) {
+            // at the last period the label goes right of the point, in the gutter; earlier (the last reported value
+            // before a projection) it sits above-left of the point, clear of the lines that leave it
+            if (q.i === nC - 1) ends.push({ g, x: cx + 7, y: cy + 4, text: lab(q.raw) });
+            else g.appendChild(T(cx - 5, cy - 6, lab(q.raw), 'val', 'end'));
+          }
         });
       });
+      // gutter labels never sit on each other: 12px apart, kept inside the plot's height
+      ends.sort((a, b) => a.y - b.y);
+      for (let k = 1; k < ends.length; k++) if (ends[k].y - ends[k - 1].y < 12) ends[k].y = ends[k - 1].y + 12;
+      for (let k = ends.length - 1; k >= 0; k--) {
+        const maxY = k === ends.length - 1 ? bot + 4 : ends[k + 1].y - 12;
+        if (ends[k].y > maxY) ends[k].y = maxY;
+      }
+      ends.forEach((e) => e.g.appendChild(T(e.x, Math.max(top + 4, e.y), e.text, 'val', 'start')));
     });
     return Math.ceil(sp.panels.length / grid.cols) * panelH;
   }
@@ -783,7 +919,7 @@
     const plotH = ctx.opts.compact ? 150 : 210;
     const L = 46;
     const R = W - 14;
-    const top = 20;
+    const top = 26;
     const bot = top + plotH;
     const ds = sp.points.filter((p) => !isNaN(p.x)).map((p) => p.x);
     const d0 = Math.min.apply(null, ds) - 90 * 864e5;
@@ -793,7 +929,8 @@
     const sc = niceScale(0, Math.max.apply(null, vs.concat([1])) * 1.1, 4);
     const y = lin(sc.lo, sc.hi, bot, top);
     axisV(ctx, sc, y, L, R);
-    ctx.svg.appendChild(T(L - 6, top - 1, 'bps', 'ax unit', 'end'));
+    // the unit heads the value axis, above its top tick
+    ctx.svg.appendChild(T(L - 6, top - 12, 'bps', 'ax unit', 'end'));
     const gx = S('g', { class: 'grid', 'aria-hidden': 'true' });
     for (let yr = new Date(d0).getUTCFullYear() + 1; yr <= new Date(d1).getUTCFullYear(); yr++) {
       const xx = Math.round(x(Date.UTC(yr, 0, 1))) + 0.5;
@@ -813,15 +950,22 @@
       const cy = y(p.v);
       const kids = [pointShape(ctx, SHAPES[p.s % SHAPES.length], cx, cy, 5, sp.series[p.s].cls, p.k, p.issuer)];
       if (p.issuer) {
+        // an issuer point is named beside it: right of the point, or left of it near the right edge
         const txt = p.short;
         const w = tw(txt, 10.5);
-        for (const dy of [0, -13, 13, -26, 26]) {
-          const bx = { x0: cx + 9, x1: cx + 9 + w, y0: cy + dy - 8, y1: cy + dy + 3 };
-          if (bx.x1 > W) continue;
-          if (placed.some((q) => bx.x0 < q.x1 && bx.x1 > q.x0 && bx.y0 < q.y1 && bx.y1 > q.y0)) continue;
-          placed.push(bx);
-          kids.push(T(cx + 9, cy + dy, txt, 'val lbl'));
-          break;
+        let done = false;
+        for (const side of [1, -1]) {
+          for (const dy of [0, -13, 13, -26, 26]) {
+            const x0 = side > 0 ? cx + 9 : cx - 9 - w;
+            const bx = { x0, x1: x0 + w, y0: cy + dy - 8, y1: cy + dy + 3 };
+            if (bx.x1 > W || bx.x0 < L) continue;
+            if (placed.some((q) => bx.x0 < q.x1 && bx.x1 > q.x0 && bx.y0 < q.y1 && bx.y1 > q.y0)) continue;
+            placed.push(bx);
+            kids.push(T(side > 0 ? cx + 9 : cx - 9, cy + dy, txt, 'val lbl', side > 0 ? 'start' : 'end'));
+            done = true;
+            break;
+          }
+          if (done) break;
         }
       }
       mark(ctx, { x: cx - 5, y: cy - 5, w: 10, h: 10, label: nm(p.name, sname) + ': ' + p.xText + ', ' + withUnit(p.raw, 'bps') + (p.word ? ', ' + p.word : '') + (p.issuer ? ', issuer' : ''), desc: p.desc, kids });
@@ -1140,19 +1284,21 @@
       title: sc,
       cats: t.rows.map((r, i) => i).filter((i) => cell(t, i, 'scenario') === sc).map((i) => {
         const claim = Object.assign(item(ctx, t, i, 'allowed_claim'), { s: 0 });
-        const alloc = Object.assign(item(ctx, t, i, 'allocation'), { s: 1, txt: cell(t, i, 'recovery_pct'), extra: 'recovery ' + cell(t, i, 'recovery_pct') });
-        return { label: cell(t, i, 'class_id'), items: [claim, alloc] };
+        const alloc = Object.assign(item(ctx, t, i, 'allocation'), { s: 1, extra: 'recovery ' + cell(t, i, 'recovery_pct') });
+        // the recovery % sits under the class name for every class (a label above a narrow bar could not always fit)
+        return { label: WB.claimName(cell(t, i, 'class_id')), sub: cell(t, i, 'recovery_pct'), items: [claim, alloc] };
       }),
     }));
-    ctx.legend = series.map((s) => ({ kind: 'fill', cls: s.cls, label: s.label })).concat([{ kind: 'text', label: 'Figure above the blue bar: recovery %' }]);
+    ctx.legend = series.map((s) => ({ kind: 'fill', cls: s.cls, label: s.label })).concat([{ kind: 'text', label: 'Under each class name: its recovery %' }]);
     return { engine: engineColumns, sp: { orient: 'v', mode: 'group', series, panels, unit: 'US$ m', minPanelW: 280, plotH: 120 } };
   };
   BUILD['chart.factor_scores'] = (ctx) => {
     const t = twinOf(ctx, 'cp4.protection_score');
     const series = [{ label: 'Score', cls: 'sr-0' }];
     const cats = t.rows.map((r, i) => ({ label: cell(t, i, 'area'), items: [Object.assign(item(ctx, t, i, 'score'), { s: 0 })] }));
-    ctx.legend = [{ kind: 'fill', cls: 'sr-0', label: 'Score' }];
-    return { engine: engineColumns, sp: { orient: 'h', mode: 'group', series, panels: [{ cats }], unit: '' } };
+    ctx.legend = [{ kind: 'fill', cls: 'sr-0', label: 'Score, 1 to 5 (5 protects creditors most)' }];
+    // the protection score is a five-point scale: the axis runs to 5 whatever the highest score
+    return { engine: engineColumns, sp: { orient: 'h', mode: 'group', series, panels: [{ cats }], unit: '', max: 5, integer: true } };
   };
   BUILD['chart.implied_pd'] = (ctx) => {
     const t = twinOf(ctx, 'cp3d.implied_risk');
@@ -1175,13 +1321,14 @@
       const extra = st === 'UNREALIZED' ? { cls: 'sr-6', dashed: true, extra: 'unrealized' } : st === 'REALIZED' ? { extra: 'realized' } : {};
       return wfStep(ctx, t, i, 'amount', kind, cell(t, i, 'line'), extra);
     });
-    ctx.legend = [{ kind: 'fill', cls: 'sr-2', label: 'Stated total' }, { kind: 'fill', cls: 'sr-0', label: 'Realized add-back' }, { kind: 'fill', cls: 'sr-6 dashed', label: 'Unrealized (removed)' }, { kind: 'fill', cls: 'sg-neg', label: 'Unexplained residual' }];
+    if (steps.some((x) => x.dashed)) ctx.seen.unreal = true;
+    ctx.legend = [{ kind: 'fill', cls: 'sr-2', label: 'Stated total' }, { kind: 'fill', cls: 'sr-0', label: 'Realized add-back' }, { kind: 'fill', cls: 'sr-6 dashed', label: 'Unrealized (removed)', need: 'unreal' }, { kind: 'fill', cls: 'sg-neg', label: 'Unexplained residual', need: 'residual' }];
     return { engine: engineWaterfall, sp: { panels: [{ steps }], unit: 'US$ m' } };
   };
   BUILD['chart.liquidity_bridge'] = (ctx) => {
     const t = twinOf(ctx, 'cp2d.bridge');
     const steps = t.rows.map((r, i) => wfStep(ctx, t, i, 'amount', /total/i.test(cell(t, i, 'kind')) ? 'total' : 'delta', cell(t, i, 'step')));
-    ctx.legend = [{ kind: 'fill', cls: 'sr-2', label: 'Opening and closing liquidity' }, { kind: 'fill', cls: 'sr-0', label: 'Inflow' }, { kind: 'fill', cls: 'sr-1', label: 'Use' }, { kind: 'fill', cls: 'sg-neg', label: 'Unexplained residual' }];
+    ctx.legend = [{ kind: 'fill', cls: 'sr-2', label: 'Opening and closing liquidity' }, { kind: 'fill', cls: 'sr-0', label: 'Inflow' }, { kind: 'fill', cls: 'sr-1', label: 'Use' }, { kind: 'fill', cls: 'sg-neg', label: 'Unexplained residual', need: 'residual' }];
     return { engine: engineWaterfall, sp: { panels: [{ steps }], unit: 'US$ m' } };
   };
   BUILD['chart.adjusted_debt_bridge'] = (ctx) => {
@@ -1194,7 +1341,7 @@
     const steps = [{ kind: 'total', label: 'Total debt', v: num(mc.value), raw: String(mc.value), k: 'solid', word: 'calculated', desc: { t: 'mcell', lineId: 'total_debt', columnId: house.column_id }, name: 'Total debt' }];
     t.rows.forEach((r, i) => steps.push(wfStep(ctx, t, i, 'amount', 'delta', cell(t, i, 'item'))));
     steps.push({ kind: 'total', label: 'Adjusted debt', v: num(house.value), raw: String(house.value), k: 'solid', word: 'calculated', name: 'Adjusted debt', desc: { t: 'note', kind: 'calculated', code: 'model.house', title: 'Adjusted debt', sub: 'Model house view', fields: [['Served as', String(house.value), true], ['Formula', house.formula || '', true]], note: 'Computed by the host script from total debt and the debt-like items. It is the stated total this bridge is checked against.' } });
-    ctx.legend = [{ kind: 'fill', cls: 'sr-2', label: 'Stated totals' }, { kind: 'fill', cls: 'sr-0', label: 'Debt-like item' }, { kind: 'fill', cls: 'sg-neg', label: 'Unexplained residual' }];
+    ctx.legend = [{ kind: 'fill', cls: 'sr-2', label: 'Stated totals' }, { kind: 'fill', cls: 'sr-0', label: 'Debt-like item' }, { kind: 'fill', cls: 'sg-neg', label: 'Unexplained residual', need: 'residual' }];
     return { engine: engineWaterfall, sp: { panels: [{ steps }], unit: 'US$ m' } };
   };
   BUILD['chart.value_allocation'] = (ctx) => {
@@ -1205,19 +1352,20 @@
       const steps = [wfStep(ctx, t, rows[0], 'available_value', 'total', 'Available value')];
       rows.forEach((i) => {
         const a = item(ctx, t, i, 'allocation');
-        steps.push(Object.assign(a, { kind: 'delta', label: cell(t, i, 'class_id'), v: isNaN(a.v) ? a.v : -a.v, fulcrum: cell(t, i, 'fulcrum') === 'Yes', txt: a.raw, extra: cell(t, i, 'fulcrum') === 'Yes' ? 'fulcrum' : '' }));
+        // each class by name (the claims register's words); the allocation as served, grouped
+        steps.push(Object.assign(a, { kind: 'delta', label: WB.claimName(cell(t, i, 'class_id')), v: isNaN(a.v) ? a.v : -a.v, fulcrum: cell(t, i, 'fulcrum') === 'Yes', txt: lab(a.raw), extra: cell(t, i, 'fulcrum') === 'Yes' ? 'fulcrum' : '' }));
       });
       const last = rows[rows.length - 1];
       steps.push(wfStep(ctx, t, last, 'residual', 'total', 'Residual'));
-      return { title: sc, steps };
+      return { title: String(sc).replace(/: /, ', '), steps };
     });
-    ctx.legend = [{ kind: 'fill', cls: 'sr-2', label: 'Available value, residual' }, { kind: 'fill', cls: 'sr-1', label: 'Allocated to a class' }, { kind: 'ring', label: 'Fulcrum class' }, { kind: 'fill', cls: 'sg-neg', label: 'Unexplained residual' }];
-    return { engine: engineWaterfall, sp: { panels, unit: 'US$ m', minPanelW: 400 } };
+    ctx.legend = [{ kind: 'fill', cls: 'sr-2', label: 'Available value, residual' }, { kind: 'fill', cls: 'sr-1', label: 'Allocated to a class' }, { kind: 'ring', label: 'Fulcrum class' }, { kind: 'fill', cls: 'sg-neg', label: 'Unexplained residual', need: 'residual' }];
+    return { engine: engineWaterfall, sp: { panels, unit: 'US$ m', minPanelW: 340 } };
   };
 
   /* bullets */
   function toneOf(head, thr, breach) {
-    if (breach || head < 0) return { tone: 'neg', word: 'Breach' };
+    if (breach || head < 0) return { tone: 'neg', word: 'Breached' };
     if (Math.abs(thr) > 0 && head / Math.abs(thr) < 0.1) return { tone: 'cau', word: 'Tight' };
     return { tone: 'pos', word: 'Headroom' };
   }
@@ -1232,7 +1380,8 @@
       if (isNaN(head) && !isNaN(curI.v) && !isNaN(thrI.v)) head = dir === 'Floor' ? curI.v - thrI.v : thrI.v - curI.v;
       const breachNow = !isNaN(curI.v) && !isNaN(thrI.v) && (dir === 'Floor' ? curI.v < thrI.v : curI.v > thrI.v);
       const tn = toneOf(head, thrI.v, breachNow);
-      const row = { label: o.label(i), sub: o.sub ? o.sub(i, dir) : dir === 'Floor' ? 'Floor' : 'Ceiling', group: unit || 'x', groupLabel: unit, unit, cur: curI.v, thr: thrI.v, dir, curI, thrI, headI, tone: tn.tone, word: tn.word, headText: (headI.k === 'gap' ? '' : (tn.tone === 'neg' ? '(' + String(headI.raw).replace(/^[-−]/, '') + ')' : lab(headI.raw)) + (unit ? ' ' + unit : '')) };
+      const headNum = headI.k === 'gap' ? '' : tn.tone === 'neg' ? '(' + String(headI.raw).replace(/^[-−(]|\)$/g, '') + ')' : lab(headI.raw);
+      const row = { label: o.label(i), sub: o.sub ? o.sub(i, dir) : dir === 'Floor' ? 'Floor' : 'Ceiling', group: unit || 'x', groupLabel: unit, unit, cur: curI.v, thr: thrI.v, dir, curI, thrI, headI, tone: tn.tone, word: tn.word, headText: withUnitTight(headNum, unit) };
       if (o.proj) {
         const pI = item(ctx, t, i, 'projected_value');
         row.projI = pI;
@@ -1245,13 +1394,13 @@
   BUILD['chart.covenant_headroom'] = (ctx) => {
     const t = twinOf(ctx, 'cp4.covenant_tests');
     const rows = covenantRows(ctx, t, { label: (i) => cell(t, i, 'test') });
-    ctx.legend = [{ kind: 'fill', cls: 'sr-0', label: 'Current' }, { kind: 'rule', label: 'Threshold' }, { kind: 'band', tone: 'pos', label: 'Headroom' }, { kind: 'band', tone: 'cau', label: 'Tight (under 10% of threshold)' }, { kind: 'band', tone: 'neg', label: 'Breach' }];
+    ctx.legend = [{ kind: 'fill', cls: 'sr-0', label: 'Current' }, { kind: 'rule', label: 'Threshold' }, { kind: 'band', tone: 'pos', label: 'Headroom' }, { kind: 'band', tone: 'cau', label: 'Tight (under 10% of threshold)' }, { kind: 'band', tone: 'neg', label: 'Breached' }];
     return { engine: engineBullets, sp: { rows, scale: 'unit' } };
   };
   BUILD['chart.rating_triggers'] = (ctx) => {
     const t = twinOf(ctx, 'cp2h.rating_triggers');
     const rows = covenantRows(ctx, t, { label: (i) => cell(t, i, 'metric'), sub: (i, dir) => cell(t, i, 'agency') + ' · ' + (dir === 'Floor' ? 'floor' : 'ceiling'), proj: true });
-    ctx.legend = [{ kind: 'fill', cls: 'sr-0', label: 'Current' }, { kind: 'rule', label: 'Trigger threshold' }, { kind: 'diamond', label: 'Projected' }, { kind: 'band', tone: 'pos', label: 'Headroom' }, { kind: 'band', tone: 'neg', label: 'Breach' }];
+    ctx.legend = [{ kind: 'fill', cls: 'sr-0', label: 'Current' }, { kind: 'rule', label: 'Trigger threshold' }, { kind: 'diamond', label: 'Projected' }, { kind: 'band', tone: 'pos', label: 'Headroom' }, { kind: 'band', tone: 'neg', label: 'Breached' }];
     return { engine: engineBullets, sp: { rows, scale: 'unit' } };
   };
   BUILD['chart.fit_bullets'] = (ctx) => {
@@ -1283,7 +1432,7 @@
       rows = rowsAll.slice().sort((a, b) => a.ratio - b.ratio).slice(0, limitN);
       limited = 'Showing the ' + limitN + ' tightest of ' + rowsAll.length + ' limits; the Table lists all.';
     }
-    ctx.legend = [{ kind: 'fill', cls: 'sr-0', label: 'Current' }, { kind: 'rule', label: 'Limit' }, { kind: 'band', tone: 'pos', label: 'Headroom' }, { kind: 'band', tone: 'cau', label: 'Tight' }, { kind: 'band', tone: 'neg', label: 'Breach' }];
+    ctx.legend = [{ kind: 'fill', cls: 'sr-0', label: 'Current' }, { kind: 'rule', label: 'Limit' }, { kind: 'band', tone: 'pos', label: 'Headroom' }, { kind: 'band', tone: 'cau', label: 'Tight' }, { kind: 'band', tone: 'neg', label: 'Breached' }];
     return { engine: engineBullets, sp: { rows, scale: 'row', limited } };
   };
 
@@ -1296,7 +1445,7 @@
   };
   BUILD['chart.what_changed'] = (ctx) => {
     const t = twinOf(ctx, 'prior/diff.json');
-    const rows = t.rows.map((r, i) => ({ label: cap0(WB.humanize(String(cell(t, i, 'key')).replace(/^metric:/, ''))), sub: String(cell(t, i, 'table')) + ' · ' + cell(t, i, 'field'), a: item(ctx, t, i, 'prior'), b: item(ctx, t, i, 'current'), aName: 'Prior Case', bName: 'Current', issuer: true, aHollow: true }));
+    const rows = t.rows.map((r, i) => ({ label: cap0(WB.humanize(String(cell(t, i, 'key')).replace(/^metric:/, ''))), sub: WB.tableTitle(String(cell(t, i, 'table'))) + ' · ' + WB.colLabel(String(cell(t, i, 'field'))), a: item(ctx, t, i, 'prior'), b: item(ctx, t, i, 'current'), aName: 'Prior Case', bName: 'Current', issuer: true, aHollow: true }));
     ctx.legend = [{ kind: 'ring', label: 'Prior Case' }, { kind: 'dotf', cls: 'sr-0', label: 'Current' }, { kind: 'text', label: 'Each row has its own scale' }];
     return { engine: engineDumbbell, sp: { rows, shared: false } };
   };
@@ -1584,13 +1733,14 @@
     return svg;
   }
   function legendEl(ctx) {
-    const items = (ctx.legend || []).filter((e) => e.kind !== 'text');
+    // an entry tied to a state (an unexplained residual, an unrealized add-back) shows only when the chart draws one
+    const items = (ctx.legend || []).filter((e) => e.kind !== 'text' && (!e.need || ctx.seen[e.need]));
     const notes = (ctx.legend || []).filter((e) => e.kind === 'text');
     const prov = [];
     if (ctx.seen.syn) prov.push({ kind: 'fill', cls: 'sr-3 o-syn', label: 'Synthetic: slate outline' });
     if (ctx.seen.soft) prov.push({ kind: 'hatch', cls: 'sr-3', label: 'Model-written or illustrative: hatched or dashed' });
     if (ctx.seen.proj && !items.some((e) => e.kind === 'dash')) prov.push({ kind: 'dash', cls: 'sr-3', label: 'Projected: dashed' });
-    if (ctx.seen.gap) prov.push({ kind: 'na', label: 'n/a: gap id on the axis' });
+    if (ctx.seen.gap) prov.push({ kind: 'na', label: 'Not available; the gap id sits on the axis' });
     const all = items.concat(prov);
     return el('ul', { class: 'wbc-legend', 'aria-label': 'Legend' }, all.map((e) => el('li', null, [swatch(e, ++UID), e.label])).concat(notes.map((n) => el('li', { class: 'lg-note' }, n.label))));
   }
@@ -1647,7 +1797,7 @@
     const uid = ++UID;
     while (plot.firstChild) plot.removeChild(plot.firstChild);
     const W = Math.max(300, Math.floor(plot.clientWidth || opts.width || 640) - 1);
-    const svg = S('svg', { class: 'wbc-svg', role: 'group', 'aria-label': WB.chartTitle(chart.chart_id) + ', chart. Each mark is a button; arrow keys move between marks.' });
+    const svg = S('svg', { class: 'wbc-svg', role: 'group', tabindex: '-1', focusable: 'false', 'aria-label': WB.chartTitle(chart.chart_id) + ', chart. Each mark is a button; arrow keys move between marks.' });
     const ctx = { chart, twins, opts, W, svg, plot, tip, uid, defs: S('defs'), patterns: {}, marks: [], seen: {}, notes: [], legend: [] };
     svg.appendChild(ctx.defs);
     const b = BUILD[chart.chart_id];
@@ -1689,8 +1839,11 @@
       if (open && !twinBox.firstChild) twins.forEach((t) => twinBox.appendChild(WB.renderTable(t, { maxRows: 60, caption: title + ': ' + WB.tableTitle(t.id) })));
       twinBox.hidden = !open;
     });
-    const origin = chart.origin === 'host' ? 'host-computed' : 'model-authored';
-    const src = el('p', { class: 'wbc-src' }, [el('span', null, 'Source: '), el('span', { class: 'num' }, (chart.tables || []).join(', ')), el('span', null, ' · ' + origin + ' · each mark opens its figure')]);
+    // the source in words: the tables by name and the modules that own them; the raw table ids are the tooltip
+    const owners = uniq((chart.tables || []).map((t) => WB.tableOwner(t)).filter(Boolean));
+    const by = owners.map((o) => (o === 'RUN_BRIEF' ? 'Run Brief' : WB.moduleName(o) + (/^CP-/.test(o) ? ' (' + o + ')' : ''))).join(', ');
+    const origin = chart.origin === 'host' ? 'calculated by RBOT' : 'as the module states them';
+    const src = el('p', { class: 'wbc-src', title: (chart.tables || []).join(', ') }, 'Source: ' + uniq((chart.tables || []).map((t) => WB.tableTitle(t))).join(', ') + (by ? ' (' + by + ')' : '') + '. Figures ' + origin + '; select a mark for its passport.');
     root.append(legendHost, plot, notes, el('div', { class: 'wbc-foot' }, [src, btn]), twinBox);
     host.appendChild(root);
     const redraw = () => {

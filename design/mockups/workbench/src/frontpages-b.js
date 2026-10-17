@@ -26,7 +26,7 @@
     const c = ci(t, n);
     const o = WB.cellOrigin(t, r, c);
     if (o.kind === 'gap') return WB.renderCell(t, r, c).node;
-    const shown = text == null ? WB.fmtNum(t.rows[r][c]) : text;
+    const shown = text == null ? WB.fmtNum(t.rows[r][c], { group: WB.columnKinds(t)[c].kind === 'numeric' }) : text;
     return WB.fig(cellDesc(t, r, n), shown, { kind: o.kind, label: WB.figLabel(shown, o.kind, extra) });
   }
   const cellNode = (t, r, n) => WB.renderCell(t, r, ci(t, n)).node;
@@ -77,14 +77,23 @@
   const subh = (text) => el('h3', { class: 'sub-h' }, text);
   const note = (kids) => el('p', { class: 'fb-note' }, kids);
 
-  /* one chart by id, with my own summary (never the fixture's) */
+  /* one chart by id; the panel or a sub-heading names it, so its caption is for assistive technology (never the fixture's summary) */
   function chartNode(id, o) {
     const opts = o || {};
     const c = (WB.run.charts || []).find((x) => x.chart_id === id);
-    if (!c) return WB.conditionLine('The chart ' + id + ' is not in this run.');
-    const slot = WB.chartSlot(Object.assign({}, c, { summary: opts.summary || '' }), opts.slot);
-    if (opts.caption !== true) slot.querySelector('.cs-cap').classList.add('sr-only');
-    return slot;
+    if (!c) return WB.conditionLine('The chart "' + WB.chartTitle(id) + '" is not in this run.');
+    return WB.chartSlot(c, Object.assign({ caption: opts.caption === true, summary: opts.summary || '' }, opts.slot || {}));
+  }
+  /* money in the house style: US$5,000,000 and US$491.6m (the currency before the figure, the scale after it) */
+  function cash(cur, v) {
+    const m = /^(US\$|€|£)\s?(m|bn|k)?$/.exec(String(cur || '').trim());
+    const n = WB.fmtNum(v, { group: true });
+    return m ? m[1] + n + (m[2] || '') : (cur ? cur + ' ' : '') + n;
+  }
+  /* a bare amount in a sentence about a money table gets its unit: "the 50 covenant floor" reads "the US$50m covenant floor" */
+  function withMoneyUnit(text, unitLabel) {
+    if (!/^(US\$ ?m|USD millions)$/i.test(String(unitLabel || ''))) return String(text);
+    return String(text).replace(/\b(the |a )(\d[\d,.]*) (covenant|liquidity|minimum) floor\b/g, (m0, art, n, w) => art + 'US$' + n + 'm ' + w + ' floor');
   }
 
   /* a table built from cells already rendered: first column is the row header */
@@ -129,16 +138,17 @@
   function bar(run, tools, o) {
     const cfg = WB.callConfig(run);
     const meta = cfg.meta;
-    const by = [meta.tags.includes('Fictional') ? 'Fictional issuer' : '', String(meta.analyst || '').replace(/\s*\(design fixture\)/i, ''), meta.asOf ? WB.fmtDate(meta.asOf) : ''].filter(Boolean).join(' · ');
     return WB.verdictBar({
       title: o.title,
       question: QUESTIONS[run.front_page],
       illustrative: true,
-      byline: by,
+      bylineNodes: WB.bylineNodes(meta, [meta.tags.includes('Fictional') ? 'Fictional issuer' : '']),
       tiles: o.tiles || cfg.tiles,
       lines: o.lines || cfg.lines,
       honest: WB.state.honest ? o.honest : null,
       tools: el('span', { class: 'v-tools' }, tools),
+      maxLines: WB.CALL_MAX[run.front_page] || 3,
+      order: WB.CALL_ORDER[run.front_page] || [],
     });
   }
 
@@ -158,7 +168,8 @@
     if (mo != null) kids.push(': ', fig(t, mo, 'value', money(t, mo, 'value')), ' of runway');
     if (head != null) kids.push(', headroom ', fig(t, head, 'value', money(t, head, 'value')));
     kids.push('. ');
-    if (pinch != null) kids.push(el('b', null, 'Pinch point '), WB.inline(String(V(t, pinch, 'value')), mod(t)));
+    const unitOf = acc != null ? V(t, acc, 'unit_label') : '';
+    if (pinch != null) kids.push(el('b', null, 'Pinch point '), WB.inline(withMoneyUnit(V(t, pinch, 'value'), unitOf), mod(t)));
     const tone = hv != null && hv < 0 ? 'neg' : 'neu';
     return { label: 'LIQUIDITY', tone, children: kids };
   }
@@ -187,7 +198,8 @@
       const rf = T('cp4.red_flags');
       const sp = rf ? rowsWhere(rf, (x) => /spring/i.test(String(x[ci(rf, 'flag')])))[0] : null;
       const parts = [];
-      if (sp != null) parts.push(WB.inline(String(V(rf, sp, 'flag')) + ': ' + String(V(rf, sp, 'creditor_risk')), mod(rf)), ' ');
+      const end = (x) => String(x).replace(/\s*$/, '').replace(/([^.!?])$/, '$1.');
+      if (sp != null) parts.push(el('b', null, end(V(rf, sp, 'flag'))), ' ', WB.inline(end(V(rf, sp, 'creditor_risk')), mod(rf)), ' ');
       const ids = uniq(String(V(t, 0, 'basis')).match(/\bG\d+\b/g) || []);
       if (ids.length) parts.push(WB.inline('Ratios are on RBOT’s basis (' + ids.join(', ') + ').', mod(t)));
       if (parts.length) kids.push(note(parts));
@@ -211,7 +223,12 @@
     const kids = [split(chartNode('chart.liquidity_bridge'), t && t.rows.length ? runwayTable(t) : WB.conditionLine('No runway table in this run.'), 'fb-run-split')];
     if (t) {
       const p = RW(t, /^Pinch/);
-      if (p != null) kids.push(note([el('b', null, 'Pinch point '), inl(V(t, p, 'value'), t), ' ', cellNode(t, p, 'basis')]));
+      const acc = RW(t, /^Accessible liquidity/);
+      if (p != null) {
+        // two sentences: the pinch point, then how it is found
+        const val = withMoneyUnit(V(t, p, 'value'), acc != null ? V(t, acc, 'unit_label') : '').replace(/\s*$/, '');
+        kids.push(note([el('b', null, 'Pinch point '), inl(/[.!?]$/.test(val) ? val : val + '.', t), ' ', cellNode(t, p, 'basis'), /[.!?]$/.test(String(V(t, p, 'basis'))) ? '' : '.']));
+      }
     }
     return el('div', { class: 'fb-pbody' }, kids);
   }
@@ -487,12 +504,13 @@
     if (!t || !t.rows.length) return { label: 'FULCRUM', tone: 'neu', children: 'No recoveries in this run.' };
     const scen = uniq(t.rows.map((x) => x[ci(t, 'scenario')]));
     const kids = [];
+    // the fulcrum class by name (the claims register's words), each scenario as "Going concern, low"
     scen.forEach((s, k) => {
       if (k) kids.push('; ');
       const r = rowsWhere(t, (x) => x[ci(t, 'scenario')] === s && x[ci(t, 'fulcrum')] === 'Yes')[0];
-      kids.push(s + ': ');
+      kids.push(el('span', { class: 'fb-scn' }, String(s).replace(/: /, ', ') + ': '));
       if (r == null) kids.push('none');
-      else kids.push(String(V(t, r, 'class_id')), ' (', fig(t, r, 'recovery_pct', String(V(t, r, 'recovery_pct')) + ' recovery'), ')');
+      else kids.push(el('b', { title: String(V(t, r, 'class_id')) }, WB.claimName(V(t, r, 'class_id'))), ', ', fig(t, r, 'recovery_pct', String(V(t, r, 'recovery_pct')) + ' recovery'));
     });
     return { label: 'FULCRUM', tone: 'neg', children: kids };
   }
@@ -595,18 +613,18 @@
       const status = String(V(lt, r, 'status'));
       const pct = V(lt, r, 'limit_unit') === 'pct_nav';
       const bar = pct && NUMLIKE(V(lt, r, 'current_value')) && NUMLIKE(V(lt, r, 'limit_value'));
-      const tone = status === 'Within' ? 'pos' : status === 'Breached' ? 'neg' : 'neu';
-      const icon = status === 'Within' ? 'status-pass' : status === 'Breached' ? 'cross' : 'info';
-      const tight = status === 'Within' && bar && lim > 0 && (lim - cur) / lim < 0.1;
-      const tn = tight ? 'cau' : tone;
+      // one rule in every view (WB.limitState): Within with headroom under 10% of the limit reads Tight
+      const ls = bar ? WB.limitState(status, lim, cur) : WB.limitState(status);
+      const tn = ls.tone;
       const u = pct ? '% NAV' : '';
-      const show = (n) => fig(lt, r, n, WB.fmtNum(V(lt, r, n)) + (u && NUMLIKE(V(lt, r, n)) ? ' ' + u : ''));
+      const show = (n) => fig(lt, r, n, WB.fmtNum(V(lt, r, n)) + (u && NUMLIKE(V(lt, r, n)) ? '% NAV' : ''));
       const max = Math.max(lim, cur) || 1;
+      const pair = (label, n) => el('span', { class: 'fb-lvp' }, [el('span', { class: 'fb-lvl' }, label), show(n)]);
       ul.appendChild(
         el('li', { class: 'fb-lim tone-bg-' + tn }, [
-          el('div', { class: 'fb-lh' }, [el('span', { class: 'fb-ln' }, cellNode(lt, r, 'parameter')), el('span', { class: 'fb-lid num' }, lid), el('span', { class: 'fb-lk' }, String(V(lt, r, 'limit_kind')) + ' limit'), el('span', { class: 'fb-ls tone-' + tn }, [WB.icon(tight ? 'warn' : icon, { size: 12, stroke: 1.8 }), tight ? 'Tight' : status])]),
-          bar ? el('div', { class: 'fb-lb tone-' + tn, role: 'img', 'aria-label': 'Current ' + cur + ' of a ' + lim + ' limit, ' + status }, [el('span', { class: 'fb-lf', style: { width: (Math.max(0, cur) / max) * 100 + '%' } }), el('span', { class: 'fb-lt', style: { left: (lim / max) * 100 + '%' } })]) : null,
-          el('div', { class: 'fb-lv' }, [el('span', null, 'Limit'), show('limit_value'), el('span', null, 'Current'), show('current_value'), el('span', null, 'Headroom'), show('headroom')]),
+          el('div', { class: 'fb-lh' }, [el('span', { class: 'fb-ln' }, cellNode(lt, r, 'parameter')), el('span', { class: 'fb-lid num' }, lid), el('span', { class: 'fb-lk' }, String(V(lt, r, 'limit_kind')) + ' limit'), el('span', { class: 'fb-ls tone-' + tn }, [WB.icon(ls.icon, { size: 12, stroke: 1.8 }), ls.word])]),
+          bar ? el('div', { class: 'fb-lb tone-' + tn, role: 'img', 'aria-label': 'Current ' + cur + ' of a ' + lim + ' limit, ' + ls.word }, [el('span', { class: 'fb-lf', style: { width: (Math.max(0, cur) / max) * 100 + '%' } }), el('span', { class: 'fb-lt', style: { left: (lim / max) * 100 + '%' } })]) : null,
+          el('div', { class: 'fb-lv' }, [pair('Limit', 'limit_value'), pair('Current', 'current_value'), pair('Headroom', 'headroom')]),
         ])
       );
     });
@@ -617,13 +635,16 @@
     if (!pf) return WB.conditionLine('This run carries no Portfolio Fit table.');
     const rows = rowsWhere(pf, (x) => x[ci(pf, 'portfolio_id')] === pid);
     const heads = [{ label: 'Instrument' }, { label: 'Max size', cls: 'h-numeric' }, { label: 'Binding limit' }, { label: 'Verdict' }, { label: 'Caps at' }];
+    // the unit sits in the head ("Max size, US$" or "Max size, US$ m"): a bare currency never trails a figure
+    const units = uniq(rows.map((r) => WB.unitLabel(V(pf, r, 'currency'), V(pf, r, 'unit'))));
+    if (units.length === 1 && units[0]) heads[1] = { label: 'Max size, ' + units[0], cls: 'h-numeric' };
     const body = rows.map((r) => {
       const u = WB.unitLabel(V(pf, r, 'currency'), V(pf, r, 'unit'));
       const mc = WB.renderCell(pf, r, ci(pf, 'max_size'));
       const bad = V(pf, r, 'verdict') === 'Breaches';
       return {
         cls: bad ? 'fb-breach' : false,
-        cells: [WB.renderCell(pf, r, ci(pf, 'instrument')), { cls: mc.cls, node: el('span', { class: 'fb-ms' }, [mc.node, el('span', { class: 'fb-u' }, u)]) }, WB.renderCell(pf, r, ci(pf, 'binding_limit')), WB.renderCell(pf, r, ci(pf, 'verdict')), WB.renderCell(pf, r, ci(pf, 'recommendation_cap'))],
+        cells: [WB.renderCell(pf, r, ci(pf, 'instrument')), { cls: mc.cls, node: units.length === 1 ? mc.node : el('span', { class: 'fb-ms' }, [mc.node, el('span', { class: 'fb-u' }, u)]) }, WB.renderCell(pf, r, ci(pf, 'binding_limit')), WB.renderCell(pf, r, ci(pf, 'verdict')), WB.renderCell(pf, r, ci(pf, 'recommendation_cap'))],
       };
     });
     return gridTable(heads, body, { caption: 'Instruments against the limits of this portfolio', cls: 'fb-fit' });
@@ -645,7 +666,7 @@
     if (watch) cnt.push(watch + ' Watch');
     if (fits) cnt.push(fits + ' Fits');
     const cur = WB.unitLabel(pj.currency, pj.unit);
-    const facts = [['NAV', cur + ' ' + WB.fmtNum(pj.nav)], ['Par', cur + ' ' + WB.fmtNum(pj.par)], ['As of', WB.fmtDate(pj.as_of)], ['Strategy', pj.strategy]];
+    const facts = [['NAV', cash(cur, pj.nav)], ['Par', cash(cur, pj.par)], ['As of', WB.fmtDate(pj.as_of)], ['Strategy', pj.strategy]];
     const body = [
       el('dl', { class: 'fp-facts fb-facts' }, facts.flatMap((x) => [el('dt', null, x[0]), el('dd', null, x[0] === 'Strategy' ? x[1] : factFig(x[0], x[1], pj, syn))])),
       subh('Limits and headroom'),
@@ -769,15 +790,28 @@
   function decisionPage(canvas, run) {
     const cfg = WB.callConfig(run);
     const pr = T('cp6.portfolio_recommendation');
-    const tiles = cfg.tiles.map((t) => {
-      if (t.key === 'final' && t.ref && pr && t.ref.table === pr.id) {
-        const r = t.ref.r;
-        const v = V(pr, r, 'fit_verdict');
-        const cap = String(V(pr, r, 'cap'));
-        return Object.assign({}, t, { sub: String(V(pr, r, 'instrument')).replace(/^CEI /, '') + ', ' + v + (v === 'Fits' ? ', no cap' : ', cap ' + cap) });
-      }
-      return t;
+    // the instrument in the analyst's shorthand ("Secured 2032s"), as content doc 06 writes the tile's sub-line
+    const shortName = (n) =>
+      String(n)
+        .replace(/^CEI /, '')
+        .replace(/^Senior Secured Notes due (\d{4})$/i, 'Secured $1s')
+        .replace(/^Senior Notes due (\d{4})(?: \(unsecured\))?$/i, 'Unsecured $1s');
+    const finals = [];
+    const tiles = [];
+    cfg.tiles.forEach((t) => {
+      if (t.key === 'final') {
+        let tt = t;
+        if (t.ref && pr && t.ref.table === pr.id) {
+          const r = t.ref.r;
+          const v = V(pr, r, 'fit_verdict');
+          const cap = String(V(pr, r, 'cap'));
+          tt = Object.assign({}, t, { sub: shortName(V(pr, r, 'instrument')) + ', ' + v + (v === 'Fits' ? ', no cap' : ', cap ' + cap) });
+        }
+        finals.push(tt);
+      } else tiles.push(t);
     });
+    // per Strategy first, then per portfolio after the Fit cap, each group on its own row
+    if (finals.length) tiles.push({ rowBreak: true }, ...finals);
     const items = [];
     const add = (node, label, owners, span) => items.push(item(node, label, owners, span));
     add(portfolioRecPanel(run), 'Portfolio recommendation', ['CP-6']);

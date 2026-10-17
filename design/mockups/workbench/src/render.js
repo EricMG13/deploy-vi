@@ -66,42 +66,71 @@
     );
   };
 
-  /* inline text: [C12] tokens, G ids, **bold**, `code`, (calc: ...) */
-  const INLINE_RE = /\*\*([^*]+)\*\*|`([^`]+)`|\[(C\d+(?:\s*,\s*C\d+)*)\]|\(calc: ([^)]+)\)|\b(G\d+)\b/g;
+  /* A run of more than three citations reads as one chip ("C2–C10", or "9 sources" when the ids are not consecutive) whose
+     passport lists every source; each source still opens its own passport from there. */
+  WB.citeGroup = function (moduleId, ids) {
+    const cites = ids.map((id) => WB.citation(moduleId, id) || { id, module: moduleId, missing: true });
+    const nums = ids.map((id) => +id.slice(1));
+    const consecutive = nums.every((n, i) => i === 0 || n === nums[i - 1] + 1);
+    const label = consecutive ? ids[0] + '–' + ids[ids.length - 1] : ids.length + ' sources';
+    const allSyn = cites.every((c) => c.synthetic);
+    const kind = allSyn ? 'synthetic' : 'cited';
+    const chips = cites.map((c) => ({ id: c.id, module: moduleId, label: c.missing ? 'not found in ' + moduleId : (c.source || '') + (c.locator ? ' · ' + c.locator : ''), synthetic: !!c.synthetic, missing: !!c.missing, desc: { t: 'cite', module: moduleId, id: c.id } }));
+    const desc = { t: 'note', kind, code: label, title: ids.length + ' sources', sub: WB.moduleName(moduleId) + (/^CP-/.test(moduleId) ? ' (' + moduleId + ')' : ''), cites: chips, note: 'The sentence cites ' + ids.length + ' sources. Each opens its own passport with the file, locator and verbatim excerpt.' + (cites.some((c) => c.synthetic) && !allSyn ? ' Some are synthetic test data.' : '') };
+    return el('button', { type: 'button', class: 'cm cm-' + kind + ' cm-group', 'data-ref': WB.ref(desc), 'aria-label': ids.length + ' citations, ' + ids.join(', '), title: ids.join(', ') }, [WB.icon('doc-stack', { size: 11 }), el('span', { class: 'num' }, label)]);
+  };
+
+  /* inline text: [C12] tokens (runs grouped), G ids (bare or in parentheses), **bold**, `code`, (calc: ...) */
+  const INLINE_RE = /\*\*([^*]+)\*\*|`([^`]+)`|\[(C\d+(?:\s*,\s*C\d+)*)\]|\((calc): |\b(G\d+)\b|\(\s*(G\d+(?:\s*,\s*G\d+)*)\s*\)/g;
+  const CITE_NEXT = /^[\s,;]*\[(C\d+(?:\s*,\s*C\d+)*)\]/;
   WB.inline = function (text, moduleId, opts) {
     const o = opts || {};
     const f = document.createDocumentFragment();
     const s = String(text == null ? '' : text);
     let last = 0;
     let m;
-    INLINE_RE.lastIndex = 0;
-    while ((m = INLINE_RE.exec(s))) {
+    const re = new RegExp(INLINE_RE.source, 'g');
+    while ((m = re.exec(s))) {
       if (m.index > last) f.appendChild(WB.text(s.slice(last, m.index)));
+      let end = m.index + m[0].length;
       if (m[1] != null) f.appendChild(el('strong', null, m[1]));
       else if (m[2] != null) f.appendChild(el('code', { class: 'ic-code' }, m[2]));
       else if (m[3] != null) {
+        // gather the adjacent cite tokens: [C2][C3] [C4, C5] form one run
         const ids = m[3].split(',').map((x) => x.trim());
-        f.appendChild(
-          el(
-            'span',
-            { class: 'cites' },
-            ids.map((id) => WB.citeChip(moduleId, id))
-          )
-        );
+        let nx;
+        while ((nx = CITE_NEXT.exec(s.slice(end)))) {
+          nx[1].split(',').forEach((x) => ids.push(x.trim()));
+          end += nx[0].length;
+        }
+        const uniq = Array.from(new Set(ids));
+        f.appendChild(el('span', { class: 'cites' }, uniq.length > 3 ? WB.citeGroup(moduleId, uniq) : uniq.map((id) => WB.citeChip(moduleId, id))));
       } else if (m[4] != null) {
-        f.appendChild(WB.text('('));
+        // "(calc: …)" runs to its matching parenthesis (formulas nest them); it becomes a compact calculated chip whose
+        // passport and tooltip hold the formula
+        let depth = 1;
+        let k = end;
+        for (; k < s.length && depth > 0; k++) {
+          if (s[k] === '(') depth++;
+          else if (s[k] === ')') depth--;
+        }
+        const formula = s.slice(end, depth === 0 ? k - 1 : k).trim();
+        end = k;
         f.appendChild(
           el(
             'button',
-            { type: 'button', class: 'calc-inline num', 'data-ref': WB.ref({ t: 'note', kind: 'calculated', code: 'calc', title: 'Calculation', sub: moduleId ? WB.moduleName(moduleId) : '', fields: [['Formula', m[4], true]], note: WB.ORIGIN_NOTE.calculated }), title: 'Calculated: ' + m[4] },
-            [WB.mark('calculated'), el('span', null, 'calc: ' + m[4])]
+            { type: 'button', class: 'calc-inline', 'data-ref': WB.ref({ t: 'note', kind: 'calculated', code: 'calc', title: 'Calculation', sub: moduleId ? WB.moduleName(moduleId) : '', fields: [['Formula', formula, true]], note: WB.ORIGIN_NOTE.calculated }), title: 'Calculated: ' + formula, 'aria-label': 'Calculation: ' + formula },
+            [WB.mark('calculated'), el('span', null, 'calc')]
           )
         );
-        f.appendChild(WB.text(')'));
       } else if (m[5] != null) {
         f.appendChild(WB.gapChip([m[5]], { label: m[5] }));
+      } else if (m[6] != null) {
+        // "(G8)" or "(G10, G11)": the chips carry the meaning, the parentheses go
+        m[6].split(',').map((x) => x.trim()).forEach((g) => f.appendChild(WB.gapChip([g], { label: g })));
       }
-      last = m.index + m[0].length;
+      last = end;
+      re.lastIndex = end;
     }
     if (last < s.length) f.appendChild(WB.text(s.slice(last)));
     if (o.text) return f.textContent;
@@ -249,10 +278,18 @@
   };
 
   /* ---------- dense table ---------- */
+  /* tables whose id is a file path read by what they hold */
+  const TABLE_TITLES = { 'prior/diff.json': 'Differences from the Prior Case', 'model.metrics': 'Model credit metrics', 'model.summary': 'Model summary', 'model.house': 'House view', 'model.projection_summary': 'Projection summary' };
   WB.tableTitle = function (id) {
-    const last = String(id).split('@').pop().split('.').pop();
+    const key = String(id).split('@').pop();
+    if (TABLE_TITLES[key]) return TABLE_TITLES[key];
+    const last = key.split('.').pop();
     return WB.colLabel(last);
   };
+  /* the row's own words, so a humanised id keeps the capitals its text uses ("Las Vegas", "Caesars Digital") */
+  function rowContext(table, r, c) {
+    return table.rows[r].filter((v, i) => i !== c && typeof v === 'string' && /\s/.test(v)).join(' ');
+  }
   function renderCell(table, r, c) {
     const col = WB.columnKinds(table)[c];
     const v = table.rows[r][c];
@@ -270,11 +307,19 @@
       return { node: WB.fig({ t: 'cell', table: table.id, r, c }, content, { kind: o.kind, rg, label: WB.figLabel(sg.word, o.kind), cls: 'fig-scale' }), cls: 'c-scale' };
     }
     if (col.kind === 'numeric') {
-      const shown = WB.fmtNum(v);
+      const shown = WB.fmtNum(v, { group: true });
       return { node: WB.fig({ t: 'cell', table: table.id, r, c }, shown, { kind: o.kind, rg, label: WB.figLabel(shown, o.kind) }), cls: 'c-num' };
     }
     if (col.kind === 'id') {
-      if (WB.HUMAN_ID_COLS.test(col.name) && WB.isSnake(v)) return { node: el('span', { class: 'idv hum', title: String(v) }, WB.humanize(v)), cls: 'c-id' };
+      if (WB.HUMAN_ID_COLS.test(col.name) && (WB.isSnake(v) || /^[a-z][a-z0-9]*$/.test(String(v)))) return { node: el('span', { class: 'idv hum', title: String(v) }, WB.humanizeId(v, rowContext(table, r, c))), cls: 'c-id' };
+      // a source id column holds citation tokens: they open their passports like any other citation
+      if (/^\s*\[C\d+/.test(String(v))) return { node: el('span', { class: 'cites' }, WB.inline(String(v), mod)), cls: 'c-id' };
+      if (WB.PERIOD_ID.test(String(v))) return { node: el('span', { class: 'num idv', title: String(v) }, WB.periodLabel(v)), cls: 'c-id' };
+      if (/(^|_)case(_name)?$/.test(col.name)) return { node: el('span', { class: 'idv hum' }, WB.enumWord(v)), cls: 'c-text' };
+      // a claim class reads by name where its table does not name it (recoveries); the register's id stays beside it, small
+      if (col.name === 'class_id' && table.columns.indexOf('claim') < 0 && WB.claimName(v) !== String(v)) return { node: el('span', { class: 'idv hum', title: String(v) }, [WB.claimName(v), ' ', el('span', { class: 'num idv-sub' }, String(v))]), cls: 'c-text' };
+      // names held in an id column (bond names, KPI labels) read as text; codes stay mono
+      if (col.textual) return { node: el('span', { class: 'idv hum' }, String(v)), cls: 'c-text' };
       return { node: el('span', { class: 'num idv' }, String(v)), cls: 'c-id' };
     }
     // text and prose
@@ -297,9 +342,12 @@
     return WB.fig({ t: 'row', table: table.id, r }, el('span', { class: 'fv num' }, info.cites.length ? String(info.cites.length) : ''), { kind, cls: 'fig-src', rg: { r, c: rgc }, label: 'Row sources: ' + label });
   }
 
+  /* machine ids a table also names in words: shown only when no name column stands beside them (the passport keeps the id) */
+  const NAMED_BY = { facility_id: ['facility', 'instrument'], portfolio_id: ['portfolio_name'] };
+  const autoHidden = (table, name) => (NAMED_BY[name] || []).some((n) => table.columns.indexOf(n) >= 0);
   WB.renderTable = function (table, opts) {
     const o = opts || {};
-    const kinds = WB.columnKinds(table).filter((k) => k.kind !== 'hidden' && !(o.hide || []).includes(k.name));
+    const kinds = WB.columnKinds(table).filter((k) => k.kind !== 'hidden' && !(o.hide || []).includes(k.name) && !autoHidden(table, k.name));
     const hasCite = table.columns.indexOf('cite') >= 0;
     const maxRows = o.maxRows || 40;
     const unit = WB.tableUnit(table);
@@ -408,6 +456,54 @@
     });
   };
 
+  /* One tab stop per block of figures outside tables (key findings, call lines, tiles, lists of flags, prose with chips):
+     the figures and links inside are one roving group; arrows, Home and End move between them (spec §5, keyboard). */
+  const ROVE_ITEMS = 'button, a[href]';
+  const visible = (n) => n.getClientRects().length > 0;
+  WB.roving = function (box) {
+    if (!box || box._rove) return;
+    const items = () => WB.qsa(ROVE_ITEMS, box).filter((n) => !n.closest('[data-grid], .wbc') && n.closest('[data-roving]') === box);
+    const all = items();
+    if (all.length < 2) return;
+    box._rove = true;
+    box.dataset.roving = '1';
+    const settle = (keep) => {
+      const list = items();
+      const shown = list.filter(visible);
+      // a group inside a collapsed panel keeps its first item as the stop, so it is reachable once the panel opens
+      const stop = keep && shown.includes(keep) ? keep : shown[0] || list[0];
+      list.forEach((n) => n.setAttribute('tabindex', n === stop ? '0' : '-1'));
+    };
+    settle();
+    box.addEventListener('focusin', (e) => {
+      const t = e.target.closest(ROVE_ITEMS);
+      if (t && items().includes(t)) settle(t);
+    });
+    box.addEventListener('toggle', () => settle(box.querySelector('[tabindex="0"]')), true);
+    box.addEventListener('keydown', (e) => {
+      const keys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+      if (!keys.includes(e.key)) return;
+      const cur = e.target.closest(ROVE_ITEMS);
+      const list = items().filter(visible);
+      const i = list.indexOf(cur);
+      if (i < 0) return;
+      const n = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1 : i + (e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1);
+      if (n < 0 || n >= list.length) return;
+      e.preventDefault();
+      settle(list[n]);
+      list[n].focus();
+    });
+  };
+  /* groups a view marks with data-roving, plus the shared blocks of figures the pages compose */
+  WB.ROVING_BLOCKS = '[data-roving], .fpa-kf, .fpa-desc, .fpa-cols, .fpa-thesis, .fb-flags, .fb-cards, .fb-cv, .fb-cv-txt, .fb-2col, .fb-note, .fpa-note, .fb-limits, .fb-thesis, .fl-list, .headline, .md, .gap-list, .mv-lim, .lim-l, .fp-recs';
+  WB.initRovingIn = function (root) {
+    WB.qsa(WB.ROVING_BLOCKS, root).forEach((box) => {
+      if (box.parentElement && box.parentElement.closest('[data-roving]')) return;
+      box.dataset.roving = '1';
+      WB.roving(box);
+    });
+  };
+
   /* One-row tables read as key/value lists */
   WB.renderKV = function (table, opts) {
     const o = opts || {};
@@ -436,7 +532,7 @@
     let model = false;
     let syn = false;
     for (const k of kinds) {
-      if (k.kind === 'scale' && table.rows.length) {
+      if ((k.kind === 'scale' || WB.JUDGEMENT_NUMERIC[table.twinOf || table.id] === k.name) && table.rows.length) {
         const o = WB.cellOrigin(table, 0, k.index);
         if (o.kind === 'illustrative') ill = true;
       }
@@ -473,11 +569,12 @@
     const status = owner === 'RUN_BRIEF' ? null : WB.stepStatus(owner);
     return WB.panel({
       title: o.title || WB.tableTitle(table.id),
-      code: owner === 'RUN_BRIEF' ? 'BRIEF' : owner,
+      // opts.code === null hides the owner code (a module view does not repeat its own code on every table)
+      code: o.code !== undefined ? o.code : owner === 'RUN_BRIEF' ? 'BRIEF' : owner,
       fig: o.fig,
       tags: o.tags || WB.tableTags(table),
-      state: status === 'blocked' ? { word: 'Blocked', tone: 'neg', icon: 'status-blocked' } : null,
-      note: unit || null,
+      state: o.state === false ? null : status === 'blocked' ? { word: 'Blocked', tone: 'neg', icon: 'status-blocked' } : null,
+      note: o.note !== undefined ? o.note : unit || null,
       anchor: o.anchor || table.id,
       link: o.link === false ? null : o.link || (WB.ownerHref(owner) ? { href: WB.ownerHref(owner) + '/t-' + WB.cssId(table.id), label: 'Full analysis' } : null),
       body,
@@ -525,11 +622,13 @@
     }
     return out;
   };
+  /* opts.caption === false: the panel or a sub-heading already names the chart, so the caption is for assistive technology only.
+     opts.summary: a one-sentence data summary written by the page; the fixture's own summary ("N populated row(s) from …") is never shown. */
   WB.chartSlot = function (chart, opts) {
     const o = opts || {};
     const title = WB.chartTitle(chart.chart_id);
     const fig = el('figure', { class: 'chart-slot', id: 'c-' + WB.cssId(chart.chart_id), 'data-chart': chart.chart_id });
-    fig.appendChild(el('figcaption', { class: 'cs-cap' }, [el('span', { class: 'cs-title' }, title)]));
+    fig.appendChild(el('figcaption', { class: 'cs-cap' + (o.caption === false ? ' sr-only' : '') }, [el('span', { class: 'cs-title' }, title)]));
     const host = el('div', { class: 'cs-host' });
     fig.appendChild(host);
     const na = WB.chartUnavailable(chart);
@@ -537,7 +636,7 @@
       fig.classList.add('is-na');
       host.appendChild(el('div', { class: 'cs-na' }, [WB.icon('emptyset', { size: 16 }), el('div', null, [el('strong', null, 'Not drawn'), el('p', null, na)])]));
     } else if (typeof WB.chart === 'function') {
-      WB.chart(host, chart, o);
+      WB.chart(host, Object.assign({}, chart, { summary: o.summary || '' }), o);
     } else {
       const twins = WB.chartTwinTables(chart);
       for (const t of twins) host.appendChild(WB.renderTable(t, { maxRows: 12, caption: title + ': ' + WB.tableTitle(t.id) }));
@@ -568,13 +667,17 @@
     const wrap = el('div', { class: 'tile', 'data-key': t.key || false });
     wrap.appendChild(el('span', { class: 'tile-l' }, t.label));
     if (t.value == null || t.value === '') {
-      const why = el('span', { class: 'tile-why' }, [el('span', { class: 'tile-rs', title: t.reason || 'Not produced in this run.' }, t.reason || 'Not produced in this run.'), t.producer ? el('a', { class: 'tile-mod num', href: WB.href('module/' + t.producer) }, t.producer) : null]);
-      wrap.appendChild(
+      // the honest state of a tile: "Not produced", a short reason and the module that would produce it; the full reason is its passport
+      const reason = t.reason || 'Not produced in this run.';
+      const desc = { t: 'note', kind: 'none', code: t.producer || '', title: t.label + ': not produced', sub: t.producer ? 'Would be produced by ' + WB.moduleName(t.producer) + ' (' + t.producer + ')' : '', fields: [['Reason', reason, false]], note: 'A tile the run did not produce reads Not produced, never a placeholder value.' };
+      const btn = el('button', { type: 'button', class: 'tile-btn', 'data-ref': WB.ref(desc), 'aria-label': t.label + ': not produced. ' + reason }, [
         el('span', { class: 'tile-row' }, [
           el('span', { class: 'tile-sq np', 'aria-hidden': 'true' }, '\u2013'),
-          el('span', { class: 'tile-w' }, [el('span', { class: 'tile-word' }, 'Not produced'), why]),
-        ])
-      );
+          el('span', { class: 'tile-w' }, [el('span', { class: 'tile-word' }, 'Not produced'), el('span', { class: 'tile-why', title: reason }, t.short || reason)]),
+        ]),
+      ]);
+      wrap.appendChild(btn);
+      if (t.producer) wrap.appendChild(el('a', { class: 'tile-mod num', href: WB.href('module/' + t.producer), 'aria-label': 'Open ' + WB.moduleName(t.producer) }, t.producer));
       return wrap;
     }
     const sg = WB.signal(t.value, t.scale === 'dir' ? 'dir' : t.key);
@@ -624,31 +727,65 @@
     return wrap;
   };
 
-  /* cfg: { title, question, illustrative, byline, tiles:[tile], lines:[{label, tone, children}], honest, tools } */
+  /* The byline in parts: analyst, a quiet "Design fixture" tag for a test run, the date; extra parts (e.g. "Fictional issuer") lead. */
+  WB.bylineNodes = function (meta, lead) {
+    const parts = [];
+    (lead || []).forEach((x) => x && parts.push(el('span', null, x)));
+    if (meta.analystName) parts.push(el('span', null, [meta.analystName, meta.designFixture ? el('span', { class: 'v-fix', title: 'Every test run is a design fixture' }, 'Design fixture') : null]));
+    if (meta.asOf) parts.push(el('span', null, WB.fmtDate(meta.asOf)));
+    return parts.flatMap((p, i) => (i ? [el('span', { class: 'v-dot', 'aria-hidden': 'true' }, '·'), p] : [p]));
+  };
+
+  /* Call lines: at most `max` show; the rest sit behind one disclosure that names them. `order` lists labels by priority.
+     Idempotent: a page that adds or removes lines after the bar is built calls it again. */
+  WB.capCallLines = function (container, opts) {
+    if (!container) return;
+    const o = opts || {};
+    const max = o.max || +container.dataset.max || 3;
+    const order = o.order || (container.dataset.order ? container.dataset.order.split('|') : []);
+    container.dataset.max = String(max);
+    if (order.length) container.dataset.order = order.join('|');
+    const lines = WB.qsa('.v-line', container);
+    const label = (p) => (p.querySelector('.v-ll') ? p.querySelector('.v-ll').textContent.trim() : '');
+    const rank = (p) => {
+      const i = order.indexOf(label(p));
+      return i < 0 ? order.length + lines.indexOf(p) / 100 : i;
+    };
+    const sorted = lines.slice().sort((a, b) => rank(a) - rank(b));
+    const shown = sorted.slice(0, max);
+    const rest = sorted.slice(max);
+    const kids = shown.slice();
+    if (rest.length) {
+      const sum = el('summary', { class: 'v-more-s' }, [WB.icon('chevron-down', { size: 11, stroke: 1.8 }), el('span', null, rest.length + ' more: '), el('span', { class: 'v-more-l' }, rest.map(label).join(' · '))]);
+      kids.push(el('details', { class: 'v-more' }, [sum].concat(rest)));
+    }
+    container.replaceChildren(...kids);
+  };
+
+  /* cfg: { title, question, illustrative, byline (string) | bylineNodes, tiles:[tile], lines:[{label, tone, children}], honest, tools, maxLines, order } */
   WB.verdictBar = function (cfg) {
     const bar = el('section', { class: 'verdict on-navy', 'aria-label': 'The call' + (cfg.title ? ': ' + cfg.title : '') });
-    const head = el('div', { class: 'v-head' }, [
-      el('h1', { class: 'v-title' }, cfg.title),
-      cfg.question ? el('span', { class: 'v-q' }, cfg.question) : null,
-      cfg.illustrative ? el('span', { class: 'v-tag' }, 'ILLUSTRATIVE') : null,
-      cfg.byline ? el('span', { class: 'v-by' }, cfg.byline) : null,
-      el('span', { class: 'p-sp' }),
-      cfg.honest ? el('span', { class: 'v-honest' }, cfg.honest) : null,
-      cfg.tools || null,
-    ]);
-    bar.appendChild(head);
-    if (cfg.tiles && cfg.tiles.length) bar.appendChild(el('div', { class: 'v-tiles' }, cfg.tiles.map((t) => WB.tile(t))));
+    // row 1: what the page is and the question it answers; row 2: its standing (illustrative, analyst, date, honest state) and tools
+    bar.appendChild(el('div', { class: 'v-head' }, [el('h1', { class: 'v-title' }, cfg.title), cfg.question ? el('span', { class: 'v-q' }, cfg.question) : null, cfg.tools || null]));
+    bar.appendChild(
+      el('div', { class: 'v-meta' }, [
+        cfg.illustrative ? el('span', { class: 'v-tag' }, 'ILLUSTRATIVE') : null,
+        cfg.bylineNodes ? el('span', { class: 'v-by' }, cfg.bylineNodes) : cfg.byline ? el('span', { class: 'v-by' }, cfg.byline) : null,
+        cfg.honest ? el('span', { class: 'v-honest' }, [WB.icon('info', { size: 12, stroke: 1.8 }), cfg.honest]) : null,
+      ])
+    );
+    if (cfg.tiles && cfg.tiles.length) bar.appendChild(el('div', { class: 'v-tiles', 'data-roving': '1', role: 'group', 'aria-label': 'Position tiles' }, cfg.tiles.map((t) => (t.rowBreak ? el('span', { class: 'v-tile-break', 'aria-hidden': 'true' }) : WB.tile(t)))));
     const out = document.createDocumentFragment();
     out.appendChild(bar);
     // the call lines scroll away; the head and the tiles stay pinned
     if (cfg.lines && cfg.lines.length) {
-      out.appendChild(
-        el(
-          'div',
-          { class: 'verdict-lines on-navy' },
-          cfg.lines.map((l) => el('p', { class: 'v-line' }, [el('span', { class: 'v-ll tone-' + (l.tone || 'neu') }, l.label), ' ', l.children]))
-        )
+      const box = el(
+        'div',
+        { class: 'verdict-lines on-navy', 'data-roving': '1' },
+        cfg.lines.map((l) => el('p', { class: 'v-line' }, [el('span', { class: 'v-ll tone-' + (l.tone || 'neu') }, l.label), ' ', l.children]))
       );
+      WB.capCallLines(box, { max: cfg.maxLines || 3, order: cfg.order || [] });
+      out.appendChild(box);
     }
     return out;
   };

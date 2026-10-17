@@ -3,7 +3,9 @@
 
 Asserts data-ready="1" and data-errors="0" on <html>, prints a table, exits 1 on any failure.
   python3 check.py                 all runs x views
-  python3 check.py --shots         also write 1440x900 and 1280x800 screenshots to shots/
+  python3 check.py --shots         also write 1440x900 and 1280x800 screenshots to shots/<tag>/ (--tag, default "latest"):
+                                   every run's Front Page, two module views, Model, Portfolio Fit, Evidence and Limitations,
+                                   and the Design system of two runs
   python3 check.py --run <stem>    one run only
   python3 check.py --url-only '#/run/view'   load one hash and print the html attributes
 Needs a static server on 127.0.0.1:8765 with the repo root as document root; started here if absent.
@@ -58,17 +60,60 @@ def chrome(args, url, timeout=120):
 
 
 def load(hash_, budget=12000):
-    t0 = time.time()
-    r = chrome(["--dump-dom", f"--virtual-time-budget={budget}", "--window-size=1440,900"], f"{BASE}{hash_}")
-    ms = int((time.time() - t0) * 1000)
-    m = HTML_TAG.search(r.stdout)
-    attrs = dict(ATTR.findall(m.group(1))) if m else {}
-    return attrs, ms, r
+    """One headless load. A Chrome that stalls past the timeout (a slow font fetch, a busy machine) is retried once and
+    said so on stderr; a second stall is a failing row ("timeout"), never a crash of the whole run."""
+    for attempt in (1, 2):
+        t0 = time.time()
+        try:
+            r = chrome(["--dump-dom", f"--virtual-time-budget={budget}", "--window-size=1440,900"], f"{BASE}{hash_}")
+        except subprocess.TimeoutExpired:
+            ms = int((time.time() - t0) * 1000)
+            print(f"check: {hash_} timed out after {ms} ms (attempt {attempt})", file=sys.stderr)
+            if attempt == 2:
+                return {"data-error-first": "timeout"}, ms, None
+            continue
+        ms = int((time.time() - t0) * 1000)
+        m = HTML_TAG.search(r.stdout)
+        attrs = dict(ATTR.findall(m.group(1))) if m else {}
+        return attrs, ms, r
 
 
 def shot(hash_, path, w, h):
-    r = chrome([f"--screenshot={path}", f"--window-size={w},{h}", "--force-device-scale-factor=1", "--virtual-time-budget=12000"], f"{BASE}{hash_}")
+    try:
+        r = chrome([f"--screenshot={path}", f"--window-size={w},{h}", "--force-device-scale-factor=1", "--virtual-time-budget=12000"], f"{BASE}{hash_}")
+    except subprocess.TimeoutExpired:
+        print(f"check: screenshot of {hash_} at {w}x{h} timed out", file=sys.stderr)
+        return False, None
     return path.exists(), r
+
+
+def shot_views(run):
+    """The views judged for one run: Front Page, two module views (the one with most charts; a Blocked one, else the one
+    with most tables), Model, Portfolio Fit when the run has it, Evidence, Limitations; the Design system for two runs."""
+    import json
+    d = json.loads((RUNS_DIR / f"{run}.run.json").read_text(encoding="utf-8"))
+    owner = {}
+    for hid, h in (d.get("handoffs") or {}).items():
+        for tid in (h.get("tables") or {}):
+            owner.setdefault(tid, hid)
+    mods = [k for k in d.get("plan", []) if (d["steps"].get(k) or {}).get("kind") == "module"]
+    charts = {}
+    for c in d.get("charts", []):
+        w = c.get("where", "")
+        m = w[9:] if w.startswith("analysis:") else next((owner[t] for t in c.get("tables", []) if t in owner), None) if w == "analysis" else None
+        if m:
+            charts[m] = charts.get(m, 0) + 1
+    blocked = [k for k in mods if (d["steps"].get(k) or {}).get("status") == "blocked" or ((d.get("handoffs") or {}).get(k) or {}).get("qa_status") == "Blocked"]
+    first = sorted(mods, key=lambda k: -charts.get(k, 0))[0] if mods else None
+    ntab = lambda k: len(((d.get("handoffs") or {}).get(k) or {}).get("tables") or {})
+    second = next((k for k in blocked if k != first), None) or next(iter(sorted((k for k in mods if k != first), key=lambda k: -ntab(k))), None)
+    views = ["front"] + [f"module/{m}" for m in (first, second) if m] + ["model"]
+    if d.get("fit"):
+        views.append("fit")
+    views += ["evidence", "limitations"]
+    if run in ("czr-full-credit-assessment", "larchmere-distressed-restructuring"):
+        views.append("system")
+    return views
 
 
 def interact():
@@ -104,6 +149,7 @@ def main():
     ap.add_argument("--name", default="adhoc")
     ap.add_argument("--size", default="1440x900")
     ap.add_argument("--jobs", type=int, default=5)
+    ap.add_argument("--tag", default="latest", help="subfolder of shots/ for --shots")
     a = ap.parse_args()
     srv = start_server()
     try:
@@ -163,19 +209,25 @@ def main():
             print(f"{run:<{w}}  {label:<18} {ready:>5} {errs:>6} {ms:>6}  {'PASS' if ok else 'FAIL ' + first}")
         print(f"\n{len(results)} page loads, {len(results) - bad} pass, {bad} fail")
         if a.shots:
-            SHOTS.mkdir(exist_ok=True)
+            out_dir = SHOTS / a.tag
+            out_dir.mkdir(parents=True, exist_ok=True)
             todo = []
             for run in runs:
-                for w_, h_ in ((1440, 900), (1280, 800)):
-                    todo.append((f"#/{run}/front", SHOTS / f"{run}-front-{w_}.png", w_, h_))
-            if "czr-full-credit-assessment" in runs:
-                for w_, h_ in ((1440, 900), (1280, 800)):
-                    todo.append(("#/czr-full-credit-assessment/module/CP-1B", SHOTS / f"czr-full-credit-assessment-module-CP-1B-{w_}.png", w_, h_))
+                for view in shot_views(run):
+                    for w_, h_ in ((1440, 900), (1280, 800)):
+                        todo.append((f"#/{run}/{view}", out_dir / f"{run}-{view.replace('/', '-')}-{w_}x{h_}.png", w_, h_))
             with cf.ThreadPoolExecutor(max_workers=a.jobs) as ex:
                 out = list(ex.map(lambda t: shot(*t), todo))
             for t, (ok, r) in zip(todo, out):
                 print(("wrote " if ok else "FAILED ") + str(t[1].relative_to(HERE)))
                 if not ok:
+                    bad += 1
+            # print emulation of one Front Page (A4 landscape from @page; beforeprint builds the endnotes)
+            if "czr-full-credit-assessment" in runs:
+                pdf = out_dir / "print-czr-full-credit-assessment-front.pdf"
+                chrome([f"--print-to-pdf={pdf}", "--no-pdf-header-footer", "--virtual-time-budget=12000", "--window-size=1440,900"], f"{BASE}#/czr-full-credit-assessment/front")
+                print(("wrote " if pdf.exists() else "FAILED ") + str(pdf.relative_to(HERE)))
+                if not pdf.exists():
                     bad += 1
         return 1 if bad else 0
     finally:

@@ -73,7 +73,10 @@
       }
     }
     check('labels: metric ids are humanised, never raw snake_case', !/net_revenues_q2/.test(text('.dt[data-table="cp1b.period_comparison"]')) && /Net revenues, Q2/.test(text('.dt[data-table="cp1b.period_comparison"]')) && /Adjusted EBITDA, H1/.test(text('.dt[data-table="cp1b.period_comparison"]')), text('.dt[data-table="cp1b.period_comparison"] tbody tr').slice(0, 50));
-    check('no fixture or dev text on screen', !/populated row|not drawn yet|design fixture/i.test(text('#canvas') + text('#navigator')), '');
+    // fixture summaries, the analyst's parenthetical and raw table ids stay off the page (ids live in passports, small, at the foot)
+    const shownText = text('#canvas') + text('#navigator');
+    const devHit = /populated row|not drawn yet|\(design fixture\)|\b(?:cp\d\w*|snapshot|model|fit)\.[a-z_]{3,}/i.exec(shownText);
+    check('no fixture or dev text on screen', !devHit, devHit ? devHit[0] : '');
     // gap chip
     const gap = $$('.gapchip')[0];
     if (gap) {
@@ -101,7 +104,9 @@
     if (syn) {
       syn.click();
       await sleep(60);
-      check('synthetic: TEST DATA rationale', /SYNTHETIC/.test(text('.pp-kind')) && /synthetic|plausible|illustrate|invented|analyst supplies/i.test(text('.pp-ex')), text('.pp-kind') + ' ' + text('.pp-ex').slice(0, 80));
+      // the passport of a synthetic figure: kind SYNTHETIC, its file is TEST DATA, and the excerpt is headed as the TEST DATA rationale
+      const heads = $$('.pp-h').map((h) => h.textContent);
+      check('synthetic: TEST DATA rationale', /SYNTHETIC/.test(text('.pp-kind')) && /TEST DATA/.test(text('.pp-f')) && heads.includes('TEST DATA rationale') && text('.pp-ex').length > 20, text('.pp-kind') + ' | ' + text('.pp-f').slice(0, 60) + ' | ' + heads.join(','));
     }
     const ill = $$('.fig-illustrative')[0];
     check('illustrative scale figure', ill);
@@ -128,7 +133,8 @@
     await sleep(300);
     const after = $$('.tile-sq.np').length;
     check('honest state: Not produced tiles appear', before === 0 && after >= 4, before + ' -> ' + after);
-    check('honest state: reason and producing module named', $$('.tile-why .tile-mod').length >= 4, text('.tile-why'));
+    check('honest state: reason and producing module named', $$('.tile .tile-why').length >= 4 && $$('.tile .tile-mod').length >= 4, text('.tile-why'));
+    check('honest state: a Not produced tile opens its reason as a passport', (() => { const b = $$('.tile .tile-btn').find((x) => /not produced/i.test(x.getAttribute('aria-label') || '')); if (!b) return false; b.click(); return /not produced/i.test(text('.pp-title')) && /Reason/.test(text('.pp-f')); })(), text('.pp-title'));
     key(w, $('.rs-switch') || w.document.body, 'Escape');
     await sleep(50);
     check('Escape closes the run switcher', !$('.rs'));
@@ -149,10 +155,12 @@
     check('router: module absent from this run', /Module not found/.test(text('h1')), text('h1'));
     w = await open('#/czr-full-credit-assessment/module/CP-8');
     check('router: not-run module renders its state', /Not run/.test(text('.chip')) && $('.cond'), text('.chip'));
-    w = await open('#/czr-full-credit-assessment/fit');
-    check('router: unbuilt view says so, rail item disabled', /not built|not in this/i.test(text('.state-body')) && $('.rail-btn.is-disabled'), text('.state-body'));
+    // Portfolio Fit is built; a Pathway that attaches no portfolio shows it as absent with its reason, and the rail item is disabled
+    w = await open('#/czr-earnings-update/fit');
+    check('router: an unavailable view says why, rail item disabled', /not in this pathway/i.test(text('.state-body')) && $('.rail-btn.is-disabled[aria-label^="Portfolio Fit"]'), text('.state-body'));
     w = await open('#/czr-full-credit-assessment/module/CP-1B/t-cp1b-kpi_changes');
-    await sleep(200);
+    // the scroll happens in the frame after the route renders: wait for it rather than a fixed 200 ms (a fixed wait was flaky)
+    await until(() => $('#canvas').scrollTop > 100, 3000);
     check('router: anchor scrolls to the table', $('#canvas').scrollTop > 100, $('#canvas').scrollTop);
     check('router: anchor marks its target', $('.is-target'));
     const h1 = text('h1');
@@ -272,6 +280,37 @@
     $$('.ol-i')[3].click();
     await sleep(300);
     check('outline link scrolls to its panel and keeps the route', $('#canvas').scrollTop > 100 && /czr-full-credit-assessment\/front\//.test(w.location.hash), w.location.hash);
+
+    /* ---- W6 polish: the call, words for ids, one state per limit ---- */
+    w = await open('#/czr-earnings-update/front');
+    const visibleLines = $$('.verdict-lines > .v-line').map((l) => l.querySelector('.v-ll').textContent);
+    check('call: at most three call lines show, in the content doc order', visibleLines.length === 3 && visibleLines[0] === 'THE QUARTER' && visibleLines[2] === 'NO RECOMMENDATION', visibleLines.join(','));
+    check('call: the other lines sit behind one disclosure that names them', $('.verdict-lines details.v-more') && /MAIN RISK/.test(text('.v-more-s')), text('.v-more-s'));
+    check('call: Earnings Update has no Recommendation tile (content doc 02 states it as a line)', !$$('.tile-l').some((t) => /^Recommendation$/i.test(t.textContent)), $$('.tile-l').map((t) => t.textContent).join(','));
+    const barH = $('.verdict').getBoundingClientRect().height + ($('.verdict-lines') ? $('.verdict-lines').getBoundingClientRect().height : 0);
+    check('call: the bar leaves the first key panel in the first viewport (1440x900)', barH < 330 && $('#p-fp-headline').getBoundingClientRect().top < 360, Math.round(barH));
+    check('byline: analyst with a quiet Design fixture tag, no parenthetical', /Credit Research/.test(text('.v-by')) && $('.v-by .v-fix') && !/\(design fixture\)/i.test(text('.verdict')), text('.v-by'));
+    w = await open('#/larchmere-distressed-restructuring/front');
+    check('fulcrum line names classes, not claim-class ids', /First-lien claims/.test(text('.verdict-lines')) && !/C\d-[A-Z0-9]+/.test(text('.verdict-lines')), text('.verdict-lines').slice(0, 120));
+    check('pinch point: a floor carries its unit', /US\$50m covenant floor/.test(text('#p-runway')), text('#p-runway .fb-note').slice(0, 100));
+    check('what changed title fills its date placeholder', !/⟨/.test(text('#canvas') + text('#navigator')));
+    w = await open('#/czr-covenant-refinancing/front');
+    check('protection scores read as illustrative judgements', $$('#p-protection .fig-illustrative').length >= 5 && $$('#p-protection .fig-cited').length === 0, $$('#p-protection .fig-illustrative').length);
+    w = await open('#/czr-full-credit-assessment/front');
+    const outstanding = $$('.dt[data-table="snapshot.capital_structure"] tbody tr').map((tr) => tr.textContent);
+    check('amounts that look like years are grouped (2,018 not 2018)', outstanding.some((t) => /2,018/.test(t)) && !outstanding.some((t) => /\b2018\b/.test(t) && !/2018-/.test(t)), outstanding.find((t) => /CEI Term Loan B\b/.test(t)));
+    const kfStops = $$('.fpa-kf button, .fpa-kf a[href]').filter((b) => b.getAttribute('tabindex') === '0').length;
+    check('keyboard: key findings are one tab stop, arrows inside', kfStops === 1, kfStops);
+    w = await open('#/czr-full-credit-assessment/model');
+    check('Model: no fixture summary under any chart', $$('.wbc-sum').length === 0 && !/populated row/.test(text('#canvas')));
+    check('Model: limitations read by name, the code is a secondary chip', $$('.mv-lim strong').every((s) => !/[A-Z]{3,}_[A-Z_]+/.test(s.textContent)) && $$('.mv-lim .mv-lc').some((c) => /PROJECTION_OPENING_AT_LTM/.test(c.textContent)) && !/sid_bonds/.test(text('#p-limitations')), text('#p-limitations').slice(0, 120));
+    w = await open('#/czr-full-credit-assessment/module/CP-4');
+    const markEl = $$('.wbc g.mk')[0];
+    markEl.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+    await sleep(80);
+    check('chart mark passport: figure in words, raw id small at the foot', !/@/.test(text('.pp-top') + text('.pp-title')) && /@/.test(text('.pp-id')), text('.pp-top') + ' / ' + text('.pp-id'));
+    w = await open('#/czr-portfolio-decision/fit');
+    check('limits: one state rule in every view (C-04 reads Tight in Portfolio Fit too)', /Tight/.test(text('#fl-TEST_CLO_I-C-04')), text('#fl-TEST_CLO_I-C-04').slice(0, 80));
 
     /* ---- print ---- */
     w = await open('#/czr-full-credit-assessment/module/CP-1B');

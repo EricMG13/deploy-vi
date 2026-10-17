@@ -29,9 +29,12 @@
 .fpa-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
 .fpa-cols > * { min-width: 0; }
 
-/* chart strip: model strip (three plots) and the maturity wall */
-.fpa-strip { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1.3fr); gap: 0 12px; padding: 8px 12px 10px; align-items: start; }
-.fpa-strip > * { min-width: 0; }
+/* chart strip: the Model strip's three plots across the panel (the maturity wall sits with the debt stack) */
+.fpa-strip { padding: 8px 0 6px; min-width: 0; }
+/* a table beside its chart (KPI changes) */
+.fpa-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; min-width: 0; }
+.fpa-split > * { min-width: 0; }
+.fpa-split > .fpa-pad { border-left: 1px solid var(--rule-soft); }
 .fpa-strip .chart-slot, .fpa-pad .chart-slot, .fpa-cols .chart-slot { margin: 0; }
 
 /* tabs */
@@ -57,9 +60,10 @@
 .fpa-chg-sum { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .fpa-chg { justify-content: flex-start; }
 
-@media (max-width: 1360px) {
-  .fpa-strip { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 1100px) {
   .fpa-cols { grid-template-columns: minmax(0, 1fr); }
+  .fpa-split { grid-template-columns: minmax(0, 1fr); }
+  .fpa-split > .fpa-pad { border-left: 0; border-top: 1px solid var(--rule-soft); }
 }
 @media print {
   .fpa-pane[hidden] { display: block; }
@@ -72,3 +76,13 @@
 .fpa-panel .calc-inline { white-space: normal; text-align: left; max-width: 100%; height: auto; }
 .fpa-honest { background: var(--cau-fill); border-bottom: 1px solid var(--rule); color: var(--ink); }
 .fpa-honest svg { color: var(--cau); flex: none; }
+
+/* a secondary table behind a disclosure inside a panel */
+.fpa-more { border-top: 1px solid var(--rule-soft); }
+.fpa-more-s { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 12px; list-style: none; cursor: pointer; font: 600 11.5px/1.3 var(--font-text); color: var(--ink-2); }
+.fpa-more-s::-webkit-details-marker { display: none; }
+.fpa-more-s .muted { font-weight: 400; }
+.fpa-more-s:hover { color: var(--ink); }
+.fpa-more-s .ic { transition: transform 0.15s var(--ease-out); }
+.fpa-more[open] > .fpa-more-s .ic { transform: rotate(180deg); }
+.fpa-note { margin: 0; padding: 8px 12px; font-size: 12px; line-height: 1.5; color: var(--ink-2); border-top: 1px solid var(--rule-soft); }

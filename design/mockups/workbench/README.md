@@ -5,7 +5,9 @@ The shell, the data layer and the generic renderers of the Direction C mock (spe
 ```
 python3 build.py                 # writes dist/rbot-workbench.html (one file, fails over 16 MB)
 python3 check.py                 # every run x every registered view x every module: data-ready="1", data-errors="0"
-python3 check.py --shots         # also 1440x900 and 1280x800 screenshots into shots/
+python3 check.py --shots [--tag before]   # also 1440x900 and 1280x800 screenshots into shots/<tag>/: every run's Front Page,
+                                          # two module views, Model, Fit, Evidence, Limitations, the Design system of two runs,
+                                          # and a print PDF of the Credit Snapshot
 python3 check.py --interact      # interaction scenarios (tests/scenarios.js) in headless Chrome
 python3 check.py --shot '#/czr-full-credit-assessment/front' --size 1280x800 --name x \
                  --do 'click::.fig-cited||wait::200'      # one ad-hoc screenshot, with optional steps
@@ -107,10 +109,10 @@ The passport for a calculated figure lists each input as a labelled chip (siblin
 - `WB.renderTable(table, {maxRows=40, hide:[], anchor, caption})` dense table, one tab stop with arrow keys (`WB.initGrid`); `WB.renderKV(table)` one-row table as key/value; `WB.tablePanel(tableId|table, opts)`; `WB.tableTags(table)`; `WB.tableTitle(id)`; `WB.renderCell(table, r, c)` returns `{node, cls}`.
 - `WB.fig(desc, content, {kind, cls, rg, label, noMark})` a figure button bound to a passport descriptor; `WB.gapChip(ids, {label, reason, items, desc})`; `WB.citeChip(module, id)`; `WB.inline(text, module)` turns `[Cn]`, `G8`, `**bold**`, `` `code` ``, `(calc: ...)` into marks and chips; `WB.md(text, {module})` markdown to a fragment (paragraphs, lists, headings, tables); `WB.paragraphs(text)`.
 - `WB.badge(value, col)`, `WB.statusChip(status)`, `WB.tag(kind, label)`, `WB.signalBars(level)`, `WB.meter(pos, total)`, `WB.conditionLine(text, {module})`.
-- `WB.tile(t)` and `WB.verdictBar(cfg)`. A tile is `{label, key, scale: rec|val|score|dir|outlook|gate|cov|press|five|plain, value, ref, illustrative, sub, word}`; a tile with `value: null` renders the honest **Not produced** state with `reason` and the `producer` module as a link. `cfg = {title, question, illustrative, byline, tiles, lines:[{label, tone, children}], honest, tools}`; the call lines scroll away while the head and tiles stay pinned. `WB.callConfig(run)` derives tiles and lines for each Pathway from the run's tables (and the honest state from `WB.state.honest`); `WB.callBar(run, tools)` returns the finished bar for a Front Page to put at the top. Replace or extend `WB.callConfig` output rather than copying it.
+- `WB.tile(t)` and `WB.verdictBar(cfg)`. A tile is `{label, key, scale: rec|val|score|dir|outlook|gate|cov|press|five|plain, value, ref, illustrative, sub, word}`; a tile with `value: null` renders the honest **Not produced** state: a button whose passport holds the full `reason`, a `short` reason on the tile and the `producer` module as a link. `{rowBreak: true}` in `tiles` starts a new tile row. `cfg = {title, question, illustrative, bylineNodes | byline, tiles, lines:[{label, tone, children}], honest, tools, maxLines = 3, order: [labels]}`; the head is two rows (title and question; then Illustrative, analyst, date, honest notice, tools); the call lines scroll away while the head and tiles stay pinned. At most `maxLines` lines show, in `order` (the content doc's order, `WB.CALL_ORDER[front_page]`, `WB.CALL_MAX`); the rest sit behind one `details.v-more` that names them. A page that adds or removes lines after the bar is built calls `WB.capCallLines(linesEl)` again (idempotent). `WB.bylineNodes(meta, lead)` builds the byline: analyst (`meta.analystName`), a quiet "Design fixture" tag when `meta.designFixture`, the date. `WB.callConfig(run)` derives tiles and lines for each Pathway from the run's tables (and the honest state from `WB.state.honest`); `WB.callBar(run, tools)` returns the finished bar for a Front Page to put at the top. Replace or extend `WB.callConfig` output rather than copying it.
 - `WB.genericFrontPage(canvas, run)` every `front_page_blocks` entry as a panel (half width for small tables, full width otherwise) or a condition line when `shown: false`.
 - `WB.moduleView(canvas, run, id)` the module view.
-- Charts: `WB.chartSlot(chart)` returns `figure.chart-slot#c-<id>` with caption (title, summary) and a `.cs-host`. If `WB.chart` is a function it is called as `WB.chart(host, chartRecord, opts)`; until then the slot shows the table twin. Declared n/a charts (`chart.data = {unavailable: 'reason'}`, `WB.chartUnavailable(chart)`) render the n/a frame and never call `WB.chart`. `WB.chartTwinTables(chart)` returns the twin tables (ids `<chart_id>@<table_id>`, each row carrying its `cite`), so a mark's passport is `{t: 'cell', table: twin.id, r, c}`.
+- Charts: `WB.chartSlot(chart, {caption, summary})` returns `figure.chart-slot#c-<id>` with caption and a `.cs-host`; `caption: false` keeps the caption for assistive technology only (the panel or a sub-heading names the chart); `summary` is a one-sentence data summary written by the page, and the fixture's own summary is never shown. If `WB.chart` is a function it is called as `WB.chart(host, chartRecord, opts)`; until then the slot shows the table twin. Declared n/a charts (`chart.data = {unavailable: 'reason'}`, `WB.chartUnavailable(chart)`) render the n/a frame and never call `WB.chart`. `WB.chartTwinTables(chart)` returns the twin tables (ids `<chart_id>@<table_id>`, each row carrying its `cite`), so a mark's passport is `{t: 'cell', table: twin.id, r, c}`.
 
 ## Passports and the inspector (`shell.js`)
 
@@ -132,11 +134,29 @@ Every figure carries `data-ref`, a key into `WB.ref(desc)`. Clicking, or Enter o
 
 `WB.state.honest` (toggle "Show the real-run state" in the run switcher) replaces the illustrative Recommendation, Valuation and Credit Score tiles with **Not produced** plus reason and module, shows the distress gate as Not met, and adds a "Relative value: Unclear" call line, per `caos-runs/README.md`. Any view reading illustrative verdicts should call `WB.callConfig` or test `WB.state.honest`.
 
+## Additions in the polish pass (W6)
+
+| helper | does |
+|---|---|
+| `WB.fmtNum(s, {group: true})` | groups a four-digit amount (2,018) that would otherwise read as a year; `renderCell` passes it for numeric columns |
+| `WB.limitState(status, limit, current)` | one rule for a portfolio limit in every view: Breached as served; Within with headroom under 10% of the limit is Tight |
+| `WB.claimName(classId)` | a claim class in words from `cp4c.claims_register` (C2-1L reads "First-lien claims") |
+| `WB.rowLabel(table, r)`, `WB.tableWhere(table)` | a row and a table in words for passports ("Protection score by area chart, from Protection score · Covenants and legal (CP-4)") |
+| `WB.citeGroup(module, ids)` | a run of more than three citations as one chip ("C2–C10" or "9 sources") whose passport lists each source; `WB.inline` uses it, renders `(G8)` as the chip alone and `(calc: …)` as a compact calculated chip |
+| `WB.roving(box)`, `WB.initRovingIn(root)`, `WB.ROVING_BLOCKS` | one tab stop per block of figures outside tables (tiles, call lines, key findings, lists, prose with chips); arrows, Home and End inside; the router applies it after every render |
+| `WB.renderPassport(p)` | the inspector's passport renderer, static (the Design system uses it). A passport has `code` (a short code heads it: C12, G8) and `id` (a raw table, Model line or chart id, printed small at its foot) |
+| `WB.tablePanel(t, {code: null, state: false, note})` | hides the owner code and the Blocked state (a module view does not repeat its own), overrides the head note |
+| `WB.JUDGEMENT_NUMERIC` | numeric columns that hold a judgement (the lender protection score): `WB.cellOrigin` reads them as illustrative |
+| `WB.periodLabel(v)`, `WB.enumWord(v)` | `Q2_2026` reads "Q2 2026"; `BASE` reads "Base" |
+
+Id columns whose values are names (bond names, KPI labels) render as text (`columnKinds` marks them `textual`); `facility_id` and `portfolio_id` are not shown where the table also names the facility or portfolio (the passport keeps the id); dense-table heads wrap so no column is wider than its widest value needs.
+
 ## Keyboard, 1280x800 and print (refinement 6)
 
 - Below 1360px the navigator starts closed (rail toggle opens it); rail, `/` switcher and inspector stay. At 1280 the canvas is 924px.
 - `/` opens the switcher (modules, figures, sources, citation excerpts; Enter navigates), `?` opens "How to read a figure", Escape closes a layer or returns focus to the figure.
-- Print (`beforeprint` / `afterprint`, `WB.beforePrint()` and `WB.afterPrint()`): rail, navigator, inspector hidden; panels and tables expanded; every figure that has a source gets numbered endnotes (`[n]` after it); the passports print as the endnote list. Front Page and modules start new pages.
+- Tab order: rail, navigator, canvas, inspector. In the canvas one tab stop per table, chart (its marks, never the SVG root) and block of figures (`WB.roving`); arrows move inside.
+- Print (`beforeprint` / `afterprint`, `WB.beforePrint()` and `WB.afterPrint()`): rail, navigator, inspector, "Full analysis" links hidden; panels, tables and disclosures (extra call lines, Sources) expanded; every figure that has a source gets numbered endnotes (`[n]`, `[n–m]` for a run) after it in the flow; the passports print as the endnote list. Front Page and modules start new pages.
 
 ## Tests
 

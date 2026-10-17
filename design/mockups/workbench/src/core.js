@@ -349,12 +349,16 @@
     if (breaches) tags.push('Breaches');
     if (r.fixture && r.fixture.issuer_fictional) tags.push('Fictional');
     if (r.depth === 'quick') tags.push('Quick');
+    const analyst = get('analyst');
     return {
       id: r._id,
       issuer: get('issuer') || get('issuer_id'),
       issuerId: get('issuer_id'),
       asOf: get('as_of_date'),
-      analyst: get('analyst'),
+      analyst,
+      // the analyst string of a test run carries "(design fixture)": shown as a quiet tag, never as parenthetical text
+      analystName: String(analyst || '').replace(/\s*\(design fixture\)\s*/i, ' ').trim(),
+      designFixture: /\(design fixture\)/i.test(String(analyst || '')),
       reportDate: get('report_date'),
       objective: get('objective'),
       pathway: WB.PATHWAYS[r.pathway] || r.pathway,
@@ -602,7 +606,7 @@
   };
 
   /* ---------- column and cell classification ---------- */
-  const ACR = { id: 'ID', ev: 'EV', pd: 'PD', lgd: 'LGD', ltm: 'LTM', ytd: 'YTD', pytd: 'PYTD', fy: 'FY', pf: 'PF', ebitda: 'EBITDA', fcf: 'FCF', cfo: 'CFO', kpi: 'KPI', lme: 'LME', rcf: 'RCF', clo: 'CLO', sofr: 'SOFR', isin: 'ISIN', cusip: 'CUSIP', oid: 'OID', usd: 'USD', cp: 'CP', qa: 'QA', pik: 'PIK', wal: 'WAL', war: 'WAR', dm: 'DM', rq: 'RQ', ssim: 'SSIM', nav: 'NAV', ytw: 'YTW', stw: 'STW', ssn: 'SSN', sn: 'SN', ebit: 'EBIT', bps: 'bps', pct: '%', x: 'x', json: 'JSON', md: 'MD', sha256: 'SHA-256', cr: 'CR', tlb: 'TLB', hy: 'HY', ssim: 'SSIM', cds: 'CDS', gaap: 'GAAP', ebitdar: 'EBITDAR', capex: 'capex' };
+  const ACR = { id: 'ID', ev: 'EV', pd: 'PD', lgd: 'LGD', ltm: 'LTM', ytd: 'YTD', pytd: 'PYTD', fy: 'FY', pf: 'PF', ebitda: 'EBITDA', fcf: 'FCF', cfo: 'CFO', kpi: 'KPI', lme: 'LME', rcf: 'RCF', clo: 'CLO', sofr: 'SOFR', isin: 'ISIN', cusip: 'CUSIP', oid: 'OID', usd: 'USD', cp: 'CP', qa: 'QA', pik: 'PIK', wal: 'WAL', war: 'WAR', dm: 'DM', rq: 'RQ', ssim: 'SSIM', nav: 'NAV', ytw: 'YTW', stw: 'STW', ssn: 'SSN', sn: 'SN', ebit: 'EBIT', bps: 'bps', pct: '%', x: 'x', json: 'JSON', md: 'MD', sha256: 'SHA-256', cr: 'CR', tlb: 'TLB', hy: 'HY', ssim: 'SSIM', cds: 'CDS', gaap: 'GAAP', ebitdar: 'EBITDAR', capex: 'capex', sbc: 'Stock-based compensation', lv: 'Las Vegas' };
   WB.colLabel = function (name) {
     const parts = String(name).split('_');
     const out = [];
@@ -618,13 +622,26 @@
   /* Snake-case keys read as words: net_revenues_q2 becomes "Net revenues, Q2". The raw id stays in the passport. */
   const PERIOD_TOKEN = /^(q[1-4]|h[12]|fy\d{2,4}|ytd|ltm|pytd)$/;
   WB.isSnake = (v) => /^[a-z][a-z0-9]*(_[a-z0-9]+)+$/.test(String(v));
-  WB.humanize = function (v) {
+  /* context: the row's own text. A word the context writes with a capital mid-sentence keeps it ("las_vegas" reads "Las Vegas"). */
+  /* an id read as words: a single lowercase token of an id column ("revenue", "sbc") becomes a word, acronyms in capitals;
+     snake ids go through WB.humanize. Only for id columns and row labels: a text cell's own lowercase words stay as served. */
+  WB.humanizeId = function (v, context) {
+    const str = String(v);
+    if (/^[a-z][a-z0-9]*$/.test(str)) return Object.prototype.hasOwnProperty.call(ACR, str) ? ACR[str] : str.charAt(0).toUpperCase() + str.slice(1);
+    return WB.humanize(str, context);
+  };
+  WB.humanize = function (v, context) {
     const str = String(v);
     if (!WB.isSnake(str)) return str;
     const toks = str.split('_');
     let period = '';
     if (toks.length > 1 && PERIOD_TOKEN.test(toks[toks.length - 1])) period = toks.pop().toUpperCase();
-    const out = toks.map((t) => (Object.prototype.hasOwnProperty.call(ACR, t) ? ACR[t] : t)).join(' ');
+    const proper = (t) => {
+      if (!context || t.length < 3) return t;
+      const m = new RegExp('[a-z,;] (' + t.charAt(0).toUpperCase() + t.slice(1) + ')\\b').exec(context);
+      return m ? m[1] : t;
+    };
+    const out = toks.map((t) => (Object.prototype.hasOwnProperty.call(ACR, t) ? ACR[t] : proper(t))).join(' ');
     return out.charAt(0).toUpperCase() + out.slice(1) + (period ? ', ' + period : '');
   };
   WB.HUMAN_ID_COLS = /^(metric_id|kpi_id|driver_id|check|check_id|addback_id|assumption_id|line_id|slot_id)$/;
@@ -635,6 +652,20 @@
     return s === '' || s === '—' || s === '-' || /^n\/a$/i.test(s);
   };
   const ID_COL = /(^|_)(id|ids|code|isin|cusip|date|name|file|sha256|ticker|module|run_id|period|fiscal_year|fiscal_quarter|year|days|day_count|quarter|slot|case)(_|$)/;
+  /* a value that reads as a code (no spaces, and digits, separators or capitals in it) or starts with an ISO date */
+  const codeLike = (v) => {
+    const s = String(v).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return true;
+    if (/\s/.test(s)) return false;
+    // a single token is a code unless it is a capitalised word (a name such as "Moody's" or "Regional")
+    return !/^[A-Z][a-z'’]+$/.test(s);
+  };
+  const PERIOD_ID = /^(LTM_)?(Q[1-4]|H[12]|FY)_?\d{4}$/;
+  WB.PERIOD_ID = PERIOD_ID;
+  /* period ids read as periods: Q2_2026 becomes Q2 2026, LTM_Q2_2026 becomes LTM Q2 2026 */
+  WB.periodLabel = (v) => String(v).replace(/^(LTM_)?(Q[1-4]|H[12]|FY)_?(\d{4})$/, (m0, l, a, y) => (l ? 'LTM ' : '') + (a === 'FY' ? 'FY' + y : a + ' ' + y));
+  /* scenario and case enums read as words: BASE becomes Base (three-letter acronyms such as LME stay) */
+  WB.enumWord = (v) => (/^[A-Z]{4,}$/.test(String(v)) ? String(v).charAt(0) + String(v).slice(1).toLowerCase() : String(v));
   WB.SCALE_COLS = new Set(['status', 'qa_status', 'severity', 'confidence', 'fit_verdict', 'verdict', 'recommendation', 'valuation', 'credit_score', 'credit_direction', 'sector_outlook', 'pressure', 'probability', 'impact', 'feasibility', 'preference', 'compensation_vs_risk', 'alignment', 'calculation_status', 'trend', 'final', 'cap', 'uncapped', 'recommendation_cap', 'likelihood_direction', 'sponsor_quality', 'materiality', 'evidence_quality', 'priming_risk', 'recovery_sensitivity', 'creditor_risk', 'freshness', 'traceability', 'treatment', 'pressure_class', 'likelihood_class', 'prior', 'outcome', 'fulcrum', 'position', 'assessment', 'evidence_status', 'disposition', 'comparability', 'blocking']);
   /* scale columns whose values a deterministic rule produces (calculated), not a judgement */
   WB.CALC_SCALE = new Set(['fit_verdict', 'cap', 'recommendation_cap', 'qa_status', 'calculation_status', 'freshness', 'position', 'fulcrum']);
@@ -667,7 +698,14 @@
       else if (ID_COL.test(name)) kind = 'id';
       else if (vals.length && vals.filter(WB.isNumeric).length / vals.length >= 0.6) kind = 'numeric';
       else if (vals.length && (vals.some((v) => String(v).length > 70) || vals.reduce((a, v) => a + String(v).length, 0) / vals.length > 46)) kind = 'prose';
-      return { name, label, kind, modelWritten: MODEL_COLS.test(name) && (kind === 'prose' || kind === 'text'), index: c };
+      const out = { name, label, kind, modelWritten: MODEL_COLS.test(name) && (kind === 'prose' || kind === 'text'), index: c };
+      if (kind === 'id') {
+        // an id column whose values are names (bond names, KPI labels, scenario words) reads as text, not as a code
+        out.textual = vals.length > 0 && vals.filter(codeLike).length / vals.length < 0.6;
+        out.periodIds = vals.length > 0 && vals.every((v) => PERIOD_ID.test(String(v)));
+        if (WB.HUMAN_ID_COLS.test(name) || out.textual || out.periodIds) out.label = label.replace(/ ID$/, '');
+      }
+      return out;
     });
     table._cols = kinds;
     return kinds;
@@ -687,14 +725,16 @@
 
   /* ---------- formatting: as served, grouped thousands, negatives in parentheses ---------- */
   const FMT_RE = /^([-−+]?)(\$?)(\d[\d,]*)(\.\d+)?(%|x|pp|bps|m|bn)?$/;
-  WB.fmtNum = function (s) {
+  /* opts.group: the value is an amount, so a four-digit figure such as 2018 is grouped (2,018) rather than read as a year */
+  WB.fmtNum = function (s, opts) {
     const str = String(s).trim();
     if (/^\(.*\)/.test(str)) return str;
     const m = FMT_RE.exec(str);
     if (!m) return str;
     let [, sign, dollar, int, dec, suf] = m;
     const digits = int.replace(/,/g, '');
-    if (digits.length >= 5 || (digits.length === 4 && !/^(19|20)\d\d$/.test(digits))) int = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const yearLike = digits.length === 4 && /^(19|20)\d\d$/.test(digits) && !dec && !(opts && opts.group);
+    if (digits.length >= 5 || (digits.length === 4 && !yearLike)) int = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     const body = dollar + int + (dec || '');
     const neg = sign === '-' || sign === '−';
     if (neg) return '(' + body + ')' + (suf || '');
@@ -756,6 +796,29 @@
     return out;
   };
 
+  /* A portfolio limit's state, one rule for every view: Breached as served; Within with headroom under 10% of the limit is Tight. */
+  WB.limitState = function (status, limit, current) {
+    const s = String(status || '');
+    const lim = parseFloat(String(limit).replace(/,/g, ''));
+    const cur = parseFloat(String(current).replace(/,/g, ''));
+    if (s === 'Breached') return { tone: 'neg', icon: 'cross', word: 'Breached' };
+    if (s === 'Within') {
+      if (isFinite(lim) && isFinite(cur) && lim > 0 && (lim - cur) / lim < 0.1) return { tone: 'cau', icon: 'warn', word: 'Tight' };
+      return { tone: 'pos', icon: 'status-pass', word: 'Within' };
+    }
+    return { tone: 'neu', icon: 'info', word: s || 'Not stated' };
+  };
+
+  /* A claim class in words, from the claims register (C2-1L becomes "First-lien claims"); the id when the register has no row. */
+  WB.claimName = function (classId) {
+    const t = WB.table('cp4c.claims_register');
+    if (!t) return String(classId);
+    const ci = t.columns.indexOf('class_id');
+    const ni = t.columns.indexOf('claim');
+    const row = ci >= 0 && ni >= 0 ? t.rows.find((r) => r[ci] === classId) : null;
+    return row ? String(row[ni]).replace(/\s*\([^)]*\)\s*$/, '').trim() : String(classId);
+  };
+
   /* ---------- provenance per cell ---------- */
   const SNAP_SLOTS = { fy_2: 'FY-2', fy_1: 'FY-1', fy: 'FY', pytd: 'PYTD', ytd: 'YTD', ltm: 'LTM' };
   WB.modelCellFor = function (table, r, c) {
@@ -775,6 +838,8 @@
     return (line.cells || []).find((x) => x.column_id === columnId) || null;
   };
   const HOST_OWNERS = new Set(['MODEL', 'PROJECTION', 'FIT']);
+  /* table id -> the numeric column that holds a judgement (content doc 04: the protection score is an illustrative five-point scale) */
+  WB.JUDGEMENT_NUMERIC = { 'cp4.protection_score': 'score' };
   const HOST_DERIVED = /(multiple|_pct$|pct_|_x$|ratio|leverage|cover|margin|growth|share|headroom|max_size|exposure_pct)/;
 
   /* Origin of one cell: { kind, row, ... }. kind is cited | calculated | synthetic | model | illustrative | gap | none | plain */
@@ -793,6 +858,8 @@
     if (WB.isEmpty(v)) return { kind: 'gap' };
     if (col.kind === 'id') return { kind: 'plain' };
     if (col.name === 'cr_score') return { kind: 'illustrative', key: 'cr_score' };
+    // numeric judgements: a score a module assigns (lender protection by area) is illustrative, whatever evidence the row cites
+    if (WB.JUDGEMENT_NUMERIC[table.twinOf || table.id] === col.name) return { kind: 'illustrative', key: col.name + ':' + table.id, info: WB.rowInfo(table, r) };
     const info = WB.rowInfo(table, r);
     if (col.kind === 'prose' || (col.kind === 'text' && col.modelWritten)) {
       if (col.modelWritten) return { kind: 'model', info };
@@ -857,8 +924,25 @@
     return { id: c.id, module: c.module, label: (c.source || '') + (c.locator ? ' · ' + c.locator : ''), synthetic: !!c.synthetic, missing: !!c.missing, desc: { t: 'cite', module: c.module, id: c.id } };
   }
 
+  /* the label of a row in words: the first visible column, humanised (snake ids and period ids read as words) */
+  WB.rowLabel = function (table, r) {
+    const kinds = WB.columnKinds(table);
+    const lead = kinds.find((k) => k.kind !== 'hidden' && !/^(facility_id|portfolio_id)$/.test(k.name)) || kinds.find((k) => k.kind !== 'hidden');
+    if (!lead) return '';
+    const v = String(table.rows[r][lead.index] == null ? '' : table.rows[r][lead.index]);
+    if (WB.PERIOD_ID.test(v)) return WB.periodLabel(v);
+    return lead.kind === 'id' ? WB.humanizeId(v) : WB.humanize(v);
+  };
+  /* where a table lives, in words: "Protection score by area chart, from Protection score · Covenants and legal (CP-4)" */
+  WB.tableWhere = function (table) {
+    const owner = table.owner;
+    const mod = owner === 'RUN_BRIEF' ? 'Run Brief' : WB.moduleName(owner) + (/^CP-/.test(owner) ? ' (' + owner + ')' : '');
+    const base = WB.tableTitle(table.twinOf || table.id);
+    return (table.chartId ? WB.chartTitle(table.chartId) + ' chart, from ' : '') + base + ' · ' + mod;
+  };
+
   WB.buildPassport = function (d) {
-    const P0 = { kind: 'none', title: '', code: '', sub: '', fields: [], formula: null, inputs: [], excerpt: null, cites: [], usedIn: null, gaps: [], note: '', table: null, chart: null };
+    const P0 = { kind: 'none', title: '', code: '', id: '', sub: '', fields: [], formula: null, inputs: [], excerpt: null, cites: [], usedIn: null, gaps: [], note: '', table: null, chart: null };
     if (!d) return Object.assign(P0, { title: 'Nothing selected' });
     if (d.t === 'cite') {
       const c = WB.citation(d.module, d.id);
@@ -894,12 +978,15 @@
       const kinds = WB.columnKinds(table);
       const col = kinds[d.c];
       const value = table.rows[d.r][d.c];
-      const rowLabel = String(table.rows[d.r][kinds.findIndex((k) => k.kind !== 'hidden')] || '');
+      const rowLabel = WB.rowLabel(table, d.r);
+      const where = WB.tableWhere(table);
       const p = Object.assign(P0, {
         kind: o.kind === 'plain' ? 'none' : o.kind,
-        code: d.table,
-        title: col.label,
-        sub: rowLabel && rowLabel !== String(value) ? rowLabel : '',
+        code: '',
+        id: d.table + ' · row ' + (d.r + 1) + ' · ' + col.name,
+        // the figure in words: its row and column; the owner table and module underneath; the raw id stays small at the foot
+        title: rowLabel && rowLabel !== String(value) ? rowLabel + ' · ' + col.label : col.label,
+        sub: where,
         fields: [['Served as', String(value), true]],
         table: { id: d.table, row: d.r, col: d.c },
         note: ORIGIN_NOTE[o.kind] || '',
@@ -909,8 +996,8 @@
       const info = o.info || (o.kind !== 'gap' ? WB.rowInfo(table, d.r) : null);
       if (o.kind === 'gap') {
         const g = WB.cellGap(table, d.r, d.c);
-        p.title = 'n/a: ' + col.label;
-        p.fields = [['Missing', col.label + (p.sub ? ' for ' + p.sub : ''), false]];
+        p.title = 'n/a: ' + (rowLabel ? rowLabel + ' · ' : '') + col.label;
+        p.fields = [['Missing', col.label + (rowLabel ? ' for ' + rowLabel : ''), false]];
         if (g.item) {
           p.gaps = [g.item];
           p.fields.push(['Reason', g.item.text, false]);
@@ -944,7 +1031,8 @@
         kinds.forEach((k, ci) => {
           if (ci === d.c || k.kind !== 'numeric') return;
           const sv = String(table.rows[d.r][ci]).replace(/[^0-9.]/g, '');
-          if (sv && operands.has(sv)) p.inputs.push({ id: k.name, label: k.label + ' ' + WB.fmtNum(table.rows[d.r][ci]), desc: { t: 'cell', table: d.table, r: d.r, c: ci } });
+          // a sibling input reads as its column label and value (refinement 1: inputs labelled, never bare glyphs)
+          if (sv && operands.has(sv)) p.inputs.push({ id: k.label, label: WB.fmtNum(table.rows[d.r][ci], { group: true }) + (rowLabel ? ' · ' + rowLabel : ''), desc: { t: 'cell', table: d.table, r: d.r, c: ci } });
         });
         for (const c of info.citations) if (!c.missing) p.inputs.push({ id: c.id, label: (c.source || '') + (c.locator ? ' \u00B7 ' + c.locator : ''), desc: { t: 'cite', module: c.module, id: c.id } });
       }
@@ -965,9 +1053,6 @@
         p.fields.push(['Basis', 'A judgement in a design fixture: ' + WB.moduleName(WB.citeModule(table.owner)), false]);
       }
       if (o.kind === 'calculated' && o.scale) p.note = 'Set by a deterministic rule (interfaces §7 for Portfolio Fit; covenant and gate rules for tests), not by a judgement.';
-      if (o.kind === 'model') {
-        p.sub = (p.sub ? p.sub + ' · ' : '') + WB.moduleName(WB.citeModule(table.owner));
-      }
       if (o.kind === 'none' && o.register) p.note = 'A register row from the host. This table carries no citation column.';
       if (o.kind === 'none' && info && !info.cites.length) p.note = 'The row’s cite column is empty, so no source is stated for this value.';
       return p;
@@ -977,9 +1062,8 @@
       if (!table) return Object.assign(P0, { title: 'Table ' + d.table + ' is not in this run' });
       const info = WB.rowInfo(table, d.r);
       const kinds = WB.columnKinds(table);
-      const lead = kinds.find((k) => k.kind !== 'hidden');
-      const label = lead ? String(table.rows[d.r][lead.index]) : '';
-      const p = Object.assign(P0, { code: d.table, title: label, sub: 'Row ' + (d.r + 1) + ' \u00B7 ' + WB.moduleName(WB.citeModule(table.owner)), table: { id: d.table, row: d.r, col: -1 } });
+      const label = WB.rowLabel(table, d.r);
+      const p = Object.assign(P0, { code: '', id: d.table + ' · row ' + (d.r + 1), title: label || 'Row ' + (d.r + 1), sub: 'Row ' + (d.r + 1) + ' \u00B7 ' + WB.tableWhere(table), table: { id: d.table, row: d.r, col: -1 } });
       if (!info) {
         p.note = 'This table carries no citation column.';
         return p;
@@ -1010,9 +1094,10 @@
       if (!line || !cell) return Object.assign(P0, { title: 'Model cell not found', note: d.lineId + ' / ' + d.columnId });
       const p = Object.assign(P0, {
         kind: cell.value != null ? (cell.basis === 'REPORTED' ? ((cell.sources || []).some((x) => (WB.citation(x.module, x.citation_id) || {}).synthetic) ? 'synthetic' : 'cited') : 'calculated') : 'gap',
-        code: line.line_id,
+        code: '',
+        id: line.line_id + ' @ ' + d.columnId,
         title: line.label,
-        sub: 'Band ' + line.band + ' · ' + (col ? col.label : d.columnId),
+        sub: 'Model · band ' + line.band + ' · ' + (col ? col.label : d.columnId),
         fields: [],
         note: '',
       });
@@ -1051,9 +1136,10 @@
       if (!ch) return Object.assign(P0, { title: 'Chart ' + d.chartId + ' is not in this run' });
       return Object.assign(P0, {
         kind: ch.origin === 'host' ? 'calculated' : 'model',
-        code: ch.chart_id,
+        code: '',
+        id: ch.chart_id + ' · ' + ch.kind + ' · ' + ch.where,
         title: WB.chartTitle(ch.chart_id),
-        sub: ch.kind + ' · ' + ch.where,
+        sub: 'From ' + (ch.tables || []).map((t) => WB.tableTitle(t)).join(', '),
         fields: [['Origin', ch.origin === 'host' ? 'Host-computed from the Model, Fit or a recomputed module table' : 'Model-authored figures from the module tables', false]],
         chart: ch.chart_id,
         note: '',

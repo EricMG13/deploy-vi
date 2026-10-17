@@ -46,7 +46,8 @@
 .fb-run th.c-rowh { font-weight: 400; }
 .fb-run .c-num { font-weight: 600; }
 .fb-total th, .fb-total td, .dt tr.fb-total td, .dt tr.fb-total th { background: var(--hover-row); font-weight: 600; border-top: 1px solid var(--rule); }
-.fb-breach th, .fb-breach td, .dt tr.fb-breach td, .dt tr.fb-breach th { background: var(--neg-fill); }
+/* a Breaches row is washed, not filled: the verdict cell carries the signal (word, icon, colour) */
+.fb-breach th, .fb-breach td, .dt tr.fb-breach td, .dt tr.fb-breach th { background: var(--neg-wash); }
 .fb-u { font-size: 10.5px; color: var(--ink-2); margin-left: 4px; font-family: var(--font-text); }
 .fb-ms { display: inline-flex; align-items: baseline; justify-content: flex-end; }
 .fb-fit .c-num, .fb-instr .c-num { white-space: nowrap; }
@@ -100,8 +101,9 @@
 .fb-thesis b { font-weight: 600; }
 
 /* cards: paths, challenge */
-.fb-cards { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--rule); }
-.fb-card { padding: 8px 12px; border-top: 1px solid var(--rule-soft); }
+/* cards are rows of the panel, not boxes inside it */
+.fb-cards { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--rule-soft); border-bottom: 1px solid var(--rule-soft); }
+.fb-card { padding: 8px 0; border-top: 1px solid var(--rule-soft); }
 .fb-card:first-child { border-top: 0; }
 .fb-ch { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-bottom: 4px; }
 .fb-ch h3 { font: 600 13px/1.35 var(--font-text); margin: 0; }
@@ -119,7 +121,7 @@
 .fb-facts dt:nth-of-type(2), .fb-facts dd:nth-of-type(2) { grid-column: 2; }
 .fb-facts dt:nth-of-type(3), .fb-facts dd:nth-of-type(3) { grid-column: 3; }
 .fb-facts dt:nth-of-type(4), .fb-facts dd:nth-of-type(4) { grid-column: 4; }
-.fb-limits { list-style: none; margin: 0; padding: 0; border: 1px solid var(--rule); display: grid; grid-template-columns: 1fr 1fr; }
+.fb-limits { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule-soft); border-bottom: 1px solid var(--rule-soft); display: grid; grid-template-columns: 1fr 1fr; }
 .fb-lim { padding: 7px 10px; border-top: 1px solid var(--rule-soft); border-left: 1px solid var(--rule-soft); display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .fb-lim:nth-child(odd) { border-left: 0; }
 .fb-lim:nth-child(-n + 2) { border-top: 0; }
@@ -134,17 +136,18 @@
 .fb-lb.tone-cau .fb-lf { background: var(--cau); }
 .fb-lb.tone-neg .fb-lf { background: var(--neg); }
 .fb-lt { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); transform: translateX(-1px); }
-.fb-lv { display: grid; grid-template-columns: repeat(3, auto auto); gap: 0 6px; justify-content: start; align-items: baseline; font-size: 12px; }
-.fb-lv > span { font-size: 10.5px; color: var(--ink-2); }
-.fb-lv .fig .fv { font-family: var(--font-mono); font-weight: 600; }
-.fb-lv > .fig { margin-right: 10px; white-space: nowrap; }
-.fb-lv .fig .fv { white-space: nowrap; }
+/* limit, current and headroom as label-value pairs that wrap as pairs, never into the next cell */
+.fb-lv { display: flex; flex-wrap: wrap; gap: 2px 14px; align-items: baseline; font-size: 12px; }
+.fb-lvp { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+.fb-lvl { font-size: 10.5px; color: var(--ink-2); }
+.fb-lv .fig .fv { font-family: var(--font-mono); font-weight: 600; white-space: nowrap; }
 .fb-facts .fig, .fb-facts .fig .fv { white-space: nowrap; }
 .fb-rtrig td, .fb-rtrig th { padding-left: 6px; padding-right: 6px; }
 .fb-rtrig th:first-child { padding-left: 12px; }
 .view-portfolio_decision .tile-sub { display: block; max-width: 168px; white-space: normal; line-height: 1.3; }
 .fb-notes { margin: 0; padding-left: 18px; font-size: 12px; color: var(--ink-2); line-height: 1.5; }
 .fb-ph { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink); }
+.fb-scn { color: var(--on-navy-2); }
 .fb-pst { font-weight: 400; color: var(--ink-2); }
 .fb-prec .c-scale, .fb-fit .c-scale, .fb-instr .c-scale { white-space: nowrap; }
 

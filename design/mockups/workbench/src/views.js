@@ -10,6 +10,7 @@
   const unitWord = (u) => (u == null ? '' : UNIT_WORD[u] || u);
   const BASIS_WORD = { REPORTED: 'Reported', CALCULATED: 'Calculated', PRO_FORMA: 'Pro forma', PROJECTED: 'Projected', DRIVER: 'Driver' };
   const REASON_SHORT = { NOT_SOURCED: 'n.s.', NOT_APPLICABLE: 'n.a.', NOT_PROJECTED: 'n.p.', COMPONENT_MISSING: 'comp. missing' };
+  const REASON_WORDS = { NOT_SOURCED: 'not sourced', NOT_APPLICABLE: 'not applicable', NOT_PROJECTED: 'not projected', COMPONENT_MISSING: 'missing a component' };
   const REASON_LONG = {
     NOT_SOURCED: 'Not sourced: the figure is not in the source documents.',
     NOT_APPLICABLE: 'Not applicable: this line has no meaning for this period.',
@@ -152,6 +153,12 @@
     PROJECTION_OPENING_AT_LTM: 'Projected years open from the LTM position, not from a fiscal year end.',
     MATURITY_NOT_DATED: 'Some debt has no stated maturity, so the maturity wall files it under Undated.',
     PF_EQUALS_LTM: 'The pro forma column equals LTM: no new issue debt is stated.',
+  };
+  /* each limitation reads by name; its code stays beside it as a secondary chip */
+  const LIMIT_TITLE = {
+    PROJECTION_OPENING_AT_LTM: 'Projection opens at LTM',
+    MATURITY_NOT_DATED: 'Undated maturities',
+    PF_EQUALS_LTM: 'Pro forma equals LTM',
   };
 
   function cellOf(line, columnId) {
@@ -426,26 +433,31 @@
   function limitationsPanel(run, m, snapId) {
     const items = [];
     const seen = new Set();
+    const facilityName = (id) => {
+      const row = ((m.capital_structure && m.capital_structure.rows) || []).find((x) => x.facility_id === id);
+      const ln = lineById('fac:' + id);
+      return (row && row.facility) || (ln && ln.label) || WB.humanize(id);
+    };
     (m.limitations || []).forEach((code) => {
       if (seen.has(code)) return;
       seen.add(code);
-      let text = LIMIT_TEXT[code] || WB.humanize(String(code).toLowerCase()) + ' (no description for this code in this build).';
+      let text = LIMIT_TEXT[code] || 'The Model records this limitation without a description in this build.';
       let kind = code === 'PROJECTION_OPENING_AT_LTM' ? 'calculated' : 'gap';
       if (code === 'MATURITY_NOT_DATED') {
         const und = (m.maturity_wall || []).filter((x) => x.fiscal_year === 'Undated');
-        if (und.length) text += ' Undated: ' + und.map((u) => u.facility_id).join(', ') + '.';
+        if (und.length) text += ' Undated: ' + und.map((u) => facilityName(u.facility_id)).join('; ') + '.';
       }
-      items.push({ code, text, kind, label: code });
+      items.push({ code, text, kind, label: LIMIT_TITLE[code] || WB.humanize(String(code).toLowerCase()), chip: code });
     });
     const cols = m.columns || [];
-    if (!cols.some((c) => c.kind === 'PF_LTM') && !seen.has('PF_EQUALS_LTM')) items.push({ code: 'PF-LTM', text: 'No pro forma column: the pack states no new issue debt.', kind: 'gap', label: 'no PF-LTM' });
+    if (!cols.some((c) => c.kind === 'PF_LTM') && !seen.has('PF_EQUALS_LTM')) items.push({ code: 'PF-LTM', text: 'The pack states no new issue debt.', kind: 'gap', label: 'No pro forma column' });
     if (!cols.some((c) => c.kind === 'PROJECTED')) {
       const s = WB.step('CP-2G');
       const why = s && s.status === 'skipped' ? s.reason : 'the Forward Model did not produce a forecast (status: ' + ((m.forecast && m.forecast.status) || 'none') + ')';
-      items.push({ code: 'Base / Downside', text: 'No projected columns: ' + why + '.', kind: 'gap', label: 'not projected' });
+      items.push({ code: 'Base / Downside', text: why.charAt(0).toUpperCase() + why.slice(1) + '.', kind: 'gap', label: 'No projected columns' });
     }
-    (m.reconciliation_faults || []).forEach((f) => items.push({ code: 'FAULT', text: typeof f === 'string' ? f : JSON.stringify(f), kind: 'gap', label: 'reconciliation fault' }));
-    if (!(m.reconciliation_faults || []).length) items.push({ code: 'RECON', text: 'No reconciliation faults recorded.', kind: 'none', label: 'reconciliation' });
+    (m.reconciliation_faults || []).forEach((f) => items.push({ code: 'FAULT', text: typeof f === 'string' ? f : JSON.stringify(f), kind: 'gap', label: 'Reconciliation fault' }));
+    if (!(m.reconciliation_faults || []).length) items.push({ code: 'RECON', text: 'No reconciliation faults recorded.', kind: 'none', label: 'Reconciliation' });
     // null cells on the snapshot columns, by reason
     const snapIds = Object.values(m.snapshot_columns || {});
     const counts = {};
@@ -458,11 +470,11 @@
       }
     }));
     const list = el('ul', { class: 'mv-lim' }, items.map((it) => {
-      const b = WB.fig(ready({ kind: it.kind, code: it.code, title: it.label, sub: 'Model limitation', fields: [['Reading', it.text, false]], note: 'Recorded by the Model (rbot-model/1 limitations, columns and maturity wall).' }), el('span', { class: 'fv' }, [el('strong', null, it.text)]), { kind: it.kind, label: it.code + ': ' + it.text });
-      return el('li', null, [el('span', { class: 'mv-lc num' }, it.code), b]);
+      const b = WB.fig(ready({ kind: it.kind, code: it.chip || '', title: it.label, sub: 'Model limitation', fields: [['Reading', it.text, false]], note: 'Recorded by the Model (rbot-model/1 limitations, columns and maturity wall).' }), el('span', { class: 'fv' }, [el('strong', null, it.label + '. '), it.text]), { kind: it.kind, label: it.label + ': ' + it.text });
+      return el('li', null, [b, it.chip ? el('span', { class: 'mv-lc num', title: 'Code in the Model data' }, it.chip) : null]);
     }));
     const nulls = Object.keys(counts).length
-      ? el('p', { class: 'mv-nulls' }, [total + ' lines×snapshot columns are empty: ', Object.keys(counts).map((k, i) => [i ? ', ' : '', el('span', { class: 'num' }, counts[k] + ' ' + (REASON_SHORT[k] || k))]), '. Each cell says why.'])
+      ? el('p', { class: 'mv-nulls' }, [total + ' snapshot cells are empty: ', Object.keys(counts).map((k, i) => (i ? ', ' : '') + counts[k] + ' ' + (REASON_WORDS[k] || WB.humanize(String(k).toLowerCase()).toLowerCase())).join(''), '. Each cell says why.'])
       : null;
     return WB.panel({ title: 'Model limitations', anchor: 'limitations', code: 'MODEL', body: el('div', { class: 'pad' }, [list, nulls]) });
   }
@@ -663,8 +675,10 @@
       const cur = num(g('current_value'));
       const status = g('status');
       const isBar = limit != null && cur != null && g('limit_unit') === 'pct_nav';
-      const tone = status === 'Within' ? 'pos' : status === 'Breached' ? 'neg' : 'neu';
-      const icon = status === 'Within' ? 'status-pass' : status === 'Breached' ? 'cross' : 'info';
+      // the same rule as the Front Pages (WB.limitState): Within with headroom under 10% of the limit reads Tight
+      const ls = isBar ? WB.limitState(status, limit, cur) : WB.limitState(status);
+      const tone = ls.tone;
+      const icon = ls.icon;
       const unit = isBar ? '% NAV' : '';
       const figOf = (name, text) => WB.fig(cell(name), text, { kind: 'calculated', label: g('parameter') + ', ' + name.replace('_', ' ') + ': ' + text });
       const head = el('div', { class: 'fl-h' }, [
@@ -672,14 +686,16 @@
         el('span', { class: 'fl-id num' }, lid),
         el('span', { class: 'fl-kind' }, [WB.icon(g('limit_kind') === 'Hard' ? 'lock' : 'tag', { size: 11 }), g('limit_kind')]),
         bindingIds.has(lid) ? el('span', { class: 'fl-binds' }, 'Binds an instrument') : null,
-        el('span', { class: 'fl-state tone-' + tone }, [WB.icon(icon, { size: 12, stroke: 1.8 }), status]),
+        el('span', { class: 'fl-state tone-' + tone }, [WB.icon(icon, { size: 12, stroke: 1.8 }), ls.word]),
       ]);
-      const parts = [el('span', { class: 'fl-lab' }, 'Limit'), figOf('limit_value', WB.fmtNum(g('limit_value')) + (unit ? ' ' + unit : '')), el('span', { class: 'fl-lab' }, 'Current'), figOf('current_value', WB.fmtNum(g('current_value')) + (unit ? ' ' + unit : '')), el('span', { class: 'fl-lab' }, 'Headroom'), figOf('headroom', WB.fmtNum(g('headroom')) + (unit && num(g('headroom')) != null ? ' ' + unit : ''))];
+      // "2.5% NAV", as on the Front Pages
+      const withU = (v, ok) => WB.fmtNum(v) + (unit && ok ? '% NAV' : '');
+      const parts = [el('span', { class: 'fl-lab' }, 'Limit'), figOf('limit_value', withU(g('limit_value'), true)), el('span', { class: 'fl-lab' }, 'Current'), figOf('current_value', withU(g('current_value'), true)), el('span', { class: 'fl-lab' }, 'Headroom'), figOf('headroom', withU(g('headroom'), num(g('headroom')) != null))];
       const li = el('li', { class: 'fl-row fl-' + tone, id: 'fl-' + WB.cssId(pid + '-' + lid) }, [head]);
       if (isBar) {
         const max = Math.max(limit, cur) || 1;
         li.appendChild(
-          el('div', { class: 'fl-bar', role: 'img', 'aria-label': 'Current ' + cur + ' of a ' + limit + ' limit, ' + status }, [
+          el('div', { class: 'fl-bar', role: 'img', 'aria-label': 'Current ' + cur + ' of a ' + limit + ' limit, ' + ls.word }, [
             el('span', { class: 'fl-fill', style: { width: (Math.max(0, cur) / max) * 100 + '%' } }),
             el('span', { class: 'fl-tick', style: { left: (limit / max) * 100 + '%' } }),
           ])
@@ -694,8 +710,12 @@
   }
 
   function instrumentTable(pid, fitRec, pfT, cp6T) {
-    const heads = ['Instrument', 'Rating bucket', 'Limits touched', 'Max size', 'Binding limit', 'Verdict', 'Uncapped', 'Cap', 'Final'];
-    const thead = el('thead', null, el('tr', null, heads.map((h, i) => el('th', { scope: 'col', class: i === 3 ? 'h-numeric' : '' }, h))));
+    // the size unit sits in the head ("Max size, US$"), so no bare currency trails a figure
+    const pr0 = pfT ? pfT.rows.findIndex((r) => r[ci(pfT, 'portfolio_id')] === pid) : -1;
+    const sizeUnit = pr0 >= 0 ? WB.unitLabel(pfT.rows[pr0][ci(pfT, 'currency')], pfT.rows[pr0][ci(pfT, 'unit')]) : '';
+    // the rating bucket and the limits an instrument touches read under its name, so the verdict and the three calls fit the panel
+    const heads = ['Instrument', sizeUnit ? 'Max size, ' + sizeUnit : 'Max size', 'Binding limit', 'Verdict', 'Uncapped', 'Cap', 'Final'];
+    const thead = el('thead', null, el('tr', null, heads.map((h, i) => el('th', { scope: 'col', class: i === 1 ? 'h-numeric' : '' }, h))));
     const tbody = el('tbody');
     const names = {};
     (fitRec.inputs.instruments || []).forEach((i) => (names[i.facility_id] = i));
@@ -708,21 +728,24 @@
       const none = (why) => WB.gapChip([], { label: 'n/a', reason: why });
       const td = (c, cls) => el('td', { class: cls || c.cls }, c.node);
       const noRec = 'CP-6 gives no per-portfolio Recommendation for this instrument: only instruments with a level carry one.';
-      const touched = el('td', { class: 'c-text fl-touched' }, el('button', { type: 'button', class: 'fl-chip num', title: 'Limits touched: ' + ins.touched.join(', ') + '. Show the limits.', onclick: () => WB.scrollToAnchor('fl-' + WB.cssId(pid + '-' + ins.touched[0])) }, ins.touched.length + ' limits'));
+      const touched = el('button', { type: 'button', class: 'fl-chip', title: 'Limits touched: ' + ins.touched.join(', ') + '. Show the limits.', onclick: () => WB.scrollToAnchor('fl-' + WB.cssId(pid + '-' + ins.touched[0])) }, ins.touched.length + ' limits');
+      // the cap where CP-6 gives no row: the Fit rule's own output, a calculated figure with its rule as the passport
+      const capFig = () => {
+        const sg = WB.signal(ins.cap, 'cap');
+        return el('td', { class: 'c-scale' }, WB.fig({ t: 'note', kind: 'calculated', code: ins.binding_limit || '', title: 'Cap: ' + nm, sub: 'Portfolio Fit rule', fields: [['Served as', String(ins.cap), true], ['Verdict', String(ins.verdict), false], ['Rule', 'Breaches caps at Avoid, Watch caps at 3 - MW, Fits does not cap.', false]], note: 'Set by the Portfolio Fit rule from the verdict, not by a judgement.' }, el('span', { class: 'fv' }, WB.badge(ins.cap, 'cap')), { kind: 'calculated', cls: 'fig-scale', label: 'Cap ' + sg.word + ', calculated' }));
+      };
       const vc = tc(pfT, pr, 'verdict');
       const mc = tc(pfT, pr, 'max_size');
       const un = tc(cp6T, cr, 'uncapped');
       const cp = tc(cp6T, cr, 'cap');
       const fn = tc(cp6T, cr, 'final');
       tbody.appendChild(el('tr', null, [
-        el('th', { scope: 'row', class: 'c-rowh' }, nm),
-        el('td', { class: 'c-text' }, ins.rating_bucket + (meta.rating ? ' (' + meta.rating + ')' : '')),
-        touched,
-        mc ? el('td', { class: mc.cls }, [mc.node, el('span', { class: 'fl-u' }, ' ' + unitWord(pfT.rows[pr][ci(pfT, 'currency')] === 'USD' ? 'USD' : pfT.rows[pr][ci(pfT, 'currency')]) + (pfT.rows[pr][ci(pfT, 'unit')] === 'MILLIONS' ? ' m' : ''))]) : el('td', { class: 'c-num' }, ins.max_size ? WB.fmtNum(ins.max_size) : none('No maximum size.')),
+        el('th', { scope: 'row', class: 'c-rowh' }, [el('span', { class: 'fl-in' }, nm), el('span', { class: 'fl-sub' }, [ins.rating_bucket + (meta.rating ? ' (' + meta.rating + ')' : ''), ' · ', touched])]),
+        mc ? el('td', { class: mc.cls }, mc.node) : el('td', { class: 'c-num' }, ins.max_size ? WB.fmtNum(ins.max_size, { group: true }) : none('No maximum size.')),
         el('td', { class: 'c-id' }, ins.binding_limit || '—'),
         vc ? td(vc) : el('td', null, ins.verdict),
         un ? td(un) : el('td', { class: 'c-gap' }, none(noRec)),
-        cp ? td(cp) : el('td', { class: 'c-scale' }, ins.cap),
+        cp ? td(cp) : capFig(),
         fn ? td(fn) : el('td', { class: 'c-gap' }, none(noRec)),
       ]));
     }
@@ -747,7 +770,9 @@
       const synthetic = /synthetic|fictional/i.test((pj.notes || []).join(' ') + ' ' + pj.portfolio_name);
       const bindingIds = new Set(f.instruments.map((i) => i.binding_limit).filter(Boolean));
       const body = [];
-      const facts = [['NAV', unitWord(pj.currency === 'USD' ? 'USD' : pj.currency) + ' ' + WB.fmtNum(pj.nav)], ['Par', WB.fmtNum(pj.par)], ['As of', WB.fmtDate(pj.as_of)], ['Strategy', pj.strategy]];
+      const cur = WB.unitLabel(pj.currency, pj.unit);
+      const cash = (v) => (/^(US\$|€|£)( m| bn)?$/.test(cur) ? cur.replace(/ .*$/, '') + WB.fmtNum(v, { group: true }) + (/ m$/.test(cur) ? 'm' : / bn$/.test(cur) ? 'bn' : '') : WB.fmtNum(v, { group: true }));
+      const facts = [['NAV', cash(pj.nav)], ['Par', cash(pj.par)], ['As of', WB.fmtDate(pj.as_of)], ['Strategy', pj.strategy]];
       body.push(el('dl', { class: 'fp-facts' }, facts.flatMap((x) => [el('dt', null, x[0]), el('dd', { class: 'num' }, x[1])])));
       body.push(WB.conditionLine('Proposed trade: the Run Brief states no trade size for this portfolio. The maximum size per instrument below is what the limits allow.'));
       body.push(el('h3', { class: 'sub-h' }, 'Limits and headroom'));
@@ -782,9 +807,9 @@
       const panel = WB.panel({
         title: pj.portfolio_name,
         anchor: 'fit-' + pid,
-        code: pid,
+        code: null,
         tags: [{ kind: 'text', label: pj.strategy }].concat(synthetic ? [{ kind: 'synthetic', label: 'Synthetic' }] : []),
-        note: 'NAV ' + WB.fmtNum(pj.nav) + ' · as of ' + WB.fmtDate(pj.as_of),
+        note: 'NAV ' + cash(pj.nav) + ' · as of ' + WB.fmtDate(pj.as_of),
         body: el('div', { class: 'pad fp-body' }, body),
       });
       root.appendChild(panel);
@@ -999,11 +1024,13 @@
     const saveHonest = WB.state.honest;
     let illus;
     let honest;
+    // the same bar the Front Page draws: title, question, standing, tiles and capped call lines
+    const barCfg = (h) => Object.assign(WB.callConfig(run), { title: meta.frontPageName, illustrative: true, bylineNodes: WB.bylineNodes(meta), honest: h ? 'Honest state: the live CAOS run produced no Recommendation' : null, maxLines: WB.CALL_MAX[run.front_page] || 3, order: WB.CALL_ORDER[run.front_page] || [] });
     try {
       WB.state.honest = false;
-      illus = WB.verdictBar(Object.assign(WB.callConfig(run), { tools: null }));
+      illus = WB.verdictBar(barCfg(false));
       WB.state.honest = true;
-      honest = WB.verdictBar(Object.assign(WB.callConfig(run), { tools: null }));
+      honest = WB.verdictBar(barCfg(true));
     } finally {
       WB.state.honest = saveHonest;
     }
@@ -1014,7 +1041,7 @@
       title: meta.issuer.replace(/, Inc\.?$/, '') + ': ' + meta.frontPageName,
       question: WB.moduleQuestion(blockedFrom),
       illustrative: false,
-      byline: meta.analyst + ' · ' + WB.fmtDate(meta.asOf),
+      bylineNodes: WB.bylineNodes(meta),
       tiles: [{ label: 'Valuation', value: null, reason: blockedReal ? WB.stepReason(blockedId) : 'The module did not produce an accepted result.', producer: blockedFrom }, { label: 'Recommendation', value: null, reason: 'Needs the blocked module’s result.', producer: 'CP-6' }],
       lines: [{ label: 'BLOCKED', tone: 'neg', children: [WB.statusChip('blocked'), ' ', WB.moduleName(blockedFrom) + ' (' + blockedFrom + ') ' + (blockedReal ? 'is Blocked in this run.' : 'is shown here as the Blocked state: no module is Blocked in this run.')] }],
     });
@@ -1033,7 +1060,7 @@
     const T = (label, key, scale, value, extra) => Object.assign({ label, key, scale, value, illustrative: true }, extra || {});
     const tiles = [
       T('Recommendation', 'recommendation', 'rec', '2 - Modest OW'), T('Recommendation', 'recommendation', 'rec', '3 - MW'), T('Recommendation', 'recommendation', 'rec', '5 - Strong UW'),
-      T('Valuation', 'valuation', 'val', 'V2 - Attractive'), T('Credit Score', 'credit_score', 'score', '3 - Medium', { scale: 'five', word: '3 of 5' }),
+      T('Valuation', 'valuation', 'val', 'V2 - Attractive'), T('Credit Score', 'credit_score', 'score', '3 - Fair'),
       T('Credit Direction', 'credit_direction', 'dir', 'Improving'), T('Credit Direction', 'credit_direction', 'dir', 'Stable'), T('Credit Direction', 'credit_direction', 'dir', 'Deteriorating'),
       T('Sector Outlook', 'sector_outlook', 'outlook', 'Positive'), T('Distress gate', 'gate', 'gate', 'Not met'), T('Distress gate', 'gate', 'gate', 'Met'),
       T('Covenant tests', 'status', 'cov', 'Tight', { sub: '2 maintenance' }), T('Refinancing pressure', 'pressure', 'press', 'High'), T('Lender protection', 'score', 'five', '2', { word: '2 of 5' }),
@@ -1166,7 +1193,7 @@
     kinds.forEach((k) => {
       const kn = kindName(k);
       const ch = (run.charts || []).find((c) => c.kind === kn && !WB.chartUnavailable(c));
-      if (ch) grid.appendChild(el('div', { class: 'ds-ch', id: 'ds-chart-' + kn }, [el('h4', { class: 'ds-ch-h' }, [el('code', { class: 'num' }, kn), el('span', null, ' · ' + WB.chartTitle(ch.chart_id))]), WB.chartSlot(ch)]));
+      if (ch) grid.appendChild(el('div', { class: 'ds-ch', id: 'ds-chart-' + kn }, [el('h4', { class: 'ds-ch-h' }, [el('code', { class: 'num' }, kn), el('span', null, ' · ' + WB.chartTitle(ch.chart_id))]), WB.chartSlot(ch, { caption: false })]));
       else {
         const other = WB.runIds.find((id) => {
           const r = WB.loadRun(id);
