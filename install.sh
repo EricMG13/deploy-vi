@@ -59,6 +59,10 @@ def regular_tree(root: Path) -> None:
                 raise ValueError("unsafe runtime path: " + str(path))
 
 
+def module_file(name: str) -> re.Match[str] | None:
+    return re.fullmatch(r"modules/(CP-[A-Z0-9]+)/(?:MODULE\.md|contract\.json)", name)
+
+
 def runtime_only(contents: dict[str, bytes]) -> None:
     required = {
         "SKILL.md",
@@ -80,9 +84,16 @@ def runtime_only(contents: dict[str, bytes]) -> None:
     )
     if not modules or not required.issubset(contents):
         raise ValueError("incomplete runtime skill/contracts")
+    shipped = {
+        module
+        for module in (m.group(1) for m in map(module_file, contents) if m)
+        if {f"modules/{module}/MODULE.md", f"modules/{module}/contract.json"}.issubset(contents)
+    }
     if any(
         not (
             (name.startswith("scripts/rbotlib/") and name.endswith(".py"))
+            or (m := module_file(name)) is not None
+            and m.group(1) in shipped
             or re.fullmatch(r"report/(fonts/)?[A-Za-z0-9._-]+\.(css|js|png|woff2)", name)
             and (name.endswith(".woff2") == name.startswith("report/fonts/"))
         )

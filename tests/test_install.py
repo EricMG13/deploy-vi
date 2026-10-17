@@ -351,9 +351,53 @@ def test_install_accepts_report_assets_and_refuses_other_extensions(
     assert destination.exists() == accepted
 
 
+@pytest.mark.parametrize(
+    ("files", "accepted"),
+    [
+        (("MODULE.md", "contract.json"), True),
+        (("contract.json",), False),
+        (("MODULE.md",), False),
+        (("MODULE.md", "contract.json", "notes.txt"), False),
+        (("MODULE.md", "contract.json", "private-source.xlsx"), False),
+    ],
+)
+def test_install_accepts_shipped_module_folder_without_catalog_entry(
+    source: Path, tmp_path: Path, files: tuple[str, ...], accepted: bool
+) -> None:
+    def mutate(root: Path) -> None:
+        folder = root / "modules/CP-X1"
+        folder.mkdir()
+        for name in files:
+            (folder / name).write_bytes(b"module")
+
+    export, destination = reproven(source, tmp_path, mutate)
+    result = install(export, destination)
+    assert (result.returncode == 0) == accepted, result.stderr
+    assert destination.exists() == accepted
+    if not accepted:
+        assert "nonruntime content in export" in result.stderr
+
+
+def test_install_refuses_stray_file_beside_unlisted_module(source: Path, tmp_path: Path) -> None:
+    def mutate(root: Path) -> None:
+        (root / "modules/CP-X1").mkdir()
+        for name in ("MODULE.md", "contract.json"):
+            (root / "modules/CP-X1" / name).write_bytes(b"module")
+        (root / "private-source.xlsx").write_bytes(b"owned private-data sentinel")
+
+    export, destination = reproven(source, tmp_path, mutate)
+    result = install(export, destination)
+    assert result.returncode == 1 and not destination.exists()
+    assert "nonruntime content in export" in result.stderr
+
+
 def test_valid_different_destination_refuses(source: Path, tmp_path: Path) -> None:
-    destination = tmp_path / "rbot"
-    build(REPO, "HEAD~1", destination)
+    def mutate(root: Path) -> None:
+        (root / "report/extra.js").write_bytes(b"asset")
+
+    export, destination = reproven(source, tmp_path, mutate)
+    installed = install(export, destination)
+    assert installed.returncode == 0, installed.stderr
     before = snapshot(destination)
     assert before["runtime.json"] != (source / "runtime.json").read_bytes()
     result = install(source, destination)
