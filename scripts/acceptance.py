@@ -33,7 +33,7 @@ from typing import Any
 import scorecard
 from ab_evidence import ABError
 
-from rbotlib import attempts, corpus, state
+from rbotlib import approve, attempts, corpus, state
 from rbotlib.fsio import write_atomic
 from rbotlib.handoff import HandoffError, parse
 from rbotlib.inventory import RunError
@@ -108,14 +108,32 @@ def r2(run: Path, record: state.Record) -> Result:
     return "R2", FAIL if problems else PASS, measured, evidence
 
 
+def _switched_off(row: scorecard.Row) -> bool:
+    """A skip that approval itself made: its recorded reason is the fixed one for this step."""
+    fixed = approve.SKIPS.get(row.step)
+    return row.status == "skipped" and fixed is not None and f"reason: {fixed}" in row.notes
+
+
 def r3(scored: Scored) -> Result:
+    off = [r for r, _ in scored if _switched_off(r)]
     bad = {
-        s: [r.step for r, _ in scored if r.status == s] for s in ("failed", "skipped", "blocked")
+        s: [r.step for r, _ in scored if r.status == s and r not in off]
+        for s in ("failed", "skipped", "blocked")
     }
     measured = ", ".join(f"{len(v)} {k}" for k, v in bad.items())
     named = "; ".join(f"{k}: {', '.join(v)}" for k, v in bad.items() if v)
-    verdict = FAIL if named else PASS
-    return "R3", verdict, measured, named or "no failed, skipped or Blocked step"
+    switched = "; ".join(f"{r.step} ({approve.SKIPS[r.step]})" for r in off)
+    if named:
+        return (
+            "R3",
+            FAIL,
+            measured,
+            named + (f"; switched off by approval: {switched}" if off else ""),
+        )
+    evidence = (
+        f"switched off by approval: {switched}" if off else "no failed, skipped or Blocked step"
+    )
+    return "R3", PASS, measured, evidence
 
 
 def r4(run: Path, scored: Scored) -> Result:

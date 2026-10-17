@@ -16,7 +16,7 @@ Plan just in time against the executed/tested predecessor. Fresh implementation 
 | 06 | Orchestrator: run state, dispatch, resume, `SKILL.md`, install, proxy run | 03, 04, 05 | [06 orchestrator](2026-10-12-deploy-vi-06-orchestrator.md) | merged to main (v1, PR #90) |
 | 07 | Report: owner-picked mockup as template, chart engine, renderer, embedded run JSON, Credit Snapshot blocks | 06 | [07 report](2026-10-14-deploy-vi-07-report.md) | merged to main (v1, PR #90) |
 | 08 | v1 acceptance on the corpus | 06, 07 | — | merged to main (v1, PR #90); (A) complete at RC5 `9f049c8`; live (B) deferred by owner |
-| 09 | Quick depth (CP-L10, CP-6 screening) | 05, 07 | — | backlog (after v1) |
+| 09 | Quick depth (CP-L10, CP-6 screening) | 05, 07 | [2026-10-16-deploy-vi-09-quick-depth.md](2026-10-16-deploy-vi-09-quick-depth.md) | executed 2026-10-16 on stacked local branches build/09.1-module-gates → build/09.8-records (not pushed; PR #90 still open, base build/v1 d1774df); record run at rbot tree d7c0542: R1–R8 PASS (FIT switched off by approval; owner 2026-10-16); CP-L10 A/B PASS; CP-6 screening record B-only (R5) |
 | 10 | Deep Research (CP-DR with fetch) | 06, 07 | — | backlog (after v1) |
 | 11 | Prior Case (CP-8 diff, What changed tab) | 07 | — | backlog (after v1) |
 | 12 | Full Credit Assessment remaining A (CP-1C, CP-2A, CP-2E, CP-4, CP-2D + calculators) | 05, 07 | — | backlog (after v1) |
