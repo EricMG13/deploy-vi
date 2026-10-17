@@ -29,6 +29,7 @@ HERE = Path(__file__).resolve().parent
 DEFAULT_DATA = HERE.parent / "shared" / "data.js"
 DEFAULT_EXTRACT = HERE / "fp-extract.json"
 OUT = HERE / "fp-data.js"
+SYNTHETIC_FACTS = HERE.parent / "fixtures" / "synthetic-facts.json"
 
 UNIT_DISPLAY = {
     "USD millions": "US$ m",
@@ -448,11 +449,19 @@ EXPECTED = {
     "dq_conv_h1_2025": "37.0",
     "dq_conv_h1_2026": "37.4",
     "dq_conv_ltm": "36.1",
-    "cr_mand_uses": "1,474",
-    "cr_disc_uses": "205",
-    "cr_closing": "1,249",
-    "cr_headroom": "1,454",
-    "cr_runway_months": "35.8",
+    "cr_int_h1_2027": "375",
+    "cr_mat_h1_2027": "57",
+    "cr_rent_h1_2027": "682",
+    "cr_capex_h1_2027": "400",
+    "cr_maint_h1_2027": "190",
+    "cr_growth_h2_2026": "205",
+    "cr_growth_h1_2027": "210",
+    "cr_mand_uses": "2,601",
+    "cr_disc_uses": "415",
+    "cr_op_inflow": "3,436",
+    "cr_closing": "3,348",
+    "cr_headroom": "327",
+    "cr_runway_months": "13.5",
     "cr_rcf_share": "72.7",
     "cr_liq_left_2026": "2,873",
     "cr_liq_left_2027": "2,759",
@@ -713,6 +722,55 @@ class Ctx:
                 "unit": it["unit"],
                 "raw": it["value"],
             }
+
+    def register_synthetic_fact(
+        self, key: str, label: str, period: str, unit: str, path: list[str]
+    ) -> None:
+        """Register one value of synthetic-facts.json as a synthetic citation (S id) and figure.
+
+        `path` walks the JSON from the root; the excerpt is the file's own line for the value, so the
+        citation can be re-checked against the file."""
+        lines = SYNTHETIC_FACTS.read_text(encoding="utf-8").split("\n")
+        node = json.loads("\n".join(lines))
+        start = 0
+        for name in path:
+            node = node[name]
+            needle = f'"{name}"'
+            hit = next((i for i in range(start, len(lines)) if needle in lines[i]), None)
+            if hit is None:
+                raise BuildError(f"{key}: {name} not found in {SYNTHETIC_FACTS.name}")
+            start = hit
+        value = str(node)
+        excerpt = lines[start].strip()
+        if value not in excerpt:
+            raise BuildError(
+                f"{key}: value {value} is not on the cited line of {SYNTHETIC_FACTS.name}"
+            )
+        if key in self.base["figures"] or key in self.fig:
+            raise BuildError(f"{key}: figure key already exists")
+        sid = self.new_id("S")
+        self.cit[sid] = {
+            "id": sid,
+            "key": key,
+            "label": label,
+            "period": period,
+            "value": value,
+            "unit": unit,
+            "file": f"fixtures/{SYNTHETIC_FACTS.name}",
+            "line": start + 1,
+            "locator": f"{SYNTHETIC_FACTS.name}#" + ".".join(path),
+            "excerpt": excerpt,
+            "synthetic": True,
+        }
+        self.fig[key] = {
+            "v": value,
+            "prov": "synthetic",
+            "ref": sid,
+            "label": label,
+            "period": period,
+            "unit": unit,
+            "raw": value,
+        }
 
     def register_gaps(self) -> None:
         for name, field, reason in NEW_GAPS:
@@ -1016,64 +1074,170 @@ def calcs_rv_dq(c: Ctx) -> None:
 
 def calcs_liquidity(c: Ctx) -> None:
     v = c.val
+    # The 12-month window, 1 July 2026 to 30 June 2027, with the GLPI and VICI lease payments counted as
+    # mandatory. Second-half 2026 uses are the 10-Q's own estimates; first-half 2027 uses are straight-line
+    # halves of its FY2027 estimates (and of the LTM cash rent); FY2027 capex is a synthetic test value.
+    W = "12 months to 2027-06-30"
+    for key, label, src, note in (
+        (
+            "cr_int_h1_2027",
+            "Interest, first half of 2027, as half of the FY2027 estimate",
+            "guide_2027_interest",
+            "A straight-line half of the 10-Q's FY2027 estimate, not a company schedule.",
+        ),
+        (
+            "cr_mat_h1_2027",
+            "Debt maturities, first half of 2027, as half of FY2027",
+            "debt_maturity_2027",
+            "A straight-line half of the FY2027 maturities, not a company schedule.",
+        ),
+        (
+            "cr_rent_h1_2027",
+            "VICI and GLPI lease payments, first half of 2027, as half of LTM cash rent",
+            "ltm_cash_interest_rent_q2_2026",
+            "A straight-line half of the LTM cash interest paid for rent, not a company schedule.",
+        ),
+        (
+            "cr_capex_h1_2027",
+            "Capital expenditure, first half of 2027, as half of the synthetic FY2027 value",
+            "synthetic_capex_fy2027",
+            "Half of a synthetic test value; the sources give no capex beyond 2026.",
+        ),
+    ):
+        c.calc(
+            key,
+            label,
+            "H1 2027",
+            v(src) / 2,
+            0,
+            "USD millions",
+            f"{{{src}}} / 2",
+            [src],
+            note=note,
+            synthetic=src == "synthetic_capex_fy2027",
+        )
+    c.calc(
+        "cr_maint_h1_2027",
+        "Maintenance capex, first half of 2027, at the 2026 maintenance share",
+        "H1 2027",
+        v("cr_capex_h1_2027")
+        * v("guide_capex_remaining_2026_maintenance_high")
+        / v("guide_capex_remaining_2026_total_high"),
+        0,
+        "USD millions",
+        "{cr_capex_h1_2027} x {guide_capex_remaining_2026_maintenance_high} / {guide_capex_remaining_2026_total_high}",
+        [
+            "cr_capex_h1_2027",
+            "guide_capex_remaining_2026_maintenance_high",
+            "guide_capex_remaining_2026_total_high",
+        ],
+        note="The 2026 maintenance share (high end) applied to the synthetic capex; the split is an assumption.",
+        synthetic=True,
+    )
+    disc26 = ["guide_capex_remaining_2026_growth_high", "guide_capex_remaining_2026_digital_high"]
+    c.calc(
+        "cr_growth_h2_2026",
+        "Growth and digital capex, second half of 2026 (high end)",
+        "H2 2026",
+        sum((v(k) for k in disc26), Decimal(0)),
+        0,
+        "USD millions",
+        " + ".join(f"{{{k}}}" for k in disc26),
+        disc26,
+    )
+    c.calc(
+        "cr_growth_h1_2027",
+        "Growth and digital capex, first half of 2027",
+        "H1 2027",
+        v("cr_capex_h1_2027") - v("cr_maint_h1_2027"),
+        0,
+        "USD millions",
+        "{cr_capex_h1_2027} - {cr_maint_h1_2027}",
+        ["cr_capex_h1_2027", "cr_maint_h1_2027"],
+        synthetic=True,
+    )
     mand = [
         "guide_remaining_2026_debt_service",
-        "guide_2027_interest",
-        "debt_maturity_2027",
+        "cr_int_h1_2027",
+        "cr_mat_h1_2027",
+        "guide_remaining_2026_lease_payments",
+        "cr_rent_h1_2027",
         "guide_capex_remaining_2026_maintenance_high",
+        "cr_maint_h1_2027",
     ]
     c.calc(
         "cr_mand_uses",
-        "Mandatory uses of cash, July 2026 to December 2027",
-        "to 2027-12-31",
+        "Mandatory uses of cash, July 2026 to June 2027",
+        W,
         sum((v(k) for k in mand), Decimal(0)),
         0,
         "USD millions",
         " + ".join(f"{{{k}}}" for k in mand),
         mand,
-        note="Debt service for the rest of 2026, 2027 interest, 2027 maturities and the high end of the maintenance capex estimate.",
+        note="Debt service, interest, maturities, VICI and GLPI lease payments and maintenance capex over 12 months "
+        "from 30 June 2026.",
+        synthetic=True,
     )
-    disc = ["guide_capex_remaining_2026_growth_high", "guide_capex_remaining_2026_digital_high"]
+    disc = ["cr_growth_h2_2026", "cr_growth_h1_2027"]
     c.calc(
         "cr_disc_uses",
-        "Discretionary uses of cash, rest of 2026 (growth and digital capex, high end)",
-        "H2 2026",
+        "Discretionary uses of cash, July 2026 to June 2027 (growth and digital capex)",
+        W,
         sum((v(k) for k in disc), Decimal(0)),
         0,
         "USD millions",
         " + ".join(f"{{{k}}}" for k in disc),
         disc,
+        synthetic=True,
+    )
+    c.calc(
+        "cr_op_inflow",
+        "Operating cash flow before cash interest and rent, at the LTM level",
+        W,
+        v("ltm_cfo_q2_2026")
+        + v("ltm_cash_interest_debt_q2_2026")
+        + v("ltm_cash_interest_rent_q2_2026"),
+        0,
+        "USD millions",
+        "{ltm_cfo_q2_2026} + {ltm_cash_interest_debt_q2_2026} + {ltm_cash_interest_rent_q2_2026}",
+        ["ltm_cfo_q2_2026", "ltm_cash_interest_debt_q2_2026", "ltm_cash_interest_rent_q2_2026"],
+        note="Assumption: the real LTM level repeats for 12 months; no forward forecast exists in the sources.",
     )
     c.calc(
         "cr_closing",
-        "Accessible liquidity at 31 December 2027 before operating cash flow",
-        "to 2027-12-31",
-        v("liq_total") - v("cr_mand_uses") - v("cr_disc_uses"),
+        "Accessible liquidity at 30 June 2027, before refinancing",
+        "to 2027-06-30",
+        v("liq_total") + v("cr_op_inflow") - v("cr_mand_uses") - v("cr_disc_uses"),
         0,
         "USD millions",
-        "{liq_total} - {cr_mand_uses} - {cr_disc_uses}",
-        ["liq_total", "cr_mand_uses", "cr_disc_uses"],
+        "{liq_total} + {cr_op_inflow} - {cr_mand_uses} - {cr_disc_uses}",
+        ["liq_total", "cr_op_inflow", "cr_mand_uses", "cr_disc_uses"],
+        note="Opening liquidity plus the LTM operating inflow less every use; the 2028 maturities are outside the window.",
+        synthetic=True,
     )
     c.calc(
         "cr_headroom",
-        "Liquidity headroom over mandatory uses to 31 December 2027",
-        "to 2027-12-31",
+        "Liquidity headroom over mandatory uses, 12 months to 30 June 2027",
+        W,
         v("liq_total") - v("cr_mand_uses"),
         0,
         "USD millions",
         "{liq_total} - {cr_mand_uses}",
         ["liq_total", "cr_mand_uses"],
+        note="A stress with no operating cash inflow.",
+        synthetic=True,
     )
     c.calc(
         "cr_runway_months",
         "Months of runway on mandatory uses",
-        "to 2027-12-31",
-        v("liq_total") / (v("cr_mand_uses") / 18),
+        W,
+        v("liq_total") / (v("cr_mand_uses") / 12),
         1,
         "months",
-        "{liq_total} / ({cr_mand_uses} / 18)",
+        "{liq_total} / ({cr_mand_uses} / 12)",
         ["liq_total", "cr_mand_uses"],
-        note="18 months: July 2026 to December 2027. Before any operating cash flow.",
+        note="12 months from 30 June 2026, lease payments included, before any operating cash flow.",
+        synthetic=True,
     )
     c.calc(
         "cr_rcf_share",
@@ -1877,10 +2041,11 @@ MODULE_DEFS = [
         "CP-2D",
         "Liquidity bridge",
         "Restricted",
-        "No operating cash flow forecast (no guidance) and no 2027 capex estimate.",
+        "No operating cash flow forecast (no guidance; the bridge holds the LTM level) and no 2027 capex estimate "
+        "(a synthetic test value is used).",
         ["G13", "gap:capex_2027"],
-        "Liquidity of {liq_total|US$ m} covers mandatory uses to December 2027 of {cr_mand_uses|US$ m}: "
-        "{cr_runway_months} months of runway before any operating cash flow.",
+        "Liquidity of {liq_total|US$ m} covers mandatory uses of {cr_mand_uses|US$ m} over the 12 months from "
+        "30 June 2026, lease payments included: {cr_runway_months} months of runway before any operating cash flow.",
     ),
     (
         "CP-2G",
@@ -2904,7 +3069,7 @@ def build_blocks(c: Ctx, fit: dict) -> dict:
         ("Yes", "None stated"),
         ("Yes", "Net of the outstanding balance"),
         ("Yes", "CVA is a separate borrower"),
-        ("Yes", "Committed to letters of credit"),
+        ("No", "Committed to letters of credit"),
         ("No", "Committed to specific reserves"),
         ("No", "Committed as a regulatory requirement"),
         ("Yes", "Total of the lines above"),
@@ -2934,9 +3099,40 @@ def build_blocks(c: Ctx, fit: dict) -> dict:
         note="Liquidity at 30 June 2026 as the Q2 2026 release states it.",
     )
 
+    uses_rows = (
+        (
+            "Debt service, second half of 2026",
+            "guide_remaining_2026_debt_service",
+            "H2 2026",
+            "Yes",
+        ),
+        ("Interest, first half of 2027", "cr_int_h1_2027", "H1 2027", "Yes"),
+        ("Debt maturities, first half of 2027", "cr_mat_h1_2027", "H1 2027", "Yes"),
+        (
+            "VICI and GLPI lease payments, second half of 2026",
+            "guide_remaining_2026_lease_payments",
+            "H2 2026",
+            "Yes",
+        ),
+        ("VICI and GLPI lease payments, first half of 2027", "cr_rent_h1_2027", "H1 2027", "Yes"),
+        (
+            "Maintenance capex, second half of 2026 (high end)",
+            "guide_capex_remaining_2026_maintenance_high",
+            "H2 2026",
+            "Yes",
+        ),
+        ("Maintenance capex, first half of 2027", "cr_maint_h1_2027", "H1 2027", "Yes"),
+        (
+            "Growth and digital capex, second half of 2026 (high end)",
+            "cr_growth_h2_2026",
+            "H2 2026",
+            "No",
+        ),
+        ("Growth and digital capex, first half of 2027", "cr_growth_h1_2027", "H1 2027", "No"),
+    )
     B["cashUses"] = table(
         "CP-2D",
-        "Cash uses",
+        "Cash uses, 12 months from 30 June 2026",
         [
             col("use", "Use"),
             col("amount", "Amount", num=True),
@@ -2944,50 +3140,12 @@ def build_blocks(c: Ctx, fit: dict) -> dict:
             col("mandatory", "Mandatory"),
         ],
         [
-            {
-                "use": "Debt service, rest of 2026",
-                "amount": dv("guide_remaining_2026_debt_service"),
-                "timing": "H2 2026",
-                "mandatory": "Yes",
-            },
-            {
-                "use": "Interest, 2027",
-                "amount": dv("guide_2027_interest"),
-                "timing": "FY2027",
-                "mandatory": "Yes",
-            },
-            {
-                "use": "Maturities, 2027",
-                "amount": dv("debt_maturity_2027"),
-                "timing": "FY2027",
-                "mandatory": "Yes",
-            },
-            {
-                "use": "Maintenance capex, rest of 2026 (high end)",
-                "amount": dv("guide_capex_remaining_2026_maintenance_high"),
-                "timing": "H2 2026",
-                "mandatory": "Yes",
-            },
-            {
-                "use": "Growth and digital capex, rest of 2026 (high end)",
-                "amount": dv("cr_disc_uses"),
-                "timing": "H2 2026",
-                "mandatory": "No",
-            },
-            {
-                "use": "Capex, 2027",
-                "amount": gd("capex_2027"),
-                "timing": "FY2027",
-                "mandatory": "Not known",
-            },
-            {
-                "use": "Operating cash inflow",
-                "amount": gd("G13"),
-                "timing": "To December 2027",
-                "mandatory": "Not applicable",
-            },
+            {"use": use, "amount": dv(key), "timing": timing, "mandatory": mand}
+            for use, key, timing, mand in uses_rows
         ],
         unit="US$ m",
+        note="Second-half 2026 rows are the 10-Q's estimates; first-half 2027 rows are straight-line halves of its "
+        "FY2027 estimates and of LTM cash rent; 2027 capex is a synthetic test value.",
     )
 
     B["runway"] = table(
@@ -2996,7 +3154,7 @@ def build_blocks(c: Ctx, fit: dict) -> dict:
         [col("item", "Item"), col("value", "Value", num=True)],
         [
             {"item": "Accessible liquidity", "value": dv("liq_total")},
-            {"item": "Mandatory uses to 31 Dec 2027", "value": dv("cr_mand_uses")},
+            {"item": "Mandatory uses, 12 months to 30 Jun 2027", "value": dv("cr_mand_uses")},
             {"item": "Headroom", "value": dv("cr_headroom")},
             {"item": "Months of runway", "value": dv("cr_runway_months")},
             {
@@ -3007,6 +3165,7 @@ def build_blocks(c: Ctx, fit: dict) -> dict:
             },
         ],
         unit="US$ m unless stated",
+        note="12 months from 30 June 2026, lease payments included, before any operating cash flow.",
     )
 
     # --- CP-3C ---------------------------------------------------------------
@@ -3244,7 +3403,8 @@ def build_blocks(c: Ctx, fit: dict) -> dict:
         ),
         (
             "Liquidity runway under 12 months",
-            "{cr_runway_months} months of runway on mandatory uses.",
+            "{cr_runway_months} months of runway on mandatory uses over 12 months from 30 June 2026, lease payments "
+            "included.",
             "Not met",
         ),
         (
@@ -4157,13 +4317,31 @@ def build_charts(c: Ctx, fit: dict) -> dict:
         rows=rows,
     )
 
+    bridge_uses = (
+        ("Debt service, H2 2026", "Debt service H2 2026", "guide_remaining_2026_debt_service"),
+        ("Interest, H1 2027", "Interest H1 2027", "cr_int_h1_2027"),
+        ("Debt maturities, H1 2027", "Maturities H1 2027", "cr_mat_h1_2027"),
+        ("Lease payments, H2 2026", "Leases H2 2026", "guide_remaining_2026_lease_payments"),
+        ("Lease payments, H1 2027", "Leases H1 2027", "cr_rent_h1_2027"),
+        (
+            "Maintenance capex, H2 2026",
+            "Maint. capex H2 2026",
+            "guide_capex_remaining_2026_maintenance_high",
+        ),
+        ("Maintenance capex, H1 2027", "Maint. capex H1 2027", "cr_maint_h1_2027"),
+        ("Growth and digital capex, H2 2026", "Growth capex H2 2026", "cr_growth_h2_2026"),
+        ("Growth and digital capex, H1 2027", "Growth capex H1 2027", "cr_growth_h1_2027"),
+    )
     chart(
         "fig-liquidity-bridge",
         "waterfall",
-        "Accessible liquidity to December 2027 before operating cash flow",
-        f"Accessible liquidity of {fv('liq_total')} falls to {fv('cr_closing')} by December 2027 after mandatory uses of "
-        f"{fv('cr_mand_uses')} and discretionary capex of {fv('cr_disc_uses')}; operating cash flow is not forecast.",
-        "Caesars Q2 2026 10-Q and earnings release (liquidity, debt maturities, interest and capital expenditure estimates)",
+        "Accessible liquidity, 30 June 2026 to 30 June 2027, before refinancing",
+        f"Accessible liquidity of {fv('liq_total')} at 30 June 2026 plus an operating inflow held at the LTM level of "
+        f"{fv('cr_op_inflow')} ends 30 June 2027 at {fv('cr_closing')} after mandatory uses of {fv('cr_mand_uses')} "
+        f"(lease payments included) and discretionary capex of {fv('cr_disc_uses')}. The operating inflow is an "
+        "assumption, not a forecast; 2027 capex is a synthetic test value.",
+        "Caesars Q2 2026 10-Q and earnings release (liquidity, debt maturities, interest, lease payments and capital "
+        "expenditure estimates); synthetic FY2027 capex",
         "US$ m",
         categoryLabel="Step",
         steps=[
@@ -4174,43 +4352,17 @@ def build_charts(c: Ctx, fit: dict) -> dict:
                 "d": cd("liq_total"),
             },
             {
-                "label": "Debt service, rest of 2026",
-                "short": "Debt service",
-                "kind": "delta",
-                "d": neg(cd("guide_remaining_2026_debt_service")),
-            },
-            {
-                "label": "Interest, 2027",
-                "short": "Interest 2027",
-                "kind": "delta",
-                "d": neg(cd("guide_2027_interest")),
-            },
-            {
-                "label": "Maturities, 2027",
-                "short": "Maturities 2027",
-                "kind": "delta",
-                "d": neg(cd("debt_maturity_2027")),
-            },
-            {
-                "label": "Maintenance capex, rest of 2026",
-                "short": "Maintenance capex",
-                "kind": "delta",
-                "d": neg(cd("guide_capex_remaining_2026_maintenance_high")),
-            },
-            {
-                "label": "Growth and digital capex, rest of 2026",
-                "short": "Growth capex",
-                "kind": "delta",
-                "d": neg(cd("cr_disc_uses")),
-            },
-            {
-                "label": "Operating cash inflow",
+                "label": "Operating cash flow before cash interest and rent, LTM level held flat",
                 "short": "Operating cash",
                 "kind": "delta",
-                "d": c.gd("G13"),
+                "d": cd("cr_op_inflow"),
             },
+            *[
+                {"label": label, "short": short, "kind": "delta", "d": neg(cd(key))}
+                for label, short, key in bridge_uses
+            ],
             {
-                "label": "Closing liquidity before operating cash flow",
+                "label": "Closing liquidity, 30 Jun 2027, before refinancing",
                 "short": "Closing",
                 "kind": "total",
                 "d": cd("cr_closing"),
@@ -4620,6 +4772,13 @@ def build(data_path: Path, extract_path: Path) -> tuple[Ctx, dict, dict]:
     extract = json.loads(extract_path.read_text(encoding="utf-8"))
     c = Ctx(base, extract)
     c.verify_and_register(Path(extract["corpus"]))
+    c.register_synthetic_fact(
+        "synthetic_capex_fy2027",
+        "Synthetic test value: Base case capital expenditure, FY2027",
+        "FY2027",
+        "USD millions",
+        ["czr", "projection_drivers", "base", "capex", "FY2027"],
+    )
     first_new_gap = c._next["G"]
     c.register_gaps()
     calcs_earnings(c)

@@ -36,14 +36,19 @@ Behind every Front Page sits the same application shell: navigation to each anal
 
 For each direction state its thesis in a sentence, its type and colour system, its component language (tables, charts, call, status, provenance marks) and its honest risk.
 
-**Phase 2, after the owner picks one:** a full interactive mock of all six Front Pages, the shell, every module view's anatomy, Model, Portfolio Fit, Evidence, Limitations, popovers, search, collapsed and expanded states, and the n/a, not-run and absent states.
+**Phase 2, after the owner picks one:** a **design system** and a full interactive mock built from it.
+- The design system: tokens (brand and signal colours with contrast values, type scale, spacing, radii, chart palette, motion) exported as CSS custom properties; and every component with its states and data variations: call band, block, tables (dense, key/value, period grid), chart frame and each chart kind, status and verdict marks, scale badges, provenance marks, icons, navigation, popover, condition line, search, empty and n/a states. Each component is specified so a template can render it from variable data (1 to 20 rows, short and long text, present or absent).
+- The mock: all six Front Pages, the shell, every module view's anatomy, Model, Portfolio Fit, Evidence, Limitations, popovers, search, collapsed and expanded states, and the n/a, not-run, absent, Blocked, Breaches, Prior Case and Primary states, composed only from the design system's components.
 
 ## 4. Look and feel (owner, 17 October 2026)
 
 - **Modern, clean, application-like.** It should feel like a well-made analytics product, not a printed committee paper or a spreadsheet.
 - **No Excel requirement any more.** The Credit Snapshot no longer has to resemble the house Excel template; keep its content (`content/01`), not its form. RBOT still produces a full financial **model** (no Excel file): its home is the Model view, designed for RBOT's readers and platform rather than copied from caos-databricks's app.
 - **Report A is in scope for the redesign.** The current mockup (`reference/report-a-current/`) and its design system (`DESIGN-report-a.md`) are the incumbent to improve on, not a constraint. What worked there: the call first, density that respects expert readers, provenance in the figure, every block linking to its module, honest gaps.
-- Earlier owner rejections (2026-10-11), kept as context; the owner may relax them in this round: a dashboard of KPI tiles and cards; tone-coloured scales; citations as margin notes; numbered sections in place of view codes. The rejected alternatives B (verdict rail) and C (period spine) are in `reference/rejected-directions/`.
+- **Clean, modern SaaS, in the company colours.** Navy and electric blue carry the brand and the actions; a neutral ground carries the content.
+- **Colour is a signal** (positive, caution, negative, neutral), applied by meaning for the creditor, never alone; see `content/colour-and-icons.md`. This replaces the 11 October rule that kept scales neutral.
+- **Icons where they beat text**: statuses, verdicts, directions, severities, provenance marks in dense tables, actions, navigation families, document types. `content/colour-and-icons.md` lists the candidates; confirm, cut or add, and keep words where an icon would be ambiguous.
+- Earlier owner rejections (2026-10-11), kept as context: a dashboard of KPI tiles and cards; citations as margin notes; numbered sections in place of view codes. The rejected alternatives B (verdict rail) and C (period spine) are in `reference/rejected-directions/`.
 
 ## 5. Brand
 
@@ -56,7 +61,7 @@ Read `content/provenance-and-states.md` in full. In short:
 2. **Depth on demand**: every section expands; every figure opens to its source.
 3. **Provenance visible**: cited, calculated, model-written, illustrative and synthetic content never look alike, and never by colour alone.
 4. **Honest gaps**: a missing value shows as missing with its reason, never as zero or a guess.
-5. **Scales are words**: the fixed house vocabularies, not tone-coloured; colour is for status (module status, Portfolio Fit, covenant tests).
+5. **Colour signals, words confirm**: the fixed house vocabularies keep their words; colour signals their meaning and is never the only carrier.
 6. **Every chart** has a table twin, a summary, a source line and provenance in its marks; a chart the data cannot draw shows an n/a frame.
 7. **Accessible**: WCAG 2.2 AA, keyboard reachable charts and figures, 24px targets.
 8. **Buildable**: one offline HTML file rendered by a Python template from data; components must take variable rows, lengths and presence.
@@ -66,6 +71,8 @@ Read `content/provenance-and-states.md` in full. In short:
 Real Caesars Entertainment (CZR) Q2 2026 figures from its public filings, FINRA TRACE pages, the credit agreement, the 2032 notes indenture, the merger documents and two peers' releases (MGM, PENN). Every figure carries its file, line and verbatim excerpt (`data/`). No RBOT run has produced judgements on Caesars yet, so every score, recommendation, valuation, thesis, gate status and severity is **illustrative** and must be labelled so; the Test CLO I portfolio is **synthetic** and labelled so. Never invent a figure: use the data, or show n/a with its reason. Read `data/README.md` first.
 
 Real analysis text also exists: live CAOS runs (RBOT's methodology source) on the same Caesars pack produced accepted module outputs, in `data/caos-runs/`. They are cautious: every module With limitations, confidence mostly 37–59 of 100, no Recommendation or Valuation, relative value "Unclear", distress gate "Not Applicable". Read `data/caos-runs/README.md`: it says where they conflict with the illustrative layer and asks for both states to be designed.
+
+**Test runs populate everything.** `data/test/` holds eight complete runs in the Report's own data shape (`rbot-run/1`): every module of every Pathway, every table and every chart filled. Caesars stays real-first; only what the sources lack is filled with values marked synthetic (each cites a "TEST DATA" record). The Distressed & Restructuring run uses a fictional issuer, Larchmere Leisure Group. State variants cover Blocked, Breaches, Tight and Breached covenants, a Prior Case, a Primary new issue with price talk, and Quick depth. Read `data/test/README.md`.
 
 ## 8. What is in this pack
 

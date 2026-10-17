@@ -18,7 +18,7 @@ Title: "Covenant and refinancing view". Judgements **illustrative** except the c
 
 One-line facts:
 - **Covenants**: Total Leverage 3.02x against a 6.50x ceiling; FCCR 4.63x against a 2.00x floor; tested for the revolver and Term A only, Term B-1 has no maintenance test. Ratios are on RBOT's basis (G34).
-- **Liquidity**: US$2,928m against mandatory uses to December 2027 of US$1,474m: 35.8 months; the revolver matures 31 January 2028.
+- **Liquidity**: US$2,928m against mandatory uses of US$2,601m over 12 months from 30 June 2026, lease payments included: 13.5 months; the revolver matures 31 January 2028.
 - **New tranches**: merger debt unstated; CR Score n/a (G39, G8).
 - The Pathway produces **no Recommendation, no Valuation and no Portfolio Fit** (it runs no CP-3, CP-6 or Fit): it describes protection and refinancing capacity, not whether to own.
 
@@ -26,7 +26,7 @@ One-line facts:
 
 **Covenant tests and headroom** (CP-4). `blocks.covenantTests` with `charts.fig-covenant-headroom` (bullet, unit x, ceilings and floors, current against threshold). Rows, threshold / current / headroom: Total Leverage Ratio (maintenance, ceiling) 6.50 / 3.02 / 3.48; Fixed Charge Coverage Ratio (maintenance, floor) 2.00 / 4.63 / 2.63; Pari secured incremental (incurrence, ceiling) 4.50 / 2.64 / 1.86; Ratio debt, 2032 indenture (incurrence, floor) 2.00 / 4.63 / 2.63. Thresholds cited, currents and headroom calculated; status Headroom (rule: Breached below zero, Tight under 10% of threshold). Note under it: maintenance tests spring after Term A is repaid only when revolver use exceeds 25% of commitments; use is 5.3%.
 
-**Liquidity runway** (CP-2D). `blocks.runway`, `blocks.liquiditySources`, `blocks.cashUses`; chart `charts.fig-liquidity-bridge` (waterfall US$ m): opening 2,928; debt service rest of 2026 (425); interest 2027 (750); maturities 2027 (114); maintenance capex (185); growth and digital capex (205); operating cash inflow n/a (G13); closing before operating cash flow 1,249. Runway rows: mandatory uses 1,474, headroom 1,454, months 35.8. 2027 capex n/a (G29). Pinch point: 31 January 2028, the CEI revolver (net capacity 2,130, 72.7% of liquidity).
+**Liquidity runway** (CP-2D). `blocks.runway`, `blocks.liquiditySources`, `blocks.cashUses`; chart `charts.fig-liquidity-bridge` (waterfall US$ m): opening 2,928 (30 June 2026); operating cash flow before cash interest and rent at the LTM level 3,436 (an assumption, not a forecast; G13); then the uses over the 12 months from 30 June 2026, lease payments included: debt service H2 2026 (425); interest H1 2027 (375); maturities H1 2027 (57); lease payments H2 2026 (687) and H1 2027 (682); maintenance capex H2 2026 (185) and H1 2027 (190); growth and digital capex H2 2026 (205) and H1 2027 (210); closing 3,348 at 30 June 2027 before refinancing. First-half 2027 rows are straight-line halves of FY2027 estimates; 2027 capex is a synthetic test value (G29). Runway rows: mandatory uses 2,601, headroom 327, months 13.5. Pinch point: 31 January 2028, the CEI revolver (net capacity 2,130, 72.7% of liquidity).
 
 **Maturity wall and capital structure** (Model). Base `charts.maturityWall` (stacked by rank, US$ m: 2028 RCF 120, Term A 619; 2029 CVA DDTL 376, unsecured 1,200; 2030 Term B 2,018, secured notes 2,000; 2031 Term B-1 2,835; 2032 secured 1,500, unsecured 1,100; 2037 other 38) with the capital structure summary (total debt 11,807, 3.29x; EV 17,600).
 

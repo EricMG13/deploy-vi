@@ -10,9 +10,9 @@ window.RBOT_FP = {
    "PORTFOLIO_DECISION"
   ],
   "counts": {
-   "citations": 33,
-   "synthetic": 6,
-   "calcs": 109,
+   "citations": 34,
+   "synthetic": 7,
+   "calcs": 117,
    "gaps": 13,
    "blocks": 41,
    "charts": 12,
@@ -492,6 +492,31 @@ window.RBOT_FP = {
    "line": 155,
    "locator": "Owner-adopted test adaptation, line 155",
    "excerpt": "Indenture §7.11 in the compliance monitor is the CLO's own indenture, not the Caesars notes indenture.",
+   "synthetic": true
+  },
+  "C371": {
+   "id": "C371",
+   "key": "guide_remaining_2026_lease_payments",
+   "label": "Estimated lease payments to VICI and GLPI, remainder of 2026 (approximately)",
+   "period": "remainder of 2026",
+   "value": "687",
+   "unit": "USD millions",
+   "file": "CZR_Q2_2026_10Q.txt",
+   "line": 1300,
+   "locator": "MD&A, liquidity, line 1300",
+   "excerpt": "lease payments to VICI and GLPI to be approximately $687 million for the remainder of 2026"
+  },
+  "S52": {
+   "id": "S52",
+   "key": "synthetic_capex_fy2027",
+   "label": "Synthetic test value: Base case capital expenditure, FY2027",
+   "period": "FY2027",
+   "value": "800",
+   "unit": "USD millions",
+   "file": "fixtures/synthetic-facts.json",
+   "line": 102,
+   "locator": "synthetic-facts.json#czr.projection_drivers.base.capex.FY2027",
+   "excerpt": "\"FY2027\": \"800\",",
    "synthetic": true
   }
  },
@@ -1153,25 +1178,82 @@ window.RBOT_FP = {
   },
   "K153": {
    "id": "K153",
-   "key": "cr_mand_uses",
-   "label": "Mandatory uses of cash, July 2026 to December 2027",
-   "period": "to 2027-12-31",
-   "value": "1,474",
+   "key": "cr_int_h1_2027",
+   "label": "Interest, first half of 2027, as half of the FY2027 estimate",
+   "period": "H1 2027",
+   "value": "375",
    "unit": "USD millions",
-   "formula": "Estimated debt service (principal and interest), remainder of 2026 (approximately) [C273] + Estimated interest payments, 2027 [C275] + Annual maturities of long-term debt: 2027 [C179] + Estimate of remaining 2026 capex, high: Maintenance projects [C283]",
-   "formula_keys": "guide_remaining_2026_debt_service + guide_2027_interest + debt_maturity_2027 + guide_capex_remaining_2026_maintenance_high",
+   "formula": "Estimated interest payments, 2027 [C275] / 2",
+   "formula_keys": "guide_2027_interest / 2",
    "inputs": [
-    "C273",
-    "C275",
-    "C179",
-    "C283"
+    "C275"
    ],
-   "note": "Debt service for the rest of 2026, 2027 interest, 2027 maturities and the high end of the maintenance capex estimate."
+   "note": "A straight-line half of the 10-Q's FY2027 estimate, not a company schedule."
   },
   "K154": {
    "id": "K154",
-   "key": "cr_disc_uses",
-   "label": "Discretionary uses of cash, rest of 2026 (growth and digital capex, high end)",
+   "key": "cr_mat_h1_2027",
+   "label": "Debt maturities, first half of 2027, as half of FY2027",
+   "period": "H1 2027",
+   "value": "57",
+   "unit": "USD millions",
+   "formula": "Annual maturities of long-term debt: 2027 [C179] / 2",
+   "formula_keys": "debt_maturity_2027 / 2",
+   "inputs": [
+    "C179"
+   ],
+   "note": "A straight-line half of the FY2027 maturities, not a company schedule."
+  },
+  "K155": {
+   "id": "K155",
+   "key": "cr_rent_h1_2027",
+   "label": "VICI and GLPI lease payments, first half of 2027, as half of LTM cash rent",
+   "period": "H1 2027",
+   "value": "682",
+   "unit": "USD millions",
+   "formula": "LTM cash interest paid for rent (GLPI and VICI leases) [K9] / 2",
+   "formula_keys": "ltm_cash_interest_rent_q2_2026 / 2",
+   "inputs": [
+    "K9"
+   ],
+   "note": "A straight-line half of the LTM cash interest paid for rent, not a company schedule."
+  },
+  "K156": {
+   "id": "K156",
+   "key": "cr_capex_h1_2027",
+   "label": "Capital expenditure, first half of 2027, as half of the synthetic FY2027 value",
+   "period": "H1 2027",
+   "value": "400",
+   "unit": "USD millions",
+   "formula": "Synthetic test value: Base case capital expenditure, FY2027 [S52] / 2",
+   "formula_keys": "synthetic_capex_fy2027 / 2",
+   "inputs": [
+    "S52"
+   ],
+   "note": "Half of a synthetic test value; the sources give no capex beyond 2026.",
+   "synthetic": true
+  },
+  "K157": {
+   "id": "K157",
+   "key": "cr_maint_h1_2027",
+   "label": "Maintenance capex, first half of 2027, at the 2026 maintenance share",
+   "period": "H1 2027",
+   "value": "190",
+   "unit": "USD millions",
+   "formula": "Capital expenditure, first half of 2027, as half of the synthetic FY2027 value [K156] x Estimate of remaining 2026 capex, high: Maintenance projects [C283] / Estimate of remaining 2026 capex, high: Total estimated capital expenditures from unrestricted cash [C277]",
+   "formula_keys": "cr_capex_h1_2027 x guide_capex_remaining_2026_maintenance_high / guide_capex_remaining_2026_total_high",
+   "inputs": [
+    "K156",
+    "C283",
+    "C277"
+   ],
+   "note": "The 2026 maintenance share (high end) applied to the synthetic capex; the split is an assumption.",
+   "synthetic": true
+  },
+  "K158": {
+   "id": "K158",
+   "key": "cr_growth_h2_2026",
+   "label": "Growth and digital capex, second half of 2026 (high end)",
    "period": "H2 2026",
    "value": "205",
    "unit": "USD millions",
@@ -1183,54 +1265,127 @@ window.RBOT_FP = {
    ],
    "note": null
   },
-  "K155": {
-   "id": "K155",
-   "key": "cr_closing",
-   "label": "Accessible liquidity at 31 December 2027 before operating cash flow",
-   "period": "to 2027-12-31",
-   "value": "1,249",
+  "K159": {
+   "id": "K159",
+   "key": "cr_growth_h1_2027",
+   "label": "Growth and digital capex, first half of 2027",
+   "period": "H1 2027",
+   "value": "210",
    "unit": "USD millions",
-   "formula": "Liquidity table: Total cash on hand and borrowing capacity [C177] - Mandatory uses of cash, July 2026 to December 2027 [K153] - Discretionary uses of cash, rest of 2026 (growth and digital capex, high end) [K154]",
-   "formula_keys": "liq_total - cr_mand_uses - cr_disc_uses",
+   "formula": "Capital expenditure, first half of 2027, as half of the synthetic FY2027 value [K156] - Maintenance capex, first half of 2027, at the 2026 maintenance share [K157]",
+   "formula_keys": "cr_capex_h1_2027 - cr_maint_h1_2027",
+   "inputs": [
+    "K156",
+    "K157"
+   ],
+   "note": null,
+   "synthetic": true
+  },
+  "K160": {
+   "id": "K160",
+   "key": "cr_mand_uses",
+   "label": "Mandatory uses of cash, July 2026 to June 2027",
+   "period": "12 months to 2027-06-30",
+   "value": "2,601",
+   "unit": "USD millions",
+   "formula": "Estimated debt service (principal and interest), remainder of 2026 (approximately) [C273] + Interest, first half of 2027, as half of the FY2027 estimate [K153] + Debt maturities, first half of 2027, as half of FY2027 [K154] + Estimated lease payments to VICI and GLPI, remainder of 2026 (approximately) [C371] + VICI and GLPI lease payments, first half of 2027, as half of LTM cash rent [K155] + Estimate of remaining 2026 capex, high: Maintenance projects [C283] + Maintenance capex, first half of 2027, at the 2026 maintenance share [K157]",
+   "formula_keys": "guide_remaining_2026_debt_service + cr_int_h1_2027 + cr_mat_h1_2027 + guide_remaining_2026_lease_payments + cr_rent_h1_2027 + guide_capex_remaining_2026_maintenance_high + cr_maint_h1_2027",
+   "inputs": [
+    "C273",
+    "K153",
+    "K154",
+    "C371",
+    "K155",
+    "C283",
+    "K157"
+   ],
+   "note": "Debt service, interest, maturities, VICI and GLPI lease payments and maintenance capex over 12 months from 30 June 2026.",
+   "synthetic": true
+  },
+  "K161": {
+   "id": "K161",
+   "key": "cr_disc_uses",
+   "label": "Discretionary uses of cash, July 2026 to June 2027 (growth and digital capex)",
+   "period": "12 months to 2027-06-30",
+   "value": "415",
+   "unit": "USD millions",
+   "formula": "Growth and digital capex, second half of 2026 (high end) [K158] + Growth and digital capex, first half of 2027 [K159]",
+   "formula_keys": "cr_growth_h2_2026 + cr_growth_h1_2027",
+   "inputs": [
+    "K158",
+    "K159"
+   ],
+   "note": null,
+   "synthetic": true
+  },
+  "K162": {
+   "id": "K162",
+   "key": "cr_op_inflow",
+   "label": "Operating cash flow before cash interest and rent, at the LTM level",
+   "period": "12 months to 2027-06-30",
+   "value": "3,436",
+   "unit": "USD millions",
+   "formula": "LTM net cash provided by operating activities [K4] + LTM cash interest paid for debt [K5] + LTM cash interest paid for rent (GLPI and VICI leases) [K9]",
+   "formula_keys": "ltm_cfo_q2_2026 + ltm_cash_interest_debt_q2_2026 + ltm_cash_interest_rent_q2_2026",
+   "inputs": [
+    "K4",
+    "K5",
+    "K9"
+   ],
+   "note": "Assumption: the real LTM level repeats for 12 months; no forward forecast exists in the sources."
+  },
+  "K163": {
+   "id": "K163",
+   "key": "cr_closing",
+   "label": "Accessible liquidity at 30 June 2027, before refinancing",
+   "period": "to 2027-06-30",
+   "value": "3,348",
+   "unit": "USD millions",
+   "formula": "Liquidity table: Total cash on hand and borrowing capacity [C177] + Operating cash flow before cash interest and rent, at the LTM level [K162] - Mandatory uses of cash, July 2026 to June 2027 [K160] - Discretionary uses of cash, July 2026 to June 2027 (growth and digital capex) [K161]",
+   "formula_keys": "liq_total + cr_op_inflow - cr_mand_uses - cr_disc_uses",
    "inputs": [
     "C177",
-    "K153",
-    "K154"
+    "K162",
+    "K160",
+    "K161"
    ],
-   "note": null
+   "note": "Opening liquidity plus the LTM operating inflow less every use; the 2028 maturities are outside the window.",
+   "synthetic": true
   },
-  "K156": {
-   "id": "K156",
+  "K164": {
+   "id": "K164",
    "key": "cr_headroom",
-   "label": "Liquidity headroom over mandatory uses to 31 December 2027",
-   "period": "to 2027-12-31",
-   "value": "1,454",
+   "label": "Liquidity headroom over mandatory uses, 12 months to 30 June 2027",
+   "period": "12 months to 2027-06-30",
+   "value": "327",
    "unit": "USD millions",
-   "formula": "Liquidity table: Total cash on hand and borrowing capacity [C177] - Mandatory uses of cash, July 2026 to December 2027 [K153]",
+   "formula": "Liquidity table: Total cash on hand and borrowing capacity [C177] - Mandatory uses of cash, July 2026 to June 2027 [K160]",
    "formula_keys": "liq_total - cr_mand_uses",
    "inputs": [
     "C177",
-    "K153"
+    "K160"
    ],
-   "note": null
+   "note": "A stress with no operating cash inflow.",
+   "synthetic": true
   },
-  "K157": {
-   "id": "K157",
+  "K165": {
+   "id": "K165",
    "key": "cr_runway_months",
    "label": "Months of runway on mandatory uses",
-   "period": "to 2027-12-31",
-   "value": "35.8",
+   "period": "12 months to 2027-06-30",
+   "value": "13.5",
    "unit": "months",
-   "formula": "Liquidity table: Total cash on hand and borrowing capacity [C177] / (Mandatory uses of cash, July 2026 to December 2027 [K153] / 18)",
-   "formula_keys": "liq_total / (cr_mand_uses / 18)",
+   "formula": "Liquidity table: Total cash on hand and borrowing capacity [C177] / (Mandatory uses of cash, July 2026 to June 2027 [K160] / 12)",
+   "formula_keys": "liq_total / (cr_mand_uses / 12)",
    "inputs": [
     "C177",
-    "K153"
+    "K160"
    ],
-   "note": "18 months: July 2026 to December 2027. Before any operating cash flow."
+   "note": "12 months from 30 June 2026, lease payments included, before any operating cash flow.",
+   "synthetic": true
   },
-  "K158": {
-   "id": "K158",
+  "K166": {
+   "id": "K166",
    "key": "cr_rcf_share",
    "label": "CEI revolver capacity as a share of accessible liquidity",
    "period": "as of 2026-06-30",
@@ -1244,8 +1399,8 @@ window.RBOT_FP = {
    ],
    "note": null
   },
-  "K159": {
-   "id": "K159",
+  "K167": {
+   "id": "K167",
    "key": "cr_liq_left_2026",
    "label": "Liquidity left before refinancing, end of 2026",
    "period": "to 2026",
@@ -1259,8 +1414,8 @@ window.RBOT_FP = {
    ],
    "note": "Accessible liquidity less cumulative scheduled maturities, and less the CEI revolver's net capacity from 2028, when it matures (31 January 2028). No operating cash flow, no refinancing."
   },
-  "K160": {
-   "id": "K160",
+  "K168": {
+   "id": "K168",
    "key": "cr_liq_left_2027",
    "label": "Liquidity left before refinancing, end of 2027",
    "period": "to 2027",
@@ -1275,8 +1430,8 @@ window.RBOT_FP = {
    ],
    "note": "Accessible liquidity less cumulative scheduled maturities, and less the CEI revolver's net capacity from 2028, when it matures (31 January 2028). No operating cash flow, no refinancing."
   },
-  "K161": {
-   "id": "K161",
+  "K169": {
+   "id": "K169",
    "key": "cr_liq_left_2028",
    "label": "Liquidity left before refinancing, end of 2028",
    "period": "to 2028",
@@ -1293,8 +1448,8 @@ window.RBOT_FP = {
    ],
    "note": "Accessible liquidity less cumulative scheduled maturities, and less the CEI revolver's net capacity from 2028, when it matures (31 January 2028). No operating cash flow, no refinancing."
   },
-  "K162": {
-   "id": "K162",
+  "K170": {
+   "id": "K170",
    "key": "cr_liq_left_2029",
    "label": "Liquidity left before refinancing, end of 2029",
    "period": "to 2029",
@@ -1312,8 +1467,8 @@ window.RBOT_FP = {
    ],
    "note": "Accessible liquidity less cumulative scheduled maturities, and less the CEI revolver's net capacity from 2028, when it matures (31 January 2028). No operating cash flow, no refinancing."
   },
-  "K163": {
-   "id": "K163",
+  "K171": {
+   "id": "K171",
    "key": "cr_liq_left_2030",
    "label": "Liquidity left before refinancing, end of 2030",
    "period": "to 2030",
@@ -1332,8 +1487,8 @@ window.RBOT_FP = {
    ],
    "note": "Accessible liquidity less cumulative scheduled maturities, and less the CEI revolver's net capacity from 2028, when it matures (31 January 2028). No operating cash flow, no refinancing."
   },
-  "K164": {
-   "id": "K164",
+  "K172": {
+   "id": "K172",
    "key": "cr_liq_left_after",
    "label": "Liquidity left before refinancing, after 2030",
    "period": "to after",
@@ -1353,64 +1508,64 @@ window.RBOT_FP = {
    ],
    "note": "Accessible liquidity less cumulative scheduled maturities, and less the CEI revolver's net capacity from 2028, when it matures (31 January 2028). No operating cash flow, no refinancing."
   },
-  "K165": {
-   "id": "K165",
+  "K173": {
+   "id": "K173",
    "key": "cr_gap_2028",
    "label": "Funding gap, by end of 2028",
    "period": "to 2028",
    "value": "138",
    "unit": "USD millions",
-   "formula": "-Liquidity left before refinancing, end of 2028 [K161]",
+   "formula": "-Liquidity left before refinancing, end of 2028 [K169]",
    "formula_keys": "-cr_liq_left_2028",
    "inputs": [
-    "K161"
+    "K169"
    ],
    "note": "The shortfall where liquidity left before refinancing is negative."
   },
-  "K166": {
-   "id": "K166",
+  "K174": {
+   "id": "K174",
    "key": "cr_gap_2029",
    "label": "Funding gap, by end of 2029",
    "period": "to 2029",
    "value": "1,712",
    "unit": "USD millions",
-   "formula": "-Liquidity left before refinancing, end of 2029 [K162]",
+   "formula": "-Liquidity left before refinancing, end of 2029 [K170]",
    "formula_keys": "-cr_liq_left_2029",
    "inputs": [
-    "K162"
+    "K170"
    ],
    "note": "The shortfall where liquidity left before refinancing is negative."
   },
-  "K167": {
-   "id": "K167",
+  "K175": {
+   "id": "K175",
    "key": "cr_gap_2030",
    "label": "Funding gap, by end of 2030",
    "period": "to 2030",
    "value": "5,674",
    "unit": "USD millions",
-   "formula": "-Liquidity left before refinancing, end of 2030 [K163]",
+   "formula": "-Liquidity left before refinancing, end of 2030 [K171]",
    "formula_keys": "-cr_liq_left_2030",
    "inputs": [
-    "K163"
+    "K171"
    ],
    "note": "The shortfall where liquidity left before refinancing is negative."
   },
-  "K168": {
-   "id": "K168",
+  "K176": {
+   "id": "K176",
    "key": "cr_gap_after",
    "label": "Funding gap, after 2030",
    "period": "to after",
    "value": "11,009",
    "unit": "USD millions",
-   "formula": "-Liquidity left before refinancing, after 2030 [K164]",
+   "formula": "-Liquidity left before refinancing, after 2030 [K172]",
    "formula_keys": "-cr_liq_left_after",
    "inputs": [
-    "K164"
+    "K172"
    ],
    "note": "The shortfall where liquidity left before refinancing is negative."
   },
-  "K169": {
-   "id": "K169",
+  "K177": {
+   "id": "K177",
    "key": "cr_rcf_util_pct",
    "label": "CEI revolver drawn as a share of commitments",
    "period": "as of 2026-06-30",
@@ -1424,8 +1579,8 @@ window.RBOT_FP = {
    ],
    "note": null
   },
-  "K170": {
-   "id": "K170",
+  "K178": {
+   "id": "K178",
    "key": "cov_tlr_headroom",
    "label": "Total Leverage Ratio headroom (RBOT basis)",
    "period": "LTM Q2 2026",
@@ -1439,8 +1594,8 @@ window.RBOT_FP = {
    ],
    "note": null
   },
-  "K171": {
-   "id": "K171",
+  "K179": {
+   "id": "K179",
    "key": "cov_fccr_headroom",
    "label": "Fixed Charge Coverage Ratio headroom (RBOT basis)",
    "period": "LTM Q2 2026",
@@ -1454,8 +1609,8 @@ window.RBOT_FP = {
    ],
    "note": null
   },
-  "K172": {
-   "id": "K172",
+  "K180": {
+   "id": "K180",
    "key": "cov_sslr_headroom",
    "label": "Pari secured incremental test headroom (RBOT basis, gross secured debt)",
    "period": "LTM Q2 2026",
@@ -1469,8 +1624,8 @@ window.RBOT_FP = {
    ],
    "note": null
   },
-  "K173": {
-   "id": "K173",
+  "K181": {
+   "id": "K181",
    "key": "ind_fccr_headroom",
    "label": "Indenture ratio-debt test headroom (RBOT basis)",
    "period": "LTM Q2 2026",
@@ -1484,8 +1639,8 @@ window.RBOT_FP = {
    ],
    "note": null
   },
-  "K174": {
-   "id": "K174",
+  "K182": {
+   "id": "K182",
    "key": "cap_pari_secured",
    "label": "Indicative pari secured incremental capacity to 4.50x",
    "period": "as of 2026-06-30",
@@ -1500,8 +1655,8 @@ window.RBOT_FP = {
    ],
    "note": "RBOT basis: company LTM Adjusted EBITDA and face senior secured debt; the agreement's EBITDA definition is not reconciled."
   },
-  "K175": {
-   "id": "K175",
+  "K183": {
+   "id": "K183",
    "key": "cap_junior_secured",
    "label": "Indicative junior secured incremental capacity to 4.75x",
    "period": "as of 2026-06-30",
@@ -1516,8 +1671,8 @@ window.RBOT_FP = {
    ],
    "note": "An alternative to the pari amount, not additive. RBOT basis."
   },
-  "K176": {
-   "id": "K176",
+  "K184": {
+   "id": "K184",
    "key": "cap_free_clear_size",
    "label": "Free-and-clear incremental amount: the greater of US$2,600m and 1.00x EBITDA",
    "period": "as of 2026-06-30",
@@ -1531,23 +1686,23 @@ window.RBOT_FP = {
    ],
    "note": "Before amounts already used, which are not stated."
   },
-  "K177": {
-   "id": "K177",
+  "K185": {
+   "id": "K185",
    "key": "lme_sec_lme",
    "label": "Senior secured claims after drawing the pari secured capacity",
    "period": "as of 2026-06-30",
    "value": "16,164",
    "unit": "USD millions",
-   "formula": "Senior secured debt, face [K57] + Indicative pari secured incremental capacity to 4.50x [K174]",
+   "formula": "Senior secured debt, face [K57] + Indicative pari secured incremental capacity to 4.50x [K182]",
    "formula_keys": "senior_secured_debt_2026_06_30 + cap_pari_secured",
    "inputs": [
     "K57",
-    "K174"
+    "K182"
    ],
    "note": null
   },
-  "K178": {
-   "id": "K178",
+  "K186": {
+   "id": "K186",
    "key": "lme_uns_base",
    "label": "Claims at or ahead of the senior unsecured notes, base",
    "period": "as of 2026-06-30",
@@ -1561,23 +1716,23 @@ window.RBOT_FP = {
    ],
    "note": null
   },
-  "K179": {
-   "id": "K179",
+  "K187": {
+   "id": "K187",
    "key": "lme_uns_lme",
    "label": "Claims at or ahead of the senior unsecured notes after the pari secured capacity is drawn",
    "period": "as of 2026-06-30",
    "value": "18,464",
    "unit": "USD millions",
-   "formula": "Claims at or ahead of the senior unsecured notes, base [K178] + Indicative pari secured incremental capacity to 4.50x [K174]",
+   "formula": "Claims at or ahead of the senior unsecured notes, base [K186] + Indicative pari secured incremental capacity to 4.50x [K182]",
    "formula_keys": "lme_uns_base + cap_pari_secured",
    "inputs": [
-    "K178",
-    "K174"
+    "K186",
+    "K182"
    ],
    "note": null
   },
-  "K180": {
-   "id": "K180",
+  "K188": {
+   "id": "K188",
    "key": "dr_ebitda_after_rent",
    "label": "LTM Adjusted EBITDA after cash interest paid for rent (GLPI and VICI leases)",
    "period": "LTM Q2 2026",
@@ -1591,53 +1746,53 @@ window.RBOT_FP = {
    ],
    "note": "Rent is treated as a claim ahead of debt, so value is measured after it."
   },
-  "K181": {
-   "id": "K181",
+  "K189": {
+   "id": "K189",
    "key": "dr_merger_multiple",
    "label": "Merger transaction value over LTM Adjusted EBITDA after rent",
    "period": "LTM Q2 2026",
    "value": "7.90",
    "unit": "x",
-   "formula": "Enterprise value at the merger's stated transaction value [K62] / LTM Adjusted EBITDA after cash interest paid for rent (GLPI and VICI leases) [K180]",
+   "formula": "Enterprise value at the merger's stated transaction value [K62] / LTM Adjusted EBITDA after cash interest paid for rent (GLPI and VICI leases) [K188]",
    "formula_keys": "ev_merger_usdm / dr_ebitda_after_rent",
    "inputs": [
     "K62",
-    "K180"
+    "K188"
    ],
    "note": null
   },
-  "K182": {
-   "id": "K182",
+  "K190": {
+   "id": "K190",
    "key": "dr_ev_downside",
    "label": "Enterprise value, downside scenario at an illustrative 5.0x",
    "period": "LTM Q2 2026",
    "value": "11,145",
    "unit": "USD millions",
-   "formula": "5.0 (illustrative multiple) x LTM Adjusted EBITDA after cash interest paid for rent (GLPI and VICI leases) [K180]",
+   "formula": "5.0 (illustrative multiple) x LTM Adjusted EBITDA after cash interest paid for rent (GLPI and VICI leases) [K188]",
    "formula_keys": "5.0 (illustrative multiple) x dr_ebitda_after_rent",
    "inputs": [
-    "K180"
+    "K188"
    ],
    "note": "The 5.0x multiple is an illustrative analyst input, not a sourced figure.",
    "illustrative": true
   },
-  "K183": {
-   "id": "K183",
+  "K191": {
+   "id": "K191",
    "key": "dr_ev_stress",
    "label": "Enterprise value, stress scenario at an illustrative 4.0x",
    "period": "LTM Q2 2026",
    "value": "8,916",
    "unit": "USD millions",
-   "formula": "4.0 (illustrative multiple) x LTM Adjusted EBITDA after cash interest paid for rent (GLPI and VICI leases) [K180]",
+   "formula": "4.0 (illustrative multiple) x LTM Adjusted EBITDA after cash interest paid for rent (GLPI and VICI leases) [K188]",
    "formula_keys": "4.0 (illustrative multiple) x dr_ebitda_after_rent",
    "inputs": [
-    "K180"
+    "K188"
    ],
    "note": "The 4.0x multiple is an illustrative analyst input, not a sourced figure.",
    "illustrative": true
   },
-  "K184": {
-   "id": "K184",
+  "K192": {
+   "id": "K192",
    "key": "dr_alloc_merger_secured",
    "label": "Allocation to senior secured, merger value scenario (absolute priority)",
    "period": "LTM Q2 2026",
@@ -1651,422 +1806,422 @@ window.RBOT_FP = {
    ],
    "note": null
   },
-  "K185": {
-   "id": "K185",
+  "K193": {
+   "id": "K193",
    "key": "dr_rec_merger_secured",
    "label": "Recovery of senior secured, merger value scenario",
    "period": "LTM Q2 2026",
    "value": "100.0",
    "unit": "%",
-   "formula": "Allocation to senior secured, merger value scenario (absolute priority) [K184] / Senior secured debt, face [K57] x 100",
+   "formula": "Allocation to senior secured, merger value scenario (absolute priority) [K192] / Senior secured debt, face [K57] x 100",
    "formula_keys": "dr_alloc_merger_secured / senior_secured_debt_2026_06_30 x 100",
    "inputs": [
-    "K184",
+    "K192",
     "K57"
    ],
    "note": null
   },
-  "K186": {
-   "id": "K186",
+  "K194": {
+   "id": "K194",
    "key": "dr_avail_merger_unsecured",
    "label": "Value left for senior unsecured after the class ahead, merger value scenario",
    "period": "LTM Q2 2026",
    "value": "8,132",
    "unit": "USD millions",
-   "formula": "Enterprise value at the merger's stated transaction value [K62] - Allocation to senior secured, merger value scenario (absolute priority) [K184]",
+   "formula": "Enterprise value at the merger's stated transaction value [K62] - Allocation to senior secured, merger value scenario (absolute priority) [K192]",
    "formula_keys": "ev_merger_usdm - dr_alloc_merger_secured",
    "inputs": [
     "K62",
-    "K184"
+    "K192"
    ],
    "note": null
   },
-  "K187": {
-   "id": "K187",
+  "K195": {
+   "id": "K195",
    "key": "dr_alloc_merger_unsecured",
    "label": "Allocation to senior unsecured, merger value scenario (absolute priority)",
    "period": "LTM Q2 2026",
    "value": "2,300",
    "unit": "USD millions",
-   "formula": "min(Senior unsecured notes, face [K58], Value left for senior unsecured after the class ahead, merger value scenario [K186])",
+   "formula": "min(Senior unsecured notes, face [K58], Value left for senior unsecured after the class ahead, merger value scenario [K194])",
    "formula_keys": "min(unsecured_debt_2026_06_30, dr_avail_merger_unsecured)",
    "inputs": [
     "K58",
-    "K186"
+    "K194"
    ],
    "note": null
   },
-  "K188": {
-   "id": "K188",
+  "K196": {
+   "id": "K196",
    "key": "dr_rec_merger_unsecured",
    "label": "Recovery of senior unsecured, merger value scenario",
    "period": "LTM Q2 2026",
    "value": "100.0",
    "unit": "%",
-   "formula": "Allocation to senior unsecured, merger value scenario (absolute priority) [K187] / Senior unsecured notes, face [K58] x 100",
+   "formula": "Allocation to senior unsecured, merger value scenario (absolute priority) [K195] / Senior unsecured notes, face [K58] x 100",
    "formula_keys": "dr_alloc_merger_unsecured / unsecured_debt_2026_06_30 x 100",
    "inputs": [
-    "K187",
+    "K195",
     "K58"
    ],
    "note": null
   },
-  "K189": {
-   "id": "K189",
+  "K197": {
+   "id": "K197",
    "key": "dr_avail_merger_other",
    "label": "Value left for other debt after the class ahead, merger value scenario",
    "period": "LTM Q2 2026",
    "value": "5,832",
    "unit": "USD millions",
-   "formula": "Value left for senior unsecured after the class ahead, merger value scenario [K186] - Allocation to senior unsecured, merger value scenario (absolute priority) [K187]",
+   "formula": "Value left for senior unsecured after the class ahead, merger value scenario [K194] - Allocation to senior unsecured, merger value scenario (absolute priority) [K195]",
    "formula_keys": "dr_avail_merger_unsecured - dr_alloc_merger_unsecured",
    "inputs": [
-    "K186",
-    "K187"
+    "K194",
+    "K195"
    ],
    "note": null
   },
-  "K190": {
-   "id": "K190",
+  "K198": {
+   "id": "K198",
    "key": "dr_alloc_merger_other",
    "label": "Allocation to other debt, merger value scenario (absolute priority)",
    "period": "LTM Q2 2026",
    "value": "39",
    "unit": "USD millions",
-   "formula": "min(Other debt (SID bonds, notes and other payables), face [K59], Value left for other debt after the class ahead, merger value scenario [K189])",
+   "formula": "min(Other debt (SID bonds, notes and other payables), face [K59], Value left for other debt after the class ahead, merger value scenario [K197])",
    "formula_keys": "min(other_debt_2026_06_30, dr_avail_merger_other)",
    "inputs": [
     "K59",
-    "K189"
+    "K197"
    ],
    "note": null
   },
-  "K191": {
-   "id": "K191",
+  "K199": {
+   "id": "K199",
    "key": "dr_rec_merger_other",
    "label": "Recovery of other debt, merger value scenario",
    "period": "LTM Q2 2026",
    "value": "100.0",
    "unit": "%",
-   "formula": "Allocation to other debt, merger value scenario (absolute priority) [K190] / Other debt (SID bonds, notes and other payables), face [K59] x 100",
+   "formula": "Allocation to other debt, merger value scenario (absolute priority) [K198] / Other debt (SID bonds, notes and other payables), face [K59] x 100",
    "formula_keys": "dr_alloc_merger_other / other_debt_2026_06_30 x 100",
    "inputs": [
-    "K190",
+    "K198",
     "K59"
    ],
    "note": null
   },
-  "K192": {
-   "id": "K192",
+  "K200": {
+   "id": "K200",
    "key": "dr_residual_merger",
    "label": "Residual value to equity, merger value scenario",
    "period": "LTM Q2 2026",
    "value": "5,793",
    "unit": "USD millions",
-   "formula": "Enterprise value at the merger's stated transaction value [K62] - Allocation to senior secured, merger value scenario (absolute priority) [K184] - Allocation to senior unsecured, merger value scenario (absolute priority) [K187] - Allocation to other debt, merger value scenario (absolute priority) [K190]",
+   "formula": "Enterprise value at the merger's stated transaction value [K62] - Allocation to senior secured, merger value scenario (absolute priority) [K192] - Allocation to senior unsecured, merger value scenario (absolute priority) [K195] - Allocation to other debt, merger value scenario (absolute priority) [K198]",
    "formula_keys": "ev_merger_usdm - dr_alloc_merger_secured - dr_alloc_merger_unsecured - dr_alloc_merger_other",
    "inputs": [
     "K62",
-    "K184",
-    "K187",
-    "K190"
+    "K192",
+    "K195",
+    "K198"
    ],
    "note": null
   },
-  "K193": {
-   "id": "K193",
+  "K201": {
+   "id": "K201",
    "key": "dr_alloc_downside_secured",
    "label": "Allocation to senior secured, downside scenario (absolute priority)",
    "period": "LTM Q2 2026",
    "value": "9,468",
    "unit": "USD millions",
-   "formula": "min(Senior secured debt, face [K57], Enterprise value, downside scenario at an illustrative 5.0x [K182])",
+   "formula": "min(Senior secured debt, face [K57], Enterprise value, downside scenario at an illustrative 5.0x [K190])",
    "formula_keys": "min(senior_secured_debt_2026_06_30, dr_ev_downside)",
    "inputs": [
     "K57",
-    "K182"
-   ],
-   "note": null,
-   "illustrative": true
-  },
-  "K194": {
-   "id": "K194",
-   "key": "dr_rec_downside_secured",
-   "label": "Recovery of senior secured, downside scenario",
-   "period": "LTM Q2 2026",
-   "value": "100.0",
-   "unit": "%",
-   "formula": "Allocation to senior secured, downside scenario (absolute priority) [K193] / Senior secured debt, face [K57] x 100",
-   "formula_keys": "dr_alloc_downside_secured / senior_secured_debt_2026_06_30 x 100",
-   "inputs": [
-    "K193",
-    "K57"
-   ],
-   "note": null,
-   "illustrative": true
-  },
-  "K195": {
-   "id": "K195",
-   "key": "dr_avail_downside_unsecured",
-   "label": "Value left for senior unsecured after the class ahead, downside scenario",
-   "period": "LTM Q2 2026",
-   "value": "1,677",
-   "unit": "USD millions",
-   "formula": "Enterprise value, downside scenario at an illustrative 5.0x [K182] - Allocation to senior secured, downside scenario (absolute priority) [K193]",
-   "formula_keys": "dr_ev_downside - dr_alloc_downside_secured",
-   "inputs": [
-    "K182",
-    "K193"
-   ],
-   "note": null,
-   "illustrative": true
-  },
-  "K196": {
-   "id": "K196",
-   "key": "dr_alloc_downside_unsecured",
-   "label": "Allocation to senior unsecured, downside scenario (absolute priority)",
-   "period": "LTM Q2 2026",
-   "value": "1,677",
-   "unit": "USD millions",
-   "formula": "min(Senior unsecured notes, face [K58], Value left for senior unsecured after the class ahead, downside scenario [K195])",
-   "formula_keys": "min(unsecured_debt_2026_06_30, dr_avail_downside_unsecured)",
-   "inputs": [
-    "K58",
-    "K195"
-   ],
-   "note": null,
-   "illustrative": true
-  },
-  "K197": {
-   "id": "K197",
-   "key": "dr_rec_downside_unsecured",
-   "label": "Recovery of senior unsecured, downside scenario",
-   "period": "LTM Q2 2026",
-   "value": "72.9",
-   "unit": "%",
-   "formula": "Allocation to senior unsecured, downside scenario (absolute priority) [K196] / Senior unsecured notes, face [K58] x 100",
-   "formula_keys": "dr_alloc_downside_unsecured / unsecured_debt_2026_06_30 x 100",
-   "inputs": [
-    "K196",
-    "K58"
-   ],
-   "note": null,
-   "illustrative": true
-  },
-  "K198": {
-   "id": "K198",
-   "key": "dr_avail_downside_other",
-   "label": "Value left for other debt after the class ahead, downside scenario",
-   "period": "LTM Q2 2026",
-   "value": "0",
-   "unit": "USD millions",
-   "formula": "Value left for senior unsecured after the class ahead, downside scenario [K195] - Allocation to senior unsecured, downside scenario (absolute priority) [K196]",
-   "formula_keys": "dr_avail_downside_unsecured - dr_alloc_downside_unsecured",
-   "inputs": [
-    "K195",
-    "K196"
-   ],
-   "note": null,
-   "illustrative": true
-  },
-  "K199": {
-   "id": "K199",
-   "key": "dr_alloc_downside_other",
-   "label": "Allocation to other debt, downside scenario (absolute priority)",
-   "period": "LTM Q2 2026",
-   "value": "0",
-   "unit": "USD millions",
-   "formula": "min(Other debt (SID bonds, notes and other payables), face [K59], Value left for other debt after the class ahead, downside scenario [K198])",
-   "formula_keys": "min(other_debt_2026_06_30, dr_avail_downside_other)",
-   "inputs": [
-    "K59",
-    "K198"
-   ],
-   "note": null,
-   "illustrative": true
-  },
-  "K200": {
-   "id": "K200",
-   "key": "dr_rec_downside_other",
-   "label": "Recovery of other debt, downside scenario",
-   "period": "LTM Q2 2026",
-   "value": "0.0",
-   "unit": "%",
-   "formula": "Allocation to other debt, downside scenario (absolute priority) [K199] / Other debt (SID bonds, notes and other payables), face [K59] x 100",
-   "formula_keys": "dr_alloc_downside_other / other_debt_2026_06_30 x 100",
-   "inputs": [
-    "K199",
-    "K59"
-   ],
-   "note": null,
-   "illustrative": true
-  },
-  "K201": {
-   "id": "K201",
-   "key": "dr_residual_downside",
-   "label": "Residual value to equity, downside scenario",
-   "period": "LTM Q2 2026",
-   "value": "0",
-   "unit": "USD millions",
-   "formula": "Enterprise value, downside scenario at an illustrative 5.0x [K182] - Allocation to senior secured, downside scenario (absolute priority) [K193] - Allocation to senior unsecured, downside scenario (absolute priority) [K196] - Allocation to other debt, downside scenario (absolute priority) [K199]",
-   "formula_keys": "dr_ev_downside - dr_alloc_downside_secured - dr_alloc_downside_unsecured - dr_alloc_downside_other",
-   "inputs": [
-    "K182",
-    "K193",
-    "K196",
-    "K199"
+    "K190"
    ],
    "note": null,
    "illustrative": true
   },
   "K202": {
    "id": "K202",
-   "key": "dr_alloc_stress_secured",
-   "label": "Allocation to senior secured, stress scenario (absolute priority)",
+   "key": "dr_rec_downside_secured",
+   "label": "Recovery of senior secured, downside scenario",
    "period": "LTM Q2 2026",
-   "value": "8,916",
-   "unit": "USD millions",
-   "formula": "min(Senior secured debt, face [K57], Enterprise value, stress scenario at an illustrative 4.0x [K183])",
-   "formula_keys": "min(senior_secured_debt_2026_06_30, dr_ev_stress)",
+   "value": "100.0",
+   "unit": "%",
+   "formula": "Allocation to senior secured, downside scenario (absolute priority) [K201] / Senior secured debt, face [K57] x 100",
+   "formula_keys": "dr_alloc_downside_secured / senior_secured_debt_2026_06_30 x 100",
    "inputs": [
-    "K57",
-    "K183"
+    "K201",
+    "K57"
    ],
    "note": null,
    "illustrative": true
   },
   "K203": {
    "id": "K203",
-   "key": "dr_rec_stress_secured",
-   "label": "Recovery of senior secured, stress scenario",
+   "key": "dr_avail_downside_unsecured",
+   "label": "Value left for senior unsecured after the class ahead, downside scenario",
    "period": "LTM Q2 2026",
-   "value": "94.2",
-   "unit": "%",
-   "formula": "Allocation to senior secured, stress scenario (absolute priority) [K202] / Senior secured debt, face [K57] x 100",
-   "formula_keys": "dr_alloc_stress_secured / senior_secured_debt_2026_06_30 x 100",
+   "value": "1,677",
+   "unit": "USD millions",
+   "formula": "Enterprise value, downside scenario at an illustrative 5.0x [K190] - Allocation to senior secured, downside scenario (absolute priority) [K201]",
+   "formula_keys": "dr_ev_downside - dr_alloc_downside_secured",
    "inputs": [
-    "K202",
-    "K57"
+    "K190",
+    "K201"
    ],
    "note": null,
    "illustrative": true
   },
   "K204": {
    "id": "K204",
-   "key": "dr_avail_stress_unsecured",
-   "label": "Value left for senior unsecured after the class ahead, stress scenario",
+   "key": "dr_alloc_downside_unsecured",
+   "label": "Allocation to senior unsecured, downside scenario (absolute priority)",
    "period": "LTM Q2 2026",
-   "value": "0",
+   "value": "1,677",
    "unit": "USD millions",
-   "formula": "Enterprise value, stress scenario at an illustrative 4.0x [K183] - Allocation to senior secured, stress scenario (absolute priority) [K202]",
-   "formula_keys": "dr_ev_stress - dr_alloc_stress_secured",
+   "formula": "min(Senior unsecured notes, face [K58], Value left for senior unsecured after the class ahead, downside scenario [K203])",
+   "formula_keys": "min(unsecured_debt_2026_06_30, dr_avail_downside_unsecured)",
    "inputs": [
-    "K183",
-    "K202"
+    "K58",
+    "K203"
    ],
    "note": null,
    "illustrative": true
   },
   "K205": {
    "id": "K205",
-   "key": "dr_alloc_stress_unsecured",
-   "label": "Allocation to senior unsecured, stress scenario (absolute priority)",
+   "key": "dr_rec_downside_unsecured",
+   "label": "Recovery of senior unsecured, downside scenario",
    "period": "LTM Q2 2026",
-   "value": "0",
-   "unit": "USD millions",
-   "formula": "min(Senior unsecured notes, face [K58], Value left for senior unsecured after the class ahead, stress scenario [K204])",
-   "formula_keys": "min(unsecured_debt_2026_06_30, dr_avail_stress_unsecured)",
+   "value": "72.9",
+   "unit": "%",
+   "formula": "Allocation to senior unsecured, downside scenario (absolute priority) [K204] / Senior unsecured notes, face [K58] x 100",
+   "formula_keys": "dr_alloc_downside_unsecured / unsecured_debt_2026_06_30 x 100",
    "inputs": [
-    "K58",
-    "K204"
+    "K204",
+    "K58"
    ],
    "note": null,
    "illustrative": true
   },
   "K206": {
    "id": "K206",
-   "key": "dr_rec_stress_unsecured",
-   "label": "Recovery of senior unsecured, stress scenario",
+   "key": "dr_avail_downside_other",
+   "label": "Value left for other debt after the class ahead, downside scenario",
    "period": "LTM Q2 2026",
-   "value": "0.0",
-   "unit": "%",
-   "formula": "Allocation to senior unsecured, stress scenario (absolute priority) [K205] / Senior unsecured notes, face [K58] x 100",
-   "formula_keys": "dr_alloc_stress_unsecured / unsecured_debt_2026_06_30 x 100",
+   "value": "0",
+   "unit": "USD millions",
+   "formula": "Value left for senior unsecured after the class ahead, downside scenario [K203] - Allocation to senior unsecured, downside scenario (absolute priority) [K204]",
+   "formula_keys": "dr_avail_downside_unsecured - dr_alloc_downside_unsecured",
    "inputs": [
-    "K205",
-    "K58"
+    "K203",
+    "K204"
    ],
    "note": null,
    "illustrative": true
   },
   "K207": {
    "id": "K207",
-   "key": "dr_avail_stress_other",
-   "label": "Value left for other debt after the class ahead, stress scenario",
+   "key": "dr_alloc_downside_other",
+   "label": "Allocation to other debt, downside scenario (absolute priority)",
    "period": "LTM Q2 2026",
    "value": "0",
    "unit": "USD millions",
-   "formula": "Value left for senior unsecured after the class ahead, stress scenario [K204] - Allocation to senior unsecured, stress scenario (absolute priority) [K205]",
-   "formula_keys": "dr_avail_stress_unsecured - dr_alloc_stress_unsecured",
+   "formula": "min(Other debt (SID bonds, notes and other payables), face [K59], Value left for other debt after the class ahead, downside scenario [K206])",
+   "formula_keys": "min(other_debt_2026_06_30, dr_avail_downside_other)",
    "inputs": [
-    "K204",
-    "K205"
+    "K59",
+    "K206"
    ],
    "note": null,
    "illustrative": true
   },
   "K208": {
    "id": "K208",
-   "key": "dr_alloc_stress_other",
-   "label": "Allocation to other debt, stress scenario (absolute priority)",
+   "key": "dr_rec_downside_other",
+   "label": "Recovery of other debt, downside scenario",
    "period": "LTM Q2 2026",
-   "value": "0",
-   "unit": "USD millions",
-   "formula": "min(Other debt (SID bonds, notes and other payables), face [K59], Value left for other debt after the class ahead, stress scenario [K207])",
-   "formula_keys": "min(other_debt_2026_06_30, dr_avail_stress_other)",
+   "value": "0.0",
+   "unit": "%",
+   "formula": "Allocation to other debt, downside scenario (absolute priority) [K207] / Other debt (SID bonds, notes and other payables), face [K59] x 100",
+   "formula_keys": "dr_alloc_downside_other / other_debt_2026_06_30 x 100",
    "inputs": [
-    "K59",
-    "K207"
+    "K207",
+    "K59"
    ],
    "note": null,
    "illustrative": true
   },
   "K209": {
    "id": "K209",
-   "key": "dr_rec_stress_other",
-   "label": "Recovery of other debt, stress scenario",
+   "key": "dr_residual_downside",
+   "label": "Residual value to equity, downside scenario",
    "period": "LTM Q2 2026",
-   "value": "0.0",
-   "unit": "%",
-   "formula": "Allocation to other debt, stress scenario (absolute priority) [K208] / Other debt (SID bonds, notes and other payables), face [K59] x 100",
-   "formula_keys": "dr_alloc_stress_other / other_debt_2026_06_30 x 100",
+   "value": "0",
+   "unit": "USD millions",
+   "formula": "Enterprise value, downside scenario at an illustrative 5.0x [K190] - Allocation to senior secured, downside scenario (absolute priority) [K201] - Allocation to senior unsecured, downside scenario (absolute priority) [K204] - Allocation to other debt, downside scenario (absolute priority) [K207]",
+   "formula_keys": "dr_ev_downside - dr_alloc_downside_secured - dr_alloc_downside_unsecured - dr_alloc_downside_other",
    "inputs": [
-    "K208",
-    "K59"
+    "K190",
+    "K201",
+    "K204",
+    "K207"
    ],
    "note": null,
    "illustrative": true
   },
   "K210": {
    "id": "K210",
-   "key": "dr_residual_stress",
-   "label": "Residual value to equity, stress scenario",
+   "key": "dr_alloc_stress_secured",
+   "label": "Allocation to senior secured, stress scenario (absolute priority)",
    "period": "LTM Q2 2026",
-   "value": "0",
+   "value": "8,916",
    "unit": "USD millions",
-   "formula": "Enterprise value, stress scenario at an illustrative 4.0x [K183] - Allocation to senior secured, stress scenario (absolute priority) [K202] - Allocation to senior unsecured, stress scenario (absolute priority) [K205] - Allocation to other debt, stress scenario (absolute priority) [K208]",
-   "formula_keys": "dr_ev_stress - dr_alloc_stress_secured - dr_alloc_stress_unsecured - dr_alloc_stress_other",
+   "formula": "min(Senior secured debt, face [K57], Enterprise value, stress scenario at an illustrative 4.0x [K191])",
+   "formula_keys": "min(senior_secured_debt_2026_06_30, dr_ev_stress)",
    "inputs": [
-    "K183",
-    "K202",
-    "K205",
-    "K208"
+    "K57",
+    "K191"
    ],
    "note": null,
    "illustrative": true
   },
   "K211": {
    "id": "K211",
+   "key": "dr_rec_stress_secured",
+   "label": "Recovery of senior secured, stress scenario",
+   "period": "LTM Q2 2026",
+   "value": "94.2",
+   "unit": "%",
+   "formula": "Allocation to senior secured, stress scenario (absolute priority) [K210] / Senior secured debt, face [K57] x 100",
+   "formula_keys": "dr_alloc_stress_secured / senior_secured_debt_2026_06_30 x 100",
+   "inputs": [
+    "K210",
+    "K57"
+   ],
+   "note": null,
+   "illustrative": true
+  },
+  "K212": {
+   "id": "K212",
+   "key": "dr_avail_stress_unsecured",
+   "label": "Value left for senior unsecured after the class ahead, stress scenario",
+   "period": "LTM Q2 2026",
+   "value": "0",
+   "unit": "USD millions",
+   "formula": "Enterprise value, stress scenario at an illustrative 4.0x [K191] - Allocation to senior secured, stress scenario (absolute priority) [K210]",
+   "formula_keys": "dr_ev_stress - dr_alloc_stress_secured",
+   "inputs": [
+    "K191",
+    "K210"
+   ],
+   "note": null,
+   "illustrative": true
+  },
+  "K213": {
+   "id": "K213",
+   "key": "dr_alloc_stress_unsecured",
+   "label": "Allocation to senior unsecured, stress scenario (absolute priority)",
+   "period": "LTM Q2 2026",
+   "value": "0",
+   "unit": "USD millions",
+   "formula": "min(Senior unsecured notes, face [K58], Value left for senior unsecured after the class ahead, stress scenario [K212])",
+   "formula_keys": "min(unsecured_debt_2026_06_30, dr_avail_stress_unsecured)",
+   "inputs": [
+    "K58",
+    "K212"
+   ],
+   "note": null,
+   "illustrative": true
+  },
+  "K214": {
+   "id": "K214",
+   "key": "dr_rec_stress_unsecured",
+   "label": "Recovery of senior unsecured, stress scenario",
+   "period": "LTM Q2 2026",
+   "value": "0.0",
+   "unit": "%",
+   "formula": "Allocation to senior unsecured, stress scenario (absolute priority) [K213] / Senior unsecured notes, face [K58] x 100",
+   "formula_keys": "dr_alloc_stress_unsecured / unsecured_debt_2026_06_30 x 100",
+   "inputs": [
+    "K213",
+    "K58"
+   ],
+   "note": null,
+   "illustrative": true
+  },
+  "K215": {
+   "id": "K215",
+   "key": "dr_avail_stress_other",
+   "label": "Value left for other debt after the class ahead, stress scenario",
+   "period": "LTM Q2 2026",
+   "value": "0",
+   "unit": "USD millions",
+   "formula": "Value left for senior unsecured after the class ahead, stress scenario [K212] - Allocation to senior unsecured, stress scenario (absolute priority) [K213]",
+   "formula_keys": "dr_avail_stress_unsecured - dr_alloc_stress_unsecured",
+   "inputs": [
+    "K212",
+    "K213"
+   ],
+   "note": null,
+   "illustrative": true
+  },
+  "K216": {
+   "id": "K216",
+   "key": "dr_alloc_stress_other",
+   "label": "Allocation to other debt, stress scenario (absolute priority)",
+   "period": "LTM Q2 2026",
+   "value": "0",
+   "unit": "USD millions",
+   "formula": "min(Other debt (SID bonds, notes and other payables), face [K59], Value left for other debt after the class ahead, stress scenario [K215])",
+   "formula_keys": "min(other_debt_2026_06_30, dr_avail_stress_other)",
+   "inputs": [
+    "K59",
+    "K215"
+   ],
+   "note": null,
+   "illustrative": true
+  },
+  "K217": {
+   "id": "K217",
+   "key": "dr_rec_stress_other",
+   "label": "Recovery of other debt, stress scenario",
+   "period": "LTM Q2 2026",
+   "value": "0.0",
+   "unit": "%",
+   "formula": "Allocation to other debt, stress scenario (absolute priority) [K216] / Other debt (SID bonds, notes and other payables), face [K59] x 100",
+   "formula_keys": "dr_alloc_stress_other / other_debt_2026_06_30 x 100",
+   "inputs": [
+    "K216",
+    "K59"
+   ],
+   "note": null,
+   "illustrative": true
+  },
+  "K218": {
+   "id": "K218",
+   "key": "dr_residual_stress",
+   "label": "Residual value to equity, stress scenario",
+   "period": "LTM Q2 2026",
+   "value": "0",
+   "unit": "USD millions",
+   "formula": "Enterprise value, stress scenario at an illustrative 4.0x [K191] - Allocation to senior secured, stress scenario (absolute priority) [K210] - Allocation to senior unsecured, stress scenario (absolute priority) [K213] - Allocation to other debt, stress scenario (absolute priority) [K216]",
+   "formula_keys": "dr_ev_stress - dr_alloc_stress_secured - dr_alloc_stress_unsecured - dr_alloc_stress_other",
+   "inputs": [
+    "K191",
+    "K210",
+    "K213",
+    "K216"
+   ],
+   "note": null,
+   "illustrative": true
+  },
+  "K219": {
+   "id": "K219",
    "key": "fit_one_pct_nav",
    "label": "1% of Test CLO I NAV",
    "period": "29-May-2026",
@@ -2080,8 +2235,8 @@ window.RBOT_FP = {
    "note": "Synthetic portfolio data. The Watch threshold for a maximum size (interfaces spec 7, rule 4).",
    "synthetic": true
   },
-  "K212": {
-   "id": "K212",
+  "K220": {
+   "id": "K220",
    "key": "fit_c01_headroom_pct",
    "label": "Single-issuer headroom for Caesars: C-01 limit less existing Caesars exposure (none)",
    "period": "29-May-2026",
@@ -2096,24 +2251,24 @@ window.RBOT_FP = {
    "note": "Synthetic portfolio data. Uses Caesars' own exposure (none), not the largest name's (Asurion).",
    "synthetic": true
   },
-  "K213": {
-   "id": "K213",
+  "K221": {
+   "id": "K221",
    "key": "fit_c01_room",
    "label": "Room under C-01 (Hard): (2.5 - 0)% x NAV",
    "period": "29-May-2026",
    "value": "15,773,213",
    "unit": "USD",
-   "formula": "Single-issuer headroom for Caesars: C-01 limit less existing Caesars exposure (none) [K212]% x Test CLO I total NAV [S18]",
+   "formula": "Single-issuer headroom for Caesars: C-01 limit less existing Caesars exposure (none) [K220]% x Test CLO I total NAV [S18]",
    "formula_keys": "fit_c01_headroom_pct% x clo_nav",
    "inputs": [
-    "K212",
+    "K220",
     "S18"
    ],
    "note": null,
    "synthetic": true
   },
-  "K214": {
-   "id": "K214",
+  "K222": {
+   "id": "K222",
    "key": "fit_c04_room",
    "label": "Room under C-04 CCC bucket (Hard): headroom x NAV",
    "period": "29-May-2026",
@@ -2128,8 +2283,8 @@ window.RBOT_FP = {
    "note": null,
    "synthetic": true
   },
-  "K215": {
-   "id": "K215",
+  "K223": {
+   "id": "K223",
    "key": "fit_c05_room",
    "label": "Room under C-05 unrated (Soft): headroom x NAV",
    "period": "29-May-2026",
@@ -2144,8 +2299,8 @@ window.RBOT_FP = {
    "note": null,
    "synthetic": true
   },
-  "K216": {
-   "id": "K216",
+  "K224": {
+   "id": "K224",
    "key": "fit_sector_headroom_pct",
    "label": "Leisure Facilities & Services sector headroom: single-sector limit less current weight",
    "period": "29-May-2026",
@@ -2160,24 +2315,24 @@ window.RBOT_FP = {
    "note": "Synthetic portfolio data.",
    "synthetic": true
   },
-  "K217": {
-   "id": "K217",
+  "K225": {
+   "id": "K225",
    "key": "fit_sector_room",
    "label": "Room under the Leisure Facilities & Services sector limit (Soft): headroom x NAV",
    "period": "29-May-2026",
    "value": "34,259,418",
    "unit": "USD",
-   "formula": "Leisure Facilities & Services sector headroom: single-sector limit less current weight [K216]% x Test CLO I total NAV [S18]",
+   "formula": "Leisure Facilities & Services sector headroom: single-sector limit less current weight [K224]% x Test CLO I total NAV [S18]",
    "formula_keys": "fit_sector_headroom_pct% x clo_nav",
    "inputs": [
-    "K216",
+    "K224",
     "S18"
    ],
    "note": null,
    "synthetic": true
   },
-  "K218": {
-   "id": "K218",
+  "K226": {
+   "id": "K226",
    "key": "fit_c10_room",
    "label": "Room under C-10 second lien and unsecured (Soft): headroom x NAV",
    "period": "29-May-2026",
@@ -2624,6 +2779,24 @@ window.RBOT_FP = {
    "period": "as of 2026-10-02",
    "unit": "text",
    "raw": "CLO indenture"
+  },
+  "guide_remaining_2026_lease_payments": {
+   "v": "687",
+   "prov": "cited",
+   "ref": "C371",
+   "label": "Estimated lease payments to VICI and GLPI, remainder of 2026 (approximately)",
+   "period": "remainder of 2026",
+   "unit": "USD millions",
+   "raw": "687"
+  },
+  "synthetic_capex_fy2027": {
+   "v": "800",
+   "prov": "synthetic",
+   "ref": "S52",
+   "label": "Synthetic test value: Base case capital expenditure, FY2027",
+   "period": "FY2027",
+   "unit": "USD millions",
+   "raw": "800"
   },
   "capex_2027": {
    "v": null,
@@ -3142,50 +3315,122 @@ window.RBOT_FP = {
    "prov": "calculated",
    "ref": "K152"
   },
-  "cr_mand_uses": {
-   "v": "1,474",
-   "raw": "1474",
+  "cr_int_h1_2027": {
+   "v": "375",
+   "raw": "375",
    "unit": "USD millions",
-   "label": "Mandatory uses of cash, July 2026 to December 2027",
-   "period": "to 2027-12-31",
+   "label": "Interest, first half of 2027, as half of the FY2027 estimate",
+   "period": "H1 2027",
    "prov": "calculated",
    "ref": "K153"
   },
-  "cr_disc_uses": {
-   "v": "205",
-   "raw": "205",
+  "cr_mat_h1_2027": {
+   "v": "57",
+   "raw": "57",
    "unit": "USD millions",
-   "label": "Discretionary uses of cash, rest of 2026 (growth and digital capex, high end)",
-   "period": "H2 2026",
+   "label": "Debt maturities, first half of 2027, as half of FY2027",
+   "period": "H1 2027",
    "prov": "calculated",
    "ref": "K154"
   },
-  "cr_closing": {
-   "v": "1,249",
-   "raw": "1249",
+  "cr_rent_h1_2027": {
+   "v": "682",
+   "raw": "682",
    "unit": "USD millions",
-   "label": "Accessible liquidity at 31 December 2027 before operating cash flow",
-   "period": "to 2027-12-31",
+   "label": "VICI and GLPI lease payments, first half of 2027, as half of LTM cash rent",
+   "period": "H1 2027",
    "prov": "calculated",
    "ref": "K155"
   },
-  "cr_headroom": {
-   "v": "1,454",
-   "raw": "1454",
+  "cr_capex_h1_2027": {
+   "v": "400",
+   "raw": "400",
    "unit": "USD millions",
-   "label": "Liquidity headroom over mandatory uses to 31 December 2027",
-   "period": "to 2027-12-31",
+   "label": "Capital expenditure, first half of 2027, as half of the synthetic FY2027 value",
+   "period": "H1 2027",
    "prov": "calculated",
    "ref": "K156"
   },
-  "cr_runway_months": {
-   "v": "35.8",
-   "raw": "35.8",
-   "unit": "months",
-   "label": "Months of runway on mandatory uses",
-   "period": "to 2027-12-31",
+  "cr_maint_h1_2027": {
+   "v": "190",
+   "raw": "190",
+   "unit": "USD millions",
+   "label": "Maintenance capex, first half of 2027, at the 2026 maintenance share",
+   "period": "H1 2027",
    "prov": "calculated",
    "ref": "K157"
+  },
+  "cr_growth_h2_2026": {
+   "v": "205",
+   "raw": "205",
+   "unit": "USD millions",
+   "label": "Growth and digital capex, second half of 2026 (high end)",
+   "period": "H2 2026",
+   "prov": "calculated",
+   "ref": "K158"
+  },
+  "cr_growth_h1_2027": {
+   "v": "210",
+   "raw": "210",
+   "unit": "USD millions",
+   "label": "Growth and digital capex, first half of 2027",
+   "period": "H1 2027",
+   "prov": "calculated",
+   "ref": "K159"
+  },
+  "cr_mand_uses": {
+   "v": "2,601",
+   "raw": "2601",
+   "unit": "USD millions",
+   "label": "Mandatory uses of cash, July 2026 to June 2027",
+   "period": "12 months to 2027-06-30",
+   "prov": "calculated",
+   "ref": "K160"
+  },
+  "cr_disc_uses": {
+   "v": "415",
+   "raw": "415",
+   "unit": "USD millions",
+   "label": "Discretionary uses of cash, July 2026 to June 2027 (growth and digital capex)",
+   "period": "12 months to 2027-06-30",
+   "prov": "calculated",
+   "ref": "K161"
+  },
+  "cr_op_inflow": {
+   "v": "3,436",
+   "raw": "3436",
+   "unit": "USD millions",
+   "label": "Operating cash flow before cash interest and rent, at the LTM level",
+   "period": "12 months to 2027-06-30",
+   "prov": "calculated",
+   "ref": "K162"
+  },
+  "cr_closing": {
+   "v": "3,348",
+   "raw": "3348",
+   "unit": "USD millions",
+   "label": "Accessible liquidity at 30 June 2027, before refinancing",
+   "period": "to 2027-06-30",
+   "prov": "calculated",
+   "ref": "K163"
+  },
+  "cr_headroom": {
+   "v": "327",
+   "raw": "327",
+   "unit": "USD millions",
+   "label": "Liquidity headroom over mandatory uses, 12 months to 30 June 2027",
+   "period": "12 months to 2027-06-30",
+   "prov": "calculated",
+   "ref": "K164"
+  },
+  "cr_runway_months": {
+   "v": "13.5",
+   "raw": "13.5",
+   "unit": "months",
+   "label": "Months of runway on mandatory uses",
+   "period": "12 months to 2027-06-30",
+   "prov": "calculated",
+   "ref": "K165"
   },
   "cr_rcf_share": {
    "v": "72.7",
@@ -3194,7 +3439,7 @@ window.RBOT_FP = {
    "label": "CEI revolver capacity as a share of accessible liquidity",
    "period": "as of 2026-06-30",
    "prov": "calculated",
-   "ref": "K158"
+   "ref": "K166"
   },
   "cr_liq_left_2026": {
    "v": "2,873",
@@ -3203,7 +3448,7 @@ window.RBOT_FP = {
    "label": "Liquidity left before refinancing, end of 2026",
    "period": "to 2026",
    "prov": "calculated",
-   "ref": "K159"
+   "ref": "K167"
   },
   "cr_liq_left_2027": {
    "v": "2,759",
@@ -3212,7 +3457,7 @@ window.RBOT_FP = {
    "label": "Liquidity left before refinancing, end of 2027",
    "period": "to 2027",
    "prov": "calculated",
-   "ref": "K160"
+   "ref": "K168"
   },
   "cr_liq_left_2028": {
    "v": "(138)",
@@ -3221,7 +3466,7 @@ window.RBOT_FP = {
    "label": "Liquidity left before refinancing, end of 2028",
    "period": "to 2028",
    "prov": "calculated",
-   "ref": "K161"
+   "ref": "K169"
   },
   "cr_liq_left_2029": {
    "v": "(1,712)",
@@ -3230,7 +3475,7 @@ window.RBOT_FP = {
    "label": "Liquidity left before refinancing, end of 2029",
    "period": "to 2029",
    "prov": "calculated",
-   "ref": "K162"
+   "ref": "K170"
   },
   "cr_liq_left_2030": {
    "v": "(5,674)",
@@ -3239,7 +3484,7 @@ window.RBOT_FP = {
    "label": "Liquidity left before refinancing, end of 2030",
    "period": "to 2030",
    "prov": "calculated",
-   "ref": "K163"
+   "ref": "K171"
   },
   "cr_liq_left_after": {
    "v": "(11,009)",
@@ -3248,7 +3493,7 @@ window.RBOT_FP = {
    "label": "Liquidity left before refinancing, after 2030",
    "period": "to after",
    "prov": "calculated",
-   "ref": "K164"
+   "ref": "K172"
   },
   "cr_gap_2028": {
    "v": "138",
@@ -3257,7 +3502,7 @@ window.RBOT_FP = {
    "label": "Funding gap, by end of 2028",
    "period": "to 2028",
    "prov": "calculated",
-   "ref": "K165"
+   "ref": "K173"
   },
   "cr_gap_2029": {
    "v": "1,712",
@@ -3266,7 +3511,7 @@ window.RBOT_FP = {
    "label": "Funding gap, by end of 2029",
    "period": "to 2029",
    "prov": "calculated",
-   "ref": "K166"
+   "ref": "K174"
   },
   "cr_gap_2030": {
    "v": "5,674",
@@ -3275,7 +3520,7 @@ window.RBOT_FP = {
    "label": "Funding gap, by end of 2030",
    "period": "to 2030",
    "prov": "calculated",
-   "ref": "K167"
+   "ref": "K175"
   },
   "cr_gap_after": {
    "v": "11,009",
@@ -3284,7 +3529,7 @@ window.RBOT_FP = {
    "label": "Funding gap, after 2030",
    "period": "to after",
    "prov": "calculated",
-   "ref": "K168"
+   "ref": "K176"
   },
   "cr_rcf_util_pct": {
    "v": "5.3",
@@ -3293,7 +3538,7 @@ window.RBOT_FP = {
    "label": "CEI revolver drawn as a share of commitments",
    "period": "as of 2026-06-30",
    "prov": "calculated",
-   "ref": "K169"
+   "ref": "K177"
   },
   "cov_tlr_headroom": {
    "v": "3.48",
@@ -3302,7 +3547,7 @@ window.RBOT_FP = {
    "label": "Total Leverage Ratio headroom (RBOT basis)",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K170"
+   "ref": "K178"
   },
   "cov_fccr_headroom": {
    "v": "2.63",
@@ -3311,7 +3556,7 @@ window.RBOT_FP = {
    "label": "Fixed Charge Coverage Ratio headroom (RBOT basis)",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K171"
+   "ref": "K179"
   },
   "cov_sslr_headroom": {
    "v": "1.86",
@@ -3320,7 +3565,7 @@ window.RBOT_FP = {
    "label": "Pari secured incremental test headroom (RBOT basis, gross secured debt)",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K172"
+   "ref": "K180"
   },
   "ind_fccr_headroom": {
    "v": "2.63",
@@ -3329,7 +3574,7 @@ window.RBOT_FP = {
    "label": "Indenture ratio-debt test headroom (RBOT basis)",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K173"
+   "ref": "K181"
   },
   "cap_pari_secured": {
    "v": "6,696",
@@ -3338,7 +3583,7 @@ window.RBOT_FP = {
    "label": "Indicative pari secured incremental capacity to 4.50x",
    "period": "as of 2026-06-30",
    "prov": "calculated",
-   "ref": "K174"
+   "ref": "K182"
   },
   "cap_junior_secured": {
    "v": "7,594",
@@ -3347,7 +3592,7 @@ window.RBOT_FP = {
    "label": "Indicative junior secured incremental capacity to 4.75x",
    "period": "as of 2026-06-30",
    "prov": "calculated",
-   "ref": "K175"
+   "ref": "K183"
   },
   "cap_free_clear_size": {
    "v": "3,592",
@@ -3356,7 +3601,7 @@ window.RBOT_FP = {
    "label": "Free-and-clear incremental amount: the greater of US$2,600m and 1.00x EBITDA",
    "period": "as of 2026-06-30",
    "prov": "calculated",
-   "ref": "K176"
+   "ref": "K184"
   },
   "lme_sec_lme": {
    "v": "16,164",
@@ -3365,7 +3610,7 @@ window.RBOT_FP = {
    "label": "Senior secured claims after drawing the pari secured capacity",
    "period": "as of 2026-06-30",
    "prov": "calculated",
-   "ref": "K177"
+   "ref": "K185"
   },
   "lme_uns_base": {
    "v": "11,768",
@@ -3374,7 +3619,7 @@ window.RBOT_FP = {
    "label": "Claims at or ahead of the senior unsecured notes, base",
    "period": "as of 2026-06-30",
    "prov": "calculated",
-   "ref": "K178"
+   "ref": "K186"
   },
   "lme_uns_lme": {
    "v": "18,464",
@@ -3383,7 +3628,7 @@ window.RBOT_FP = {
    "label": "Claims at or ahead of the senior unsecured notes after the pari secured capacity is drawn",
    "period": "as of 2026-06-30",
    "prov": "calculated",
-   "ref": "K179"
+   "ref": "K187"
   },
   "dr_ebitda_after_rent": {
    "v": "2,229",
@@ -3392,7 +3637,7 @@ window.RBOT_FP = {
    "label": "LTM Adjusted EBITDA after cash interest paid for rent (GLPI and VICI leases)",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K180"
+   "ref": "K188"
   },
   "dr_merger_multiple": {
    "v": "7.90",
@@ -3401,7 +3646,7 @@ window.RBOT_FP = {
    "label": "Merger transaction value over LTM Adjusted EBITDA after rent",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K181"
+   "ref": "K189"
   },
   "dr_ev_downside": {
    "v": "11,145",
@@ -3410,7 +3655,7 @@ window.RBOT_FP = {
    "label": "Enterprise value, downside scenario at an illustrative 5.0x",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K182"
+   "ref": "K190"
   },
   "dr_ev_stress": {
    "v": "8,916",
@@ -3419,7 +3664,7 @@ window.RBOT_FP = {
    "label": "Enterprise value, stress scenario at an illustrative 4.0x",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K183"
+   "ref": "K191"
   },
   "dr_alloc_merger_secured": {
    "v": "9,468",
@@ -3428,7 +3673,7 @@ window.RBOT_FP = {
    "label": "Allocation to senior secured, merger value scenario (absolute priority)",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K184"
+   "ref": "K192"
   },
   "dr_rec_merger_secured": {
    "v": "100.0",
@@ -3437,7 +3682,7 @@ window.RBOT_FP = {
    "label": "Recovery of senior secured, merger value scenario",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K185"
+   "ref": "K193"
   },
   "dr_avail_merger_unsecured": {
    "v": "8,132",
@@ -3446,7 +3691,7 @@ window.RBOT_FP = {
    "label": "Value left for senior unsecured after the class ahead, merger value scenario",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K186"
+   "ref": "K194"
   },
   "dr_alloc_merger_unsecured": {
    "v": "2,300",
@@ -3455,7 +3700,7 @@ window.RBOT_FP = {
    "label": "Allocation to senior unsecured, merger value scenario (absolute priority)",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K187"
+   "ref": "K195"
   },
   "dr_rec_merger_unsecured": {
    "v": "100.0",
@@ -3464,7 +3709,7 @@ window.RBOT_FP = {
    "label": "Recovery of senior unsecured, merger value scenario",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K188"
+   "ref": "K196"
   },
   "dr_avail_merger_other": {
    "v": "5,832",
@@ -3473,7 +3718,7 @@ window.RBOT_FP = {
    "label": "Value left for other debt after the class ahead, merger value scenario",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K189"
+   "ref": "K197"
   },
   "dr_alloc_merger_other": {
    "v": "39",
@@ -3482,7 +3727,7 @@ window.RBOT_FP = {
    "label": "Allocation to other debt, merger value scenario (absolute priority)",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K190"
+   "ref": "K198"
   },
   "dr_rec_merger_other": {
    "v": "100.0",
@@ -3491,7 +3736,7 @@ window.RBOT_FP = {
    "label": "Recovery of other debt, merger value scenario",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K191"
+   "ref": "K199"
   },
   "dr_residual_merger": {
    "v": "5,793",
@@ -3500,7 +3745,7 @@ window.RBOT_FP = {
    "label": "Residual value to equity, merger value scenario",
    "period": "LTM Q2 2026",
    "prov": "calculated",
-   "ref": "K192"
+   "ref": "K200"
   },
   "dr_alloc_downside_secured": {
    "v": "9,468",
@@ -3509,7 +3754,7 @@ window.RBOT_FP = {
    "label": "Allocation to senior secured, downside scenario (absolute priority)",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K193"
+   "ref": "K201"
   },
   "dr_rec_downside_secured": {
    "v": "100.0",
@@ -3518,7 +3763,7 @@ window.RBOT_FP = {
    "label": "Recovery of senior secured, downside scenario",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K194"
+   "ref": "K202"
   },
   "dr_avail_downside_unsecured": {
    "v": "1,677",
@@ -3527,7 +3772,7 @@ window.RBOT_FP = {
    "label": "Value left for senior unsecured after the class ahead, downside scenario",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K195"
+   "ref": "K203"
   },
   "dr_alloc_downside_unsecured": {
    "v": "1,677",
@@ -3536,7 +3781,7 @@ window.RBOT_FP = {
    "label": "Allocation to senior unsecured, downside scenario (absolute priority)",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K196"
+   "ref": "K204"
   },
   "dr_rec_downside_unsecured": {
    "v": "72.9",
@@ -3545,7 +3790,7 @@ window.RBOT_FP = {
    "label": "Recovery of senior unsecured, downside scenario",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K197"
+   "ref": "K205"
   },
   "dr_avail_downside_other": {
    "v": "0",
@@ -3554,7 +3799,7 @@ window.RBOT_FP = {
    "label": "Value left for other debt after the class ahead, downside scenario",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K198"
+   "ref": "K206"
   },
   "dr_alloc_downside_other": {
    "v": "0",
@@ -3563,7 +3808,7 @@ window.RBOT_FP = {
    "label": "Allocation to other debt, downside scenario (absolute priority)",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K199"
+   "ref": "K207"
   },
   "dr_rec_downside_other": {
    "v": "0.0",
@@ -3572,7 +3817,7 @@ window.RBOT_FP = {
    "label": "Recovery of other debt, downside scenario",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K200"
+   "ref": "K208"
   },
   "dr_residual_downside": {
    "v": "0",
@@ -3581,7 +3826,7 @@ window.RBOT_FP = {
    "label": "Residual value to equity, downside scenario",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K201"
+   "ref": "K209"
   },
   "dr_alloc_stress_secured": {
    "v": "8,916",
@@ -3590,7 +3835,7 @@ window.RBOT_FP = {
    "label": "Allocation to senior secured, stress scenario (absolute priority)",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K202"
+   "ref": "K210"
   },
   "dr_rec_stress_secured": {
    "v": "94.2",
@@ -3599,7 +3844,7 @@ window.RBOT_FP = {
    "label": "Recovery of senior secured, stress scenario",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K203"
+   "ref": "K211"
   },
   "dr_avail_stress_unsecured": {
    "v": "0",
@@ -3608,7 +3853,7 @@ window.RBOT_FP = {
    "label": "Value left for senior unsecured after the class ahead, stress scenario",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K204"
+   "ref": "K212"
   },
   "dr_alloc_stress_unsecured": {
    "v": "0",
@@ -3617,7 +3862,7 @@ window.RBOT_FP = {
    "label": "Allocation to senior unsecured, stress scenario (absolute priority)",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K205"
+   "ref": "K213"
   },
   "dr_rec_stress_unsecured": {
    "v": "0.0",
@@ -3626,7 +3871,7 @@ window.RBOT_FP = {
    "label": "Recovery of senior unsecured, stress scenario",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K206"
+   "ref": "K214"
   },
   "dr_avail_stress_other": {
    "v": "0",
@@ -3635,7 +3880,7 @@ window.RBOT_FP = {
    "label": "Value left for other debt after the class ahead, stress scenario",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K207"
+   "ref": "K215"
   },
   "dr_alloc_stress_other": {
    "v": "0",
@@ -3644,7 +3889,7 @@ window.RBOT_FP = {
    "label": "Allocation to other debt, stress scenario (absolute priority)",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K208"
+   "ref": "K216"
   },
   "dr_rec_stress_other": {
    "v": "0.0",
@@ -3653,7 +3898,7 @@ window.RBOT_FP = {
    "label": "Recovery of other debt, stress scenario",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K209"
+   "ref": "K217"
   },
   "dr_residual_stress": {
    "v": "0",
@@ -3662,7 +3907,7 @@ window.RBOT_FP = {
    "label": "Residual value to equity, stress scenario",
    "period": "LTM Q2 2026",
    "prov": "illustrative",
-   "ref": "K210"
+   "ref": "K218"
   },
   "fit_one_pct_nav": {
    "v": "6,309,285",
@@ -3671,7 +3916,7 @@ window.RBOT_FP = {
    "label": "1% of Test CLO I NAV",
    "period": "29-May-2026",
    "prov": "calculated",
-   "ref": "K211"
+   "ref": "K219"
   },
   "fit_c01_headroom_pct": {
    "v": "2.50",
@@ -3680,7 +3925,7 @@ window.RBOT_FP = {
    "label": "Single-issuer headroom for Caesars: C-01 limit less existing Caesars exposure (none)",
    "period": "29-May-2026",
    "prov": "calculated",
-   "ref": "K212"
+   "ref": "K220"
   },
   "fit_c01_room": {
    "v": "15,773,213",
@@ -3689,7 +3934,7 @@ window.RBOT_FP = {
    "label": "Room under C-01 (Hard): (2.5 - 0)% x NAV",
    "period": "29-May-2026",
    "prov": "calculated",
-   "ref": "K213"
+   "ref": "K221"
   },
   "fit_c04_room": {
    "v": "883,300",
@@ -3698,7 +3943,7 @@ window.RBOT_FP = {
    "label": "Room under C-04 CCC bucket (Hard): headroom x NAV",
    "period": "29-May-2026",
    "prov": "calculated",
-   "ref": "K214"
+   "ref": "K222"
   },
   "fit_c05_room": {
    "v": "8,012,792",
@@ -3707,7 +3952,7 @@ window.RBOT_FP = {
    "label": "Room under C-05 unrated (Soft): headroom x NAV",
    "period": "29-May-2026",
    "prov": "calculated",
-   "ref": "K215"
+   "ref": "K223"
   },
   "fit_sector_headroom_pct": {
    "v": "5.43",
@@ -3716,7 +3961,7 @@ window.RBOT_FP = {
    "label": "Leisure Facilities & Services sector headroom: single-sector limit less current weight",
    "period": "29-May-2026",
    "prov": "calculated",
-   "ref": "K216"
+   "ref": "K224"
   },
   "fit_sector_room": {
    "v": "34,259,418",
@@ -3725,7 +3970,7 @@ window.RBOT_FP = {
    "label": "Room under the Leisure Facilities & Services sector limit (Soft): headroom x NAV",
    "period": "29-May-2026",
    "prov": "calculated",
-   "ref": "K217"
+   "ref": "K225"
   },
   "fit_c10_room": {
    "v": "59,244,186",
@@ -3734,7 +3979,7 @@ window.RBOT_FP = {
    "label": "Room under C-10 second lien and unsecured (Soft): headroom x NAV",
    "period": "29-May-2026",
    "prov": "calculated",
-   "ref": "K218"
+   "ref": "K226"
   }
  },
  "modules": {
@@ -3884,9 +4129,9 @@ window.RBOT_FP = {
    ],
    "question": "What breaks first under stress, how does it transmit, and where does creditor risk become acute?",
    "headline": {
-    "text": "The first break is a layered take-private: pari secured capacity of {K174|US$ m} under the 4.50x test would rank ahead of the unsecured notes.",
+    "text": "The first break is a layered take-private: pari secured capacity of {K182|US$ m} under the 4.50x test would rank ahead of the unsecured notes.",
     "refs": [
-     "K174"
+     "K182"
     ],
     "model": true
    }
@@ -3895,18 +4140,18 @@ window.RBOT_FP = {
    "id": "CP-2D",
    "name": "Liquidity bridge",
    "status": "Restricted",
-   "reason": "No operating cash flow forecast (no guidance) and no 2027 capex estimate.",
+   "reason": "No operating cash flow forecast (no guidance; the bridge holds the LTM level) and no 2027 capex estimate (a synthetic test value is used).",
    "refs": [
     "G13",
     "G29"
    ],
    "question": "Is accessible liquidity sufficient for the next 12 months, and where is the pinch point?",
    "headline": {
-    "text": "Liquidity of {C177|US$ m} covers mandatory uses to December 2027 of {K153|US$ m}: {K157} months of runway before any operating cash flow.",
+    "text": "Liquidity of {C177|US$ m} covers mandatory uses of {K160|US$ m} over the 12 months from 30 June 2026, lease payments included: {K165} months of runway before any operating cash flow.",
     "refs": [
      "C177",
-     "K153",
-     "K157"
+     "K160",
+     "K165"
     ],
     "model": true
    }
@@ -4031,9 +4276,9 @@ window.RBOT_FP = {
    ],
    "question": "If the distress gate is met, which path and fulcrum are most credible and what recoveries follow?",
    "headline": {
-    "text": "At the illustrative 5.0x downside the unsecured notes are the fulcrum, recovering {K197|%}; at the merger value every class recovers in full.",
+    "text": "At the illustrative 5.0x downside the unsecured notes are the fulcrum, recovering {K205|%}; at the merger value every class recovers in full.",
     "refs": [
-     "K197"
+     "K205"
     ],
     "model": true
    }
@@ -5274,9 +5519,9 @@ window.RBOT_FP = {
       "illustrative": true
      },
      "why": {
-      "text": "The revolver is {K158|%} of accessible liquidity.",
+      "text": "The revolver is {K166|%} of accessible liquidity.",
       "refs": [
-       "K158"
+       "K166"
       ],
       "illustrative": true
      },
@@ -5690,7 +5935,7 @@ window.RBOT_FP = {
      "headroom": {
       "v": "3.48",
       "prov": "calculated",
-      "ref": "K170",
+      "ref": "K178",
       "unit": "x"
      },
      "status": {
@@ -5722,7 +5967,7 @@ window.RBOT_FP = {
      "headroom": {
       "v": "2.63",
       "prov": "calculated",
-      "ref": "K171",
+      "ref": "K179",
       "unit": "x"
      },
      "status": {
@@ -5754,7 +5999,7 @@ window.RBOT_FP = {
      "headroom": {
       "v": "1.86",
       "prov": "calculated",
-      "ref": "K172",
+      "ref": "K180",
       "unit": "x"
      },
      "status": {
@@ -5786,7 +6031,7 @@ window.RBOT_FP = {
      "headroom": {
       "v": "2.63",
       "prov": "calculated",
-      "ref": "K173",
+      "ref": "K181",
       "unit": "x"
      },
      "status": {
@@ -5795,12 +6040,12 @@ window.RBOT_FP = {
     }
    ],
    "note": {
-    "text": "Maintenance tests apply to the Covenant Facilities only [C342]; after Term A is repaid they spring only when revolver use exceeds {C341|%} of commitments [C340]; use today is {K169|%}.",
+    "text": "Maintenance tests apply to the Covenant Facilities only [C342]; after Term A is repaid they spring only when revolver use exceeds {C341|%} of commitments [C340]; use today is {K177|%}.",
     "refs": [
      "C342",
      "C341",
      "C340",
-     "K169"
+     "K177"
     ]
    },
    "statusRule": "Breached when headroom is below zero; Tight when it is under 10% of the threshold; otherwise Headroom."
@@ -5863,7 +6108,7 @@ window.RBOT_FP = {
      "remaining": {
       "v": "6,696",
       "prov": "calculated",
-      "ref": "K174",
+      "ref": "K182",
       "unit": "US$ m"
      },
      "status": {
@@ -5907,7 +6152,7 @@ window.RBOT_FP = {
      "remaining": {
       "v": "7,594",
       "prov": "calculated",
-      "ref": "K175",
+      "ref": "K183",
       "unit": "US$ m"
      },
      "status": {
@@ -5937,9 +6182,9 @@ window.RBOT_FP = {
      "type": "Debt",
      "basket": "Free-and-clear",
      "formula": {
-      "text": "The greater of US$2,600m and 1.00x EBITDA, size {K176|US$ m} [C346]",
+      "text": "The greater of US$2,600m and 1.00x EBITDA, size {K184|US$ m} [C346]",
       "refs": [
-       "K176",
+       "K184",
        "C346"
       ]
      },
@@ -6183,9 +6428,9 @@ window.RBOT_FP = {
     {
      "flag": "Pari secured capacity could rank ahead of the unsecured notes",
      "provision": {
-      "text": "{K174|US$ m} of capacity under the 4.50x test [C347]",
+      "text": "{K182|US$ m} of capacity under the 4.50x test [C347]",
       "refs": [
-       "K174",
+       "K182",
        "C347"
       ]
      },
@@ -6351,10 +6596,10 @@ window.RBOT_FP = {
       "illustrative": true
      },
      "evidence": {
-      "text": "Pari capacity of {K174|US$ m} and a free-and-clear amount of {K176|US$ m} [C346].",
+      "text": "Pari capacity of {K182|US$ m} and a free-and-clear amount of {K184|US$ m} [C346].",
       "refs": [
-       "K174",
-       "K176",
+       "K182",
+       "K184",
        "C346"
       ]
      },
@@ -6601,7 +6846,7 @@ window.RBOT_FP = {
       "ref": "C174",
       "unit": "US$ m"
      },
-     "accessible": "Yes",
+     "accessible": "No",
      "restriction": "Committed to letters of credit"
     },
     {
@@ -6643,7 +6888,7 @@ window.RBOT_FP = {
    "note": "Liquidity at 30 June 2026 as the Q2 2026 release states it."
   },
   "cashUses": {
-   "title": "Cash uses",
+   "title": "Cash uses, 12 months from 30 June 2026",
    "owner": "CP-2D",
    "columns": [
     {
@@ -6666,7 +6911,7 @@ window.RBOT_FP = {
    ],
    "rows": [
     {
-     "use": "Debt service, rest of 2026",
+     "use": "Debt service, second half of 2026",
      "amount": {
       "v": "425",
       "prov": "cited",
@@ -6677,29 +6922,51 @@ window.RBOT_FP = {
      "mandatory": "Yes"
     },
     {
-     "use": "Interest, 2027",
+     "use": "Interest, first half of 2027",
      "amount": {
-      "v": "750",
-      "prov": "cited",
-      "ref": "C275",
+      "v": "375",
+      "prov": "calculated",
+      "ref": "K153",
       "unit": "US$ m"
      },
-     "timing": "FY2027",
+     "timing": "H1 2027",
      "mandatory": "Yes"
     },
     {
-     "use": "Maturities, 2027",
+     "use": "Debt maturities, first half of 2027",
      "amount": {
-      "v": "114",
-      "prov": "cited",
-      "ref": "C179",
+      "v": "57",
+      "prov": "calculated",
+      "ref": "K154",
       "unit": "US$ m"
      },
-     "timing": "FY2027",
+     "timing": "H1 2027",
      "mandatory": "Yes"
     },
     {
-     "use": "Maintenance capex, rest of 2026 (high end)",
+     "use": "VICI and GLPI lease payments, second half of 2026",
+     "amount": {
+      "v": "687",
+      "prov": "cited",
+      "ref": "C371",
+      "unit": "US$ m"
+     },
+     "timing": "H2 2026",
+     "mandatory": "Yes"
+    },
+    {
+     "use": "VICI and GLPI lease payments, first half of 2027",
+     "amount": {
+      "v": "682",
+      "prov": "calculated",
+      "ref": "K155",
+      "unit": "US$ m"
+     },
+     "timing": "H1 2027",
+     "mandatory": "Yes"
+    },
+    {
+     "use": "Maintenance capex, second half of 2026 (high end)",
      "amount": {
       "v": "185",
       "prov": "cited",
@@ -6710,40 +6977,41 @@ window.RBOT_FP = {
      "mandatory": "Yes"
     },
     {
-     "use": "Growth and digital capex, rest of 2026 (high end)",
+     "use": "Maintenance capex, first half of 2027",
+     "amount": {
+      "v": "190",
+      "prov": "calculated",
+      "ref": "K157",
+      "unit": "US$ m"
+     },
+     "timing": "H1 2027",
+     "mandatory": "Yes"
+    },
+    {
+     "use": "Growth and digital capex, second half of 2026 (high end)",
      "amount": {
       "v": "205",
       "prov": "calculated",
-      "ref": "K154",
+      "ref": "K158",
       "unit": "US$ m"
      },
      "timing": "H2 2026",
      "mandatory": "No"
     },
     {
-     "use": "Capex, 2027",
+     "use": "Growth and digital capex, first half of 2027",
      "amount": {
-      "v": null,
-      "prov": "gap",
-      "ref": "G29",
-      "reason": "not in the sources; the 10-Q estimates capital expenditure for the remainder of 2026 only"
+      "v": "210",
+      "prov": "calculated",
+      "ref": "K159",
+      "unit": "US$ m"
      },
-     "timing": "FY2027",
-     "mandatory": "Not known"
-    },
-    {
-     "use": "Operating cash inflow",
-     "amount": {
-      "v": null,
-      "prov": "gap",
-      "ref": "G13",
-      "reason": "not found in these files; no revenue or Adjusted EBITDA guidance (release notes no conference call due to pending merger)"
-     },
-     "timing": "To December 2027",
-     "mandatory": "Not applicable"
+     "timing": "H1 2027",
+     "mandatory": "No"
     }
    ],
-   "unit": "US$ m"
+   "unit": "US$ m",
+   "note": "Second-half 2026 rows are the 10-Q's estimates; first-half 2027 rows are straight-line halves of its FY2027 estimates and of LTM cash rent; 2027 capex is a synthetic test value."
   },
   "runway": {
    "title": "Runway",
@@ -6770,45 +7038,46 @@ window.RBOT_FP = {
      }
     },
     {
-     "item": "Mandatory uses to 31 Dec 2027",
+     "item": "Mandatory uses, 12 months to 30 Jun 2027",
      "value": {
-      "v": "1,474",
+      "v": "2,601",
       "prov": "calculated",
-      "ref": "K153",
+      "ref": "K160",
       "unit": "US$ m"
      }
     },
     {
      "item": "Headroom",
      "value": {
-      "v": "1,454",
+      "v": "327",
       "prov": "calculated",
-      "ref": "K156",
+      "ref": "K164",
       "unit": "US$ m"
      }
     },
     {
      "item": "Months of runway",
      "value": {
-      "v": "35.8",
+      "v": "13.5",
       "prov": "calculated",
-      "ref": "K157",
+      "ref": "K165",
       "unit": "months"
      }
     },
     {
      "item": "Pinch point",
      "value": {
-      "text": "31 January 2028: the CEI revolver matures [C162]; its net capacity {C172|US$ m} is {K158|%} of liquidity.",
+      "text": "31 January 2028: the CEI revolver matures [C162]; its net capacity {C172|US$ m} is {K166|%} of liquidity.",
       "refs": [
        "C162",
        "C172",
-       "K158"
+       "K166"
       ]
      }
     }
    ],
-   "unit": "US$ m unless stated"
+   "unit": "US$ m unless stated",
+   "note": "12 months from 30 June 2026, lease payments included, before any operating cash flow."
   },
   "maturityPressure": {
    "title": "Maturity pressure",
@@ -6850,7 +7119,7 @@ window.RBOT_FP = {
      "liquidityLeft": {
       "v": "2,873",
       "prov": "calculated",
-      "ref": "K159",
+      "ref": "K167",
       "unit": "US$ m"
      },
      "gap": "None",
@@ -6874,7 +7143,7 @@ window.RBOT_FP = {
      "liquidityLeft": {
       "v": "2,759",
       "prov": "calculated",
-      "ref": "K160",
+      "ref": "K168",
       "unit": "US$ m"
      },
      "gap": "None",
@@ -6898,13 +7167,13 @@ window.RBOT_FP = {
      "liquidityLeft": {
       "v": "(138)",
       "prov": "calculated",
-      "ref": "K161",
+      "ref": "K169",
       "unit": "US$ m"
      },
      "gap": {
       "v": "138",
       "prov": "calculated",
-      "ref": "K165",
+      "ref": "K173",
       "unit": "US$ m"
      },
      "pressure": {
@@ -6927,13 +7196,13 @@ window.RBOT_FP = {
      "liquidityLeft": {
       "v": "(1,712)",
       "prov": "calculated",
-      "ref": "K162",
+      "ref": "K170",
       "unit": "US$ m"
      },
      "gap": {
       "v": "1,712",
       "prov": "calculated",
-      "ref": "K166",
+      "ref": "K174",
       "unit": "US$ m"
      },
      "pressure": {
@@ -6956,13 +7225,13 @@ window.RBOT_FP = {
      "liquidityLeft": {
       "v": "(5,674)",
       "prov": "calculated",
-      "ref": "K163",
+      "ref": "K171",
       "unit": "US$ m"
      },
      "gap": {
       "v": "5,674",
       "prov": "calculated",
-      "ref": "K167",
+      "ref": "K175",
       "unit": "US$ m"
      },
      "pressure": {
@@ -6985,13 +7254,13 @@ window.RBOT_FP = {
      "liquidityLeft": {
       "v": "(11,009)",
       "prov": "calculated",
-      "ref": "K164",
+      "ref": "K172",
       "unit": "US$ m"
      },
      "gap": {
       "v": "11,009",
       "prov": "calculated",
-      "ref": "K168",
+      "ref": "K176",
       "unit": "US$ m"
      },
      "pressure": {
@@ -7043,9 +7312,9 @@ window.RBOT_FP = {
       "illustrative": true
      },
      "evidence": {
-      "text": "{K174|US$ m} indicative under the 4.50x test [C347]",
+      "text": "{K182|US$ m} indicative under the 4.50x test [C347]",
       "refs": [
-       "K174",
+       "K182",
        "C347"
       ]
      },
@@ -7063,9 +7332,9 @@ window.RBOT_FP = {
       "illustrative": true
      },
      "evidence": {
-      "text": "{K175|US$ m} indicative under the 4.75x test [C348]",
+      "text": "{K183|US$ m} indicative under the 4.75x test [C348]",
       "refs": [
-       "K175",
+       "K183",
        "C348"
       ]
      },
@@ -7221,9 +7490,9 @@ window.RBOT_FP = {
       "illustrative": true
      },
      "evidenceFor": {
-      "text": "Revolver {K169|%} drawn and total liquidity of {C177|US$ m}.",
+      "text": "Revolver {K177|%} drawn and total liquidity of {C177|US$ m}.",
       "refs": [
-       "K169",
+       "K177",
        "C177"
       ],
       "illustrative": true
@@ -7301,9 +7570,9 @@ window.RBOT_FP = {
       "illustrative": true
      },
      "evidenceFor": {
-      "text": "Pari capacity of {K174|US$ m} could take part of the exchange.",
+      "text": "Pari capacity of {K182|US$ m} could take part of the exchange.",
       "refs": [
-       "K174"
+       "K182"
       ],
       "illustrative": true
      },
@@ -7372,7 +7641,7 @@ window.RBOT_FP = {
      "claims": {
       "v": "16,164",
       "prov": "calculated",
-      "ref": "K177",
+      "ref": "K185",
       "unit": "US$ m"
      },
      "priming": {
@@ -7391,7 +7660,7 @@ window.RBOT_FP = {
      "claims": {
       "v": "11,768",
       "prov": "calculated",
-      "ref": "K178",
+      "ref": "K186",
       "unit": "US$ m"
      },
      "priming": {
@@ -7410,7 +7679,7 @@ window.RBOT_FP = {
      "claims": {
       "v": "18,464",
       "prov": "calculated",
-      "ref": "K179",
+      "ref": "K187",
       "unit": "US$ m"
      },
      "priming": {
@@ -7523,9 +7792,9 @@ window.RBOT_FP = {
     {
      "trigger": "Liquidity runway under 12 months",
      "evidence": {
-      "text": "{K157} months of runway on mandatory uses.",
+      "text": "{K165} months of runway on mandatory uses over 12 months from 30 June 2026, lease payments included.",
       "refs": [
-       "K157"
+       "K165"
       ]
      },
      "status": {
@@ -7751,13 +8020,13 @@ window.RBOT_FP = {
      "metric": {
       "v": "2,229",
       "prov": "calculated",
-      "ref": "K180",
+      "ref": "K188",
       "unit": "US$ m"
      },
      "multiple": {
       "v": "7.90",
       "prov": "calculated",
-      "ref": "K181",
+      "ref": "K189",
       "unit": "x"
      },
      "ev": {
@@ -7773,7 +8042,7 @@ window.RBOT_FP = {
      "metric": {
       "v": "2,229",
       "prov": "calculated",
-      "ref": "K180",
+      "ref": "K188",
       "unit": "US$ m"
      },
      "multiple": {
@@ -7784,7 +8053,7 @@ window.RBOT_FP = {
      "ev": {
       "v": "11,145",
       "prov": "illustrative",
-      "ref": "K182",
+      "ref": "K190",
       "unit": "US$ m"
      },
      "illustrative": true
@@ -7795,7 +8064,7 @@ window.RBOT_FP = {
      "metric": {
       "v": "2,229",
       "prov": "calculated",
-      "ref": "K180",
+      "ref": "K188",
       "unit": "US$ m"
      },
      "multiple": {
@@ -7806,7 +8075,7 @@ window.RBOT_FP = {
      "ev": {
       "v": "8,916",
       "prov": "illustrative",
-      "ref": "K183",
+      "ref": "K191",
       "unit": "US$ m"
      },
      "illustrative": true
@@ -7877,7 +8146,7 @@ window.RBOT_FP = {
      "allocation": {
       "v": "9,468",
       "prov": "calculated",
-      "ref": "K184",
+      "ref": "K192",
       "unit": "US$ m"
      },
      "residual": {
@@ -7887,7 +8156,7 @@ window.RBOT_FP = {
      "recovery": {
       "v": "100.0",
       "prov": "calculated",
-      "ref": "K185",
+      "ref": "K193",
       "unit": "%"
      },
      "fulcrum": {
@@ -7907,13 +8176,13 @@ window.RBOT_FP = {
      "available": {
       "v": "8,132",
       "prov": "calculated",
-      "ref": "K186",
+      "ref": "K194",
       "unit": "US$ m"
      },
      "allocation": {
       "v": "2,300",
       "prov": "calculated",
-      "ref": "K187",
+      "ref": "K195",
       "unit": "US$ m"
      },
      "residual": {
@@ -7923,7 +8192,7 @@ window.RBOT_FP = {
      "recovery": {
       "v": "100.0",
       "prov": "calculated",
-      "ref": "K188",
+      "ref": "K196",
       "unit": "%"
      },
      "fulcrum": {
@@ -7943,25 +8212,25 @@ window.RBOT_FP = {
      "available": {
       "v": "5,832",
       "prov": "calculated",
-      "ref": "K189",
+      "ref": "K197",
       "unit": "US$ m"
      },
      "allocation": {
       "v": "39",
       "prov": "calculated",
-      "ref": "K190",
+      "ref": "K198",
       "unit": "US$ m"
      },
      "residual": {
       "v": "5,793",
       "prov": "calculated",
-      "ref": "K192",
+      "ref": "K200",
       "unit": "US$ m"
      },
      "recovery": {
       "v": "100.0",
       "prov": "calculated",
-      "ref": "K191",
+      "ref": "K199",
       "unit": "%"
      },
      "fulcrum": {
@@ -7981,13 +8250,13 @@ window.RBOT_FP = {
      "available": {
       "v": "11,145",
       "prov": "illustrative",
-      "ref": "K182",
+      "ref": "K190",
       "unit": "US$ m"
      },
      "allocation": {
       "v": "9,468",
       "prov": "illustrative",
-      "ref": "K193",
+      "ref": "K201",
       "unit": "US$ m"
      },
      "residual": {
@@ -7997,7 +8266,7 @@ window.RBOT_FP = {
      "recovery": {
       "v": "100.0",
       "prov": "illustrative",
-      "ref": "K194",
+      "ref": "K202",
       "unit": "%"
      },
      "fulcrum": {
@@ -8019,13 +8288,13 @@ window.RBOT_FP = {
      "available": {
       "v": "1,677",
       "prov": "illustrative",
-      "ref": "K195",
+      "ref": "K203",
       "unit": "US$ m"
      },
      "allocation": {
       "v": "1,677",
       "prov": "illustrative",
-      "ref": "K196",
+      "ref": "K204",
       "unit": "US$ m"
      },
      "residual": {
@@ -8035,7 +8304,7 @@ window.RBOT_FP = {
      "recovery": {
       "v": "72.9",
       "prov": "illustrative",
-      "ref": "K197",
+      "ref": "K205",
       "unit": "%"
      },
      "fulcrum": {
@@ -8057,25 +8326,25 @@ window.RBOT_FP = {
      "available": {
       "v": "0",
       "prov": "illustrative",
-      "ref": "K198",
+      "ref": "K206",
       "unit": "US$ m"
      },
      "allocation": {
       "v": "0",
       "prov": "illustrative",
-      "ref": "K199",
+      "ref": "K207",
       "unit": "US$ m"
      },
      "residual": {
       "v": "0",
       "prov": "illustrative",
-      "ref": "K201",
+      "ref": "K209",
       "unit": "US$ m"
      },
      "recovery": {
       "v": "0.0",
       "prov": "illustrative",
-      "ref": "K200",
+      "ref": "K208",
       "unit": "%"
      },
      "fulcrum": {
@@ -8097,13 +8366,13 @@ window.RBOT_FP = {
      "available": {
       "v": "8,916",
       "prov": "illustrative",
-      "ref": "K183",
+      "ref": "K191",
       "unit": "US$ m"
      },
      "allocation": {
       "v": "8,916",
       "prov": "illustrative",
-      "ref": "K202",
+      "ref": "K210",
       "unit": "US$ m"
      },
      "residual": {
@@ -8113,7 +8382,7 @@ window.RBOT_FP = {
      "recovery": {
       "v": "94.2",
       "prov": "illustrative",
-      "ref": "K203",
+      "ref": "K211",
       "unit": "%"
      },
      "fulcrum": {
@@ -8135,13 +8404,13 @@ window.RBOT_FP = {
      "available": {
       "v": "0",
       "prov": "illustrative",
-      "ref": "K204",
+      "ref": "K212",
       "unit": "US$ m"
      },
      "allocation": {
       "v": "0",
       "prov": "illustrative",
-      "ref": "K205",
+      "ref": "K213",
       "unit": "US$ m"
      },
      "residual": {
@@ -8151,7 +8420,7 @@ window.RBOT_FP = {
      "recovery": {
       "v": "0.0",
       "prov": "illustrative",
-      "ref": "K206",
+      "ref": "K214",
       "unit": "%"
      },
      "fulcrum": {
@@ -8173,25 +8442,25 @@ window.RBOT_FP = {
      "available": {
       "v": "0",
       "prov": "illustrative",
-      "ref": "K207",
+      "ref": "K215",
       "unit": "US$ m"
      },
      "allocation": {
       "v": "0",
       "prov": "illustrative",
-      "ref": "K208",
+      "ref": "K216",
       "unit": "US$ m"
      },
      "residual": {
       "v": "0",
       "prov": "illustrative",
-      "ref": "K210",
+      "ref": "K218",
       "unit": "US$ m"
      },
      "recovery": {
       "v": "0.0",
       "prov": "illustrative",
-      "ref": "K209",
+      "ref": "K217",
       "unit": "%"
      },
      "fulcrum": {
@@ -8252,9 +8521,9 @@ window.RBOT_FP = {
      "path": "Merger closes and new debt is layered pari",
      "process": "Out of court",
      "consent": {
-      "text": "None needed within incremental capacity [K174]",
+      "text": "None needed within incremental capacity [K182]",
       "refs": [
-       "K174"
+       "K182"
       ],
       "illustrative": true
      },
@@ -9566,9 +9835,9 @@ window.RBOT_FP = {
       "illustrative": true
      },
      "open": {
-      "text": "Does pari capacity dilute the secured claim? [K174]",
+      "text": "Does pari capacity dilute the secured claim? [K182]",
       "refs": [
-       "K174"
+       "K182"
       ],
       "illustrative": true
      },
@@ -10055,9 +10324,9 @@ window.RBOT_FP = {
     {
      "path": "Layered take-private",
      "firstBreak": {
-      "text": "Unsecured recovery: {K197|%} in the illustrative downside",
+      "text": "Unsecured recovery: {K205|%} in the illustrative downside",
       "refs": [
-       "K197"
+       "K205"
       ],
       "illustrative": true
      },
@@ -10111,9 +10380,9 @@ window.RBOT_FP = {
     {
      "path": "2028-2030 refinancing wall without the revolver",
      "firstBreak": {
-      "text": "Liquidity left turns negative in 2028 ({K161|US$ m})",
+      "text": "Liquidity left turns negative in 2028 ({K169|US$ m})",
       "refs": [
-       "K161"
+       "K169"
       ],
       "illustrative": true
      },
@@ -10168,9 +10437,9 @@ window.RBOT_FP = {
       "illustrative": true
      },
      "counter": {
-      "text": "Pari capacity of {K174|US$ m} dilutes them",
+      "text": "Pari capacity of {K182|US$ m} dilutes them",
       "refs": [
-       "K174"
+       "K182"
       ]
      },
      "resolution": {
@@ -10194,9 +10463,9 @@ window.RBOT_FP = {
       "illustrative": true
      },
      "counter": {
-      "text": "At the merger value every class recovers in full ({K188|%})",
+      "text": "At the merger value every class recovers in full ({K196|%})",
       "refs": [
-       "K188"
+       "K196"
       ]
      },
      "resolution": {
@@ -10483,10 +10752,10 @@ window.RBOT_FP = {
   "fig-liquidity-bridge": {
    "id": "fig-liquidity-bridge",
    "kind": "waterfall",
-   "title": "Accessible liquidity to December 2027 before operating cash flow",
+   "title": "Accessible liquidity, 30 June 2026 to 30 June 2027, before refinancing",
    "unit": "US$ m",
-   "summary": "Accessible liquidity of 2,928 falls to 1,249 by December 2027 after mandatory uses of 1,474 and discretionary capex of 205; operating cash flow is not forecast.",
-   "source": "Caesars Q2 2026 10-Q and earnings release (liquidity, debt maturities, interest and capital expenditure estimates)",
+   "summary": "Accessible liquidity of 2,928 at 30 June 2026 plus an operating inflow held at the LTM level of 3,436 ends 30 June 2027 at 3,348 after mandatory uses of 2,601 (lease payments included) and discretionary capex of 415. The operating inflow is an assumption, not a forecast; 2027 capex is a synthetic test value.",
+   "source": "Caesars Q2 2026 10-Q and earnings release (liquidity, debt maturities, interest, lease payments and capital expenditure estimates); synthetic FY2027 capex",
    "categoryLabel": "Step",
    "steps": [
     {
@@ -10500,8 +10769,18 @@ window.RBOT_FP = {
      }
     },
     {
-     "label": "Debt service, rest of 2026",
-     "short": "Debt service",
+     "label": "Operating cash flow before cash interest and rent, LTM level held flat",
+     "short": "Operating cash",
+     "kind": "delta",
+     "d": {
+      "v": "3,436",
+      "prov": "calculated",
+      "ref": "K162"
+     }
+    },
+    {
+     "label": "Debt service, H2 2026",
+     "short": "Debt service H2 2026",
      "kind": "delta",
      "d": {
       "v": "(425)",
@@ -10510,28 +10789,48 @@ window.RBOT_FP = {
      }
     },
     {
-     "label": "Interest, 2027",
-     "short": "Interest 2027",
+     "label": "Interest, H1 2027",
+     "short": "Interest H1 2027",
      "kind": "delta",
      "d": {
-      "v": "(750)",
-      "prov": "cited",
-      "ref": "C275"
+      "v": "(375)",
+      "prov": "calculated",
+      "ref": "K153"
      }
     },
     {
-     "label": "Maturities, 2027",
-     "short": "Maturities 2027",
+     "label": "Debt maturities, H1 2027",
+     "short": "Maturities H1 2027",
      "kind": "delta",
      "d": {
-      "v": "(114)",
-      "prov": "cited",
-      "ref": "C179"
+      "v": "(57)",
+      "prov": "calculated",
+      "ref": "K154"
      }
     },
     {
-     "label": "Maintenance capex, rest of 2026",
-     "short": "Maintenance capex",
+     "label": "Lease payments, H2 2026",
+     "short": "Leases H2 2026",
+     "kind": "delta",
+     "d": {
+      "v": "(687)",
+      "prov": "cited",
+      "ref": "C371"
+     }
+    },
+    {
+     "label": "Lease payments, H1 2027",
+     "short": "Leases H1 2027",
+     "kind": "delta",
+     "d": {
+      "v": "(682)",
+      "prov": "calculated",
+      "ref": "K155"
+     }
+    },
+    {
+     "label": "Maintenance capex, H2 2026",
+     "short": "Maint. capex H2 2026",
      "kind": "delta",
      "d": {
       "v": "(185)",
@@ -10540,34 +10839,43 @@ window.RBOT_FP = {
      }
     },
     {
-     "label": "Growth and digital capex, rest of 2026",
-     "short": "Growth capex",
+     "label": "Maintenance capex, H1 2027",
+     "short": "Maint. capex H1 2027",
+     "kind": "delta",
+     "d": {
+      "v": "(190)",
+      "prov": "calculated",
+      "ref": "K157"
+     }
+    },
+    {
+     "label": "Growth and digital capex, H2 2026",
+     "short": "Growth capex H2 2026",
      "kind": "delta",
      "d": {
       "v": "(205)",
       "prov": "calculated",
-      "ref": "K154"
+      "ref": "K158"
      }
     },
     {
-     "label": "Operating cash inflow",
-     "short": "Operating cash",
+     "label": "Growth and digital capex, H1 2027",
+     "short": "Growth capex H1 2027",
      "kind": "delta",
      "d": {
-      "v": null,
-      "prov": "gap",
-      "ref": "G13",
-      "reason": "not found in these files; no revenue or Adjusted EBITDA guidance (release notes no conference call due to pending merger)"
+      "v": "(210)",
+      "prov": "calculated",
+      "ref": "K159"
      }
     },
     {
-     "label": "Closing liquidity before operating cash flow",
+     "label": "Closing liquidity, 30 Jun 2027, before refinancing",
      "short": "Closing",
      "kind": "total",
      "d": {
-      "v": "1,249",
+      "v": "3,348",
       "prov": "calculated",
-      "ref": "K155"
+      "ref": "K163"
      }
     }
    ]
@@ -10634,32 +10942,32 @@ window.RBOT_FP = {
       {
        "v": "2,873",
        "prov": "calculated",
-       "ref": "K159"
+       "ref": "K167"
       },
       {
        "v": "2,759",
        "prov": "calculated",
-       "ref": "K160"
+       "ref": "K168"
       },
       {
        "v": "(138)",
        "prov": "calculated",
-       "ref": "K161"
+       "ref": "K169"
       },
       {
        "v": "(1,712)",
        "prov": "calculated",
-       "ref": "K162"
+       "ref": "K170"
       },
       {
        "v": "(5,674)",
        "prov": "calculated",
-       "ref": "K163"
+       "ref": "K171"
       },
       {
        "v": "(11,009)",
        "prov": "calculated",
-       "ref": "K164"
+       "ref": "K172"
       }
      ]
     }
@@ -10691,7 +10999,7 @@ window.RBOT_FP = {
      "headroom": {
       "v": "3.48",
       "prov": "calculated",
-      "ref": "K170"
+      "ref": "K178"
      }
     },
     {
@@ -10711,7 +11019,7 @@ window.RBOT_FP = {
      "headroom": {
       "v": "2.63",
       "prov": "calculated",
-      "ref": "K171"
+      "ref": "K179"
      }
     },
     {
@@ -10731,7 +11039,7 @@ window.RBOT_FP = {
      "headroom": {
       "v": "1.86",
       "prov": "calculated",
-      "ref": "K172"
+      "ref": "K180"
      }
     },
     {
@@ -10751,7 +11059,7 @@ window.RBOT_FP = {
      "headroom": {
       "v": "2.63",
       "prov": "calculated",
-      "ref": "K173"
+      "ref": "K181"
      }
     }
    ]
@@ -10799,12 +11107,12 @@ window.RBOT_FP = {
       {
        "v": "6,696",
        "prov": "calculated",
-       "ref": "K174"
+       "ref": "K182"
       },
       {
        "v": "7,594",
        "prov": "calculated",
-       "ref": "K175"
+       "ref": "K183"
       },
       {
        "v": null,
@@ -10842,7 +11150,7 @@ window.RBOT_FP = {
       {
        "v": "11,768",
        "prov": "calculated",
-       "ref": "K178"
+       "ref": "K186"
       }
      ]
     },
@@ -10854,12 +11162,12 @@ window.RBOT_FP = {
       {
        "v": "16,164",
        "prov": "calculated",
-       "ref": "K177"
+       "ref": "K185"
       },
       {
        "v": "18,464",
        "prov": "calculated",
-       "ref": "K179"
+       "ref": "K187"
       }
      ]
     }
@@ -10887,17 +11195,17 @@ window.RBOT_FP = {
       {
        "v": "100.0",
        "prov": "calculated",
-       "ref": "K185"
+       "ref": "K193"
       },
       {
        "v": "100.0",
        "prov": "calculated",
-       "ref": "K188"
+       "ref": "K196"
       },
       {
        "v": "100.0",
        "prov": "calculated",
-       "ref": "K191"
+       "ref": "K199"
       }
      ]
     },
@@ -10909,17 +11217,17 @@ window.RBOT_FP = {
       {
        "v": "100.0",
        "prov": "illustrative",
-       "ref": "K194"
+       "ref": "K202"
       },
       {
        "v": "72.9",
        "prov": "illustrative",
-       "ref": "K197"
+       "ref": "K205"
       },
       {
        "v": "0.0",
        "prov": "illustrative",
-       "ref": "K200"
+       "ref": "K208"
       }
      ]
     },
@@ -10931,17 +11239,17 @@ window.RBOT_FP = {
       {
        "v": "94.2",
        "prov": "illustrative",
-       "ref": "K203"
+       "ref": "K211"
       },
       {
        "v": "0.0",
        "prov": "illustrative",
-       "ref": "K206"
+       "ref": "K214"
       },
       {
        "v": "0.0",
        "prov": "illustrative",
-       "ref": "K209"
+       "ref": "K217"
       }
      ]
     }
@@ -10973,7 +11281,7 @@ window.RBOT_FP = {
      "d": {
       "v": "(9,468)",
       "prov": "calculated",
-      "ref": "K184"
+      "ref": "K192"
      }
     },
     {
@@ -10983,7 +11291,7 @@ window.RBOT_FP = {
      "d": {
       "v": "(2,300)",
       "prov": "calculated",
-      "ref": "K187"
+      "ref": "K195"
      }
     },
     {
@@ -10993,7 +11301,7 @@ window.RBOT_FP = {
      "d": {
       "v": "(39)",
       "prov": "calculated",
-      "ref": "K190"
+      "ref": "K198"
      }
     },
     {
@@ -11003,7 +11311,7 @@ window.RBOT_FP = {
      "d": {
       "v": "5,793",
       "prov": "calculated",
-      "ref": "K192"
+      "ref": "K200"
      }
     }
    ]
@@ -11024,7 +11332,7 @@ window.RBOT_FP = {
      "d": {
       "v": "11,145",
       "prov": "illustrative",
-      "ref": "K182"
+      "ref": "K190"
      }
     },
     {
@@ -11034,7 +11342,7 @@ window.RBOT_FP = {
      "d": {
       "v": "(9,468)",
       "prov": "illustrative",
-      "ref": "K193"
+      "ref": "K201"
      }
     },
     {
@@ -11044,7 +11352,7 @@ window.RBOT_FP = {
      "d": {
       "v": "(1,677)",
       "prov": "illustrative",
-      "ref": "K196"
+      "ref": "K204"
      }
     },
     {
@@ -11054,7 +11362,7 @@ window.RBOT_FP = {
      "d": {
       "v": "(0)",
       "prov": "illustrative",
-      "ref": "K199"
+      "ref": "K207"
      }
     },
     {
@@ -11064,7 +11372,7 @@ window.RBOT_FP = {
      "d": {
       "v": "0",
       "prov": "illustrative",
-      "ref": "K201"
+      "ref": "K209"
      }
     }
    ]
@@ -11085,7 +11393,7 @@ window.RBOT_FP = {
      "d": {
       "v": "8,916",
       "prov": "illustrative",
-      "ref": "K183"
+      "ref": "K191"
      }
     },
     {
@@ -11095,7 +11403,7 @@ window.RBOT_FP = {
      "d": {
       "v": "(8,916)",
       "prov": "illustrative",
-      "ref": "K202"
+      "ref": "K210"
      }
     },
     {
@@ -11105,7 +11413,7 @@ window.RBOT_FP = {
      "d": {
       "v": "(0)",
       "prov": "illustrative",
-      "ref": "K205"
+      "ref": "K213"
      }
     },
     {
@@ -11115,7 +11423,7 @@ window.RBOT_FP = {
      "d": {
       "v": "(0)",
       "prov": "illustrative",
-      "ref": "K208"
+      "ref": "K216"
      }
     },
     {
@@ -11125,7 +11433,7 @@ window.RBOT_FP = {
      "d": {
       "v": "0",
       "prov": "illustrative",
-      "ref": "K210"
+      "ref": "K218"
      }
     }
    ]
@@ -11156,7 +11464,7 @@ window.RBOT_FP = {
      "headroom": {
       "v": "2.50",
       "prov": "calculated",
-      "ref": "K212"
+      "ref": "K220"
      }
     },
     {
@@ -11176,7 +11484,7 @@ window.RBOT_FP = {
      "headroom": {
       "v": "5.43",
       "prov": "calculated",
-      "ref": "K216"
+      "ref": "K224"
      }
     },
     {
@@ -11237,7 +11545,7 @@ window.RBOT_FP = {
    "onePctNav": {
     "v": "6,309,285",
     "prov": "calculated",
-    "ref": "K211",
+    "ref": "K219",
     "unit": "US$"
    },
    "existingCaesarsExposure": {
@@ -11277,13 +11585,13 @@ window.RBOT_FP = {
     "headroomPct": {
      "v": "2.50",
      "prov": "calculated",
-     "ref": "K212",
+     "ref": "K220",
      "unit": "% NAV"
     },
     "room": {
      "v": "15,773,213",
      "prov": "calculated",
-     "ref": "K213",
+     "ref": "K221",
      "unit": "US$"
     }
    },
@@ -11313,7 +11621,7 @@ window.RBOT_FP = {
     "room": {
      "v": "883,300",
      "prov": "calculated",
-     "ref": "K214",
+     "ref": "K222",
      "unit": "US$"
     }
    },
@@ -11343,7 +11651,7 @@ window.RBOT_FP = {
     "room": {
      "v": "8,012,792",
      "prov": "calculated",
-     "ref": "K215",
+     "ref": "K223",
      "unit": "US$"
     }
    },
@@ -11373,7 +11681,7 @@ window.RBOT_FP = {
     "room": {
      "v": "59,244,186",
      "prov": "calculated",
-     "ref": "K218",
+     "ref": "K226",
      "unit": "US$"
     }
    },
@@ -11397,13 +11705,13 @@ window.RBOT_FP = {
     "headroomPct": {
      "v": "5.43",
      "prov": "calculated",
-     "ref": "K216",
+     "ref": "K224",
      "unit": "% NAV"
     },
     "room": {
      "v": "34,259,418",
      "prov": "calculated",
-     "ref": "K217",
+     "ref": "K225",
      "unit": "US$"
     }
    }
@@ -11438,7 +11746,7 @@ window.RBOT_FP = {
     "maxSize": {
      "v": "883,300",
      "prov": "calculated",
-     "ref": "K214",
+     "ref": "K222",
      "unit": "US$"
     },
     "bindingLimit": "C-04",
@@ -11490,7 +11798,7 @@ window.RBOT_FP = {
     "maxSize": {
      "v": "883,300",
      "prov": "calculated",
-     "ref": "K214",
+     "ref": "K222",
      "unit": "US$"
     },
     "bindingLimit": "C-04",
@@ -11542,7 +11850,7 @@ window.RBOT_FP = {
     "maxSize": {
      "v": "883,300",
      "prov": "calculated",
-     "ref": "K214",
+     "ref": "K222",
      "unit": "US$"
     },
     "bindingLimit": "C-04",
@@ -11590,7 +11898,7 @@ window.RBOT_FP = {
     "maxSize": {
      "v": "15,773,213",
      "prov": "calculated",
-     "ref": "K213",
+     "ref": "K221",
      "unit": "US$"
     },
     "bindingLimit": "C-01",
@@ -11638,7 +11946,7 @@ window.RBOT_FP = {
     "maxSize": {
      "v": "883,300",
      "prov": "calculated",
-     "ref": "K214",
+     "ref": "K222",
      "unit": "US$"
     },
     "bindingLimit": "C-04",
@@ -11689,7 +11997,7 @@ window.RBOT_FP = {
     "maxSize": {
      "v": "883,300",
      "prov": "calculated",
-     "ref": "K214",
+     "ref": "K222",
      "unit": "US$"
     },
     "bindingLimit": "C-04",
@@ -11758,7 +12066,7 @@ window.RBOT_FP = {
    "maxSize": {
     "v": "15,773,213",
     "prov": "calculated",
-    "ref": "K213",
+    "ref": "K221",
     "unit": "US$"
    },
    "bindingLimit": "C-01",
@@ -11783,7 +12091,7 @@ window.RBOT_FP = {
     "prov": "illustrative",
     "illustrative": true,
     "refs": [
-     "K181",
+     "K189",
      "K64"
     ],
     "label": "Downside EV multiple of EBITDA after rent"
@@ -11794,7 +12102,7 @@ window.RBOT_FP = {
     "prov": "illustrative",
     "illustrative": true,
     "refs": [
-     "K181",
+     "K189",
      "K64"
     ],
     "label": "Stress EV multiple of EBITDA after rent"
@@ -11806,8 +12114,8 @@ window.RBOT_FP = {
     "sub": "Maintenance, 2 tests",
     "illustrative": false,
     "refs": [
-     "K170",
-     "K171"
+     "K178",
+     "K179"
     ]
    },
    "lenderProtection": {
@@ -11829,7 +12137,7 @@ window.RBOT_FP = {
     "illustrative": true,
     "basis": "Highest year of the maturity pressure table",
     "refs": [
-     "K161"
+     "K169"
     ]
    },
    "distressGate": {
@@ -11840,7 +12148,7 @@ window.RBOT_FP = {
     "pos": 2,
     "illustrative": true,
     "refs": [
-     "K157"
+     "K165"
     ]
    },
    "priorCase": {
@@ -12030,9 +12338,9 @@ window.RBOT_FP = {
      "row": "CEI revolver maturity",
      "field": "why",
      "illustrative": true,
-     "text": "The revolver is {K158|%} of accessible liquidity.",
+     "text": "The revolver is {K166|%} of accessible liquidity.",
      "refs": [
-      "K158"
+      "K166"
      ]
     },
     {
@@ -12409,9 +12717,9 @@ window.RBOT_FP = {
      "row": "Revolver and Term A extended before 2028",
      "field": "evidenceFor",
      "illustrative": true,
-     "text": "Revolver {K169|%} drawn and total liquidity of {C177|US$ m}.",
+     "text": "Revolver {K177|%} drawn and total liquidity of {C177|US$ m}.",
      "refs": [
-      "K169",
+      "K177",
       "C177"
      ]
     },
@@ -12489,9 +12797,9 @@ window.RBOT_FP = {
      "row": "Exchange of the unsecured notes into secured debt",
      "field": "evidenceFor",
      "illustrative": true,
-     "text": "Pari capacity of {K174|US$ m} could take part of the exchange.",
+     "text": "Pari capacity of {K182|US$ m} could take part of the exchange.",
      "refs": [
-      "K174"
+      "K182"
      ]
     },
     {
@@ -12655,9 +12963,9 @@ window.RBOT_FP = {
      "row": "Merger closes and new debt is layered pari",
      "field": "consent",
      "illustrative": true,
-     "text": "None needed within incremental capacity [K174]",
+     "text": "None needed within incremental capacity [K182]",
      "refs": [
-      "K174"
+      "K182"
      ]
     },
     {
@@ -13314,9 +13622,9 @@ window.RBOT_FP = {
      "row": "Secured below par at {C232}",
      "field": "open",
      "illustrative": true,
-     "text": "Does pari capacity dilute the secured claim? [K174]",
+     "text": "Does pari capacity dilute the secured claim? [K182]",
      "refs": [
-      "K174"
+      "K182"
      ]
     }
    ],
@@ -13449,9 +13757,9 @@ window.RBOT_FP = {
      "row": "Layered take-private",
      "field": "firstBreak",
      "illustrative": true,
-     "text": "Unsecured recovery: {K197|%} in the illustrative downside",
+     "text": "Unsecured recovery: {K205|%} in the illustrative downside",
      "refs": [
-      "K197"
+      "K205"
      ]
     },
     {
@@ -13495,9 +13803,9 @@ window.RBOT_FP = {
      "row": "2028-2030 refinancing wall without the revolver",
      "field": "firstBreak",
      "illustrative": true,
-     "text": "Liquidity left turns negative in 2028 ({K161|US$ m})",
+     "text": "Liquidity left turns negative in 2028 ({K169|US$ m})",
      "refs": [
-      "K161"
+      "K169"
      ]
     },
     {

@@ -15,19 +15,19 @@ Title: "Distress view and recommendation".
 | Credit Score | 3 - Fair (illustrative) |
 
 One-line facts:
-- **Fulcrum**: senior unsecured in the 5.0x downside (72.9% recovery); senior secured in the 4.0x stress (94.2%); none at the merger value (`calcs.K197`, `K203`).
+- **Fulcrum**: senior unsecured in the 5.0x downside (72.9% recovery); senior secured in the 4.0x stress (94.2%); none at the merger value (`calcs.K205`, `K211`).
 - **Instrument**: prefer the 6.50% secured 2032s; avoid the unsecured notes (illustrative).
 - **Portfolio Fit**: Test CLO I, synthetic (`fit`): proposed US$5,000,000 of the secured 2032s Fits, max US$15,773,213 under C-01; loans and unrated notes Watch, max US$883,300 under C-04.
 
 ## 3. Blocks (page order)
 
-**Distress gate** (CP-4C). `blocks.distressGate`: six triggers with evidence and status, then Overall. Market prices debt at distressed levels: unsecured 2032s at 84.94, yield 9.318398%: Not met. Rating in Caa or below: Caa1, rated 28 Sep 2026: **Met**. Liquidity runway under 12 months: 35.8 months: Not met. Maturity within 24 months without a path: next large maturity 2028, US$767m: Not met. Leverage after the merger debt: unstated (G8): Unclear. Missed payment, covenant breach or LME: none in the sources: Not met. Overall: Unclear. Evidence cited or calculated; statuses illustrative.
+**Distress gate** (CP-4C). `blocks.distressGate`: six triggers with evidence and status, then Overall. Market prices debt at distressed levels: unsecured 2032s at 84.94, yield 9.318398%: Not met. Rating in Caa or below: Caa1, rated 28 Sep 2026: **Met**. Liquidity runway under 12 months: 13.5 months (12 months from 30 June 2026, lease payments included): Not met. Maturity within 24 months without a path: next large maturity 2028, US$767m: Not met. Leverage after the merger debt: unstated (G8): Unclear. Missed payment, covenant breach or LME: none in the sources: Not met. Overall: Unclear. Evidence cited or calculated; statuses illustrative.
 
 **Recoveries** (CP-4C). `blocks.evScenarios` then `blocks.recoveries`, chart `charts.fig-recovery-by-class` (columns, %; Merger value, Downside 5.0x, Stress 4.0x; illustrative bars for the last two). Scenarios, EBITDA after rent 2,229: Merger value EV 17,600 (7.90x, from the cited transaction value); Downside EV 11,145 (5.0x illustrative); Stress EV 8,916 (4.0x illustrative). Recovery by class: Merger value 100.0 / 100.0 / 100.0 (secured, unsecured, other); Downside 100.0 / 72.9 / 0.0; Stress 94.2 / 0.0 / 0.0. Fulcrum Yes: unsecured (Downside), secured (Stress). Residual to equity 5,793 at the merger value. Value allocation waterfalls per scenario: `charts.fig-value-allocation-merger`, `-downside`, `-stress` (EV, then per-class allocation, then residual). The strip names the gate: it is shown because the gate is Unclear. Lease claims excluded (G38). Hidden if the gate is Not met, replaced by "Recoveries: not shown, the distress gate is Not met".
 
 **Claims** (CP-4C). `blocks.claims` (US$ m): senior secured 9,468 (CEI and CVA, rank 1; CVA a separate borrower treated pari); senior unsecured 2,300 (rank 2); other debt 39 (priority not stated, ranked last); lease financing obligations 13,157, excluded (G38). Cited or calculated.
 
-**Liquidity runway** (CP-2D). `blocks.runway` with `charts.fig-liquidity-bridge`: 2,928 opening, mandatory uses 1,474, headroom 1,454, 1,249 closing before operating cash flow (operating cash n/a, G13).
+**Liquidity runway** (CP-2D). `blocks.runway` with `charts.fig-liquidity-bridge`: 2,928 opening (12 months from 30 June 2026, lease payments included), mandatory uses 2,601, headroom 327, 13.5 months, 3,348 closing at 30 June 2027 before refinancing (operating cash flow held at the LTM level of 3,436, an assumption; G13).
 
 **Funding gap and LME capacity** (CP-3C). `charts.fig-funding-gap`, `blocks.maturityPressure` (liquidity left turns to (138) in 2028), `blocks.lmeCapacity`, `blocks.creditorExposure` (pari capacity 6,696; claims at or ahead of the unsecured notes 11,768 Base, 18,464 LME; Stress n/a, G8).
 

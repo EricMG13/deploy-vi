@@ -436,6 +436,17 @@
    "locator": "Owner-adopted test adaptation, line 155",
    "excerpt": "Indenture §7.11 in the compliance monitor is the CLO's own indenture, not the Caesars notes indenture.",
    "synthetic": true
+  },
+  {
+   "key": "guide_remaining_2026_lease_payments",
+   "label": "Estimated lease payments to VICI and GLPI, remainder of 2026 (approximately)",
+   "period": "remainder of 2026",
+   "value": "687",
+   "unit": "USD millions",
+   "file": "CZR_Q2_2026_10Q.txt",
+   "line": 1300,
+   "locator": "MD&A, liquidity, line 1300",
+   "excerpt": "lease payments to VICI and GLPI to be approximately $687 million for the remainder of 2026"
   }
  ]
 }

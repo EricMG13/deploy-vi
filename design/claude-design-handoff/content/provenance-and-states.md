@@ -47,7 +47,7 @@ The current Report A draws these as a blue corner triangle (cited), a navy corne
 | Calculation status | Calculated, Directional, Not computable |
 | Change since a prior Report | Improved, Unchanged, Deteriorated, New, Removed |
 
-Owner rulings on scales (2026-10-11), still in force unless the owner relaxes them in this round: a scale's position is not tone-coloured (no green "Strong OW" or red "Strong UW"); the word carries the meaning, with a position marker or meter as a secondary cue. Colour is reserved for status: module status (Pass, With limitations, Blocked), Portfolio Fit (Fits, Watch, Breaches) and covenant/trigger status (Headroom, Tight, Breached), always paired with an icon and a word.
+Owner ruling (2026-10-17, superseding the 2026-10-11 neutral-scales rule): **colour is a signal**. Statuses, verdicts, directions, severities and scale positions take the signal colours set out in `colour-and-icons.md` (positive, caution, negative, neutral), by their meaning for the creditor, always paired with a word, icon or position marker. Provenance stays shape and pattern, never a signal colour.
 
 ## 3. States every design must cover
 

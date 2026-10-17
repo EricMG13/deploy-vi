@@ -67,6 +67,7 @@ Every module view has the same anatomy (Report A screenshot `03-module-cp-1b.png
 ## 6. Platform and build constraints
 
 - Desktop browser on wide monitors; 1280×800 is the minimum; phone is out of scope.
-- One self-contained HTML file: inline CSS, inline SVG charts, vanilla JS; fonts embedded (choose faces whose licence allows embedding); no CDN, no network, no external images.
+- One self-contained HTML file: inline CSS, vanilla JS; fonts embedded (choose faces whose licence allows embedding); no CDN, no network, no external images.
+- **Charts are SVG, drawn in the browser.** The Python renderer writes each chart's data, table twin and summary; a small vanilla JS kit draws the SVG at load and redraws on resize (Plan 07 ruling R1). SVG keeps every mark a focusable, source-linked element with provenance drawn in the mark, prints and zooms crisply, and takes the design tokens through CSS. Design charts as SVG components; design small in-cell visuals (headroom bars, scale meters, severity bars, bullet bars) as CSS. No canvas, no images, no charting library.
 - Rendered by a Python template from run data: every component repeats with variable rows, lengths and presence. Design components, not one-off pages.
 - WCAG 2.2 AA contrast; colour never the only carrier of meaning; 24px minimum targets; visible focus.
