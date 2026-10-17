@@ -1,0 +1,192 @@
+{
+  "schema": "rbot-expectations/1",
+  "pack": "czr-2026q2-lite-full-credit-screen",
+  "note": "Hand-checked on 2026-10-16 against the cited files in the pack's documents folder (10-Q, Q2 earnings release, merger 8-K and press release, TRACE exports, indentures, credit agreement amendment, MGM and PENN releases). Quick depth of FULL_CREDIT_ASSESSMENT, scored with an R5 bar of filled >= 0.90 of the supportable cells below. Conventions are those of czr-2026q2-primary.json: USD millions, plain decimals, CP-1 metric ids, period ids H1_<yyyy> (six months to June 30; June 30 balances sit on H1_<yyyy>), total_debt the book value. Left out because the documents do not support them: (1) snapshot.transaction_summary: the merger 8-K and press release state committed debt financing from 10 banks but give no tranche, size, price talk or maturity, so no new tranche exists (the primary pack has a term sheet; this one has none). (2) snapshot.relative_value: no Sector RV Workbook or Bloomberg export; the two TRACE records state a last-trade yield but no spread, and CP-3 leaves such a row out and names it under Gaps. (3) snapshot.portfolio_fit and cp6.portfolio_recommendation: no portfolio file, so FIT is skipped. (4) snapshot.ebitda_adjustments has no unrealized add-back (no synergy figure is stated). (5) Projection and CP-1D items: neither runs at quick. (6) Fiscal-year history: no 10-K. Only the tables a quick module owns carry expected_rows (the scorecard denominator); host tables (RUN_BRIEF, MODEL) are listed as supportable but reported as not measured. Where the documents fix no count, the contract minimum is used and says so; expected_identities are set only for the three Strategy rows.",
+  "values": [
+    {
+      "module": "CP-1",
+      "table": "cp1.model_account_register",
+      "where": {
+        "metric_id": "revenue",
+        "period_id": "H1_2026"
+      },
+      "value": "5863",
+      "tolerance": "0",
+      "source": "CZR_Q2_2026_10Q.txt",
+      "locator": "Consolidated Condensed Statements of Operations",
+      "excerpt": "Net revenues | 2,993 | 2,907 | 5,863 | 5,701"
+    },
+    {
+      "module": "CP-1",
+      "table": "cp1.model_account_register",
+      "where": {
+        "metric_id": "revenue",
+        "period_id": "H1_2025"
+      },
+      "value": "5701",
+      "tolerance": "0",
+      "source": "CZR_Q2_2026_10Q.txt",
+      "locator": "Consolidated Condensed Statements of Operations",
+      "excerpt": "Net revenues | 2,993 | 2,907 | 5,863 | 5,701"
+    },
+    {
+      "module": "CP-1",
+      "table": "cp1.model_account_register",
+      "where": {
+        "metric_id": "adjusted_ebitda",
+        "period_id": "H1_2026"
+      },
+      "value": "1807",
+      "tolerance": "0",
+      "source": "CZR_Q2_2026_10Q.txt",
+      "locator": "Reconciliation of net loss attributable to Caesars to Adjusted EBITDA",
+      "excerpt": "Adjusted EBITDA | $920 | $955 | $1,807 | $1,839"
+    },
+    {
+      "module": "CP-1",
+      "table": "cp1.model_account_register",
+      "where": {
+        "metric_id": "adjusted_ebitda",
+        "period_id": "H1_2025"
+      },
+      "value": "1839",
+      "tolerance": "0",
+      "source": "CZR_Q2_2026_10Q.txt",
+      "locator": "Reconciliation of net loss attributable to Caesars to Adjusted EBITDA",
+      "excerpt": "Adjusted EBITDA | $920 | $955 | $1,807 | $1,839"
+    },
+    {
+      "module": "CP-1",
+      "table": "cp1.model_account_register",
+      "where": {
+        "metric_id": "cash_and_equivalents",
+        "period_id": "H1_2026"
+      },
+      "value": "965",
+      "tolerance": "0",
+      "source": "CZR_Q2_2026_10Q.txt",
+      "locator": "Consolidated Condensed Balance Sheets",
+      "excerpt": "Cash and cash equivalents | $965 | $887"
+    },
+    {
+      "module": "CP-1",
+      "table": "cp1.model_account_register",
+      "where": {
+        "metric_id": "total_debt",
+        "period_id": "H1_2026"
+      },
+      "value": "11705",
+      "tolerance": "0",
+      "source": "CZR_Q2_2026_10Q.txt",
+      "locator": "Note 6. Long-Term Debt",
+      "excerpt": "Total debt | 11,807 | 11,705 | 11,792"
+    }
+  ],
+  "front_pages": {
+    "credit_snapshot": {
+      "supportable": [
+        {
+          "table": "snapshot.run_header",
+          "critical": "all",
+          "note": "host table (RUN_BRIEF); no expected_rows, so not measured"
+        },
+        {
+          "table": "snapshot.company_profile",
+          "critical": "all",
+          "expected_rows": 1,
+          "note": "Issuer, listing (NASDAQ: CZR) and management from the 10-Q and releases; shareholders and sponsor from the merger 8-K and press release (Fertitta Entertainment acquirer, Carano family about 5% roll)"
+        },
+        {
+          "table": "snapshot.business_description",
+          "critical": "all",
+          "expected_rows": 1,
+          "note": "10-Q Note 1 and the earnings release 'About' paragraph"
+        },
+        {
+          "table": "snapshot.capital_structure",
+          "critical": "all",
+          "note": "host table (MODEL); one row per facility in the 10-Q Note 6 debt table at H1_2026; no new tranche, so no NEW row; not measured"
+        },
+        {
+          "table": "snapshot.capital_structure_totals",
+          "critical": "all",
+          "note": "host table (MODEL); totals from the 10-Q debt table and the earnings release net debt; there is no pro forma capitalisation, so no PF interest rows; not measured"
+        },
+        {
+          "table": "snapshot.ebitda_adjustments",
+          "critical": "all",
+          "note": "host table (MODEL); the add-backs are the reported reconciliation lines (transaction costs and other, stock-based compensation, in the 10-Q and the earnings release); no run-rate or unrealized add-back is stated in any document; not measured"
+        },
+        {
+          "table": "snapshot.instrument_levels",
+          "critical": "all",
+          "expected_rows": 2,
+          "note": "two instruments with a dated level: the TRACE exports for 12769GAC4 (CEI Senior Secured Notes due 2032, 6.50%, last trade 93.28 / 8.06% on 2026-10-01) and 12769GAD2 (CEI Senior Notes due 2032, 6.00%, last trade 84.94 / 9.32%). Last trade, not bid/ask/mid. Coupon fills spread_or_coupon. No identities: facility_id is assigned by CP-1 and no document fixes it. No Talk row: no new tranche"
+        },
+        {
+          "table": "snapshot.instrument_recommendation",
+          "critical": "all",
+          "expected_rows": 2,
+          "note": "one row per instrument with a level (CP-6 contract), so the same two bonds"
+        },
+        {
+          "table": "snapshot.credit_view",
+          "critical": "all",
+          "expected_rows": 1,
+          "note": "CP-L10 owns it at quick; one row (contract)"
+        },
+        {
+          "table": "snapshot.strengths_weaknesses",
+          "critical": "all",
+          "expected_rows": 2,
+          "note": "CP-L10 owns it at quick; 2 is the contract minimum, and the documents fix no larger count"
+        },
+        {
+          "table": "snapshot.historical_performance",
+          "critical": "all",
+          "expected_rows": 1,
+          "note": "one row; limited to Q2 and six-month 2026 against 2025 and the 10-Q's Dec 31, 2025 balances (the pack holds no 10-K)"
+        },
+        {
+          "table": "snapshot.financial_columns",
+          "critical": "all",
+          "note": "host table (MODEL); H1 periods only, not measured"
+        },
+        {
+          "table": "snapshot.financials",
+          "critical": "all",
+          "note": "host table (MODEL); H1 2026 and H1 2025 from the 10-Q and release, no fiscal-year columns, not measured"
+        },
+        {
+          "table": "snapshot.recommendation",
+          "critical": "all",
+          "expected_rows": 3,
+          "expected_identities": [
+            {
+              "strategy": "CLO"
+            },
+            {
+              "strategy": "Indexed Loans"
+            },
+            {
+              "strategy": "Indexed HY"
+            }
+          ],
+          "note": "CP-6 writes exactly three Strategy rows (contract); with no portfolio there are no FIT caps, and at quick the row's basis is Screening"
+        },
+        {
+          "table": "snapshot.thesis",
+          "critical": "all",
+          "expected_rows": 1,
+          "note": "CP-6; 1 is the contract minimum"
+        },
+        {
+          "table": "snapshot.catalysts",
+          "critical": "all",
+          "expected_rows": 1,
+          "note": "CP-6; 1 is the contract minimum; the Fertitta merger closing is a dated event in the 8-K"
+        }
+      ]
+    }
+  }
+}

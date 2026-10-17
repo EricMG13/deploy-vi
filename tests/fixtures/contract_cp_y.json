@@ -1,0 +1,16 @@
+{
+  "module_id": "CP-Y",
+  "title": "Example Consumer",
+  "reader_question": "What follows from the facts?",
+  "inputs": [{"handoff": "CP-X", "required": true, "why": "the facts"}],
+  "process": ["Summarise CP-X's facts."],
+  "tables": [
+    {
+      "id": "cpy.summary",
+      "title": "Summary",
+      "min_rows": 1,
+      "columns": [{"name": "point", "critical": true}],
+      "consumers": ["REPORT"]
+    }
+  ]
+}

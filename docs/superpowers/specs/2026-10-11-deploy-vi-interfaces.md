@@ -12,7 +12,7 @@ Status: design, 2026-10-11, written against the approved design (`2026-10-11-dep
 | Column names | `snake_case`, ASCII. Critical columns are marked `*` in §2. A column whose name ends `_x` holds a multiple written `4.2x`; `_pct` a percentage written `12.5%`; `_bps` an integer; `_date` ISO `YYYY-MM-DD`; every other figure column holds a plain decimal (`-` sign, `.` decimal point, no thousands separator). The Model's figure parser applies caos `_exact` rules (parentheses negative, currency symbol and trailing `%`/`x` stripped, ambiguous `5,2` refused). One figure per cell, never `4.2x / 3.9x` (caos N192). |
 | Amount tables | Every table with an amount column carries `currency` (ISO code) and `unit` (scale `unit`) columns, so charts and the Model never guess. |
 | `cite` column | Holds one or more `[C<n>]` markers resolving to the Handoff's `citations` table, or `calc: <formula>` for a figure calculated from cited figures. Critical wherever §2 marks it. |
-| Gap | A missing non-critical value is `—` (rules.json `gap_marker`) and explained under `## Gaps`. |
+| Gap | A missing non-critical value is `—` (rules.json `gap_marker`) and explained under `## Gaps`. A `qa_status: Blocked` Handoff retains every required table, column and scale, but may leave critical cells as `—` and have fewer than `min_rows`; Pass and Restricted retain the normal critical-cell and row-count checks (Plan 05 review amendment, 2026-10-12). |
 | Run Brief field names | `issuer`, `issuer_id`, `as_of_date`, `objective`, `analyst`, `primary`, `pathway`, `depth`, `morningstar_issuer_id`, `ssim_ev_multiple`, `transaction_summary` (table), `portfolios` (table), `research_questions` (table), `prior_case` (table). |
 | Pathway id | `FULL_CREDIT_ASSESSMENT`, `RELATIVE_VALUE`, `COVENANT_REFINANCING`, `DISTRESSED_RESTRUCTURING`, `EARNINGS_UPDATE`, `PORTFOLIO_DECISION`. Depth keys `full`, `quick`. |
 | Front Page id | `credit_snapshot`, `earnings_update`, `relative_value`, `covenant_refinancing`, `distressed_restructuring`, `portfolio_decision`. |
@@ -54,7 +54,7 @@ Inputs: `req` = required Handoff input, `opt` = optional. Source classes: `issue
 | `CP-3D` | Market-implied risk: observations, implied default or loss, market versus fundamental (bond analytics script-owned). | What risk is the market pricing, what remains unpriced, and how fresh is the signal? | req `CP-0`, `CP-1`; opt `CP-2`, `CP-L10`, `CP-2H`, `CP-1C` | market, issuer | `as_of_date` | 13 |
 | `CP-4` | Legal and covenant interpreter: documents, covenant tests and headroom (script-owned), capacity, structure map, red flags, EBITDA definition, protection score. | Which provisions protect or weaken creditors, and through what PD/LGD mechanism? | req `CP-0`, `CP-1`, `MODEL`; opt `CP-1A`, `CP-1D`, `CP-2`, `CP-L10` | issuer | `as_of_date` | 12 |
 | `CP-4C` | Restructuring and fulcrum: distress gate, claims, EV scenarios, recoveries (waterfall script-owned), paths. | If the distress gate is met, which path and fulcrum are most credible and what recoveries follow? | req `CP-0`, `CP-1`, `CP-4`, `MODEL`; opt `CP-1A`, `CP-1C`, `CP-1D`, `CP-3C`, `CP-2D`, `CP-2`, `CP-L10`, `CP-2A`, `CP-2H`, `CP-3D` | issuer, market | `as_of_date` | 13 |
-| `CP-5` | Evidence trace: cross-Handoff consistency, claim traceability, limitations; the mechanical checks are the validator's. | Is the analysis traceable enough for the decision, and which provenance gap matters most? | req `CP-0`; opt `CP-1`, `CP-1A`, `CP-1B`, `CP-1C`, `CP-1D`, `CP-2`, `CP-2A`, `CP-2D`, `CP-2E`, `CP-2G`, `CP-2H`, `CP-3`, `CP-3C`, `CP-3D`, `CP-4`, `CP-4C`, `CP-L10`, `CP-DR`, `MODEL`, `PROJECTION`, `FIT` (every one present in the Pathway; CP-6 runs after CP-5 and reads CP-5) | none (reads Handoffs and `prepared/`) | `pathway`, `depth` | 05 |
+| `CP-5` | Evidence trace: cross-Handoff consistency, claim traceability, limitations; the mechanical checks are the validator's. | Is the analysis traceable enough for the decision, and which provenance gap matters most? | req `CP-0`; opt `CP-1`, `CP-1A`, `CP-1B`, `CP-1C`, `CP-1D`, `CP-2`, `CP-2A`, `CP-2D`, `CP-2E`, `CP-2G`, `CP-2H`, `CP-3`, `CP-3C`, `CP-3D`, `CP-4`, `CP-4C`, `CP-L10`, `CP-DR`, `MODEL`, `PROJECTION`, `FIT` (every one present in the Pathway; CP-6 runs after CP-5 and reads CP-5) | issuer, market, portfolio in `prepared/` only, to spot-check existing citations; no new evidence | `pathway`, `depth` | 05 |
 | `CP-6` | Challenge and decision: bull/bear challenge, Recommendation per Strategy and per instrument, thesis, catalysts, Portfolio Fit caps. | What Recommendation survives the strongest challenge, per Strategy and per instrument? | req `CP-0`, `CP-3`, `CP-5`; opt `CP-2`, `CP-L10`, `FIT`, `CP-1A`, `CP-1B`, `CP-1C`, `CP-1D`, `CP-2A`, `CP-2D`, `CP-2E`, `CP-2G`, `PROJECTION`, `CP-2H`, `CP-3C`, `CP-3D`, `CP-4`, `CP-4C`, `CP-DR` | none | `analyst`, `as_of_date`, `depth`, `portfolios` | 05 (Full), 09 (screening basis) |
 | `CP-L10` | Quick-depth screen: topics by family, screen items, upgrade triggers; owns the credit-view tables at Quick. | Which financial, liquidity, covenant, distress and value changes are decision-relevant, and where is Full work required? | req `CP-0`, `CP-1`, `CP-1A`, `MODEL`; opt `CP-1B` | issuer, market | `objective`, `as_of_date` | 09 |
 | `CP-DR` | Deep Research: approved questions answered from the pack and fetched public sources (market, competitors, regulation, sector, outlook, risks). | What is the evidence-weighted answer to each approved research question, and what does it change downstream? | req `CP-0`, `CP-1A`; opt `CP-1` | issuer, market, plus `fetched/` | `research_questions`, `issuer`, `as_of_date` | 10 |
@@ -93,12 +93,12 @@ Cut: T1–T8, P3, P5 (readiness matrix, module map, parse plan: `rbot grade` com
 
 | id | purpose | columns | min_rows | consumers |
 |---|---|---|---|---|
-| `cp1.model_period_register` | Periods (exactly one currency and one unit per run) | `period_id*`, `fiscal_year*`, `fiscal_quarter`, `period_type* (period_type)`, `start_date*`, `end_date*`, `day_count*`, `currency*`, `unit* (unit)`, `component_period_ids` | 1 | `MODEL`, `CP-1B`, `CP-2G`, `CP-5` |
-| `cp1.model_account_register` | Account figures by metric and period | `metric_id*`, `period_id*`, `value`, `calculation_status*`, `source_id`, `source_locator` | 1 | `MODEL`, `CP-1B`, `CP-1D`, `CP-4`, `CP-2D`, `CP-5` |
-| `cp1.adjusted_ebitda_bridge` | Issuer add-backs with realization status | `addback_id*`, `addback_label*`, `addback_classification*`, `realization_status* (realization_status)`, `display_priority*`, `period_id*`, `value`, `source_id`, `source_locator` | 0 | `MODEL`, `CP-1D`, `CP-4` |
-| `cp1.segment_revenue_schedule` | Segment revenue | `segment_id*`, `segment_name*`, `segment_type* (segment_type)`, `display_priority*`, `period_id*`, `revenue`, `source_id`, `source_locator` | 0 | `MODEL`, `CP-1B`, `CP-2G` |
-| `cp1.operating_kpi_schedule` | Operating KPIs | `kpi_id*`, `kpi_label*`, `display_priority*`, `period_id*`, `value`, `unit*`, `value_type* (value_type)`, `source_id`, `source_locator` | 0 | `MODEL`, `CP-1B` |
-| `cp1.debt_facility_register` | Debt stack by facility and period | `facility_id*`, `facility_name*`, `period_id*`, `facility_type*`, `currency*`, `carrying_value`, `drawn_amount`, `commitment`, `secured_status*`, `seniority*`, `margin_or_coupon*`, `maturity_date`, `lease_classification*`, `rate_type`, `reference_rate`, `spread_bps`, `floor_bps`, `fixed_rate`, `annual_amortisation`, `source_id`, `source_locator` | 1 | `MODEL`, `CP-3`, `CP-4`, `CP-2E`, `CP-3C`, `CP-3D`, `CP-4C`, `CP-2D`, `FIT` |
+| `cp1.model_period_register` | Periods (exactly one currency and one unit per run) | `period_id*`, `fiscal_year*`, `fiscal_quarter`, `period_type* (period_type)`, `start_date*`, `end_date*`, `day_count*`, `currency*`, `unit* (unit)`, `component_period_ids` | 1 | `MODEL`, `CP-1B`, `CP-2G`, `CP-5`, `FIT`, `CP-1D`, `CP-2` |
+| `cp1.model_account_register` | Account figures by metric and period | `metric_id*`, `period_id*`, `value`, `calculation_status*`, `source_id`, `source_locator` | 1 | `MODEL`, `CP-1B`, `CP-1D`, `CP-4`, `CP-2D`, `CP-5`, `CP-2` |
+| `cp1.adjusted_ebitda_bridge` | Issuer add-backs with realization status | `addback_id*`, `addback_label*`, `addback_classification*`, `realization_status* (realization_status)`, `display_priority*`, `period_id*`, `value`, `source_id`, `source_locator` | 0 | `MODEL`, `CP-1D`, `CP-4`, `CP-2` |
+| `cp1.segment_revenue_schedule` | Segment revenue | `segment_id*`, `segment_name*`, `segment_type* (segment_type)`, `display_priority*`, `period_id*`, `revenue`, `source_id`, `source_locator` | 0 | `MODEL`, `CP-1B`, `CP-2G`, `CP-2` |
+| `cp1.operating_kpi_schedule` | Operating KPIs | `kpi_id*`, `kpi_label*`, `display_priority*`, `period_id*`, `value`, `unit*`, `value_type* (value_type)`, `source_id`, `source_locator` | 0 | `MODEL`, `CP-1B`, `CP-2` |
+| `cp1.debt_facility_register` | Debt stack by facility and period | `facility_id*`, `facility_name*`, `period_id*`, `facility_type*`, `currency*`, `carrying_value`, `drawn_amount`, `commitment`, `secured_status*`, `seniority*`, `margin_or_coupon*`, `maturity_date`, `lease_classification*`, `rate_type`, `reference_rate`, `spread_bps`, `floor_bps`, `fixed_rate`, `annual_amortisation`, `source_id`, `source_locator` | 1 | `MODEL`, `CP-3`, `CP-4`, `CP-2E`, `CP-3C`, `CP-3D`, `CP-4C`, `CP-2D`, `FIT`, `CP-1D`, `CP-2` |
 | `cp1.pro_forma_adjustment_register` | Sourced pro forma adjustments to the LTM (new tranches, repayments, perimeter) | `adjustment_id*`, `label*`, `period_id*`, `effective_date*`, `classification*`, `metric_id*`, `value*`, `source_id*`, `source_locator*` | 0 | `MODEL`, `CP-3`, `CP-1A`, `CP-5` |
 | `cp1.cp_model_segment_allocation` | Forecast slots to segments | `slot_id*`, `component_segment_ids*` | 0 | `MODEL`, `CP-2G` |
 | `cp1.equity_value` | Listed equity value from Market Context | `market_cap*`, `share_price`, `shares_outstanding`, `value_date*`, `currency*`, `unit* (unit)`, `cite*` | 0 | `MODEL` |
@@ -152,11 +152,13 @@ Cut: T4.2 (comparability adjustments folded into `comparability`), T4.3–T4.5 (
 
 | id | purpose | columns | min_rows | consumers |
 |---|---|---|---|---|
-| `cp1d.addback_assessment` | House view per add-back | `addback_id*`, `period_id*`, `amount*`, `currency*`, `unit* (unit)`, `category*`, `house_realization_status* (realization_status)`, `verdict* (addback_verdict)`, `rationale*`, `recurrence*`, `cite*` | 1 | `MODEL`, `CP-2`, `CP-4`, `CP-6`, `REPORT` |
+| `cp1d.addback_assessment` | House view per add-back | `addback_id*`, `period_id*`, `amount`, `currency*`, `unit* (unit)`, `category*`, `house_realization_status* (realization_status)`, `verdict* (addback_verdict)`, `rationale*`, `recurrence*`, `cite*` | 0 | `MODEL`, `CP-2`, `CP-4`, `CP-6`, `REPORT` |
 | `cp1d.cash_conversion` | Adjusted EBITDA to CFO conversion | `period_id*`, `adjusted_ebitda*`, `cfo*`, `conversion_pct*`, `currency*`, `unit* (unit)`, `explanation*`, `credit_implication*`, `cite*` | 1 | `CP-2`, `CP-2G`, `CP-6`, `REPORT` |
 | `cp1d.debt_like_items` | Items treated as debt-like | `item*`, `amount*`, `currency*`, `unit* (unit)`, `period_id*`, `treatment* (debt_like_treatment)`, `basis*`, `cite*` | 0 | `MODEL`, `CP-2`, `CP-3`, `CP-4C`, `REPORT` |
 
 Cut: T1D.4, T1D.6, T1E.3, T1E.4 (the Model computes quality-adjusted EBITDA, adjusted debt and the leverage on each basis: `model.house`), T1E.5, T1D.7, T1E.6.
+
+A missing CP-1 add-back amount is carried as `—` with an explicit gap, never zero; its assessment still requires identity, realization status, verdict and citation. This may be Restricted without forcing the whole Module to be Blocked (Plan 05 independent-review amendment, 2026-10-12).
 
 ### 2.7 CP-2
 
@@ -233,7 +235,7 @@ Cut: T2F.1, T2F.4, T2F.8, T2F.9, T2G.1, T2G.4–T2G.8 (sustainability-linked rat
 | `cp3.compensation` | Compensation against risk per instrument | `facility_id*`, `structural_rank*`, `recovery_sensitivity* (ordinal)`, `compensation_vs_risk* (compensation)`, `comparables*`, `cite*` | 1 | `CP-6`, `REPORT`, `CP-5` |
 | `cp3.security_preference` | Preference per instrument | `facility_id*`, `preference* (preference)`, `key_reason*`, `monitoring_trigger*`, `cite*` | 1 | `CP-6`, `FIT`, `REPORT`, `CP-8` |
 
-Talk rule (data-keyed): an instrument with Price Talk in `snapshot.transaction_summary` and no market level gets `level_basis` Talk and a `cp3.talk_valuation` row; its `yield_or_dm` is the talk-mid implied figure. Loans: 3-year DM from margin, floor, OID and price; bonds: YTW and STW from coupon, price and the call schedule (`rbot calc bond_analytics`). Image-Read Values get `level_basis` Image-Read and are never used in `yield_or_dm`. Cut: T3.1, T3.3, T3.4, T3.6, T3.9, T3.10, T3B.1–T3B.3 (CP-1 registers hold terms), T3B.6, T3B.10, T3B.11, T3C.1–T3C.9 (host `FIT` and `cp6.portfolio_recommendation`).
+Talk rule (data-keyed): an instrument with Price Talk in `snapshot.transaction_summary` and no market level gets `level_basis` Talk and a `cp3.talk_valuation` row; its `yield_or_dm` is the talk-mid implied figure. Loans: 3-year DM from margin, floor, OID and price; bonds: YTW and STW from coupon, price and the call schedule (`rbot calc bond_analytics`). Image-Read Values are labelled Image-Read in Analysis and Gaps, with their source. They never supply a calculated yield/DM or Valuation; when no usable Market or Talk level exists, no priced instrument row is invented. This resolves the critical computed-field conflict without treating an image transcription as a pricing input (Plan 05 review amendment, 2026-10-12). Cut: T3.1, T3.3, T3.4, T3.6, T3.9, T3.10, T3B.1–T3B.3 (CP-1 registers hold terms), T3B.6, T3B.10, T3B.11, T3C.1–T3C.9 (host `FIT` and `cp6.portfolio_recommendation`).
 
 ### 2.14 CP-3C (funding gap script-owned: `rbot calc funding_gap`)
 
@@ -356,7 +358,7 @@ All host files are Handoff-format (front matter, four H2 sections, tagged tables
 | `brief.prior_case` | `file*`, `report_date*`, `run_id*`, `accepted* (yes_no)` | 0 | From `cp0.prior_case` and `rbot approve --prior-case`. |
 | `brief.approval` | `approved_at*`, `analyst*`, `pathway*`, `depth*`, `primary* (yes_no)`, `deep_research* (yes_no)`, `prior_case* (yes_no)`, `pathway_grade* (readiness)`, `acknowledged_blocked_modules`, `brief_sha256*` | 1 | Written by `rbot approve`. |
 
-### 3.2 `MODEL` → `model.json`, `model.xlsx`, `handoffs/MODEL.md` (written by `rbot model`)
+### 3.2 `MODEL` → `model.json`, `handoffs/MODEL.md` (written by `rbot model`)
 
 | id | columns | min_rows | how produced |
 |---|---|---|---|
@@ -371,7 +373,7 @@ All host files are Handoff-format (front matter, four H2 sections, tagged tables
 | `model.maturity_wall` | `fiscal_year*`, `facility_id*`, `amount*`, `currency*`, `unit* (unit)`, `rank*` | 1 | Facility maturities by fiscal year from `cp1.debt_facility_register` (`maturity_date`) on the snapshot column; `amount` = outstanding. |
 | `model.limitations` | `code*`, `message*`, `line_id`, `column_id` | 0 | Model limitations and reconciliation faults (`<column_id>:<bridge>`). |
 
-### 3.3 `PROJECTION` → updates `model.json`, `model.xlsx`; writes `handoffs/PROJECTION.md` (`rbot model --projection`)
+### 3.3 `PROJECTION` → updates `model.json`; writes `handoffs/PROJECTION.md` (`rbot model --projection`)
 
 | id | columns | min_rows | how produced |
 |---|---|---|---|
@@ -569,7 +571,7 @@ Corpus packs per Pathway (ids from §12.2): `FULL_CREDIT_ASSESSMENT` full → `c
 
 ### 6.1 Port
 
-`rbot/scripts/rbotlib/model/` ports caos `caos/calculators/credit_model/` (`5c3cd52f`: `_cells`, `frame`, `history`, `statements`, `debt`, `metrics`, `layout`, `assemble`, `projection`) and `caos/calculators/cash_flow.py`, replacing `caos.methodology.model_inputs` with `rbotlib/model/inputs.py` (reads `rbotlib.handoff.Table`s; figure parser with caos `_exact` rules), `Refusal` with `ModelInputError(ValueError)` naming table, row and column, and `BoundaryText` with a 64-character NFC check. Pure Decimal (`prec 38`, `ROUND_HALF_EVEN`), no I/O, no rounding except in `model.xlsx` display formats. Property tests (hypothesis) and mutation tests (mutmut) are gates for this package (money).
+`rbot/scripts/rbotlib/model/` ports caos `caos/calculators/credit_model/` (`5c3cd52f`: `_cells`, `frame`, `history`, `statements`, `debt`, `metrics`, `layout`, `assemble`, `projection`) and `caos/calculators/cash_flow.py`, replacing `caos.methodology.model_inputs` with `rbotlib/model/inputs.py` (reads `rbotlib.handoff.Table`s; figure parser with caos `_exact` rules), `Refusal` with `ModelInputError(ValueError)` naming table, row and column, and `BoundaryText` with a 64-character NFC check. Pure Decimal (`prec 38`, `ROUND_HALF_EVEN`), no I/O, no arithmetic rounding; display formatting belongs to HTML/Markdown. Excel report exports are removed (owner, 2026-10-13). Property tests (hypothesis) and mutation tests (mutmut) are gates for this package (money).
 
 ### 6.2 `model.json` schema (`"schema": "rbot-model/1"`)
 
@@ -582,7 +584,7 @@ Corpus packs per Pathway (ids from §12.2): `FULL_CREDIT_ASSESSMENT` full → `c
   "snapshot_columns": {"FY-2": "FY:FY2023", "FY-1": "...", "FY": "...", "PYTD": "...|null", "YTD": "...|null", "LTM": "PF:LTM_Q2_2026"},
   "lines": [{"line_id": "adjusted_ebitda", "band": 5, "label": "Adjusted EBITDA", "kind": "ACCOUNT|SUBTOTAL|RATIO|MEMO|PF|GROWTH", "unit": "MONEY|PERCENT|MULTIPLE|DAYS|COUNT|RATE|KPI", "unit_label": "USD m", "rank": null, "terms": {"reference_rate": "SOFR", "spread_or_coupon": "+225 bp", "floor": "0.50%", "maturity": "2031-06-30", "amortisation": "bullet"},
              "cells": [{"column_id": "FY:FY2025", "value": "1234.5", "reason": null, "basis": "REPORTED|CALCULATED|PRO_FORMA|PROJECTED|DRIVER", "stated": "1234.0", "note": "differs from CP-1 stated", "sources": [{"module": "CP-1", "citation_id": "C12", "source": "CZR_FY2025_10K.txt", "locator": "p.61", "excerpt": "..."}]}]}],
-  "house": {"structuring_ebitda": {"column_id": "PF:LTM_Q2_2026", "value": "...", "formula": "adjusted_ebitda + Σ excluded add-backs", "components": ["adjusted_ebitda", "addback:A1", "..."]},
+  "house": {"structuring_ebitda": {"column_id": "PF:LTM_Q2_2026", "value": "...", "formula": "adjusted_ebitda + Σ positive excluded add-backs", "components": ["adjusted_ebitda", "addback:A1", "..."]},
             "ssim_ebitda": {...}, "quality_adjusted_ebitda": {...}, "pf_interest": {...}, "pf_interest_cover": {...},
             "structuring_multiple": {...}, "ssim_multiple": {...}, "adjusted_debt": {...}, "adjusted_leverage": {...},
             "ev": {"value": "...", "basis": "listed|ssim_multiple|null", "inputs": {"market_cap": "...", "ssim_ev_multiple": "..."}, "reason": null},
@@ -599,7 +601,7 @@ Every cell has `value` or `reason` (`NOT_PROJECTED`, `NOT_APPLICABLE`, `NOT_SOUR
 
 ### 6.3 Bands, lines and metrics
 
-Bands 1–12 and line ids exactly as caos `layout.py` (§5 of `model-api.md`): bands 1 Operating KPIs, 2 Revenue by business unit, 3 Gross profit, 4 Operating expenses to EBITDA, 5 Adjusted EBITDA, 6 Adjusted EBITDA to free cash flow, 7 Net cash flow, cash and liquidity, 8 Debt stack by payment rank, 9 Debt roll-forward, 10 Interest calculation, 11 Working capital, 12 Credit metrics. Metrics: `metric:total_leverage_reported`, `total_leverage_adjusted`, `net_leverage_reported`, `net_leverage_adjusted`, `senior_secured_leverage`, `senior_secured_net_leverage`, `lease_adjusted_leverage`, `lease_adjusted_net_leverage`, `interest_coverage_reported`, `interest_coverage_adjusted`, `capex_adjusted_coverage`, `ebitdar_coverage`, `ffo_to_debt`, `ffo_to_lease_adjusted_debt`, `fcf_to_debt`, `fcf_to_adjusted_ebitda`, `capex_to_revenue`, `liquidity_to_debt`, `gross_margin`, `ebitda_margin`, `adjusted_ebitda_margin`, growth `revenue_growth`, `adjusted_ebitda_growth`, `bu_growth:<seg>`. Port additions: `gross_profit_growth` (band 3, GROWTH) and `debt_like:<item>` MEMO lines (band 8, from `cp1d.debt_like_items`).
+Bands 1–12 and line ids exactly as caos `layout.py` (§5 of `model-api.md`): bands 1 Operating KPIs, 2 Revenue by business unit, 3 Gross profit, 4 Operating expenses to EBITDA, 5 Adjusted EBITDA, 6 Adjusted EBITDA to free cash flow, 7 Net cash flow, cash and liquidity, 8 Debt stack by payment rank, 9 Debt roll-forward, 10 Interest calculation, 11 Working capital, 12 Credit metrics. Metrics: `metric:total_leverage_reported`, `total_leverage_adjusted`, `net_leverage_reported`, `net_leverage_adjusted`, `senior_secured_leverage`, `senior_secured_net_leverage`, `lease_adjusted_leverage`, `lease_adjusted_net_leverage`, `interest_coverage_reported`, `interest_coverage_adjusted`, `capex_adjusted_coverage`, `ebitdar_coverage`, `ffo_to_debt`, `ffo_to_lease_adjusted_debt`, `fcf_to_debt`, `fcf_to_adjusted_ebitda`, `capex_to_revenue`, `liquidity_to_debt`, `gross_margin`, `ebitda_margin`, `adjusted_ebitda_margin`, growth `revenue_growth`, `adjusted_ebitda_growth`, `bu_growth:<seg>`. Port additions: `gross_profit_growth` (band 3, GROWTH) and `debt_like:<item>` MEMO lines (band 8, from `cp1d.debt_like_items`). Nature-of-expense case: where CP-1 registers no `cogs` row for a column, or a `cogs` row with no figure and `calculation_status` `NOT AVAILABLE` (the CP-1 marker for an issuer that reports operating costs by nature; any other status without a figure keeps `ebit` blank), `gross_profit` stays blank (`COMPONENT_MISSING`) and `ebit` is `revenue` plus `opex_including_da`; EBITDA, adjusted EBITDA and every metric below keep their formulas.
 
 ### 6.4 Snapshot columns and the financials mapping
 
@@ -623,28 +625,33 @@ Bands 1–12 and line ids exactly as caos `layout.py` (§5 of `model-api.md`): b
 
 ### 6.5 House view (D19) and PF-LTM
 
-- The Model runs once with `exclude_unrealised = True`. Effective realization status per add-back = `cp1d.addback_assessment.house_realization_status` when CP-1D is accepted (a `Rejected` verdict is treated as `UNREALIZED`), else CP-1's `realization_status`; `NOT_STATED` counts as unrealized (caos).
-- On the snapshot column (PF-LTM when it exists, else LTM): `SSIM EBITDA` = `adjusted_ebitda`; `Structuring EBITDA` = `adjusted_ebitda` + Σ excluded add-backs; `Quality-adjusted EBITDA` = SSIM EBITDA − Σ add-backs with verdict `Rejected` that were realized; `PF interest` = `cash_interest` on that column; `PF interest cover` = SSIM EBITDA ÷ PF interest; `Structuring Multiple` = `total_debt` ÷ Structuring EBITDA; `SSIM Multiple` = `total_debt` ÷ SSIM EBITDA; `Adjusted debt` = `total_debt` + Σ `cp1d.debt_like_items` with treatment `Debt-like`; denominators ≤ 0 → null with `ZERO_OR_NEGATIVE_DENOMINATOR`.
+- The Model runs once with `exclude_unrealised = True`. Effective realization status per add-back = `cp1d.addback_assessment.house_realization_status` when CP-1D is accepted (a `Rejected` verdict is treated as `UNREALIZED`), else CP-1's `realization_status`; `NOT_STATED` counts as unrealized (caos). Owner amendment (2026-10-12): an assessment for CP-1’s newest dated registered LTM controls that add-back throughout the Model, overriding older CP-1 classifications in either direction. Conflicting assessments at the same latest LTM end date are refused. Without an assessment for that latest LTM, period-specific assessments apply with an explicit limitation when mixed statuses leave the add-back excluded. Owner decision F11 (2026-10-15): excluding an add-back leaves out only its positive amounts, column by column; a negative amount is a deduction (a net gain, say) and stays in adjusted EBITDA, so exclusion never raises it. CP-1's adjusted EBITDA is compared on a column where nothing positive was left out.
+- On the snapshot column (PF-LTM when it exists, else LTM): `SSIM EBITDA` = `adjusted_ebitda`; `Structuring EBITDA` = `adjusted_ebitda` + Σ positive excluded add-backs (every add-back in, F11); `PF interest` = `cash_interest` on that column; `PF interest cover` = SSIM EBITDA ÷ PF interest; `Structuring Multiple` = `total_debt` ÷ Structuring EBITDA; `SSIM Multiple` = `total_debt` ÷ SSIM EBITDA; `Adjusted debt` = `total_debt` + Σ `cp1d.debt_like_items` with treatment `Debt-like`; denominators ≤ 0 → null with `ZERO_OR_NEGATIVE_DENOMINATOR`.
 - EV: `cp1.equity_value.market_cap` (converted to the run unit; same currency required, else null with reason) + `net_debt` when listed; else `ssim_ev_multiple_x` × SSIM EBITDA; else null. `% EV` per facility = outstanding ÷ EV.
-- PF-LTM exists only when `cp1.pro_forma_adjustment_register` has rows for the LTM `period_id`; mapping of `metric_id` to lines exactly as caos `_PF_TARGETS` (`revenue`, `ebitda` → ebitda and adjusted, `adjusted_ebitda`, `cash_interest_paid` → `cash_interest`, `cash_and_equivalents` → `cash_closing`, `total_debt` → `total_debt` and `debt_closing`, `facility:<id>` → `fac:<id>` and its rank totals). Without PF rows every PF figure equals the LTM figure and the Report says so.
+- PF-LTM exists only when `cp1.pro_forma_adjustment_register` has rows for the LTM `period_id`; mapping of `metric_id` to lines exactly as caos `_PF_TARGETS` (`revenue`, `ebitda` → ebitda and adjusted, `adjusted_ebitda`, `cash_interest_paid` → `cash_interest`, `cash_and_equivalents` → `cash_closing`, `total_debt` → `total_debt` and `debt_closing`, `facility:<id>` → `fac:<id>` and its rank totals). Owner amendment (2026-10-14): PF `undrawn_rcf` reflects the PF movements on revolver facilities in the facility stack (a `facility:<id>` row whose `facility_type` reads as a revolver: starts `REVOLV` or is `RCF`); a repayment of drawings raises it, new drawings lower it, and PF `liquidity` follows. Without PF rows every PF figure equals the LTM figure and the Report says so.
+
+The earlier separate quality-adjusted EBITDA line is omitted: a Rejected add-back is already treated as unrealized in SSIM EBITDA (accepted planning-ledger ruling).
 
 ### 6.6 Exact inputs
 
 | From | What the Model reads |
 |---|---|
 | `CP-1` | §2.2 registers; `cp1.instrument_identity` (identifiers, ratings for the capital structure); `cp1.equity_value`; `cp1.entity_profile` (currency and unit must match the period register). A new tranche: facility row with `facility_id` = Run Brief `tranche_id`, `period_id` = LTM, `carrying_value` `0`, terms from the term sheet; PF rows `facility:<tranche_id>` = size, `total_debt` = net new debt, `cash_interest_paid` = PF interest from a source in the pack (never derived from Price Talk; absent → no row and limitation `PF_INTEREST_NOT_SOURCED`), repaid facilities as negative `facility:<id>` rows, `cash_and_equivalents` for cash to balance sheet, all cited. |
+| `CP-1` (pro forma, amended 2026-10-12) | A new tranche is written as `facility:<id>` pro forma rows only; the Model sums facility rows into total debt, so CP-1 never also writes a pro forma total-debt line (it would double count). |
 | `CP-1D` | `cp1d.addback_assessment` (`house_realization_status`, `verdict`), `cp1d.debt_like_items`. |
 | `CP-2G` | `cp2g.cp_model_forecast_drivers` (division growth), `cp2g.forecast_periods`, `cp2g.forecast_movements`, `cp2g.forecast_amortisation`, `cp2g.rate_deck`; the CP-CF request is assembled by `rbot model --projection`: `opening` from the Model (cash and debt by facility at the base period), `periods`, `drivers`, `contractual.amortisation`, `units`, `perimeter` = `cp1.entity_profile.perimeter`. Horizon: three fiscal years after the base period; base period: the latest LTM (caos D109). |
 | `CP-4` | Not read (caos reads no CP-4 table); covenant figures stay in `cp4.covenant_tests`. |
 | `RUN_BRIEF` | `ssim_ev_multiple_x`, `primary`, `transaction_summary.tranche_id` list (for labelling talk rows). |
 
-### 6.7 `model.xlsx` layout (values only, openpyxl, decision record 0002)
+### 6.7 Report outputs — amended 2026-10-13
 
-Sheets, in order: `Columns` (column_id, kind, label, period_id, fiscal_year, end_date, days, case), `01 Operating KPIs` … `12 Credit metrics` (one per band: row 1 column labels, column A line label, column B line_id, cells values with number formats by unit; a null cell is blank with its reason in the `Passport` sheet), `House` (the `model.house` items), `Snapshot` (the `snapshot.financials` grid), `Projection` (the `model.projection_summary` rows), `Passport` (sheet, row, column, line_id, column_id, basis, reason, source file, locator, excerpt). No formulas, no macros, no external links.
+Excel report/workbook exports are removed by the owner's scope amendment. The Model retains exact JSON and Markdown calculations, cell passports, limitations and sources for the HTML/Markdown Report. No model.xlsx generation, completion gate, package artifact or report download is required or shipped. XLSX ingestion of supplied market/portfolio source files remains supported; those inputs and frozen reference workbooks stay read-only.
 
 ### 6.8 `rbot model` behaviour
 
-`rbot model --run <RUN>`: reads `handoffs/CP-1.md` (required), `handoffs/CP-1D.md` (optional), `run-brief.md`; writes `model.json`, `model.xlsx`, `handoffs/MODEL.md`; exit 0 with limitations recorded, exit 1 when CP-1's registers are malformed (`ModelInputError` message names table, row, column). `rbot model --projection`: additionally reads `handoffs/CP-2G.md`, rewrites `model.json`/`model.xlsx` with projected columns and the forecast, writes `handoffs/PROJECTION.md`; exit 1 when CP-2G's tables are malformed. Both are idempotent: identical inputs give byte-identical `model.json` (`generated_at` excluded from the comparison in tests).
+`rbot model --run <RUN>`: reads `handoffs/CP-1.md` (required), `handoffs/CP-1D.md` (optional), `run-brief.md`; writes `model.json`, `handoffs/MODEL.md`; exit 0 with limitations recorded, exit 1 when CP-1's registers are malformed (`ModelInputError` message names table, row, column). `rbot model --projection`: additionally reads `handoffs/CP-2G.md`, rewrites `model.json` with projected columns and the forecast, writes `handoffs/PROJECTION.md`; exit 1 when CP-2G's tables are malformed. Both are idempotent: identical inputs give byte-identical `model.json` (`generated_at` excluded from the comparison in tests).
+
+For the historical Model, build and stage both output representations, flush and fsync them before publishing any. A staging failure preserves the existing outputs. Each publication uses an atomic file replacement; a failure between replacements returns a named exit 1 and removes temporary files, but can leave a partially published set. This is the Plan 03 review fix's guarantee; simultaneous visibility, rollback and abrupt-crash consistency are not claimed (2026-10-12).
 
 ---
 
@@ -658,16 +665,17 @@ Prepared portfolio JSON (`"schema": "rbot-portfolio/1"`):
 
 ```json
 {"portfolio_id": "TEST_CLO_I", "portfolio_name": "Test CLO I Ltd", "strategy": "CLO", "as_of": "2026-05-29",
- "nav": "630.9", "par": "634.0", "currency": "USD", "unit": "MILLIONS",
+ "nav": "630.9", "par": "634.0", "currency": "USD", "unit": "MILLIONS",  // a Unit row with several values is kept joined ("USD, millions") and makes every amount limit unparsed; one portfolio table per sheet or file — a sheet with more than one table is refused with a note (amended 2026-10-12)
  "positions": [{"issuer_id": "CZR", "issuer_name": "...", "instrument_id": "...", "par": "6.0", "pct_nav": "0.95", "sector": "...", "rating": "B1", "country": "US", "currency": "USD", "seniority": "Senior secured", "asset_type": "Loan"}],
  "limits": [{"limit_id": "C-04", "category": "Concentration", "parameter": "Single obligor", "scope": "issuer|sector|rating_bucket|country|asset_type|seniority|maturity|currency|other", "scope_value": null, "limit_value": "2.0", "unit": "pct_nav|pct_par|amount|count|years", "limit_kind": "Hard|Soft", "current_value": "0.95", "source": "CP-6A_-_Portfolio_Constraints_Compliance_Monitor_-_Test_CLO_I_Ltd.csv row 4"}],
- "unparsed": [{"row": "...", "reason": "unit not recognised"}]}
+ "unparsed": [{"row": "...", "reason": "unit not recognised"}],
+ "notes": ["... (dropped tables, case-only id collisions, ambiguous units — amended 2026-10-12)"]}
 ```
 
 **Arithmetic** (Decimal, per portfolio × instrument; instruments = every `cp1.instrument_identity` row plus each new tranche):
 
 1. `current_exposure` = Σ positions with `issuer_id` = run issuer (par); `current_exposure_pct_nav` = that ÷ `nav` × 100.
-2. For each limit the instrument touches (an `issuer` limit always; `sector`, `country`, `rating_bucket`, `asset_type`, `seniority`, `maturity`, `currency` limits when the instrument's attribute falls in `scope_value`): `headroom` = `limit_value − current_value` in the limit's unit (for `maturity` limits in years, headroom = limit − instrument tenor and the amount headroom is unlimited when positive, zero when not); `headroom_amount` = headroom converted to the run unit (`pct_nav` × nav ÷ 100, `pct_par` × par ÷ 100, `amount` as is, `count` → unlimited when ≥ 1 else 0).
+2. For each limit the instrument touches (an `issuer` limit always; `sector`, `country`, `rating_bucket`, `asset_type`, `seniority`, `maturity`, `currency` limits when the instrument's attribute falls in `scope_value`): `headroom` = `limit_value − current_value` in the limit's unit (for `maturity` limits in years, headroom = limit − instrument tenor and the amount headroom is unlimited when positive, zero when not); `headroom_amount` = headroom converted to the run unit (`pct_nav` × nav ÷ 100, `pct_par` × par ÷ 100, `amount` as is, `count` → unlimited when ≥ 1 else 0). An instrument's `rating_bucket` is Unrated when it has no assigned rating: an expected or indicative rating (a term sheet's `Ba3 (expected)`) is not assigned and counts as Unrated, so a "CCC (incl. Unrated)" limit counts it, and the FIT row notes this; Moody's `(P)` is assigned.
 3. `max_size` = min over `Hard` limits of `headroom_amount`, floored at 0; `binding_limit` = the limit giving the minimum.
 4. `verdict`: `Breaches` when any Hard limit has `headroom < 0` or `max_size = 0`; `Watch` when any Soft limit has `headroom < 0`, or `max_size` < 1% of NAV, or any touched limit could not be computed (row in `unparsed` or missing attribute; `status` `Not computed`); otherwise `Fits`.
 5. `recommendation_cap`: `Breaches` → `Avoid`; `Watch` → `3 - MW`; `Fits` → `1 - Strong OW` (no cap).
@@ -685,18 +693,18 @@ Prepared portfolio JSON (`"schema": "rbot-portfolio/1"`):
 
 | Path | Written by | Content |
 |---|---|---|
-| `run-state.json` | every command | §8.2 |
+| `run-state.json` | every command | §8.2, including bounded original-artifact and current-observation evidence; no separate origin file |
 | `run-brief.md` | `rbot brief`, `rbot approve` | §3.1 |
 | `inventory.json` | `rbot inventory` | every file: relative path, size, sha256, extension, detected kind (pdf, xlsx, csv, txt, md, html, image), page count, `rbot_report` flag (file holds `id="rbot-run"`) |
-| `prepared/index.json` | `rbot prepare` | per file: prepared text path, pages, first-page excerpt (400 chars), detected entity names and dates, sheet names, `image_read` flag |
-| `prepared/<sha16>-<slug>.txt` | `rbot prepare` | page-anchored text: `<<< page N >>>` lines; xlsx/csv as `<<< sheet NAME >>>` then CSV rows with `#N/A`, `#N/A N/A`, `#VALUE!`, `#DIV/0!`, `#NAME?`, `—`, blank → empty cell; images produce a stub with `image_read: true` and no text |
+| `prepared/index.json` | `rbot prepare` | per file: prepared text path, pages, first-page excerpt (400 chars), detected entity names and dates, sheet names and states, `image_read` flag, `unreadable` reason, `encoding` when not UTF-8, `uncached_formulas`, `display_scaled`, `format_not_applied`, `dropped_surrogates`; top level `portfolio_notes` (amended 2026-10-12) |
+| `prepared/<sha16>-<pathhash16>-<slug>.txt` | `rbot prepare` | (name amended 2026-10-12: content hash + inventory-path hash + slug) page-anchored text: `<<< page N >>>` lines; xlsx/csv as `<<< sheet NAME >>>` then CSV rows with `#N/A`, `#N/A N/A`, `#VALUE!`, `#DIV/0!`, `#NAME?`, `—`, blank → empty cell; images produce a stub with `image_read: true` and no text |
 | `prepared/portfolios/<portfolio_id>.json` | `rbot prepare` | §7 |
 | `fetched/<nn>-<host>.md` | `CP-DR` (via `rbot fetch`) | fetched page as text with front matter `url`, `retrieved`, `sha256` |
 | `handoffs/<ID>.md`, `handoffs/MODEL.md`, `handoffs/PROJECTION.md`, `handoffs/FIT.md` | modules / host steps | Handoffs |
 | `validate/<ID>.json` | `rbot accept` | `{exit, findings:[{code,message}], sha256, at}` |
 | `dispatch/<ID>.md` | `rbot dispatch-message` | the exact message sent to the subagent |
 | `calc/<ID>-<name>.json`, `calc/<ID>-<name>.out.json` | module scripts (`rbot calc`) | calculator inputs and outputs |
-| `model.json`, `model.xlsx` | `rbot model` | §6 |
+| `model.json` | `rbot model` | §6 |
 | `fit/<portfolio_id>.json` | `rbot fit` | §7 |
 | `grading.json` | `rbot grade` | per Pathway × depth: `status` (readiness), `blocking_modules`, `limited_modules`, `missing_document_types`, `lifting_sources` |
 | `prior/diff.json`, `prior/diff.md` | `rbot diff` | §11.6 |
@@ -704,6 +712,8 @@ Prepared portfolio JSON (`"schema": "rbot-portfolio/1"`):
 | `log/rbot.log` | every command | one line per command: time, command, exit |
 
 Source files are never modified; `rbot-runs/` is git-ignored in the repo and lives inside the analyst's pack.
+
+Existing stateful runs without checked process-ownership entitlement remain read-only to this implementation. Refusal creates no state/log fence, log directory or command row. Checked discovery and supported read-only inspection remain available without logging; genuinely no-state standalone commands retain their existing logging behavior. Only a fresh unpublished `new-run` allocation may provision ownership, before publishing state; malformed or broken state entries never become standalone authority.
 
 ### 8.2 `run-state.json` (`"schema": "rbot-run-state/1"`)
 
@@ -729,6 +739,10 @@ Source files are never modified; `rbot-runs/` is git-ignored in the repo and liv
 
 `status` ∈ `pending` | `running` | `accepted` | `blocked` | `failed` | `skipped`. `qa_status` is copied from the Handoff (`Pass`, `Restricted`, `Blocked`).
 
+Original-artifact evidence is bounded inline state: version and observation basis, artifact id and legal relative path, exact SHA256 and decoded byte count, canonical base64 of the validated UTF-8 bytes, run/issuer identity and actual observation time. Bind it to the corresponding original completion or Approval facts; a registered validation source also names its checked immutable event. Validate recognized evidence keys, types, size/encoding/hash, Handoff identity/QA and cross-links even when current artifacts are unchanged. Use the existing Handoff bound for CP-0 and a supported generated-brief bound without truncation. Hash consistency is not provider authentication.
+
+First CP-0 completion and the CP-0 selected at Approval are distinct observations. Preserve the first completion bytes and immutable execution history; Approval freezes the currently qualified CP-0 matching `grading.cp0_sha256` and the final rendered approved Run Brief matching `run_brief_sha256`. `cp0_lineage.sha256` and approved brief front matter bind the selected CP-0, which may differ after a valid pre-Approval edit. The graded pre-Approval brief hash in the Approval row remains separate from the final approved brief hash. Current edit evidence records attributable present-day validation and an explicitly derived projection without rewriting originals, Approval, grading, attempts, provider labels, receipts or historical times.
+
 ### 8.3 Transitions
 
 | Event | New status | Note |
@@ -740,7 +754,7 @@ Source files are never modified; `rbot-runs/` is git-ignored in the repo and liv
 | `rbot accept` exit 2, `attempts` = 2 | `failed` | `reason` = findings |
 | `rbot accept` exit 4 | `failed` | identity mismatch is never retried |
 | host step exit 0 | `accepted` | |
-| host step exit 1 | `failed` | `reason` = message |
+| attributed host execution failure (exit 1) | `failed` | `reason` = message; ownership/legacy/uncommitted refusals preserve state and pause (§10.3) |
 | a required input is `failed` or `skipped` | `skipped` | `reason` names the input; the Report marks the module and the Front Page blocks it owns |
 | a required input is `blocked` | runs normally | the dispatch message names the Blocked input; the module works with its tables' gaps |
 | `CP-DR` unticked / `CP-8` not accepted / `PROJECTION` without `CP-2G` / `FIT` without portfolios | `skipped` | `reason` fixed strings: `not approved`, `no prior case`, `CP-2G not run`, `no portfolio context` |
@@ -749,35 +763,45 @@ Source files are never modified; `rbot-runs/` is git-ignored in the repo and liv
 
 `/rbot` in a folder whose newest `rbot-runs/*/run-state.json` has `report.written_at` null resumes it: no re-approval; the orchestrator runs `rbot next`, which returns the first step whose status is `pending` or `running` (a `running` module is re-dispatched; its attempts counter is kept). `failed` and `skipped` steps are not retried on resume. Before continuing, `rbot next` re-hashes every accepted Handoff; a hash mismatch re-validates the file: valid → the new hash is recorded with `note: edited`; invalid → status `failed` with the findings (the analyst's edit broke it). A run older than 30 days is not resumed; `rbot new-run` is offered instead.
 
+Fresh entitled runs retain exact CP-0 bytes at receipt-free completion and exact selected CP-0/final brief bytes at Approval, within their existing checked state publication. Receipt-backed acceptance retains its checked immutable validation snapshot. Pure check/read-only observations publish nothing. Resolve and validate original evidence before applying current edits. Valid post-Approval CP-0 narrative edits also require unchanged entire front matter and parsed tables, including citations, relative to the approved original; changed approved decisions/classifications refuse with a named cause and new-run requirement. RUN_BRIEF narrative edits use its precise host shape/context checks and unchanged approved front matter/tables. Required-consumer invalidation names its actual producer/cause while preserving genuine running/terminal execution evidence; optional inputs retain their contract limitations. Changed input digests can invalidate MODEL/FIT without rewriting their registered inputs or retrying terminal hosts.
+
+For an already-entitled uncaptured record, original bytes may be observed now only from fully checked registered validation evidence, guarded current/restored bytes matching the sealed original digest, or complete deterministic reconstruction matching that exact digest. Record the true present-day basis/time; never infer old prose/classifications, a worker send or backdated capture. If no exact approved CP-0 candidate exists, preserve Approval, current file and history and pause visibly: `frozen approved CP0 bytes unavailable; cannot establish unchanged approved decisions`. Exact restoration permits later capture. This limitation never exempts fresh runs from prospective capture and never grants entitlement to an unentitled run.
+
+The resume/edit protocol above applies to freshly provisioned runs with checked process-ownership entitlement. Every unentitled legacy stateful run refuses automatic adoption, resume and mutation regardless of pending/running/terminal status, before any run-local write; discovery remains available with the visible compatibility limitation. No elapsed-time, missing-file, status or log0 guess supplies retrospective ownership. Host continuation additionally requires acquisition of its registered process-held owner. A busy owner preserves state and pauses. An interrupted entitled host preserves its calculation token/attempt and original input/time seed, while recording each actual continuation invocation and checking current origin/publication/log evidence. Terminal outcomes are never automatically retried. This bounds compatibility without weakening new-run recovery or analytical checks (Task06.9 corrected legacy-overlap diagnosis, 2026-10-13).
+
 ---
 
 ## 9. Command line (`python <RBOT>/scripts/rbot.py …`)
 
 Exit codes unless stated: 0 success, 1 failure with a message naming the cause. `--root` (Plan 01) applies to every command. All paths absolute or relative to the current directory; `--run <RUN>` names the run folder.
 
+Stateful mutation requires checked ownership before command execution or logging (§8.1); this includes direct publication helpers. Unentitled legacy refusal writes no log row. Supported read-only legacy inspection bypasses logging; corrupt/unsafe state entries refuse rather than falling back to standalone execution.
+
+Native receipt-free bootstrap completion and Approval completing pending/running CP-0 are supported controller validation observations with attempts0. Capture exact completion/approved origins as above without inventing dispatch/validation receipts or provider/timing facts. Receipt-backed `accept` retains its genuine event sequence; ordinary Module initial acceptance still requires the reported dispatch flow in §10.1. Approval stages original evidence and the step together under the existing owner, rechecks graded/current bytes before publication, and preserves the existing pending CP-0 identity after rename. Staged or mismatched partial evidence grants no acceptance; interruption of existing brief/state replacement or rename preserves original evidence and refuses/pauses rather than silently reapproving.
+
 | Command | Arguments | Inputs | Outputs | Exit codes | Plan |
 |---|---|---|---|---|---|
-| `validate` | `<handoff> --module <ID> [--run <RUN>]` | Handoff, contract, rules; with `--run`: `inventory.json`, `prepared/`, `fetched/` | findings on stdout, `exit <n>` | 0 valid, 2 malformed, 3 blocked, 4 identity (Plan 01); new findings `too_large`, `source_unknown` (cited `source` not in the inventory or `fetched/`), `citation_unanchored` (excerpt not found in the prepared text of that file; with page locator `p.<n>`, not on that page) → 2 | 01; `--run` in 02 |
+| `validate` | `<handoff> --module <ID> [--run <RUN>]` | Handoff, contract, rules; with `--run`: `inventory.json`, `prepared/`, `fetched/` | findings on stdout, `exit <n>` | 0 valid, 2 malformed, 3 blocked, 4 identity (Plan 01); new findings `too_large`, `source_unknown` (cited `source` not in the inventory or `fetched/`), `citation_unanchored` (excerpt not found in the prepared text of that file at token and number boundaries after the shared normalisation; with a page locator — `p.`, `pp.`, `pg.`, `page(s)`, with or without a space — not on that page; an excerpt under 2 tokens or 8 characters, or an ellipsis part under 2 tokens, is unanchored) → 2; `screen_policy` (a `cpl10.screen_topics` row breaks the §2.20 LITE rules: High with Missing or Conflicted evidence not `Gap only`, `Immaterial` without Sufficient evidence, or a `screen_family` with no row) and `basis_depth` (a `basis` cell on a table whose `basis` column uses the `depth_basis` scale differs from the approved run depth: Full at full, Screening at quick; evaluated only with `--run` on a run whose state holds an approved depth, otherwise not evaluated) and `blocked_gate` (a CP-3 Handoff with `qa_status: Blocked` that holds a `snapshot.instrument_levels` row with a non-placeholder `level_basis` or a `cp3.talk_valuation` row with a non-placeholder `talk_mid`: the contract allows Blocked only with no market level and no talk) → 2 (Plan 09); a run-folder read failure → 1 with `error: <path>: <reason>` (amended 2026-10-11) | 01; `--run` in 02 |
 | `render-module` | `<ID> [--write]` | contract | MODULE.md | 0 | 01 |
 | `check` | — | tree | problems | 0 / 1 | 01; extensions §14 |
-| `new-run` | `--pack <dir> [--issuer <hint>] [--objective <text>]` | pack | run folder with `run-state.json` | 0; 1 when an unfinished run exists (prints its id; use `next`) | 06 |
+| `new-run` | `--pack <dir> [--issuer <hint>] [--objective <text>]` | pack | freshly provisioned run folder with `run-state.json` | 0; 1 when an unfinished run exists (prints its id; use `next` only with checked entitlement, otherwise preserve the legacy run and show its compatibility limitation) | 06 |
 | `inventory` | `--run <RUN>` | pack files | `inventory.json` | 0; 1 when the pack is empty | 02 |
 | `prepare` | `--run <RUN> [--only <file>]` | `inventory.json` | `prepared/**` | 0; 1 when a file cannot be read at all (listed, the rest prepared) → exit 0 with `unreadable` entries; 1 only for an I/O failure of the run folder | 02 |
 | `brief` | `--run <RUN> --from handoffs/CP-0.md` / `--set <field>=<value>` / `--set-tranche <id> <field>=<value>` / `--show` | CP-0 Handoff, prior `run-brief.md` | `run-brief.md` | 0; 1 unknown field | 02 (`--from`, `--set`), 04 (tranches) |
 | `grade` | `--run <RUN>` | `run-brief.md`, `handoffs/CP-0.md`, contracts (`document_types`), catalog | `grading.json` and a Markdown menu on stdout | 0 | 04 |
 | `approve` | `--run <RUN> --pathway <ID> --depth full\|quick --primary yes\|no --analyst <name> [--deep-research yes\|no] [--untick <question_id>…] [--prior-case yes\|no] [--acknowledge-blocked]` | `grading.json` | `run-brief.md` (`brief.approval`), `run-state.json` (`plan`), folder renamed | 0; 1 when Blocked and not acknowledged, or an unknown Pathway | 04 |
 | `plan` | `--run <RUN>` | catalog, approval | prints the ordered steps with their status | 0 | 04 |
-| `next` | `--run <RUN>` | `run-state.json` | JSON on stdout `{"step": "CP-1", "kind": "module|host|done", "command": "<host command>|null", "dispatch": "dispatch/CP-1.md|null"}`; writes the dispatch message | 0; 1 when the state file is corrupt | 06 |
+| `next` | `--run <RUN>` | `run-state.json` | JSON on stdout `{"step": "CP-1", "kind": "module|host|done", "command": "<host command>|null", "dispatch": "dispatch/CP-1.md|null"}`; writes the dispatch message | 0; 1 for corrupt state or ownership/legacy refusal (preserve state and pause; no runnable selection) | 06 |
 | `dispatch-message` | `--run <RUN> --module <ID> [--findings validate/<ID>.json]` | state, contract, catalog | `dispatch/<ID>.md` (also stdout) | 0 | 06 |
 | `accept` | `--run <RUN> --module <ID>` | `handoffs/<ID>.md` | `validate/<ID>.json`, state updated | validate's code (0/2/3/4) | 06 |
 | `state` | `--run <RUN> [--set <step>=<status> --reason <text>]` | state | prints or updates | 0; 1 unknown step | 06 |
-| `model` | `--run <RUN> [--projection]` | §6.8 | `model.json`, `model.xlsx`, `handoffs/MODEL.md` / `handoffs/PROJECTION.md` | 0; 1 malformed input | 03; `--projection` 13 |
+| `model` | `--run <RUN> [--projection]` | §6.8 | `model.json`, `handoffs/MODEL.md` / `handoffs/PROJECTION.md` | 0; 1 malformed input | 03; `--projection` 13 |
 | `fit` | `--run <RUN>` | §7 | `handoffs/FIT.md`, `fit/*.json` | 0; 1 when `CP-3` is not accepted or blocked | 05 |
 | `calc` | `<name> --in <json> [--out <json>]` with `name` ∈ `bond_analytics`, `peer_statistics`, `liquidity_bridge`, `rate_fx_sensitivity`, `covenant_headroom`, `funding_gap`, `recovery_waterfall` | JSON input (schema in `rbot/scripts/rbotlib/calc/<name>.py` docstring; mirrors the owning table's input columns) | Markdown table rows on stdout (the owning table's columns) and the `--out` JSON | 0; 1 invalid input (field named) | `bond_analytics` 05; `peer_statistics`, `liquidity_bridge`, `rate_fx_sensitivity`, `covenant_headroom` 12; `funding_gap`, `recovery_waterfall` 13 |
 | `fetch` | `--run <RUN> --url <URL> [--question <id>]` | network (only when the host exposes it; otherwise exit 1 `no fetch tool`) | `fetched/<nn>-<host>.md` | 0; 1 | 10 |
 | `diff` | `--run <RUN> --prior <report.html\|report.md>` | the prior Report's embedded JSON, current Handoffs | `prior/diff.json`, `prior/diff.md` | 0; 1 when the prior file has no `rbot-run` JSON | 11 |
 | `render` | `--run <RUN> [--md-only]` | every accepted/blocked Handoff, `model.json`, `fit/`, `prior/`, catalog `blocks`, `report/` assets | `report.md`, `report.html`; `report.written_at` in state | 0; 1 when a Front Page table has no owner in the run (never: `rbot check` prevents it) | 07 |
-| `corpus` | `verify [--pack <id>]` / `list` | `tests/corpus/corpus.json`, `RBOT_CORPUS_ROOTS` | verification report | 0; 1 when a file is missing or its hash differs; 2 when a root is unresolved | 02 |
+| `corpus` | `verify [--pack <id>]` / `list` | `tests/corpus/corpus.json`, `RBOT_CORPUS_ROOTS` | verification report | 0; 1 when a file is missing or its hash differs; 2 when a root is unresolved, a registry entry escapes its root, or the registry/`RBOT_CORPUS_ROOTS` is malformed (usage error, message named) | 02 |
 | `version` | — | — | `rbot <version> <git sha>` | 0 | 06 |
 
 Repo-only tooling (not in `rbot.py`): `scripts/proxy_run.py` and `scripts/scorecard.py` (§12.6), `scripts/ab_grade.py` (§12.7).
@@ -790,7 +814,7 @@ Repo-only tooling (not in `rbot.py`): `scripts/proxy_run.py` and `scripts/scorec
 
 ### 10.1 cp-start, turn 1
 
-1. Resolve the pack root (attached folder, else workspace root). If an unfinished run exists → §8.4 resume, skip to 10.4.
+1. Resolve the pack root (attached folder, else workspace root). If an unfinished run exists → §8.4 resume through §10.3; an unentitled legacy run pauses with its compatibility limitation and no mutation.
 2. `rbot new-run --pack <root> [--issuer <hint>] [--objective <text>]` → `<RUN>`.
 3. `rbot inventory --run <RUN>`; `rbot prepare --run <RUN>`.
 4. Dispatch `CP-0` (§10.5) and `rbot accept --run <RUN> --module CP-0`. Exit 2 → one re-dispatch with findings; a second 2 or a 4 → stop and show the findings (no run without a readiness Handoff).
@@ -809,12 +833,17 @@ Repo-only tooling (not in `rbot.py`): `scripts/proxy_run.py` and `scripts/scorec
 loop:
   step = rbot next --run <RUN>
   if step.kind == "done": break
-  if step.kind == "host": run step.command; on exit 1: rbot state --set <step>=failed --reason "<message>"
+  if step.kind == "host": run step.command; managed host owns accepted/failed attribution
+    on exit 1: inspect the checked outcome; if still pending/running or uncommitted, preserve state and pause
   if step.kind == "module": dispatch the subagent with dispatch/<ID>.md; wait for "DONE"; rbot accept --run <RUN> --module <ID>
 rbot render --run <RUN>
 ```
 
 On `accept` exit codes: 0 → continue; 3 → continue (Blocked recorded); 2 → `rbot next` re-dispatches once with `--findings`; a second 2 or a 4 → `failed`, continue. The orchestrator never asks the analyst anything after Approval (D13). When `rbot next` reports `kind: module` for a step the plan says is `skipped`, it is not dispatched (`next` never returns such a step).
+
+An execution error recorded by the managed host remains terminal and permits normal named dependency propagation. Ownership contention, legacy refusal or uncertain publication does not authorize the caller to issue a synthetic failure transition. `next` error/refusal likewise preserves current ownership and pauses; it is never treated as a successful selection or an ordinary retry.
+
+Missing or inconsistent frozen-origin evidence likewise preserves execution/Approval history and pauses with its named evidence limitation; it is not a new worker failure, retry or reapproval. A completed receipt-free CP-0 can be idempotently qualified through its checked original/current observations without manufacturing an attempt event.
 
 ### 10.4 Finish
 
@@ -869,12 +898,12 @@ If subagents cannot run the terminal: the dispatch message omits the validate st
 
 1. **Front Page** — the Pathway's Front Page (§4), blocks in order, each conditional block shown or replaced by one line naming the condition (`Transaction Summary: not a Primary run`).
 2. **Analysis** — one section per module in plan order: status chip (Pass / Restricted / Blocked / failed / skipped with reason), `## Analysis` prose with citations rendered, the module's charts (§11.4), its tables (each with a "Table" disclosure when it backs a chart), `## Gaps`.
-3. **Model** — collapsible bands 1–12, column toggles (historical, PF-LTM, Base, Downside), the chart strip, a click-through passport per cell (value, basis, reason, stated, note, sources with excerpts), `model.house` items, limitations; download link to `model.xlsx` (relative path).
+3. **Model** — collapsible bands 1–12, column toggles (historical, PF-LTM, Base, Downside), the chart strip, a click-through passport per cell (value, basis, reason, stated, note, sources with excerpts), `model.house` items, limitations; all calculations, passports and gaps remain available in the HTML/Markdown Report; no Excel download (owner, 2026-10-13).
 4. **Portfolio Fit** — per portfolio: `snapshot.portfolio_fit`, bullet charts per limit from `fit.limit_headroom`, `cp6.portfolio_recommendation`.
 5. **Deep Research** — `cpdr.questions`, `cpdr.answers`, `cpdr.evidence`, `cpdr.sector_view`; each fetched source listed with URL and retrieval date.
 6. **What changed** — `prior/diff.md` rendered (§11.6) then CP-8's tables.
 7. **Evidence** — every citation of every Handoff: id (`<module>:C<n>`), source file, locator, excerpt, anchored (Yes/No from `validate/<ID>.json`), a link back to each place it is cited.
-8. **Limitations** — first those shown at Approval (`brief.approval.limitations_shown` and `grading.json`), then `cp5.limitations`, then unforeseen (`failed`/`skipped` steps, Blocked Handoffs, `model.limitations`, unanchored citations).
+8. **Limitations** — first those shown at Approval (`brief.approval.limitations_shown` and `grading.json`), then `cp5.limitations`, then unforeseen (`failed`/`skipped` steps, Blocked Handoffs, accepted Restricted steps that no `cp5.limitations` row or Approval entry names, `model.limitations`, unanchored citations).
 
 ### 11.3 Embedded data: `<script type="application/json" id="rbot-run">` (`"schema": "rbot-run/1"`)
 
@@ -896,6 +925,15 @@ If subagents cannot run the terminal: the dispatch message omits the validate st
 ```
 
 Handoff bodies are embedded whole (`analysis_md`, `gaps_md`, tables) so a later `rbot diff` is exact without the run folder.
+
+**Amendment 2026-10-14 (Plan 07 rulings).**
+
+- R1: `charts.py` emits the RBOTCharts spec, table twin, summary and origin; `charts.js` draws at load, so no SVG is written in Python.
+- R2: a citation is `<a class="cite" href="#ev-M-Cn" data-ref="M:Cn" title="excerpt">`; `report.js` opens the popover and keeps the anchor.
+- R3: the views are the template's pane (Snapshot, each plan module, Model, Portfolio Fit, Evidence, Limitations); Deep Research and What changed are one line each under Limitations.
+- R7: the capital structure chart is the template's debt waterfall (Senior secured, Unsecured, Total debt) and the multiples go in its summary line.
+- R11: `render --md-only` writes `report.md` and `md_sha256` only; `written_at` is set by a full render.
+- R13: `rbot-run/1` gains the additive keys `modules` (contract titles, questions, table titles) and `front_page_blocks[].title/line`; the schema string is unchanged.
 
 ### 11.4 Charts
 
@@ -1024,7 +1062,7 @@ Every pack in `corpus-inventory.md` is listed; ids are the caos ids unchanged, `
 
 ### 12.3 pytest marker and the require rule
 
-`tests/conftest.py` registers the `corpus` marker (`--strict-markers` already on). A corpus test resolves its pack through `corpus.json`; when a root is unresolved or a file's hash differs: if `RBOT_REQUIRE_CORPUS=1` the test **fails** with the unresolved root or mismatched file named; otherwise it is skipped with the same message. CI sets `RBOT_REQUIRE_CORPUS=1` for synthetic packs always (they are in the repo) and for external packs only on the owner's machine (`make corpus` target runs `RBOT_REQUIRE_CORPUS=1 uv run pytest -m corpus`). `rbot corpus verify` is the same check as a command.
+`tests/conftest.py` registers the `corpus` marker (`--strict-markers` already on). A corpus test resolves its pack through `corpus.json`; when a root is unresolved or a file's hash differs: if `RBOT_REQUIRE_CORPUS=1` the test **fails** with the unresolved root or mismatched file named; otherwise it is skipped with the same message. `RBOT_REQUIRE_CORPUS` takes `1` (every problem fails), `synthetic` (only in-repo problems fail; external roots that are unresolved skip — what CI sets, since CI has no external roots) or empty (skip); any other value fails the run. The owner's machine runs `RBOT_REQUIRE_CORPUS=1` with `RBOT_CORPUS_ROOTS` set (`make corpus`). (Amended 2026-10-11, Plan 02 review.) `rbot corpus verify` is the same check as a command.
 
 ### 12.4 Storage
 
@@ -1072,18 +1110,20 @@ For module `M` on its pack `P` (the `primary` pack of the first Pathway listing 
 - **A** = the r14 original: the sub-agent receives `reference/deploy-v-r14/skills/<m>/SKILL.md` and `CANON_SHARED.md`, the same prepared sources and the same upstream Handoffs (converted to r14's register names by `scripts/ab_grade.py --to-r14`), with the instruction to ignore the invocation, filename, integrity and export machinery and to write Markdown only.
 - **B** = the rewrite: the dispatch message of §10.5.
 - **Grading:** two independent grader sub-agents (`mx-precise`, effort high, different seeds) receive both outputs (order randomised, labelled X and Y) and `docs/ab/rubric.md`; the controller resolves disagreements > 1 point per criterion by a third grader. Criteria, each 0–3: D1 every process step completed; D2 evidence → mechanism → creditor implication chains; D3 strongest counter-argument stated with what would make it win; D4 downside causal and time-aware; D5 cross-source and cross-period reconciliation explicit; D6 frameworks used only where they change the conclusion. Script-measured: C citation validity = anchored citations ÷ citations (`rbot validate --run`); G gap honesty = graders' 0–3 (gaps named with cause, effect and lifting source; no filler); F front-page completeness = filled supportable critical cells ÷ supportable cells (from `expectations`).
+- **A-side C measurement:** project actual native r14 Source Registry records and every Evidence Trace source reference through a checked internal evidence map, including multiple references on one record, then use the shared prepared-source anchoring. Identify the native locator and excerpt columns explicitly; project their complete values, allowing only surrounding whitespace to be trimmed. Different per-source values require explicit lossless field selectors. A map cannot shorten a quotation or page locator, substitute a better quotation, or borrow content from another field. Missing, duplicate, malformed, undeclared or unfaithful mappings and global source-run failures refuse measurement; a faithfully mapped individual unanchored quotation lowers C(A). Both C(A) and C(B) must be measured before scoring; absent C(A) never defaults to zero. C ratios must lie between zero and one. F(B) matches expected row identities uniquely, so duplicated or wrong Strategy/facility rows cannot stand in for missing coverage (Plan 05 review amendment, 2026-10-12).
+- **Shared anchoring fidelity:** preserve rating modifiers, monetary signs and units when comparing quotations with prepared evidence. Genuine word wraps may be joined across repeated line breaks, while a short uppercase field label retains its suffix and the following field. A quotation that drops a terminal agency rating modifier remains unanchored (Plan 05 final-base review amendment, 2026-10-12).
 - **Pass bar:** ΣD(B) ≥ ΣD(A) and no criterion where B < A − 1; C(B) ≥ max(0.95, C(A)); G(B) ≥ G(A); F(B) ≥ 0.90 (A has no Front Page; F is absolute). A module that fails is revised and re-run; the result is committed as `docs/ab/<date>-<M>-<pack>.md` with both grader sheets.
 
 ---
 
 ## 13. Plan breakdown (02 onward)
 
-Every plan: SDD (fresh `mx-*` implementer per task, task review, whole-branch review), gates exit 0, PRs ≤ 800 changed lines excluding lock files, `reference/**`, `tests/golden/**/documents/**` and `tests/corpus/synthetic/**`. Each plan adds the corpus checks §12.5 lists for it. Interface names below are those of §1–§12. A module plan ships each module's `contract.json`, generated `MODULE.md`, module scripts, a fixture Handoff under `tests/fixtures/handoffs/<ID>.md`, the A/B record (§12.7) and the `catalog.json` Pathway lists it completes.
+Every plan: fresh native implementer, confidence review and retained gates exit 0; mandatory independent reviews and rewrite tournaments are removed (owner, 2026-10-13). PRs ≤ 800 changed lines excluding lock files, `reference/**`, `tests/golden/**/documents/**` and `tests/corpus/synthetic/**`. Each plan adds the corpus checks §12.5 lists for it. Interface names below are those of §1–§12. A module plan ships each module's `contract.json`, generated `MODULE.md`, module scripts, a fixture Handoff under `tests/fixtures/handoffs/<ID>.md`, the A/B record (§12.7) and the `catalog.json` Pathway lists it completes.
 
 | Plan | Scope | Files (new or changed) | Depends on | Consumes | Produces | PRs |
 |---|---|---|---|---|---|---|
 | **02 Intake and corpus** | `rbot inventory`, `prepare` (pypdf for PDFs, openpyxl/`csv` for sheets, images as Image-Read stubs, portfolio JSON), `brief --from/--set`, `validate --run` (`source_unknown`, `citation_unanchored`, `too_large`), `corpus verify/list`, `corpus.json`, the `corpus` marker, the synthetic Primary pack, `scripts/proxy_run.py` skeleton (steps 1 and 5 only), decision records 0002 (`pypdf`) and 0003 (`openpyxl`), §14 A1 (scales), A3 (`too_large`), A4 (`document_types`), A5 (PR-size exclusion) | `rbot/scripts/rbotlib/{inventory,prepare,brief,corpus}.py`, `rbotlib/validate.py`, `rbotlib/contract.py`, `rbotlib/render.py`, `rbot/rules.json`, `tests/corpus/corpus.json`, `tests/corpus/synthetic/czr-2026q2-primary/**`, `tests/corpus/expectations/*.json`, `scripts/check_pr_size.sh`, `docs/decisions/000{2,3}-*.md` | 01 | Plan 01 `rbotlib` | `inventory.json`, `prepared/**`, `prepared/portfolios/*.json`, `run-brief.md` (§3.1 minus approval), `validate --run`, `rbot corpus`, `RBOT_CORPUS_ROOTS`, `document_types` on contracts | 02A rules/contract/validate amendments + corpus registry; 02B inventory + prepare; 02C brief + synthetic pack + proxy skeleton |
-| **03 Model (history)** | Port of `_cells`, `frame`, `history`, `statements`, `debt`, `metrics`, `layout`, `assemble`; `rbotlib/model/inputs.py`; PF-LTM; house view (§6.5); `model.json`; `model.xlsx`; `handoffs/MODEL.md` (§3.2); `rbot model`; `docs/model/enums.md`; mutmut config | `rbot/scripts/rbotlib/model/**`, `rbotlib/cli.py`, `tests/model/**`, `tests/parity/**` | 01 (02 for the CP-1 Handoff fixture format) | `cp1.*`, `cp1d.*`, `run-brief.md` | `MODEL` host step, `model.json` (§6.2), §3.2 tables, `rbot model` | 03A `_cells`/`frame`/`inputs`; 03B `history`; 03C `statements`+`debt`; 03D `metrics`+`layout`+`assemble`; 03E house view, `model.json`, `MODEL.md`; 03F `model.xlsx` + mutation report |
+| **03 Model (history)** | Port of `_cells`, `frame`, `history`, `statements`, `debt`, `metrics`, `layout`, `assemble`; `rbotlib/model/inputs.py`; PF-LTM; house view (§6.5); `model.json`; `handoffs/MODEL.md` (§3.2); `rbot model`; `docs/model/enums.md`; mutmut config | `rbot/scripts/rbotlib/model/**`, `rbotlib/cli.py`, `tests/model/**`, `tests/parity/**` | 01 (02 for the CP-1 Handoff fixture format) | `cp1.*`, `cp1d.*`, `run-brief.md` | `MODEL` host step, `model.json` (§6.2), §3.2 tables, `rbot model` | 03A `_cells`/`frame`/`inputs`; 03B `history`; 03C `statements`+`debt`; 03D `metrics`+`layout`+`assemble`; 03E house view, `model.json`, `MODEL.md`; 03F calculation/mutation checks (Excel export retired 2026-10-13) |
 | **04 cp-start** | `CP-0` contract and scripts; `rbot grade`, `approve`, `plan`, `brief --set-tranche`; `grading.json`; `brief.approval`; §14 A2 (host ids in lists) | `rbot/modules/CP-0/**`, `rbotlib/{grade,approve}.py`, `rbotlib/catalog.py`, `rbotlib/cli.py`, `rbot/catalog.json` (host_tables, front page `blocks` for `credit_snapshot`) | 02 | `cp0.*`, `document_types`, catalog | `CP-0` Handoff, `grading.json`, `rbot approve/plan`, Approval record | 04A CP-0 contract + fixture; 04B grade/approve/plan + catalog amendment |
 | **05 Core rewrites** | `CP-1`, `CP-1A`, `CP-1B`, `CP-1D`, `CP-2`, `CP-3` (+ `rbot calc bond_analytics`), `CP-5`, `CP-6`; `rbot fit` and `handoffs/FIT.md`; A/B harness (`scripts/ab_grade.py`, `docs/ab/rubric.md`); `catalog.json` `FULL_CREDIT_ASSESSMENT.full` = `["CP-0","CP-1","CP-1A","CP-1B","CP-1D","MODEL","CP-2","CP-3","FIT","CP-5","CP-6"]` | `rbot/modules/{CP-1,CP-1A,CP-1B,CP-1D,CP-2,CP-3,CP-5,CP-6}/**`, `rbotlib/calc/bond_analytics.py`, `rbotlib/fit.py`, `scripts/ab_grade.py`, `docs/ab/**`, `tests/fixtures/handoffs/*.md` | 02, 03, 04 | `cp0.*`, `MODEL` tables, `run-brief.md` | every §2.2–2.4, 2.6, 2.7, 2.13, 2.18, 2.19 table; `FIT` (§3.4); first Pathway entry | 05A CP-1; 05B CP-1A + CP-1B; 05C CP-1D + CP-2; 05D CP-3 + bond_analytics; 05E FIT + CP-5; 05F CP-6 + A/B harness + catalog entry |
 | **06 Orchestrator** | `rbot/SKILL.md`; `new-run`, `next`, `dispatch-message`, `accept`, `state`, `version`; `run-state.json`; resume; `install.sh`/`install.ps1` (skill copy only); `proxy_run.py` steps 2–4 | `rbot/SKILL.md`, `rbotlib/{run,state,dispatch}.py`, `rbotlib/cli.py`, `install.*`, `scripts/proxy_run.py`, `scripts/scorecard.py` | 03, 04, 05 | catalog lists, contracts | §8, §9 orchestration commands, §10 dispatch message, first scorecard on `czr-2026q2-primary` | 06A state + new-run + next + accept; 06B SKILL.md + dispatch + resume; 06C install + proxy run + scorecard |
@@ -1114,7 +1154,7 @@ Calculator and chart ownership summary: `bond_analytics` 05; `peer_statistics`, 
 | # | Change | Why | Plan |
 |---|---|---|---|
 | A1 | `rbot/rules.json`: add `"host_producers": ["MODEL", "RUN_BRIEF", "PROJECTION", "FIT"]` and the scales below. | Host steps FIT and PROJECTION are consumers of module tables; §2 columns use the new scales. | 02 |
-| A2 | `rbotlib/catalog.py` `_order`: an entry that is a host producer id is allowed in a depth list without a contract and counts as `earlier` for later entries; a module's handoff input naming a host producer must appear earlier in the list (required) or, when optional and present, earlier. `_owners` unchanged. `check_tree` also fails when a depth list names a host id not in `rules.host_producers`. | Pathway lists carry `MODEL`, `PROJECTION`, `FIT` by position so ordering is checked, and modules declare `{"handoff": "MODEL"}` to receive `handoffs/MODEL.md`. | 04 |
+| A2 | `rbotlib/catalog.py` `_order`: an entry that is a host producer id is allowed in a depth list without a contract and counts as `earlier` for later entries; a module's handoff input naming a host producer must appear earlier in the list (required) or, when optional and present, earlier. `_owners` counts host tables only where their producer runs, plus `RUN_BRIEF` on every run and the `PROJECTION` add-on; omitting `MODEL` or `FIT` cannot silently satisfy Front Page ownership (Plan 05 review amendment, 2026-10-12). `check_tree` also fails when a depth list names a host id not in `rules.host_producers`. | Pathway lists carry `MODEL`, `PROJECTION`, `FIT` by position so ordering is checked, and modules declare `{"handoff": "MODEL"}` to receive `handoffs/MODEL.md`. | 04 |
 | A3 | `rbotlib/validate.py`: a Handoff over 98,304 bytes yields finding `too_large` (exit 2). | Spec §7 upstream cap. | 02 |
 | A4 | `rbotlib/contract.py`: a `sources` input may carry `"document_types": [...]` (values from the new `document_type` scale); `Input` gains `document_types: tuple[str, ...]`; `render.py` prints them in the Inputs table (`Sources: issuer (Credit agreement, Indenture)`); `rbot grade` reads them. | Deterministic Pathway grading from CP-0's classification. | 02 |
 | A5 | `scripts/check_pr_size.sh`: exclude `tests/corpus/synthetic/**` as well as `tests/golden/**/documents/**`; `.gitignore` adds `corpus-runs/`. | The golden pack lives under the corpus. | 02 |
@@ -1145,7 +1185,7 @@ Scales added to `rules.json` (A1), exact values:
 | `metric_basis` | `3Y DM`, `YTW`, `YTM`, `STW`, `OAS`, `Price` |
 | `rv_block` | `Loan index`, `Loan comparable`, `HY index`, `HY comparable` |
 | `preference` | `Preferred`, `Neutral`, `Avoid`, `Requires more work` |
-| `compensation` | `Adequate`, `Inadequate`, `Rich`, `Unclear` |
+| `compensation` | `Attractive`, `Adequate`, `Inadequate`, `Unclear` |
 | `addback_verdict` | `Supported`, `Challenged`, `Rejected` |
 | `debt_like_treatment` | `Debt-like`, `Not debt-like`, `Unclear` |
 | `sw_kind` | `Strength`, `Weakness` |

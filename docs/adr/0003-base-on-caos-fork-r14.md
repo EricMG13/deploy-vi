@@ -5,3 +5,7 @@ Upstream Deploy V (`a43cb903`) contradicts its own checkers: a three-part review
 ## Consequences
 
 A rewritten module ships only after an A/B on the golden pack (forked vs rewritten, graded on the analytical-depth rules) shows no loss. Later caos fork fixes are reference input, not merges. CP-MEMO is dropped: the HTML Report replaces it.
+
+## Amendment (owner, 2026-10-11): partial, not full
+
+A full rewrite is not required. Each module keeps the r14 analytical method and wording, ported into its contract with the minimum change the skill structure needs for performance: the Handoff contract format (tagged tables, front matter, citations) and checker agreement, the MODULE.md + canon.md size budget, removal of M365-only machinery (retrieval index, build ids, manifests, alias plumbing, memory launchers), the house scales, and emitting only what a downstream module, the Model or a Front Page reads. Method text is rewritten only where r14 contradicts its checker or the budget forces it. The A/B on the golden pack still gates each ported module.

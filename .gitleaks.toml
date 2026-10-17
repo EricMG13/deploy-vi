@@ -1,0 +1,23 @@
+# gitleaks' default rules. Exemptions are by path only, and only where a file holds
+# content digests or identifier-shaped sample data and nothing that could be a
+# credential.
+[extend]
+useDefault = true
+
+# design/mockups/shared/data.js is generated sample data with JSON fields like
+# `"key": "adj_ebitda_h1_2026"` that trip generic-api-key. Exempt that one rule
+# in that one file; every other rule still scans it and every other file is
+# scanned by generic-api-key too.
+[[allowlists]]
+description = "design mockup sample data: identifier-shaped key fields"
+targetRules = ["generic-api-key"]
+paths = ['''design/mockups/shared/data\.js$''']
+
+# tests/test_report_assets.py pins the frozen house report assets by git blob id and
+# sha256 (content digests only, e.g. `"tokens.css": "baf86efa..."`), which trip
+# generic-api-key. Exempt that one rule in that one file; every other rule still
+# scans it.
+[[allowlists]]
+description = "frozen report-asset pins: git blob ids and sha256 content digests"
+targetRules = ["generic-api-key"]
+paths = ['''tests/test_report_assets\.py$''']

@@ -1,0 +1,536 @@
+"""`rbot approve` and `rbot plan`: the analyst's Approval and the run's ordered steps.
+
+`approve` checks the choice against `grading.json` (a Blocked Pathway needs
+`--acknowledge-blocked`; a Run Brief changed since grading needs a new `rbot grade`),
+refuses a Run Brief with a required field still a gap and a Primary run without a new
+tranche, then writes `brief.approval` into `run-brief.md`, the plan and the Approval into
+`run-state.json` (interfaces spec section 8.2), and renames the run folder from
+`<YYYYMMDD>-<issuer>-pending` to `<YYYYMMDD>-<issuer>-<pathway>` (section 8.1). Steps that
+Approval switches off are `skipped` with the fixed reasons of section 8.3; every other step
+is `pending`, except CP-0, whose Handoff is recorded as it stands. `plan` prints the steps.
+
+Every input is read, shape-checked and turned into the new file contents before anything is
+written. The writes hold an exclusive lock file (`.approve.lock`, created with O_EXCL), go
+through a temporary file and `os.replace`, and the folder is renamed last; if the rename
+fails, the pre-Approval Run Brief and state are put back, so the run can be approved again.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass, replace
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+from rbotlib import bootstrap
+from rbotlib import brief as rb
+from rbotlib import state as rs
+from rbotlib.catalog import load_catalog
+from rbotlib.fsio import write_atomic
+from rbotlib.grade import BLOCKED, GRADING, SCHEMA, contracts_sha256
+from rbotlib.handoff import HandoffError
+from rbotlib.inventory import RunError, output_path
+from rbotlib.rules import Rules, load_rules
+
+STATE = "run-state.json"
+LOCK = ".approve.lock"
+PENDING_NAME = re.compile(r"(\d{8})-.+-pending(-\d+)?")
+SKIPS = {
+    "CP-DR": "not approved",
+    "CP-8": "no prior case",
+    "PROJECTION": "CP-2G not run",
+    "FIT": "no portfolio context",
+}
+
+
+class ApprovalError(ValueError):
+    """The Approval is refused; the message says what to change."""
+
+
+@dataclass(frozen=True)
+class Choice:
+    pathway: str
+    depth: str
+    primary: bool
+    analyst: str
+    deep_research: bool
+    untick: tuple[str, ...]
+    prior_case: bool
+    acknowledge_blocked: bool
+
+
+def _load(path: Path, what: str) -> dict[str, Any]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ApprovalError(f"{path}: no readable {what} ({exc})") from exc
+    if not isinstance(data, dict):
+        raise ApprovalError(
+            f"{path.name} is not a {'run state' if path.name == STATE else 'grading record'}"
+        )
+    return data
+
+
+def _state(path: Path) -> dict[str, Any]:
+    state = _load(path, f"{STATE}; the run was not created with rbot new-run")
+    if not isinstance(state.get("steps", {}), dict):
+        raise ApprovalError(f"{STATE} is not a run state: 'steps' is not an object")
+    return state
+
+
+def _depths_ok(p: object) -> bool:
+    depths = p.get("depths") if isinstance(p, dict) else None
+    keys = ("status", "blocking_modules", "limitations")
+    return isinstance(depths, dict) and all(
+        isinstance(d, dict) and all(k in d for k in keys) for d in depths.values()
+    )
+
+
+def _grading(path: Path) -> dict[str, Any]:
+    grading = _load(path, "grading.json; run rbot grade first")
+    keys = ("brief_sha256", "cp0_sha256", "catalog_sha256", "contracts_sha256")
+    if grading.get("schema") != SCHEMA or not all(isinstance(grading.get(k), str) for k in keys):
+        raise ApprovalError(f"{GRADING} is not a grading record; run rbot grade again")
+    pathways = grading.get("pathways")
+    if not isinstance(pathways, list):
+        raise ApprovalError(f"{GRADING} is not a grading record (no pathways); run rbot grade")
+    for p in pathways:
+        if not _depths_ok(p):
+            name = p.get("id") if isinstance(p, dict) else p
+            raise ApprovalError(f"{GRADING} is not a grading record (pathway {name} has no depths)")
+    return grading
+
+
+def _sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _graded(grading: dict[str, Any], choice: Choice) -> dict[str, Any]:
+    pathways = {p["id"]: p for p in grading["pathways"]}
+    if choice.pathway not in pathways:
+        raise ApprovalError(f"unknown Pathway {choice.pathway!r}; graded: {', '.join(pathways)}")
+    depths = pathways[choice.pathway]["depths"]
+    if choice.depth not in depths:
+        raise ApprovalError(f"{choice.pathway} has no {choice.depth} depth: {', '.join(depths)}")
+    graded: dict[str, Any] = depths[choice.depth]
+    if graded["status"] == BLOCKED and not choice.acknowledge_blocked:
+        blocking = ", ".join(graded["blocking_modules"])
+        raise ApprovalError(
+            f"{choice.pathway} at {choice.depth} depth is Blocked by {blocking}: "
+            + "; ".join(graded["limitations"])
+            + ". It starts only after the analyst names the blocking modules back"
+            " (--acknowledge-blocked)."
+        )
+    return graded
+
+
+def _confirm(brief: rb.Brief, choice: Choice) -> None:
+    """Apply the Approval to the Run Brief's fields, questions and Prior Case rows."""
+    rb.apply_edit(brief.fields["analyst"], rb.free_text("analyst", choice.analyst))
+    missing = [n for n in rb.REQUIRED if brief.fields[n].status == rb.GAP]
+    if missing:
+        raise ApprovalError(f"the Run Brief still has gaps: {', '.join(missing)}; rbot brief --set")
+    if choice.primary and not brief.tranches:
+        raise ApprovalError(
+            "a Primary run needs a new tranche: rbot brief --set-tranche NEW-1 <field>=<value>"
+        )
+    flag = "Yes" if choice.primary else "No"
+    primary = brief.fields["primary"]
+    if primary.value != flag:
+        brief.fields["primary"] = rb.Entry(flag, rb.ASSERTED, flag, primary.cite)
+    for name, value in (("pathway", choice.pathway), ("depth", choice.depth)):
+        brief.fields[name] = rb.Entry(value, rb.ASSERTED, value, "")
+    _confirm_rows(brief, choice)
+
+
+def _confirm_rows(brief: rb.Brief, choice: Choice) -> None:
+    """Tick the research questions and accept the newest Prior Case, as approved."""
+    ids = [q[0] for q in brief.questions]
+    unknown = [q for q in choice.untick if q not in ids]
+    if unknown:
+        raise ApprovalError(f"no research question {', '.join(unknown)}; questions: {ids}")
+    for q in brief.questions:
+        q[-1] = "No" if q[0] in choice.untick else "Yes"
+    if choice.prior_case and not brief.prior:
+        raise ApprovalError("no Prior Case was offered: the pack holds no earlier RBOT Report")
+    newest = max(brief.prior, key=lambda r: r[1]) if choice.prior_case else None
+    for row in brief.prior:
+        row[-1] = "Yes" if row is newest else "No"
+
+
+def new_name(run: Path, issuer_id: str, pathway: str) -> Path:
+    """`<YYYYMMDD>-<issuer_slug>-<pathway_slug>`, with -2, -3, ... when taken (spec 8.1)."""
+    match = PENDING_NAME.fullmatch(run.name)
+    if not match:
+        raise ApprovalError(f"{run.name} is not a pending run folder (<YYYYMMDD>-<issuer>-pending)")
+    issuer = re.sub(r"[^a-z0-9]+", "-", issuer_id.lower()).strip("-")
+    if not issuer:
+        raise ApprovalError(
+            f"issuer_id {issuer_id!r} gives no folder name; rbot brief --set issuer_id"
+        )
+    stem = f"{match.group(1)}-{issuer}-{pathway.lower().replace('_', '-')}"
+    n, candidate = 1, run.parent / stem
+    while candidate.exists():
+        n += 1
+        candidate = run.parent / f"{stem}-{n}"
+    return candidate
+
+
+def _cp0_step(run: Path, root: Path, rules: Rules) -> bootstrap.QualifiedCP0:
+    return bootstrap.checked_cp0(run, root, rules, rs.read(run))
+
+
+def _steps(
+    plan: tuple[str, ...], state: dict[str, Any], brief: rb.Brief, choice: Choice, rules: Rules
+) -> dict[str, dict[str, Any]]:
+    off = {
+        "CP-DR": not choice.deep_research,
+        "CP-8": not choice.prior_case,
+        "PROJECTION": "CP-2G" not in plan,
+        "FIT": not brief.portfolios,
+    }
+    steps: dict[str, dict[str, Any]] = {}
+    for step in plan:
+        kind = "host" if step in rules.host_producers else "module"
+        if step == "CP-0":
+            steps[step] = state["steps"]["CP-0"]
+        elif off.get(step):
+            steps[step] = {"kind": kind, "status": "skipped", "reason": SKIPS[step]}
+        else:
+            steps[step] = {"kind": kind, "status": "pending", "reason": ""}
+    return steps
+
+
+def _approval_row(brief: rb.Brief, choice: Choice, graded: dict[str, Any], sha: str) -> list[str]:
+    acknowledged = graded["blocking_modules"] if graded["status"] == BLOCKED else []
+    flags = [
+        "Yes" if f else "No" for f in (choice.primary, choice.deep_research, choice.prior_case)
+    ]
+    at = datetime.now(UTC).isoformat(timespec="seconds")
+    head = [at, choice.analyst, choice.pathway, choice.depth, *flags, graded["status"]]
+    return [*head, ", ".join(acknowledged) or rb.MISSING, sha]
+
+
+@dataclass(frozen=True)
+class Commit:
+    """What Approval writes: the new Run Brief and state, and the folder's new name."""
+
+    target: Path
+    brief: str
+    state: str
+    inputs: dict[str, str]
+
+
+def _checked(run: Path, root: Path, grading: dict[str, Any]) -> None:
+    """The run and the RBOT folder are as `rbot grade` saw them."""
+    rb.refuse_if_approved(run)
+    if _sha(run / rb.BRIEF) != grading["brief_sha256"]:
+        raise ApprovalError(f"{rb.BRIEF} changed after rbot grade; run rbot grade again")
+    if _sha(run / rb.CP0) != grading["cp0_sha256"]:
+        raise ApprovalError(f"{rb.CP0} changed after rbot grade; run rbot grade again")
+    catalog = _sha(root / "catalog.json") != grading["catalog_sha256"]
+    if catalog or contracts_sha256(root) != grading["contracts_sha256"]:
+        message = "the catalog or a module contract changed after rbot grade; run rbot grade again"
+        raise ApprovalError(message)
+
+
+def _rebuilt(run: Path, rules: Rules) -> rb.Brief:
+    """The Run Brief rebuilt from CP-0 and its edits; it must be the one that was graded."""
+    brief = rb.build(run, run / rb.CP0, [], rules)
+    if rb.render(brief) != (run / rb.BRIEF).read_text(encoding="utf-8"):
+        raise ApprovalError(
+            f"{rb.BRIEF} differs from the brief {rb.CP0} and its edits give; rebuild it with"
+            f" rbot brief --from {rb.CP0}, then rbot grade"
+        )
+    return brief
+
+
+def _new_state(
+    state: dict[str, Any], brief: rb.Brief, choice: Choice, graded: dict[str, Any]
+) -> dict[str, Any]:
+    accepted = next((r for r in brief.prior if r[-1] == "Yes"), None)
+    blocked = graded["status"] == BLOCKED
+    state = dict(state)
+    state |= {"run_id": brief.run_id, "updated_at": brief.approval[0][0]}
+    state |= {"run_brief": rb.BRIEF, "issuer_id": brief.fields["issuer_id"].value}
+    state |= {"as_of_date": brief.fields["as_of_date"].value, "pathway": choice.pathway}
+    state |= {"depth": choice.depth, "primary": choice.primary}
+    state |= {"deep_research": choice.deep_research}
+    state["prior_case"] = {
+        "offered": bool(brief.prior),
+        "accepted": accepted is not None,
+        "report": accepted[0] if accepted else None,
+    }
+    state["approval"] = {
+        "approved_at": brief.approval[0][0],
+        "analyst": brief.approval[0][1],
+        "pathway_grade": graded["status"],
+        "acknowledged_blocked_modules": graded["blocking_modules"] if blocked else [],
+        "limitations_shown": graded["limitations"],
+    }
+    return state
+
+
+def _inputs(run: Path) -> None:
+    """Refuse unsupported run-local Approval inputs before any of their reads."""
+    inputs = (
+        (GRADING, "grading.json; run rbot grade first"),
+        (rb.BRIEF, "Run Brief"),
+        (rb.CP0, "CP-0 Handoff"),
+    )
+    for name, what in inputs:
+        path = output_path(run, name)
+        if not path.is_file():
+            raise ApprovalError(f"{path}: {what} must be an existing regular file")
+
+
+def prepare(run: Path, root: Path, rules: Rules, choice: Choice) -> Commit:
+    """Read and check everything, and compute every file Approval writes; write nothing."""
+    _inputs(run)
+    grading = _grading(run / GRADING)
+    try:
+        state = rs.read(run)
+    except UnicodeDecodeError as exc:
+        raise ApprovalError(f"{run / STATE}: no readable run state ({exc})") from exc
+    _checked(run, root, grading)
+    graded = _graded(grading, choice)
+    pathway = load_catalog(root).pathway(choice.pathway)
+    if pathway is None or choice.depth not in pathway.depths:
+        raise ApprovalError("the catalog changed after rbot grade; run rbot grade again")
+    plan = pathway.depths[choice.depth]
+    brief = _rebuilt(run, rules)
+    _confirm(brief, choice)
+    approved_q = any(q[-1] == "Yes" for q in brief.questions)
+    choice = replace(choice, deep_research=choice.deep_research and "CP-DR" in plan and approved_q)
+    target = new_name(run, brief.fields["issuer_id"].value, choice.pathway)
+    brief.run_id = target.name
+    brief.approval = [_approval_row(brief, choice, graded, grading["brief_sha256"])]
+    brief.approval[0][1] = brief.fields["analyst"].analyst_value
+    text = rb.render(brief)
+    state = dict(state, steps={**state.get("steps", {})})
+    qualified = _cp0_step(run, root, rules)
+    if (
+        not rules.is_placeholder(qualified.issuer_id)
+        and qualified.issuer_id != brief.fields["issuer_id"].value
+    ):
+        raise ApprovalError(
+            "CP-0 issuer identity differs from the confirmed Run Brief; use the completion owner"
+        )
+    if (
+        qualified.step["sha256"] != grading["cp0_sha256"]
+        or _sha(run / rb.CP0) != qualified.step["sha256"]
+    ):
+        raise ApprovalError(f"{rb.CP0} changed during Approval; run rbot grade again")
+    from rbotlib.origins import capture
+
+    state["steps"]["CP-0"] = qualified.step
+    if "completion_origin" not in state and not qualified.step.get("accept_history"):
+        from rbotlib.current import original
+
+        if original(qualified.step)["sha256"] == qualified.step["sha256"]:
+            state["completion_origin"] = capture(qualified.raw, "CP-0", "completion")
+    state["cp0_lineage"] = {
+        "pending_run_id": qualified.run_id,
+        "issuer_id": qualified.issuer_id,
+        "sha256": state["steps"]["CP-0"]["sha256"],
+    }
+    new = _new_state(state, brief, choice, graded)
+    new["run_brief_sha256"] = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    new |= {"plan": list(plan), "steps": _steps(plan, state, brief, choice, rules)}
+    new["approved_origins"] = {
+        "CP-0": capture(qualified.raw, "CP-0", "approval"),
+        "RUN_BRIEF": capture(text.encode("utf-8"), "RUN_BRIEF", "approval"),
+    }
+    rs.validate(new, target)
+    return Commit(
+        target,
+        text,
+        json.dumps(new, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
+        {
+            rb.CP0: grading["cp0_sha256"],
+            rb.BRIEF: grading["brief_sha256"],
+            GRADING: _sha(run / GRADING),
+        },
+    )
+
+
+@contextmanager
+def _locked(run: Path, where: list[Path]) -> Iterator[rs._Locked]:
+    """An exclusive lock file for the run; `where` tracks it when the folder is renamed."""
+    owner = rs._Locked(run)
+    where.append(run)
+    try:
+        yield owner
+    finally:
+        owner.run = where[-1]
+        owner.owner.run = where[-1]
+        warnings = owner.close()
+        if warnings:
+            raise ApprovalError("; ".join(warnings))
+
+
+@contextmanager
+def _staged(run: Path, contents: list[str]) -> Iterator[list[Path]]:
+    """Flush both new files before either published file changes; clean up unused stages."""
+    paths: list[Path] = []
+    try:
+        for text in contents:
+            fd, name = tempfile.mkstemp(dir=run, prefix=".approve-")
+            os.close(fd)
+            paths.append(Path(name))
+            write_atomic(paths[-1], text)
+        yield paths
+    finally:
+        for path in paths:
+            path.unlink(missing_ok=True)
+
+
+def _restore(published: list[tuple[Path, str]]) -> list[str]:
+    errors = []
+    for path, original in published:
+        try:
+            write_atomic(path, original)
+        except OSError as exc:
+            errors.append(f"{path}: {exc}")
+    return errors
+
+
+def _commit(run: Path, commit: Commit, where: list[Path], owner: rs._Locked) -> None:
+    owner.owner.check()
+    originals = [
+        (run / name, (run / name).read_text(encoding="utf-8")) for name in (rb.BRIEF, STATE)
+    ]
+    published: list[tuple[Path, str]] = []
+    with _staged(run, [commit.brief, commit.state]) as stages:
+        _inputs(run)
+        if any(_sha(output_path(run, name)) != sha for name, sha in commit.inputs.items()):
+            raise RunError("checked inputs changed during Approval; nothing published")
+        operation = "publish Approval"
+        try:
+            for staged, (path, original) in zip(stages, originals, strict=True):
+                owner.owner.check()
+                if _sha(output_path(run, rb.CP0)) != commit.inputs[rb.CP0]:
+                    raise RunError("CP-0 changed during Approval; inspect partial publication")
+                output_path(run, path.name)
+                os.replace(staged, path)
+                published.append((path, original))
+            operation = f"rename the run folder to {commit.target.name}"
+            owner.owner.check()
+            run.rename(commit.target)
+        except OSError as exc:
+            errors = _restore(published)
+            if errors:
+                raise ApprovalError(
+                    f"could not {operation} ({exc}); recovery incomplete: {'; '.join(errors)};"
+                    " inspect the pending Run Brief and state before retrying"
+                ) from exc
+            raise ApprovalError(
+                f"could not {operation} ({exc}); nothing was approved: close any file open"
+                " in the run folder and approve again"
+            ) from exc
+        where.append(commit.target)
+        rs.read(commit.target)
+        if (commit.target / rb.BRIEF).read_bytes() != commit.brief.encode() or _sha(
+            output_path(commit.target, rb.CP0)
+        ) != commit.inputs[rb.CP0]:
+            raise RunError("Approval readback differs; preserve evidence and pause")
+
+
+def _owned_run(run: Path) -> Path:
+    """Prove production state ownership before any Approval lock or CLI log write."""
+    run = rs.run_path(run)
+    try:
+        rs.read(run)
+    except UnicodeDecodeError as exc:
+        raise ApprovalError(f"{run / STATE}: no readable run state ({exc})") from exc
+    return run
+
+
+def approve(run: Path, root: Path, rules: Rules, choice: Choice) -> Path:
+    """Record the Approval under the run's lock; return the renamed run folder."""
+    run = _owned_run(run)
+    where: list[Path] = []
+    with _locked(run, where) as owner:
+        commit = prepare(run, root, rules, choice)
+        _commit(run, commit, where, owner)
+    return commit.target
+
+
+def plan_lines(state: dict[str, Any]) -> list[str]:
+    if not state.get("plan") or ("approval" in state and state["approval"] is None):
+        raise ApprovalError("the run is not approved yet; rbot approve sets its plan")
+    try:
+        return _plan_lines(state)
+    except (KeyError, TypeError, AttributeError) as exc:
+        raise ApprovalError(f"{STATE} lacks {exc}; it is not an approved run state") from exc
+
+
+def _plan_lines(state: dict[str, Any]) -> list[str]:
+    head = f"{state['run_id']}: {state['pathway']} at {state['depth']} depth"
+    flags = f"Primary {'Yes' if state['primary'] else 'No'}"
+    flags += f", Deep Research {'Yes' if state['deep_research'] else 'No'}"
+    flags += f", Prior Case {'Yes' if state['prior_case']['accepted'] else 'No'}"
+    lines = [f"{head}; {flags}"]
+    for n, step in enumerate(state["plan"], 1):
+        record = state["steps"].get(step, {})
+        reason = f" ({record['reason']})" if record.get("reason") else ""
+        kind, status = record.get("kind", "?"), record.get("status", "?")
+        lines.append(f"{n:>3}  {step:<11} {kind:<7} {status}{reason}")
+    return lines
+
+
+def approve_command(args: argparse.Namespace) -> int:
+    run = Path(args.run_dir)
+    choice = Choice(
+        args.pathway,
+        args.depth,
+        args.primary == "yes",
+        args.analyst,
+        args.deep_research == "yes",
+        tuple(args.untick),
+        args.prior_case == "yes",
+        args.acknowledge_blocked,
+    )
+    try:
+        target = approve(run, args.root, load_rules(args.root), choice)
+    except (ApprovalError, rb.BriefError, HandoffError, RunError, OSError) as exc:
+        print(exc)
+        return 1
+    args.run_dir = str(target)  # the command's log line goes to the renamed folder
+    print(f"approved: {target}")
+    print("\n".join(plan_lines(_state(target / STATE))))
+    return 0
+
+
+def plan_command(args: argparse.Namespace) -> int:
+    try:
+        print("\n".join(plan_lines(_state(Path(args.run_dir) / STATE))))
+    except ApprovalError as exc:
+        print(exc)
+        return 1
+    return 0
+
+
+def add_commands(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    a = sub.add_parser("approve", help="record the Approval: Pathway, Depth, Primary")
+    a.add_argument("--run", dest="run_dir", required=True, help="the run folder")
+    a.add_argument("--pathway", required=True)
+    a.add_argument("--depth", required=True, choices=["full", "quick"])
+    a.add_argument("--primary", required=True, choices=["yes", "no"])
+    a.add_argument("--analyst", required=True)
+    a.add_argument("--deep-research", choices=["yes", "no"], default="yes")
+    a.add_argument("--untick", nargs="+", action="extend", default=[], metavar="QUESTION_ID")
+    a.add_argument("--prior-case", choices=["yes", "no"], default="no")
+    a.add_argument("--acknowledge-blocked", action="store_true")
+    a.set_defaults(run=approve_command, log_run_guard=_owned_run)
+    p = sub.add_parser("plan", help="print the run's ordered steps with their status")
+    p.add_argument("--run", dest="run_dir", required=True, help="the run folder")
+    p.set_defaults(run=plan_command)

@@ -1,0 +1,68 @@
+[project]
+name = "deploy-vi"
+version = "0.1.0"
+description = "RBOT: leveraged-finance credit research as a GitHub Copilot skill"
+requires-python = ">=3.11"
+dependencies = [
+    "openpyxl==3.1.5",
+    "pypdf==6.19.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-exclude = ["reference", "design"]
+
+[tool.ruff.lint]
+select = [
+  "E", "F", "W", "I", "UP", "B", "ANN", "BLE", "TRY",
+  "C901", "PLR0912", "PLR0913", "PLR0915", "RUF",
+]
+# Exception messages name the exact defect at the raise site (HandoffError, ContractError).
+ignore = ["TRY003"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.isort]
+known-first-party = [
+  "rbotlib", "conftest", "builders", "check_suppressions", "check_bandit_floor", "proxy_run", "build_transfer",
+  "spec_fixture", "cp0_fixture", "test_grade", "module_specs", "mutation_workspace", "ab_grade", "test_bond_analytics",
+]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = ["rbot/scripts", "scripts", "tests"]
+files = ["rbot/scripts", "scripts", "tests"]
+exclude = ["^reference/"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["rbot/scripts", "scripts", "tests"]
+addopts = "-q --strict-markers --cov --cov-branch --cov-report=term-missing:skip-covered --cov-fail-under=80"
+markers = [
+    "corpus: reads the local issuer corpus (tests/corpus/corpus.json, interfaces spec section 12.3)",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["rbot/scripts", "scripts"]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.9.4",
+    "complexipy>=8.0.1",
+    "hypothesis>=6.169.0",
+    "mutmut==3.7.0",
+    "mypy>=2.4.0",
+    "pip-audit>=2.10.1",
+    "pre-commit>=4.6.2",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.0",
+    "types-openpyxl==3.1.5.20260827",
+]

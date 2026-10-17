@@ -27,7 +27,7 @@ Owner decisions from one grilling session. Vocabulary is in [`CONTEXT.md`](../..
 | D17 | **Portfolio Context = positions + limits** per portfolio. Each portfolio belongs to one Strategy. |
 | D18 | **Recommendations:** RBOT fills Credit Score, Valuation, Credit Direction, Sector Outlook and Recommendation per Strategy (CLO, Indexed Loans, Indexed HY; N/A where ineligible) and per instrument. Portfolio Fit can cap a Strategy's Recommendation for that portfolio. Analyst overrides happen outside RBOT. |
 | D19 | **House EBITDAs and PF interest live on the PF-LTM.** Structuring EBITDA = PF-LTM Reported EBITDA + every issuer add-back (caos adjusted EBITDA); SSIM EBITDA = the same less Unrealized Add-backs (caos `exclude_unrealised`). PF interest is the PF-LTM cash interest. Structuring Multiple and SSIM Multiple are PF total debt over each. Without PF adjustments in the pack the PF-LTM equals the LTM. |
-| D20 | **Model:** caos's host-computed design (pure Decimal, property-tested, every cell traceable), shown as an interactive Model tab plus a values-only `model.xlsx`. |
+| D20 | **Model:** caos's host-computed design (pure Decimal, property-tested, every cell traceable), shown as an interactive Model tab with JSON/Markdown computational outputs; Excel report exports are removed (owner, 2026-10-13). |
 | D21 | **No Primary-specific module.** A new tranche is one more instrument: CP-3 values it against comparables and the issuer's own levels at its Price Talk and OID, labelled as talk, never as a market level. Pro forma figures come only from sources via CP-1's PF register. |
 | D22 | **Deep Research (redesigned CP-DR)** complements the foundation and fundamental modules with a case-relevant deep dive into market, competitors, regulation, sector, outlook and risks. It runs in every Full Pathway, after CP-1A and before CP-2. cp-start lists its questions, and the analyst can untick it at Approval. It is skipped at Quick depth. |
 | D23 | **Prior Case (redesigned CP-8)** is an add-on to any Pathway, offered only when the pack contains an earlier RBOT Report (including one in the folder's `rbot-runs/`). It runs last and adds "What changed since ⟨date⟩". |
@@ -68,7 +68,7 @@ Owner decisions from one grilling session. Vocabulary is in [`CONTEXT.md`](../..
 
 `install.sh` / `install.ps1` copy `rbot/` from the Deploy VI repo into `~/.copilot/skills/`. The repo also holds tests, golden packs, the gates and `reference/deploy-v-r14/` (the fork, read-only, never installed). Analyst data never enters the repo.
 
-**Run folder:** `<pack>/rbot-runs/<YYYYMMDD>-<issuer>-<pathway>/` contains `run-state.json`, `run-brief.md`, `prepared/` (page-anchored text), `fetched/` (Deep Research), `handoffs/<id>.md`, `model.json`, `model.xlsx`, `report.md` and `report.html`. Source files are never modified. Running `/rbot` again in a folder with an unfinished run resumes after the last accepted Handoff, with no re-approval.
+**Run folder:** `<pack>/rbot-runs/<YYYYMMDD>-<issuer>-<pathway>/` contains `run-state.json`, `run-brief.md`, `prepared/` (page-anchored text), `fetched/` (Deep Research), `handoffs/<id>.md`, `model.json`, `report.md` and `report.html`. Source files are never modified. Running `/rbot` again in a folder with an unfinished run resumes after the last accepted Handoff, with no re-approval.
 
 ## 4. Modules and Pathways
 
@@ -116,7 +116,7 @@ Each field has exactly one owner, written in a tagged `snapshot.*` table. The re
 - **Snapshot columns:** FY-2…FY, PYTD, YTD and LTM, with PF-LTM in place of LTM when it exists.
 - **EV:** listed equity from Market Context, else the SSIM EV multiple × SSIM EBITDA; % EV per facility.
 - **Projections:** CP-2G drivers through a port of caos's CP-CF (`caos/calculators/cash_flow.py`), Base and Downside FY+1–3 (interfaces spec §6).
-- **Output:** `model.json` (embedded in the Report) and `model.xlsx` (values only, one sheet per band) for the analyst's own model.
+- **Output:** `model.json` (embedded in the Report) and `handoffs/MODEL.md`. Excel report exports are removed; input XLSX ingestion is retained (owner, 2026-10-13).
 
 ## 7. Evidence and quality
 

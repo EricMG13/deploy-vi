@@ -25,7 +25,7 @@ Every figure in the Report is either cited to a page or clause of a document the
 ## Operating Context
 
 - One Pathway per run (Full Credit Assessment at Full or Quick depth, Relative Value, Covenant & Refinancing, Distressed & Restructuring, Earnings Update, Portfolio Decision); each opens on its own Front Page. Full Credit Assessment's Front Page is the Credit Snapshot, the house template PMs already use in Excel.
-- The Report is shared as a file inside the team, alongside the analyst's own Excel model (RBOT exports a values-only model.xlsx).
+- One GitHub Copilot skill invocation consumes one issuer Source Pack and produces the complete HTML/Markdown Report shared inside the team. RBOT does not export Excel reports; supplied Excel market/portfolio inputs remain supported.
 - A later run on the same issuer can compare against an earlier Report (Prior Case: "What changed since <date>").
 
 ## Capabilities and Constraints

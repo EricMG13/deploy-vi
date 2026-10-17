@@ -1,0 +1,88 @@
+{
+  "size_budget_bytes": 51200,
+  "host_tables": {
+    "snapshot.run_header": "RUN_BRIEF",
+    "snapshot.transaction_summary": "RUN_BRIEF",
+    "brief.run_brief_fields": "RUN_BRIEF",
+    "brief.portfolios": "RUN_BRIEF",
+    "brief.research_questions": "RUN_BRIEF",
+    "brief.prior_case": "RUN_BRIEF",
+    "brief.approval": "RUN_BRIEF",
+    "snapshot.capital_structure": "MODEL",
+    "snapshot.capital_structure_totals": "MODEL",
+    "snapshot.ebitda_adjustments": "MODEL",
+    "snapshot.financial_columns": "MODEL",
+    "snapshot.financials": "MODEL",
+    "model.summary": "MODEL",
+    "model.metrics": "MODEL",
+    "model.house": "MODEL",
+    "model.maturity_wall": "MODEL",
+    "model.limitations": "MODEL",
+    "model.projection_summary": "PROJECTION",
+    "model.projection_interest": "PROJECTION",
+    "model.forecast_checks": "PROJECTION",
+    "snapshot.portfolio_fit": "FIT",
+    "fit.limit_headroom": "FIT"
+  },
+  "front_pages": {
+    "credit_snapshot": {
+      "title": "Credit Snapshot",
+      "tables": [
+        "snapshot.run_header",
+        "snapshot.company_profile",
+        "snapshot.business_description",
+        "snapshot.transaction_summary",
+        "snapshot.capital_structure",
+        "snapshot.instrument_levels",
+        "snapshot.ebitda_adjustments",
+        "snapshot.credit_view",
+        "snapshot.strengths_weaknesses",
+        "snapshot.historical_performance",
+        "snapshot.financials",
+        "snapshot.relative_value",
+        "snapshot.recommendation",
+        "snapshot.capital_structure_totals",
+        "snapshot.financial_columns",
+        "snapshot.instrument_recommendation",
+        "snapshot.thesis",
+        "snapshot.catalysts",
+        "snapshot.portfolio_fit",
+        "model.maturity_wall",
+        "model.metrics",
+        "model.summary",
+        "model.projection_summary",
+        "cp3.talk_valuation",
+        "cp6.portfolio_recommendation"
+      ],
+      "blocks": [
+        {"id": "header", "title": "Header", "tables": ["snapshot.run_header"], "charts": [], "condition": "always"},
+        {"id": "company_profile", "title": "Company profile", "tables": ["snapshot.company_profile"], "charts": [], "condition": "always"},
+        {"id": "credit_view", "title": "Sector Outlook, Credit Score, Credit Direction", "tables": ["snapshot.credit_view"], "charts": [], "condition": "always"},
+        {"id": "recommendation", "title": "Analyst recommendation", "tables": ["snapshot.recommendation"], "charts": [], "condition": "always"},
+        {"id": "transaction_summary", "title": "Transaction summary and new debt issues", "tables": ["snapshot.transaction_summary"], "charts": [], "condition": "primary"},
+        {"id": "capital_structure", "title": "Capital structure", "tables": ["snapshot.capital_structure", "snapshot.instrument_levels", "snapshot.instrument_recommendation"], "charts": ["chart.capital_structure"], "condition": "always"},
+        {"id": "capital_structure_totals", "title": "Capital structure totals, EV and PF interest", "tables": ["snapshot.capital_structure_totals"], "charts": [], "condition": "always"},
+        {"id": "maturity_wall", "title": "Maturity wall", "tables": ["model.maturity_wall"], "charts": ["chart.maturity_wall"], "condition": "always"},
+        {"id": "business_description", "title": "Business description", "tables": ["snapshot.business_description"], "charts": [], "condition": "always"},
+        {"id": "ebitda_adjustments", "title": "EBITDA adjustments", "tables": ["snapshot.ebitda_adjustments"], "charts": ["chart.ebitda_bridge"], "condition": "always"},
+        {"id": "thesis_catalysts", "title": "Investment thesis; catalysts and near-term events", "tables": ["snapshot.thesis", "snapshot.catalysts"], "charts": [], "condition": "always"},
+        {"id": "strengths_weaknesses", "title": "Credit summary: strengths and weaknesses", "tables": ["snapshot.strengths_weaknesses"], "charts": [], "condition": "always"},
+        {"id": "historical_performance", "title": "Credit summary: historical performance", "tables": ["snapshot.historical_performance"], "charts": [], "condition": "always"},
+        {"id": "financials", "title": "Financials, balance sheet and credit metrics", "tables": ["snapshot.financial_columns", "snapshot.financials"], "charts": [], "condition": "always"},
+        {"id": "chart_strip", "title": "Net leverage, interest cover and liquidity", "tables": ["model.metrics", "model.summary", "model.projection_summary"], "charts": ["chart.model_strip"], "condition": "always"},
+        {"id": "relative_value", "title": "Loan relative value; high-yield relative value", "tables": ["snapshot.relative_value"], "charts": ["chart.rv_loan", "chart.rv_hy"], "condition": "always"},
+        {"id": "valuation", "title": "Valuation per instrument", "tables": ["snapshot.instrument_levels", "cp3.talk_valuation"], "charts": ["chart.talk_range"], "condition": "always"},
+        {"id": "portfolio_fit", "title": "Portfolio Fit per portfolio", "tables": ["snapshot.portfolio_fit", "cp6.portfolio_recommendation"], "charts": ["chart.fit_bullets"], "condition": "portfolios"}
+      ]
+    }
+  },
+  "pathways": [
+    {
+      "id": "FULL_CREDIT_ASSESSMENT", "label": "Full Credit Assessment", "front_page": "credit_snapshot",
+      "depths": {
+        "full": ["CP-0", "CP-1", "CP-1A", "CP-1B", "CP-1D", "MODEL", "CP-2", "CP-3", "FIT", "CP-5", "CP-6"],
+        "quick": ["CP-0", "CP-1", "CP-1A", "CP-1B", "MODEL", "CP-L10", "CP-3", "FIT", "CP-5", "CP-6"]
+      }
+    }
+  ]
+}

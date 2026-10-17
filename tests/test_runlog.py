@@ -1,0 +1,93 @@
+"""Owned row correction preserves every preceding byte and refuses unowned edits."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from test_next import approved
+
+from rbotlib import cli, runlog, state
+from rbotlib.inventory import RunError
+from rbotlib.rules import RBOT_ROOT
+
+
+@pytest.mark.parametrize("suffix", ["missing", "partial", "full"])
+def test_owned_receipt_correction_preserves_bytes_and_cardinality(
+    tmp_path: Path, suffix: str
+) -> None:
+    from rbotlib import runs
+
+    pack = tmp_path / "pack"
+    pack.mkdir()
+    run = runs.create_run(
+        pack
+    )  # a native initial opaque prefix; no prior registered row is adopted
+    path = run / "log/rbot.log"
+    prefix = b"uninterpreted prior bytes\xff\r\n"
+    path.write_bytes(prefix)
+    receipt = runlog.Receipt(run, ["model", "quoted ' argument\n"])
+    try:
+        if suffix == "partial":
+            with path.open("ab") as stream:
+                stream.write(receipt.row[:25])
+        elif suffix == "full":
+            cli._log(run, ["model"], 0, receipt=receipt)
+        receipt.fail()
+        assert path.read_bytes() == prefix + receipt.row + b"1\n"
+    finally:
+        receipt.close()
+
+
+@pytest.mark.parametrize("change", ["prefix", "suffix"])
+def test_receipt_refuses_unowned_correction(tmp_path: Path, change: str) -> None:
+    run = approved(tmp_path, RBOT_ROOT)
+    path = run / "log/rbot.log"
+    receipt = runlog.Receipt(run, ["model"])
+    try:
+        raw = (b"other prefix" if change == "prefix" else receipt.prefix) + b"someone else\n"
+        path.write_bytes(raw)
+        with pytest.raises(RunError, match="correction refused"):
+            receipt.fail()
+        assert path.read_bytes() == raw
+    finally:
+        receipt.close()
+
+
+def test_state_owned_stage_is_serialized_before_publication_and_cleanup_is_separate(
+    tmp_path: Path,
+) -> None:
+    run = approved(tmp_path, RBOT_ROOT)
+    owner = state._Locked(run)
+    record = state.read(run)
+    record["extension"] = "staged"
+    staged = owner.stage(record)
+    record["extension"] = "later mutation"
+    owner.commit(staged)
+    assert state.read(run)["extension"] == "staged"
+    assert owner.close() == []
+
+
+def test_failed_receipt_destination_does_not_retain_state_owner(tmp_path: Path) -> None:
+    run = approved(tmp_path, RBOT_ROOT)
+    destination = run / "log/rbot.log"
+    destination.unlink()
+    destination.mkdir()
+    receipt = object.__new__(runlog.Receipt)
+    with pytest.raises(RunError, match="regular file"):
+        runlog.Receipt.__init__(receipt, run, ["ordinary"])
+    try:
+        owner = state._Locked(run)
+        assert owner.close() == []
+    finally:
+        # Retain the failing owner's handle only to avoid poisoning later RED controls.
+        held = getattr(receipt, "state_owner", None)
+        if held is not None:
+            import os
+
+            try:
+                os.fstat(held.owner.fd)
+            except OSError:
+                pass
+            else:
+                held.close()

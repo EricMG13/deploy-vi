@@ -1,0 +1,48 @@
+# The gates of ~/.claude/CLAUDE.md section 3, the same commands as local.
+# Secrets are scanned by gitleaks.yml (copied from caos-databricks).
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {fetch-depth: 0}
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with: {version: "0.12.5", enable-cache: true}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: {node-version: "24"}
+      - run: uv sync --locked --all-groups
+      - run: uv lock --check
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - run: uv run pytest
+      - run: uv run python rbot/scripts/rbot.py check
+      # Corpus tests (interfaces spec section 12.3): in-repo synthetic files must be
+      # present; external packs live only on the owner's machine (make corpus).
+      - run: RBOT_REQUIRE_CORPUS=synthetic uv run pytest -m corpus --no-cov
+      - run: uv run python scripts/check_suppressions.py
+      - run: uv run complexipy rbot/scripts scripts --max-complexity-allowed 15
+      - run: uv run bandit -r rbot/scripts scripts -f json -o bandit.json || true
+      - run: uv run python scripts/check_bandit_floor.py bandit.json
+      - run: uv run pip-audit --strict
+      - run: npx --yes jscpd@5.2.0 --threshold 3 --min-lines 10 rbot/scripts scripts tests
+      - name: PR at most 800 changed lines
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: bash scripts/check_pr_size.sh
