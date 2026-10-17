@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Workbench screenshot helper</title>
+<body style="margin:0;background:#888">
+<iframe id="f" style="border:0;display:block"></iframe>
+<script>
+/* ?h=<hash>&w=1440&hgt=900&do=<step>||<step>   steps: click:<css> | key:<css>:<Key> | scroll:<css> | wait:<ms> | type:<css>:<text> */
+const q = new URLSearchParams(location.search);
+const f = document.getElementById('f');
+f.style.width = (q.get('w') || 1440) + 'px';
+f.style.height = (q.get('hgt') || 900) + 'px';
+f.src = '/design/mockups/workbench/dist/rbot-workbench.html' + (q.get('h') || '');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+f.onload = async () => {
+  await sleep(600);
+  const w = f.contentWindow, d = w.document;
+  for (const step of (q.get('do') || '').split('||').filter(Boolean)) {
+    const [kind, a, b] = step.split('::');
+    const el = a && kind !== 'wait' ? d.querySelector(a) : null;
+    if (kind === 'click' && el) el.click();
+    else if (kind === 'focus' && el) el.focus();
+    else if (kind === 'key' && el) el.dispatchEvent(new w.KeyboardEvent('keydown', { key: b, bubbles: true, cancelable: true }));
+    else if (kind === 'scroll' && el) el.scrollIntoView({ block: 'start' });
+    else if (kind === 'canvas') d.getElementById('canvas').scrollTop = +a;
+    else if (kind === 'type' && el) { el.value = b; el.dispatchEvent(new w.Event('input', { bubbles: true })); }
+    else if (kind === 'print') w.WB.beforePrint();
+    await sleep(kind === 'wait' ? +a : 150);
+  }
+  document.title = 'done';
+};
+</script>

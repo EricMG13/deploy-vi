@@ -1,0 +1,344 @@
+[
+ {
+  "marker": 1,
+  "page": 3,
+  "line_text": "INDENTURE dated as of February 6, 2024, among CAESARS ENTERTAINMENT, INC., a Delaware corporation (the “Company”), the Subsidiary Guarantors party hereto from time to time, U.S. BANK TRUST COMPANY, NATIONAL ASSOCIATION, as trustee (in such capacity, the “Trustee”), and the Collateral Agent (as defined herein).",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 2,
+  "page": 1,
+  "line_text": "Clause (44) of the definition of “Permitted Liens” in Article I of the Indenture shall be replaced with the following language:",
+  "document_sha256": "0af4615b9a52e91e2675adacbbc90ecc7b21a61dc8205b4b2459cf4b9db0a219"
+ },
+ {
+  "marker": 3,
+  "page": 1,
+  "line_text": "Section 8.01(b) of the Indenture shall be replaced with the following language:",
+  "document_sha256": "0af4615b9a52e91e2675adacbbc90ecc7b21a61dc8205b4b2459cf4b9db0a219"
+ },
+ {
+  "marker": 4,
+  "page": 1,
+  "line_text": "Each New Guarantor hereby agrees, jointly and severally with all existing guarantors (if any), to unconditionally guarantee the Company’s Obligations under the Notes and the Indenture on the terms and subject to the conditions set forth in Article XIII of the Indenture and to be bound by all other applicable provisions of the Indenture and the Notes and to perform all of the obligations and agreements of a guarantor under the Indenture.",
+  "document_sha256": "3621f08611f4c6a6faed734993a3f2d9c97041693053ffa97624cbe5b7299aea"
+ },
+ {
+  "marker": 5,
+  "page": 1,
+  "line_text": "INCREMENTAL ASSUMPTION AGREEMENT NO. 3, dated as of February 6, 2024 (this “Agreement”), by and among CAESARS ENTERTAINMENT, INC., a Delaware corporation (f/k/a ELDORADO RESORTS, INC., a Nevada corporation), as borrower (the “Borrower”), the Subsidiary Loan Parties party hereto, the Incremental Term B-1 Lender (as defined below) and the Administrative Agent (as defined below), relating to that certain Credit Agreement, dated as of July 20, 2020 (as modified by that certain Incremental Assumption Agreement No. 1, dated as of July 20, 2020, as amended by that certain First Amendment to Credit Agreement, dated as of November 10, 2021, as amended by that certain Second Amendment to Credit Agreement, dated as of January 26, 2022, as amended by that certain Third Amendment to Credit Agreement, dated as of October 5, 2022, as modified by that certain Incremental Assumption Agreement No. 2, dated as of February 6, 2023 and as further amended, restated, supplemented, waived or otherwise modified from time to time prior to the date hereof, the “Existing Credit Agreement”; and the Existing Credit Agreement as amended and modified by this Agreement, and as it may be further amended, restated, supplemented, waived or otherwise modified from time to time, the “Credit Agreement”), among the Borrower, the Lenders party thereto from time to time, JPMORGAN CHASE BANK, N.A., as administrative agent for the Lenders (together with its successors and assigns in such capacity, the “Administrative Agent”), and U.S. BANK NATIONAL ASSOCIATION, as collateral agent for the Secured Parties (together with its successors and assigns in such capacity, the “Collateral Agent”).",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 6,
+  "page": 58,
+  "line_text": "(a) With respect to the Covenant Facilities only, permit the Total Leverage Ratio on the last day of any fiscal quarter (beginning with the first fiscal quarter ending after the Third Amendment Effective Date, but excluding any fiscal quarter the last day of which occurs during a Covenant Suspension Period) to exceed (i) from the Third Amendment Effective Date to but excluding December 31, 2024, 7.25 to 1.00 and (ii) from and after December 31, 2024, 6.50 to 1.00;",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 7,
+  "page": 58,
+  "line_text": "(b) With respect to the Covenant Facilities only, permit the Fixed Charge Coverage Ratio on the last day of any fiscal quarter (beginning with the first fiscal quarter ending after the Third Amendment Effective Date, but excluding any fiscal quarter the last day of which occurs during a Covenant Suspension Period) to be less than (i) from the Third Amendment Effective Date to but excluding December 31, 2024, 1.75 to 1.00 and (ii) from and after December 31, 2024, 2.00 to 1.00;",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 8,
+  "page": 58,
+  "line_text": "provided, that any breach of any Financial Performance Covenant shall not, by itself, constitute a Default or an Event of Default under any Non-Covenant Facility and the Loans under any Non-Covenant Facility may not be accelerated as a result thereof unless a Covenant Facility Acceleration has occurred;",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 9,
+  "page": 59,
+  "line_text": "Notwithstanding anything to the contrary contained in Section 7.01, in the event that the Borrower fails (or, but for the operation of this Section 7.02, would fail) to comply with the requirements of any Financial Performance Covenant, from the first day of the applicable fiscal quarter and until the expiration of the 15th Business Day subsequent to the date the certificate calculating such Financial Performance Covenant is required to be delivered pursuant to Section 5.04(c) (the “Cure Expiration Date”), the Borrower shall have the right to issue Permitted Cure Securities for cash or otherwise receive cash contributions to the capital of the Borrower (collectively, the “Cure Right”), and upon the receipt by the Borrower of such cash (the “Cure Amount”) pursuant to the exercise by the Borrower of such Cure Right such Financial Performance Covenant shall be recalculated giving effect to a pro forma adjustment by which EBITDA shall be increased with respect to such applicable quarter and any four-quarter period that contains such quarter, solely for the purpose of measuring the Financial Performance Covenants and not for any other purpose under this Agreement, by an amount equal to the Cure Amount;",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 10,
+  "page": 16,
+  "line_text": "(v) business optimization expenses and other restructuring charges, reserves, expenses or accruals (which, for the avoidance of doubt, shall include, without limitation, the effect of inventory optimization programs, operating improvements, cost savings initiatives, business optimization, facility closure, facility consolidations, facility reconstruction, decommissioning, recommissioning, conversion or reconfiguration, retention, severance, recruiting, integration, insourcing, outsourcing and systems establishment or implementation costs, legal settlement costs, contract termination costs, future lease commitments and excess pension charges, any costs and expenses relating to any entry into new markets and contracts (including, without limitation, any renewals, extensions or other modifications thereof), or new product developments or introductions or exiting a market, contract or product and any software or other intellectual property development costs and expenses, any costs and expenses associated with new systems design, any implementation cost or expense, any project startup cost or expense, any transition cost or expense or cost or expense associated with improvements to IT or accounting functions) and, in each case, expected to be achieved, completed or realized within 24 months, in the good faith determination of the Borrower,",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 11,
+  "page": 19,
+  "line_text": "“Incremental Amount” shall mean, at any time, the sum of",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 12,
+  "page": 43,
+  "line_text": "(viii) with respect to any Other Term Loan incurred pursuant to Section 2.21(a) that (a) is in an aggregate principal amount greater than the greater of $2,600.0 million and 1.00 times the EBITDA calculated on a Pro Forma Basis for the then most recently ended Test Period,",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 13,
+  "page": 51,
+  "line_text": "(r) (i) other Indebtedness so long as (A) to the extent required by the lenders providing such Indebtedness, no Event of Default shall have occurred and be continuing or would result therefrom (provided that if such Indebtedness is established for a purpose other than financing any Permitted Business Acquisition or any other acquisition or Investment that is permitted by this Agreement, no Event of Default under Section 7.01(b), (c), (h) (with respect to the Borrower) or (i) (with respect to the Borrower) shall have occurred and be continuing or would result therefrom) and (B) after giving effect to the issuance, incurrence or assumption of such Indebtedness (x) in the case of Indebtedness that is secured by a Lien on the Collateral that is pari passu in right of security with the Liens securing the Obligations, the Senior Secured Leverage Ratio on a Pro Forma Basis shall not be greater than, at the Borrower’s election,",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 14,
+  "page": 53,
+  "line_text": "(u) other Liens with respect to property or assets of the Borrower or any Subsidiary;",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 15,
+  "page": 54,
+  "line_text": "(j) other Investments after the Third Amendment Effective Date by the Borrower or any Subsidiary in an aggregate amount outstanding (valued at the time of the making thereof, and without giving effect to any write-downs or write-offs thereof) not to exceed (i) the greater of $975.0 million and 0.425 times the EBITDA calculated on a Pro Forma Basis for the then most recently ended Test Period (plus any returns (including dividends, interest, distributions, returns of principal, proceeds of sale, repayments, redemptions, income and similar amounts) actually received by the respective investor in respect of investments theretofore made by it pursuant to this clause (j)) plus (ii) the portion, if any, of the Cumulative Credit on the date of such election that the Borrower elects to apply to this Section 6.04(j)(ii), such election to be specified in a written notice of a Responsible Officer of the Borrower calculating in reasonable detail the amount of Cumulative Credit immediately prior to such election and the amount thereof elected to be so applied;",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 16,
+  "page": 56,
+  "line_text": "(h) other Restricted Payments may be made; provided that, no Event of Default has occurred and is continuing or would result therefrom and after giving effect to such Restricted Payment, the Total Leverage Ratio on a Pro Forma Basis would not exceed 4.75 to 1.00;",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 17,
+  "page": 55,
+  "line_text": "(g) sales, transfers, leases, licenses or other dispositions of assets not otherwise permitted by this Section 6.05;",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 18,
+  "page": 63,
+  "line_text": "(vi) release all or substantially all of the Collateral or release all or substantially all of the Subsidiary Loan Parties from their respective Guarantees under the Guarantee Agreement, unless, in the case of a Subsidiary Loan Party, all or substantially all of the Equity Interests in such Loan Party is sold or otherwise disposed of in a transaction permitted by this Agreement or the other Loan Documents, or in the case of any Loan Party such release is otherwise pursuant to the terms of this Agreement, the Collateral Agreement or the Guarantee Agreement, as applicable, without the prior written consent of each Lender;",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 19,
+  "page": 65,
+  "line_text": "(b) In addition, the Lenders, the L/C Issuer and other Secured Parties hereby irrevocably agree that the Subsidiary Loan Parties shall be released from the Guarantees upon consummation of any transaction not prohibited hereunder resulting in such Subsidiary ceasing to constitute a Subsidiary Loan Party or otherwise becoming an Excluded Subsidiary (including the designation of a Subsidiary Loan Party as a Qualified Non-Recourse Subsidiary at the election of the Borrower, so long as such Subsidiary holds no material assets other than any Undeveloped Land or new property acquired after the Closing Date or any Real Property located outside of the United States (and in each case contract rights, entitlements and assets related thereto)) (provided that, notwithstanding the foregoing, a Subsidiary Loan Party shall not be released from its Guarantee solely due to becoming an Excluded Subsidiary of the type described in clause (b) of the definition thereof due to a disposition of less than all of the Equity Interests of such Subsidiary Loan Party to an Affiliate of any Loan Party) (and the Collateral Agent may rely conclusively on a certificate to that effect provided to it by any Loan Party upon its reasonable request without further inquiry).",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 20,
+  "page": 22,
+  "line_text": "(i) the Incurrence by the Company or any Restricted Subsidiary of Indebtedness under any Credit Agreement and the issuance and creation of letters of credit and bankers’ acceptances thereunder (including any Indebtedness of the Company or any Restricted Subsidiaries, the proceeds of which Indebtedness are used to repay Indebtedness under such Credit Agreement) up to an aggregate principal amount outstanding at the time of Incurrence that does not exceed (x) $11.4 billion plus (y) the greater of (1) $2,600.0 million and (2) 100.0% of EBITDA for the Applicable Measurement Period at time of Incurrence plus (z) an additional aggregate principal amount of Indebtedness outstanding at any one time that does not cause (1) in the case of Indebtedness constituting First Priority Lien Obligations, the Senior Secured Indebtedness Leverage Ratio of the Company for the Applicable Measurement Period, determined on a pro forma basis, to exceed, at the Company’s election,",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 21,
+  "page": 13,
+  "line_text": "(B) Liens securing Indebtedness in an aggregate principal amount not to exceed the greater of (x) the aggregate principal amount of Indebtedness permitted to be Incurred pursuant to Section 4.03(b)(i) and (y) the maximum principal amount of Indebtedness that, as of the date such Indebtedness was Incurred, and after giving effect to the Incurrence of such Indebtedness and the application of proceeds therefrom on such date on a pro forma basis,",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 22,
+  "page": 24,
+  "line_text": "(xxi) any Restricted Payment so long as, after giving pro forma effect to such Restricted Payment, the Consolidated Leverage Ratio of the Company would not exceed 4.75 to 1.00;",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 23,
+  "page": 25,
+  "line_text": "(b) Within 18 months after the Company’s or any Restricted Subsidiary’s (or in the case of an Interactive Entertainment Unrestricted Subsidiary Sale or a Convention Center Unrestricted Subsidiary Sale, an Unrestricted Subsidiary’s) receipt of the Net Proceeds of any Asset Sale, the Company or such Restricted Subsidiary may apply the Net Proceeds from such Asset Sale, at its option:",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 24,
+  "page": 27,
+  "line_text": "The Company shall cause each Wholly Owned Restricted Subsidiary that is a Domestic Subsidiary that is a borrower or guarantor under the CEI Credit Agreement to execute and deliver to the Trustee (i) a supplemental indenture substantially in the form of Exhibit C hereto pursuant to which such Subsidiary will guarantee the Company’s obligations under the Notes and this Indenture and shall comply with the additional requirements of Section 13.06 and (ii) joinders to Security Documents or new Security Documents and take all actions required by such Security",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 25,
+  "page": 27,
+  "line_text": "(i) the Notes have Investment Grade Ratings from at least two of the Rating Agencies and (ii) no Default has occurred and is continuing under this Indenture, then, beginning on that day (the occurrence of the events described in the foregoing clauses (i) and (ii) being collectively referred to as a “Covenant Suspension Event”), and subject to the provisions of the following paragraph, the Company and its Restricted Subsidiaries shall not be subject to Sections 4.03, 4.04, 4.05, 4.06, 4.07, 4.11 and 5.01(a)(iv) (collectively, the “Suspended Covenants”).",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 26,
+  "page": 28,
+  "line_text": "(d) the failure by the Company or any Significant Subsidiary (or any group of Subsidiaries that together would constitute a Significant Subsidiary) to pay any Indebtedness (other than Indebtedness owing to the Company or a Restricted Subsidiary) within any applicable grace period after final maturity or the acceleration of any such Indebtedness by the holders thereof because of a default, in each case, if the total amount of such Indebtedness unpaid or accelerated exceeds $400.0 million or its foreign currency equivalent (the “cross-acceleration provision”);",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 27,
+  "page": 28,
+  "line_text": "If an Event of Default (other than an Event of Default specified in Section 6.01(e) or 6.01(f) hereof with respect to the Company) occurs and is continuing, the Trustee or the holders of at least 30% in principal amount of outstanding Notes by notice to the Company may declare the principal of, premium, if any, and accrued but unpaid interest on all the Notes to be due and payable;",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 28,
+  "page": 32,
+  "line_text": "(a) The Company, the Collateral Agent and the Trustee may amend or supplement this Indenture, the Security Documents, the First Lien Intercreditor Agreement and any Junior Lien Intercreditor Agreement with the written consent of the holders of at least a majority in principal amount of the Notes then outstanding voting as a single class (including consents obtained in connection with a tender offer or exchange) and any past default or compliance with any provisions may be waived with the consent of the holders of a majority in principal amount of the Notes then outstanding.",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 29,
+  "page": 32,
+  "line_text": "Except as expressly provided by this Indenture, without the consent of holders of at least 66 2/3% in aggregate principal amount of the Notes then outstanding, no amendment may modify or release the Note Guarantee of any Significant Subsidiary in any manner adverse to the holders of the Notes.",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 30,
+  "page": 34,
+  "line_text": "The applicable assets included in the Collateral shall be automatically released from the Liens securing the Notes, and the applicable Subsidiary Guarantor shall be automatically released from its obligations under this Indenture and the Security Documents, under any one or more of the following circumstances or any applicable circumstance as provided in the First Lien Intercreditor Agreement (and any future First Lien Intercreditor Agreement), any Junior Lien Intercreditor Agreement or the Security Documents:",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 31,
+  "page": 35,
+  "line_text": "(b) A Note Guarantee as to any Subsidiary that executes a supplemental indenture in accordance with Section 4.11 hereof and provides a guarantee shall terminate and be of no further force or effect and such Subsidiary Guarantor shall be deemed to be released from all obligations under this Article XIII upon:",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 32,
+  "page": 49,
+  "line_text": "THIS SECOND LIEN INTERCREDITOR AGREEMENT is dated as of [ ], among [JPMORGAN CHASE BANK, N.A.], as Credit Agreement Agent, [U.S. Bank National Association], as First Priority Collateral Agent, [U.S. Bank Trust Company, National Association, as successor in interest to U.S. Bank National Association], as 2020 Initial Other First Priority Agent, [U.S. Bank Trust Company, National Association], as 2023 Initial Other First Priority Agent, [U.S. Bank Trust Company, National Association], as 2024 Initial Other First Priority Agent, each Other First Priority Lien Obligations Agent from time to time party hereto, each in its capacity as a First Lien Agent, [ ], as Initial Second Priority Agent, each Other Second Priority Lien Obligations Agent from time to time party hereto, each in its capacity as a Second Priority Agent, CAESARS ENTERTAINMENT, INC. (f/k/a Eldorado Resorts, Inc.) (the “Borrower”) and each Subsidiary of the Borrower from time to time party hereto.",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 33,
+  "page": 52,
+  "line_text": "provided, however, that (A) any Second Priority Agent and the Second Priority Secured Parties represented by it may exercise any or all such rights after the passage of a period of 180 days from the occurrence of both (i) an Event of Default (under and as defined in the applicable Second Priority Documents) (or the Equivalent Provision thereof) and (ii) the date of delivery of a notice in writing to each First Lien Agent of such Second Priority Agent’s or Second Priority Secured Party’s intention to exercise its right to take such actions which notice shall specify that an “Event of Default” as defined in the applicable Second Priority Documents (or the Equivalent Provision thereof) has occurred and as a result of such “Event of Default” (or the Equivalent Provision thereof), the principal and interest under such Second Priority Documents have become due and payable (whether as a result of acceleration thereof or otherwise) (the “Second Priority Standstill Period”) unless (i) a First Lien Agent has commenced and is diligently pursuing remedies with respect to any material portion of the Common Collateral (or such attempt is stayed by an Insolvency or Liquidation Proceeding),",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 34,
+  "page": 53,
+  "line_text": "(x) any Common Collateral or proceeds thereof received by any Second Priority Agent or any Second Priority Secured Party in connection with the sale or other disposition of, or collection on, such Common Collateral upon the exercise of remedies as a secured party (including setoff or recoupment) and (y) any recoveries or distributions received on account of any Common Collateral after the commencement of an Insolvency or Liquidation Proceeding, shall be segregated and held for the benefit of and forthwith paid over to the First Priority Collateral Agent (and/or its designees) for the benefit of the Senior Creditors in the same form as received, with any necessary endorsements or as a court of competent jurisdiction may otherwise direct.",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 35,
+  "page": 54,
+  "line_text": "(b) The “Purchase Price” will equal the sum of (1) the full amount of all Senior Creditor Claims then-outstanding and unpaid at par (including principal, accrued but unpaid interest, fees, expenses, and any other unpaid amounts, including breakage costs and, in the case of any secured hedging obligations, the amount that would be payable by the relevant Grantor thereunder if such Grantor were to terminate the hedge agreement in respect thereof on the date of the purchase or, if not terminated, an amount determined by the relevant Senior Creditor to be necessary to collateralize its credit risk arising out of such agreement, but excluding any prepayment penalties or premiums),",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 36,
+  "page": 9,
+  "line_text": "Total debt | 11,807 | 11,705 | 11,792",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 37,
+  "page": 2,
+  "line_text": "Long-term debt | 11,585 | 11,670",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 38,
+  "page": 10,
+  "line_text": "The CEI Revolving Credit Facility and the CEI Term Loan A include a maximum net total leverage ratio financial covenant of 6.50:1.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 39,
+  "page": 10,
+  "line_text": "As of June 30, 2026, the Company was in compliance with all of the applicable financial covenants described above.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 40,
+  "page": 11,
+  "line_text": "The CVA Revolving Credit Facility and the CVA Delayed Draw Term Loan are secured by substantially all material assets of Caesars Virginia, LLC and any newly formed wholly-owned subsidiary of Caesars Virginia, LLC.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 41,
+  "page": 11,
+  "line_text": "The Company generally has three types of liabilities related to contracts with customers: (1) outstanding chip liability, which represents the amounts owed in exchange for gaming chips held by customers, (2) Caesars Rewards player loyalty program obligations, which represent the deferred allocation of revenue relating to reward credits granted to Caesars Rewards members based on certain types of customer spend, including online and retail gaming, hotel, dining, retail shopping, and player loyalty program incentives earned, and (3) customer deposits and other deferred revenue, which primarily represents funds deposited by customers related to gaming play or advance payments received for goods and services yet to be provided (such as advance ticket sales, deposits on rooms and convention space, unpaid wagers, iGaming deposits, or future sports bets).",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 42,
+  "page": 11,
+  "line_text": "Balance at June 30 | 41 | 39 | 92 | 86 | 545 | 586",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 43,
+  "page": 21,
+  "line_text": "The definition of Adjusted EBITDA may not be the same as the definitions used in any of our debt or lease agreements.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 44,
+  "page": 56,
+  "line_text": "10.37 | Fourth Amendment to Credit Agreement, dated as of May 9, 2024, by and among Caesars Entertainment, Inc., the lenders party thereto and JPMorgan Chase Bank, N.A., as administrative agent. | Previously filed on Form 8-K filed on May 9, 2024.",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 45,
+  "page": 56,
+  "line_text": "10.38 | Fifth Amendment to Credit Agreement, dated as of November 25, 2024, by and among Caesars Entertainment, Inc., the lenders party thereto and JPMorgan Chase Bank, N.A., as administrative agent. | Previously filed on Form 8-K filed on November 25, 2024.",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 46,
+  "page": 5,
+  "line_text": "On May 27, 2026, Caesars, Fertitta Gaming Holdco, LLC, a Texas limited liability company (“Fertitta Gaming”), Empire Merger Sub, Inc., a Delaware corporation and direct wholly owned subsidiary of Fertitta Gaming (“Merger Sub”), Landry’s Fertitta, LLC, a Texas limited liability company solely for the purposes of Section 9.14 of the Merger Agreement (as defined below), and Hospitality Headquarters, Inc., a Texas corporation, solely for the purposes of Section 9.14(j) therein, entered into an Agreement and Plan of Merger (the “Merger Agreement”), pursuant to which Merger Sub will merge with and into the Company, with the Company continuing as the surviving corporation and direct wholly owned subsidiary of Fertitta Gaming (the “Merger”).",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 47,
+  "page": 60,
+  "line_text": "3. | Caesars Enterprise Services, LLC | Delaware",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 48,
+  "page": 5,
+  "line_text": "Bally’s Park Place LLC | New Jersey",
+  "document_sha256": "3621f08611f4c6a6faed734993a3f2d9c97041693053ffa97624cbe5b7299aea"
+ },
+ {
+  "marker": 49,
+  "page": 18,
+  "line_text": "“Excluded Subsidiary” shall mean any of the following (except as otherwise provided in clause (b) of the definition of Subsidiary Loan Party):",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 50,
+  "page": 32,
+  "line_text": "“Unrestricted Subsidiary” shall mean (1) any subsidiary of the Borrower identified on Schedule 1.01(D) as of the Third Amendment Effective Date,",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 51,
+  "page": 22,
+  "line_text": "Cash and cash equivalents | $965",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 52,
+  "page": 31,
+  "line_text": "(i) the Company irrevocably deposits in trust with the Trustee cash in U.S. Dollars, U.S. Government Obligations or a combination thereof sufficient to pay the principal of and premium (if any) and interest on the Notes when due at maturity or redemption, as the case may be, including interest thereon to maturity or such redemption date;",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 53,
+  "page": 15,
+  "line_text": "“Significant Subsidiary” means any Restricted Subsidiary that would be a “Significant Subsidiary” of the Company, taken as a whole, within the meaning of Rule 1-02 under Regulation S-X promulgated by the SEC (or any successor provision).",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 54,
+  "page": 13,
+  "line_text": "(25) other Liens securing Obligations, the outstanding principal amount of which does not, taken together with the principal amount of all other Obligations secured by Liens Incurred under this clause (25) that are at that time outstanding, exceed the greater of $750.0 million and 32.5% of EBITDA for the Applicable Measurement Period;",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 55,
+  "page": 10,
+  "line_text": "“Interactive Entertainment Investment” means (a) the designation as an Unrestricted Subsidiary of (i) a Subsidiary all or a substantial portion of whose assets consist of (x) online gaming, mobile gaming, sports betting and/or other interactive businesses (collectively, “Interactive Gaming”) and/or (y) sports and media sponsorships, partnerships, collaboration agreements, marketing agreements or similar arrangements and (ii) any Subsidiary of the Company all or substantially all of the assets of which are Equity Interests of any Subsidiary described in clause (a)(i) or this clause (a)(ii) and/or (b) the contribution or other transfer of assets consisting of (i) online gaming, mobile gaming, sports betting and/or other interactive businesses and/or (ii) sports and media sponsorships, partnerships, collaboration agreements, marketing agreements or similar arrangements to an Interactive Entertainment Unrestricted Subsidiary.",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 56,
+  "page": 4,
+  "line_text": "(d) any disposition of assets of the Company or any Restricted Subsidiary or issuance or sale of Equity Interests of any Restricted Subsidiary in any single transaction or series of related transactions, which assets or Equity Interests so disposed or issued in such transaction or related transactions have an aggregate Fair Market Value (as determined in good faith by the Company) of less than the greater of $115.0 million and 5.0% of EBITDA for the Applicable Measurement Period;",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 57,
+  "page": 32,
+  "line_text": "Except as expressly provided by this Indenture, without the consent of holders of at least 66 2/3% in aggregate principal amount of the Notes then outstanding, no amendment may modify or release the Note Guarantee of any Significant Subsidiary in any manner adverse to the holders of the Notes.",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ }
+]

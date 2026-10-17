@@ -1,0 +1,116 @@
+/* Chart kit: inline SVG marks in Direction C's language. Tokens only. */
+.wbc { padding: 4px 12px 8px; position: relative; }
+.wbc-cap { padding: 4px 0; font: 600 12.5px var(--font-text); }
+.wbc-sum { font-size: 12px; color: var(--ink-2); margin: 0 0 6px; }
+.wbc-lg { margin: 0 0 4px; }
+.wbc-legend { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 11px; color: var(--ink-2); }
+.wbc-legend li { display: inline-flex; align-items: center; gap: 5px; min-height: 18px; }
+.wbc-legend .lg-note { color: var(--ink-3); font-style: italic; }
+.lg-sw { overflow: visible; }
+.wbc-plot { position: relative; width: 100%; }
+.wbc-svg { display: block; max-width: 100%; overflow: visible; }
+.wbc-tip { position: absolute; z-index: 5; max-width: 300px; padding: 5px 8px; background: var(--navy); color: #fff; font-size: 11.5px; line-height: 1.35; border-radius: var(--r-chip); box-shadow: var(--shadow-float); pointer-events: none; }
+.wbc-foot { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-top: 4px; flex-wrap: wrap; }
+.wbc-src { font-size: 11px; color: var(--ink-3); }
+.wbc-toggle { position: relative; display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; min-height: 24px; border: 1px solid var(--rule); background: var(--panel); color: var(--blue); font-size: 11.5px; font-weight: 500; border-radius: var(--r-chip); }
+.wbc-toggle:hover { background: var(--blue-row); }
+.wbc-toggle[aria-expanded="true"] { background: var(--blue-tint); }
+.wbc-twin { margin-top: 6px; overflow-x: auto; }
+.wbc-notes { margin-top: 6px; }
+/* a reconciliation fault: an icon-led note on a wash, no coloured stripe */
+.wbc-note { display: flex; gap: 6px; align-items: flex-start; font-size: 11.5px; color: var(--ink); padding: 5px 8px; border: 1px solid var(--neg-fill); background: var(--neg-wash); margin-top: 3px; border-radius: var(--r-chip); }
+.wbc-note svg { color: var(--neg); margin-top: 2px; }
+.wbc-err { padding: 10px; border: 1px dashed var(--neg); color: var(--neg); font-size: 12px; }
+
+/* series colours: brand categorical set, then neutral steps */
+.wbc .sr-0, .lg-sw .sr-0 { --c: var(--chart-issuer); }
+.wbc .sr-1, .lg-sw .sr-1 { --c: var(--chart-compare); }
+.wbc .sr-2, .lg-sw .sr-2 { --c: var(--navy); }
+.wbc .sr-3, .lg-sw .sr-3 { --c: var(--chart-neutral); }
+.wbc .sr-4, .lg-sw .sr-4 { --c: var(--ink-3); }
+.wbc .sr-5, .lg-sw .sr-5 { --c: var(--mark-quiet); }
+.wbc .sr-6, .lg-sw .sr-6 { --c: var(--blue-tint); }
+.wbc .sr-7, .lg-sw .sr-7 { --c: var(--rule); }
+.wbc .sg-neg, .lg-sw .sg-neg { --c: var(--neg); }
+.sh { fill: var(--c); stroke: var(--panel); stroke-width: 0.75; }
+.sh.sr-6, .sh.sr-7 { stroke: var(--mark-quiet); }
+.sh.dashed { stroke: var(--ink-3); stroke-dasharray: 3 2; stroke-width: 1; }
+.sh.o-syn { stroke: var(--ink-2); stroke-width: 1.75; }
+.sh.o-soft { stroke: var(--c); stroke-width: 1.25; stroke-dasharray: 3 2; }
+.sh.o-soft.sr-6, .sh.o-soft.sr-7 { stroke: var(--ink-3); }
+pattern .hp-bg { fill: var(--panel); }
+pattern .hp-ln { stroke: var(--c); stroke-width: 1.8; }
+.ring { fill: var(--panel); stroke: var(--c); stroke-width: 1.75; }
+.xmark { fill: none; stroke: var(--c); stroke-width: 2; }
+.ln { fill: none; stroke: var(--c); stroke-width: 2; stroke-linejoin: round; stroke-linecap: butt; }
+.ln.proj { stroke-dasharray: 5 4; }
+.divider { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 3; }
+
+/* axes and text */
+.grid line { stroke: var(--rule); stroke-width: 1; shape-rendering: crispEdges; }
+.grid line.zero { stroke: var(--ink-3); }
+.wbc text { font-family: var(--font-text); }
+.wbc .ax { font: var(--fs-micro) var(--font-mono); fill: var(--ink-3); }
+.wbc .ax.cx { font-family: var(--font-text); }
+.wbc .ax.unit { font-family: var(--font-text); fill: var(--ink-2); }
+.wbc .ax.proj-w { font-family: var(--font-text); fill: var(--ink-2); }
+.wbc .ttl { font: 600 11.5px var(--font-text); fill: var(--ink); }
+.wbc .cat { font: 11px var(--font-text); fill: var(--ink-2); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; }
+.wbc .cat.strong { font-size: 11.5px; fill: var(--ink); font-weight: 500; }
+.wbc .cat.sub { font-size: var(--fs-micro); fill: var(--ink-3); font-weight: 400; }
+.wbc .val { font: var(--fs-micro) var(--font-mono); fill: var(--ink); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; }
+.wbc .val.tot { font-weight: 500; }
+.wbc .val.thr { fill: var(--ink-2); }
+.wbc .val.dotv { font-weight: 500; }
+.wbc .val.neg { fill: var(--neg); font-weight: 500; }
+.wbc .val.fulcrum-w { fill: var(--neg); font-weight: 600; font-family: var(--font-text); }
+.wbc .val.lbl { font-family: var(--font-text); }
+.wbc .wd { font: 600 11px var(--font-text); }
+.wbc .na { font: 600 11px var(--font-mono); fill: var(--ink-2); }
+.wbc .na-id { font: var(--fs-micro) var(--font-mono); fill: var(--ink-3); }
+
+/* signal tones: thresholds, breaches, fulcrums, residuals only */
+.tn-pos { color: var(--pos); fill: var(--pos); }
+.tn-cau { color: var(--cau); fill: var(--cau); }
+.tn-neg { color: var(--neg); fill: var(--neg); }
+.wbc svg.tn-pos, .wbc svg.tn-cau, .wbc svg.tn-neg { fill: none; }
+.band.tn-pos-f { fill: var(--pos-fill); }
+.band.tn-cau-f { fill: var(--cau-fill); }
+.band.tn-neg-f { fill: var(--neg-fill); }
+.trk { fill: var(--rule-soft); }
+.trk-l { stroke: var(--rule); stroke-width: 1; }
+.rule-mk { stroke: var(--navy); stroke-width: 2; }
+.rule-mk.dash { stroke-dasharray: 4 3; }
+.conn { stroke: var(--mark-quiet); stroke-width: 1; shape-rendering: crispEdges; }
+/* the fulcrum class is a negative signal for the creditor (colour doc §1) */
+.fulcrum-ring { fill: none; stroke: var(--neg); stroke-width: 2; }
+.sg-neg.res { fill: var(--neg); stroke: none; }
+.proj-dot { fill: var(--panel); stroke: var(--navy); stroke-width: 1.75; stroke-dasharray: 2 1.5; }
+.proj-dot.breach { stroke: var(--neg); fill: var(--neg-fill); }
+.dumb-seg { stroke: var(--chart-neutral); stroke-width: 3; }
+.dumb-seg.issuer { stroke: var(--blue); opacity: 0.45; }
+.whisk { stroke: var(--ink-3); stroke-width: 1.5; }
+.cap { stroke: var(--ink-3); stroke-width: 1.75; }
+.cap.q { stroke: var(--mark-quiet); }
+.med { stroke: var(--navy); stroke-width: 2.5; }
+.mx { stroke: var(--rule); }
+.mx-0 { fill: var(--panel); }
+.mx-1 { fill: var(--ground); }
+.mx-2 { fill: var(--neu-fill); }
+.mx-3 { fill: var(--blue-row); }
+.mx-4 { fill: var(--blue-tint); }
+.chip { fill: var(--panel); stroke: var(--navy); stroke-width: 1.25; }
+.chip.soft { stroke-dasharray: 3 2; }
+
+/* marks */
+g.mk { cursor: pointer; outline: none; }
+g.mk .hit { fill: transparent; stroke: none; }
+g.mk:hover .hit { fill: var(--blue-tint); fill-opacity: 0.5; }
+g.mk:focus-visible .hit { stroke: var(--blue); stroke-width: 2; fill: var(--blue-tint); fill-opacity: 0.6; }
+g.mk.is-selected .hit { stroke: var(--blue); stroke-width: 1.5; fill: var(--blue-tint); fill-opacity: 0.7; }
+g.mk-gap text { pointer-events: none; }
+
+@media print {
+  .wbc-toggle, .wbc-tip { display: none !important; }
+  .wbc-twin { display: none; }
+}

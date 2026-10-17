@@ -1,0 +1,9 @@
+# The repository's pyproject.toml excludes design/ from Ruff (the sibling shared/build-data.py fails its strict
+# rules too). This folder carries its own settings: pycodestyle, pyflakes, import order, pyupgrade and bugbear
+# at the repository line length. E501 is off because the generated prose is long strings the formatter cannot wrap.
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = ["E501"]

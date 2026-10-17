@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Credit Snapshot: Caesars Entertainment (CZR), RBOT Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..700;1,14..32,400..700&family=Inter+Tight:wght@600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/tokens.css">
+<link rel="stylesheet" href="report-a.css">
+</head>
+<body>
+<div class="mockup-banner" hidden data-artifact-only>Design mockup · figures from Caesars' public filings · every score, recommendation and view is illustrative, not investment research</div>
+<a class="skip" href="#main">Skip to the Report</a>
+<div class="app">
+  <aside class="pane" id="pane" aria-label="Report navigation">
+    <div class="pane__bar">
+      <img class="brand-logo" data-brand src="../../../brand/ssim-logo-horizontal-white.png" alt="State Street Investment Management" width="176" height="22">
+      <span class="pane__where" id="pane-where" aria-hidden="true"></span>
+      <button type="button" class="pane__menu" id="pane-menu" aria-expanded="false" aria-controls="pane-sheet"><span class="pane__menu-ico" aria-hidden="true"></span>Menu</button>
+    </div>
+    <div class="pane__sheet" id="pane-sheet">
+      <div class="pane__id">
+        <span class="pane__issuer" id="pane-issuer"></span>
+        <span class="pane__meta" id="pane-meta"></span>
+      </div>
+      <div class="pane__search" role="search">
+        <label class="pane__search-l" for="pane-search">Search the Report <kbd>/</kbd></label>
+        <input class="pane__search-i" id="pane-search" type="search" autocomplete="off" placeholder="Search (press /)" aria-controls="pane-results">
+        <p class="pane__count" id="pane-search-status" role="status" aria-live="polite" hidden></p>
+        <ul class="pane__results" id="pane-results" hidden></ul>
+      </div>
+      <nav class="nav" id="nav" aria-label="Report views"></nav>
+    </div>
+  </aside>
+  <main class="main" id="main" tabindex="-1"></main>
+</div>
+<div class="vh" id="route-live" role="status" aria-live="polite"></div>
+<script src="shared/data.js"></script>
+<script src="shared/charts.js"></script>
+<script src="report-a.js"></script>
+</body>
+</html>

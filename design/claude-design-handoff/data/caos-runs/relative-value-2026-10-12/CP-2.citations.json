@@ -1,0 +1,326 @@
+[
+ {
+  "marker": 1,
+  "page": 1,
+  "line_text": "For the quarterly period ended June 30, 2026",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 2,
+  "page": 2,
+  "line_text": "Net revenues | 2,993 | 2,907 | 5,863 | 5,701",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 3,
+  "page": 18,
+  "line_text": "Total | $920 | $955 | $1,807 | $1,839",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 4,
+  "page": 4,
+  "line_text": "Net cash provided by operating activities | 675 | 680",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 5,
+  "page": 4,
+  "line_text": "Purchase of property and equipment | (335) | (453)",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 6,
+  "page": 5,
+  "line_text": "Cash interest paid for debt | $368 | $405",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 7,
+  "page": 5,
+  "line_text": "Cash interest paid for rent related to GLPI and VICI Leases | 686 | 672",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 8,
+  "page": 2,
+  "line_text": "Cash and cash equivalents | $965 | $887",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 9,
+  "page": 2,
+  "line_text": "Current portion of long-term debt | 114 | 114",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 10,
+  "page": 2,
+  "line_text": "Long-term debt | 11,585 | 11,670",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 11,
+  "page": 9,
+  "line_text": "Total debt | 11,807 | 11,705 | 11,792",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 12,
+  "page": 9,
+  "line_text": "Deferred finance charges associated with the CEI Revolving Credit Facility | — | (6) | (8)",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 13,
+  "page": 2,
+  "line_text": "Long-term financing obligations | 13,157 | 13,096",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 14,
+  "page": 22,
+  "line_text": "Total | $2,928",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 15,
+  "page": 22,
+  "line_text": "Our estimated debt service (including principal and interest) is approximately $425 million for the remainder of 2026.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 16,
+  "page": 22,
+  "line_text": "We estimate our lease payments to VICI and GLPI to be approximately $687 million for the remainder of 2026.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 17,
+  "page": 22,
+  "line_text": "Total estimated capital expenditures from unrestricted cash | $335 | $310 | $390",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 18,
+  "page": 9,
+  "line_text": "Annual maturities of long-term debt | $55 | $114 | $767 | $1,574 | $3,962 | $5,335 | $11,807",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 19,
+  "page": 20,
+  "line_text": "Table games hold % | 16.6% | 21.1% | (4.5) pts | 17.5% | 20.1% | (2.6) pts",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 20,
+  "page": 20,
+  "line_text": "Adjusted EBITDA | $410 | $469 | $(59) | (12.6)% | $836 | $902 | $(66) | (7.3)%",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 21,
+  "page": 20,
+  "line_text": "Adjusted EBITDA | $488 | $439 | $49 | 11.2% | $923 | $879 | $44 | 5.0%",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 22,
+  "page": 20,
+  "line_text": "iGaming handle | $4,831 | $4,705 | $126 | 2.7% | $10,205 | $9,193 | $1,012 | 11.0%",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 23,
+  "page": 20,
+  "line_text": "Adjusted EBITDA | $68 | $80 | $(12) | (15.0)% | $137 | $123 | $14 | 11.4%",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 24,
+  "page": 19,
+  "line_text": "Gaming taxes increased due to higher casino revenues, as well as the impact of increased gaming tax rates on sports betting wagers and iGaming in certain states.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 25,
+  "page": 11,
+  "line_text": "Balance at January 1 | $39 | $47 | $89 | $79 | $492 | $549",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 26,
+  "page": 11,
+  "line_text": "Balance at June 30 | 41 | 39 | 92 | 86 | 545 | 586",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 27,
+  "page": 11,
+  "line_text": "The Company generally has three types of liabilities related to contracts with customers: (1) outstanding chip liability, which represents the amounts owed in exchange for gaming chips held by customers, (2) Caesars Rewards player loyalty program obligations, which represent the deferred allocation of revenue relating to reward credits granted to Caesars Rewards members based on certain types of customer spend, including online and retail gaming, hotel, dining, retail shopping, and player loyalty program incentives earned, and (3) customer deposits and other deferred revenue, which primarily represents funds deposited by customers related to gaming play or advance payments received for goods and services yet to be provided (such as advance ticket sales, deposits on rooms and convention space, unpaid wagers, iGaming deposits, or future sports bets).",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 28,
+  "page": 5,
+  "line_text": "On May 27, 2026, Caesars, Fertitta Gaming Holdco, LLC, a Texas limited liability company (“Fertitta Gaming”), Empire Merger Sub, Inc., a Delaware corporation and direct wholly owned subsidiary of Fertitta Gaming (“Merger Sub”), Landry’s Fertitta, LLC, a Texas limited liability company solely for the purposes of Section 9.14 of the Merger Agreement (as defined below), and Hospitality Headquarters, Inc., a Texas corporation, solely for the purposes of Section 9.14(j) therein, entered into an Agreement and Plan of Merger (the “Merger Agreement”), pursuant to which Merger Sub will merge with and into the Company, with the Company continuing as the surviving corporation and direct wholly owned subsidiary of Fertitta Gaming (the “Merger”).",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 29,
+  "page": 5,
+  "line_text": "Each of the Company and Fertitta Gaming’s obligation to consummate the Merger is subject to the satisfaction or waiver of certain conditions, including, among others, approval of the Merger by the holders of at least a majority of all of the outstanding shares of Company Common Stock, the expiration or termination of any applicable waiting period under the HSR Act, and the receipt of certain gaming regulatory approvals.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 30,
+  "page": 6,
+  "line_text": "Beginning March 3, 2026, the property’s operations are reported within the Regional segment.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 31,
+  "page": 17,
+  "line_text": "Subsequent to June 30, 2026, we launched mobile sports betting and iGaming in Alberta, Canada on July 13, 2026.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 32,
+  "page": 10,
+  "line_text": "The CEI Revolving Credit Facility and the CEI Term Loan A include a maximum net total leverage ratio financial covenant of 6.50:1.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 33,
+  "page": 10,
+  "line_text": "In addition, the CEI Revolving Credit Facility and the CEI Term Loan A include a minimum fixed charge coverage ratio financial covenant of 2.0:1.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 34,
+  "page": 10,
+  "line_text": "As of June 30, 2026, the Company was in compliance with all of the applicable financial covenants described above.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 35,
+  "page": 21,
+  "line_text": "The definition of Adjusted EBITDA may not be the same as the definitions used in any of our debt or lease agreements.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 36,
+  "page": 23,
+  "line_text": "Adjusted EBITDA | 3,624 | 3,739 | 3,938",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 37,
+  "page": 28,
+  "line_text": "In our opinion, the financial statements present fairly, in all material respects, the financial position of the Company as of December 31, 2025 and 2024, and the results of its operations and its cash flows for each of the three years in the period ended December 31, 2025, in conformity with accounting principles generally accepted in the United States of America.",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 38,
+  "page": 20,
+  "line_text": "“Incremental Assumption Agreement No. 3 Effective Date” shall mean February 6, 2024.",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 39,
+  "page": 56,
+  "line_text": "10.37 | Fourth Amendment to Credit Agreement, dated as of May 9, 2024, by and among Caesars Entertainment, Inc., the lenders party thereto and JPMorgan Chase Bank, N.A., as administrative agent. | Previously filed on Form 8-K filed on May 9, 2024.",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 40,
+  "page": 56,
+  "line_text": "10.38 | Fifth Amendment to Credit Agreement, dated as of November 25, 2024, by and among Caesars Entertainment, Inc., the lenders party thereto and JPMorgan Chase Bank, N.A., as administrative agent. | Previously filed on Form 8-K filed on November 25, 2024.",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 41,
+  "page": 11,
+  "line_text": "The CEI Revolving Credit Facility, the CEI Term Loan A, the CEI Term Loan B, the CEI Term Loan B-1, the CEI Senior Secured Notes due 2030 and the CEI Senior Secured Notes due 2032 are guaranteed on a senior secured basis by each existing and future material wholly-owned domestic subsidiary of the Company and are secured by substantially all of the existing and future property and assets of the Company and its subsidiary guarantors (subject to certain exceptions).",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 42,
+  "page": 11,
+  "line_text": "CEI does not provide a guarantee of these facilities.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 43,
+  "page": 14,
+  "line_text": "The Company holds a 50.0% variable interest in the joint venture and is the primary beneficiary; as such, the joint venture’s operations are included in the Financial Statements, with a minority interest recorded reflecting the operations attributed to the other partner.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 44,
+  "page": 17,
+  "line_text": "We own, lease or manage an aggregate of 54 properties in 20 jurisdictions in North America with approximately 53,800 slot machines, video lottery terminals and e-tables, approximately 2,800 table games and approximately 46,300 hotel rooms as of June 30, 2026.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 45,
+  "page": 6,
+  "line_text": "Approximately 21,000, or 42% of our Team Members, are covered by collective bargaining agreements with certain of our subsidiaries.",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 46,
+  "page": 8,
+  "line_text": "Additionally, we face new competition from sports event trading as derivative products in prediction markets regulated by the Commodity Futures Trading Commission.",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 47,
+  "page": 23,
+  "line_text": "As of June 30, 2026, long-term variable-rate borrowings totaled $6.0 billion under the CEI Term Loans, the CVA Delayed Draw Term Loan and the CEI Revolving Credit Facility, and no amounts were outstanding under the CVA Revolving Credit Facility.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 48,
+  "page": 17,
+  "line_text": "We have not paid any cash dividends on our common stock.",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 49,
+  "page": 13,
+  "line_text": "There were no share repurchases made during the three and six months ended June 30, 2026.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 50,
+  "page": 13,
+  "line_text": "As a result of the proposed Merger, described above, no share repurchases are expected at this time.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 51,
+  "page": 9,
+  "line_text": "We rely on third parties to provide services that are essential to the operation of our online betting and gaming business, including player account management, geolocation and identity verification systems to ensure we comply with laws and regulations, processing deposits and withdrawals made by our online users and providing information regarding schedules, results, performance and outcomes of sporting events to determine when and how bets are settled.",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 52,
+  "page": 22,
+  "line_text": "We expect that our current liquidity, including availability of borrowings under our committed credit facility and cash flows from operations will be sufficient to fund our operations, capital requirements and service our outstanding indebtedness for the next twelve months and beyond.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 53,
+  "page": 6,
+  "line_text": "The Company purchased the net assets of Caesars Windsor which included approximately $42 million of furniture and equipment and approximately $12 million in net working capital.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 54,
+  "page": 13,
+  "line_text": "Under the 2024 Share Repurchase Program, as of June 30, 2026, the Company has authorization to repurchase up to $221 million more of our outstanding common stock.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ }
+]

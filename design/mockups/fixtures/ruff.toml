@@ -1,0 +1,8 @@
+# Fixture generator: same settings as ../front-pages/ruff.toml (the repository's pyproject.toml excludes design/).
+# E501 is off because generated prose is long strings the formatter cannot wrap.
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = ["E501"]
