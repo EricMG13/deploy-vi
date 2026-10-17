@@ -100,7 +100,7 @@ def handoff(run: Path, module: str) -> None:
     (run / f"handoffs/{module}.md").write_text(text)
 
 
-def flow(path: Path, stop: str) -> tuple[list[str], dict[str, tuple[str, int]]]:
+def flow(path: Path, stop: str) -> tuple[list[str], dict[str, tuple[str, int | None]]]:
     pack = path / "pack"
     pack.mkdir(parents=True)
     for name in FILES:
