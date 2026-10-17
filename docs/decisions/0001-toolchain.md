@@ -10,6 +10,6 @@
 - `reference/deploy-v-r14/` (read-only Deploy V fork, ADR 0003) is outside ruff, mypy, coverage, bandit, jscpd, the suppression count and the PR-size count; gitleaks scans it in full (it reports no leaks at r14).
 - `tests/golden/**/documents/**` and `tests/corpus/synthetic/**` (public filings and labelled synthetic test documents, Plan 02) are outside the PR-size count.
 - Lock files are outside the PR-size count (the global rule's own exclusion).
-- `design/` (design prototypes: report mockups and the script that builds their sample data) is outside ruff, mypy, coverage, bandit, jscpd and the suppression count; the shipping renderer lives under `rbot/` (Plan 07) and is gated. gitleaks scans it in full.
+- `design/` (design prototypes: report mockups and the script that builds their sample data) is outside ruff, mypy, coverage, bandit, jscpd and the suppression count, and outside the PR-size count (ADR 0006); the shipping renderer lives under `rbot/` (Plan 07) and is gated. gitleaks scans it with every rule, `generic-api-key` excepted in five sample-data files (`.gitleaks.toml`, ADR 0006).
 
 **Bandit floor:** `scripts/check_bandit_floor.py` fails below 40 scanned lines, so a scan that read nothing never passes; raise it as the code grows, never lower it.
