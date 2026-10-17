@@ -99,3 +99,19 @@ def complete_run(
             code = accept(run, module=step)
             assert code in (0, 3), f"{step}: acceptance exit {code}"
     raise AssertionError("the run did not reach done")
+
+
+def save_fetched(run: Path, name: str, url: str, question: str = "RQ-1", **front: str) -> Path:
+    """Write `fetched/<name>` in the saved-page layout (hash from `fetched.render`)."""
+    from rbotlib import fetched
+
+    meta = {
+        "url": url,
+        "retrieved": "2026-10-10",
+        "question": question,
+        "content_type": "text/html",
+    }
+    path = run / fetched.FOLDER / name
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(fetched.render({**meta, **front}, "Saved page text.\n"), encoding="utf-8")
+    return path

@@ -14,10 +14,13 @@ from rbotlib.model.layout import BANDS
 from rbotlib.report.blocks import GAP, join_capital_structure
 from rbotlib.report.html_parts import Record
 from rbotlib.report.html_views import (
+    FETCHED_COLUMNS,
     FOLDED,
     HOSTED,
     Ctx,
     build_citations,
+    deep_research_absence,
+    fetched_rows,
     limitation_groups,
     nav_status,
 )
@@ -97,6 +100,10 @@ def _module(ctx: Ctx, module: str, mark: str) -> str:
     for tid, table in entry["tables"].items():
         if tid != "citations":
             out += [f"{mark}# {ctx.title(module, tid)}", _table(table["columns"], table["rows"])]
+    if module == "CP-DR":
+        rows = fetched_rows(run)
+        shown = _table(FETCHED_COLUMNS, rows) if rows else "Fetched sources: none"
+        out += [f"{mark}# Fetched sources", shown]
     return "\n\n".join([*out, f"{mark}# Gaps", _prose(entry["gaps_md"]) or "No gap is raised."])
 
 
@@ -158,7 +165,7 @@ def _evidence(ctx: Ctx) -> str:
 
 def _limitations(run: Record) -> str:
     out = ["## Limitations"]
-    for _sid, title, entries in limitation_groups(run["limitations"]):
+    for _sid, title, entries in limitation_groups(run):
         out += [f"### {title}", "\n".join(f"- {e}" for e in entries) or "None."]
     return "\n\n".join(out)
 
@@ -171,7 +178,8 @@ def render_markdown(run: Record, blocks: list[Record], charts: list[Record]) -> 
     parts = [f"# Credit Snapshot — {issuer}", "## Snapshot", *(_block(ctx, b) for b in blocks)]
     parts += ["## Analysis", *(_module(ctx, m, "###") for m in mods)]
     parts += [_model(ctx), _fit(ctx)]
-    parts += ["## Deep Research\n\nNot in this run: not approved."]
+    if why := deep_research_absence(run):
+        parts += [f"## Deep Research\n\n{why[0].upper()}{why[1:]}."]
     parts += ["## What changed\n\nNot in this run: no prior case."]
     parts += [_evidence(ctx), _limitations(run)]
     doc = {**run, "charts": charts, "front_page_blocks": blocks}

@@ -48,6 +48,8 @@ def _console(path: Path, fragment: str) -> str:
 def _check(path: Path, doc: Record, page: str) -> None:
     assert doc["depth"] == "quick" and "Screening only" in page
     assert re.search(r"<span>Screening only</span>", page)
+    assert "Deep Research: not in this depth" in page and "CP-DR" not in doc["plan"]
+    assert doc["fetched"] == [] and "not approved" not in page
     assert 'id="view-module-cp-l10"' in page and "chart.topic_counts" in page
     assert _visible_views(path, "#module-cp-l10") == ["view-module-cp-l10"]
     assert _visible_views(path, "") == ["view-snapshot"]

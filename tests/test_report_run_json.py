@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from report_run import complete_run
+from report_run import complete_run, save_fetched
 
 from rbotlib import state
 from rbotlib.report import ReportError, run_json
@@ -302,3 +302,34 @@ def test_fit_is_read_only_for_an_accepted_step(tmp_path: Path) -> None:
     assert run_json._fit(tmp_path, None, brief) == []
     assert run_json._fit(tmp_path, {"status": "failed"}, brief) == []
     assert run_json._fit(tmp_path, {"status": "accepted"}, brief) == [{"schema": "rbot-fit/1"}]
+
+
+@pytest.fixture
+def fetched_pages(finished: Path) -> Iterator[Path]:
+    """One qualified page and one for an unticked question, removed after the test."""
+    first = save_fetched(finished, "01-example.com.md", "https://example.com/a", "RQ-1")
+    other = save_fetched(finished, "02-other.org.md", "https://other.org/b", "RQ-9")
+    yield finished
+    first.unlink()
+    other.unlink()
+    first.parent.rmdir()
+
+
+@pytest.mark.corpus
+def test_fetched_lists_each_qualified_file_and_omits_the_unqualified(
+    finished: Path, fetched_pages: Path
+) -> None:
+    got = run_json.build(finished, RBOT_ROOT, NOW)["fetched"]
+    assert got == [
+        {
+            "file": "fetched/01-example.com.md",
+            "url": "https://example.com/a",
+            "retrieved": "2026-10-10",
+            "question": "RQ-1",
+        }
+    ]
+
+
+@pytest.mark.corpus
+def test_fetched_is_an_empty_list_for_a_pack_only_run(finished: Path) -> None:
+    assert run_json.build(finished, RBOT_ROOT, NOW)["fetched"] == []
