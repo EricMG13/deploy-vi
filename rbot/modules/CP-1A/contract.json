@@ -36,7 +36,7 @@
         {"name": "listed", "critical": true, "scale": "yes_no"}, {"name": "ticker"},
         {"name": "cite", "critical": true}
       ],
-      "consumers": ["REPORT", "CP-2", "CP-3", "CP-6", "FIT"]
+      "consumers": ["REPORT", "CP-2", "CP-3", "CP-6", "CP-L10", "FIT"]
     },
     {
       "id": "snapshot.business_description",
@@ -45,7 +45,7 @@
       "columns": [
         {"name": "description", "critical": true}, {"name": "cite", "critical": true}
       ],
-      "consumers": ["REPORT", "CP-2"]
+      "consumers": ["REPORT", "CP-2", "CP-L10"]
     },
     {
       "id": "cp1a.business_facts",
@@ -58,7 +58,7 @@
         {"name": "evidence_quality", "critical": true, "scale": "evidence_quality"},
         {"name": "cite", "critical": true}
       ],
-      "consumers": ["CP-2", "CP-3"]
+      "consumers": ["CP-2", "CP-3", "CP-L10"]
     },
     {
       "id": "cp1a.ownership_governance",
@@ -69,7 +69,7 @@
         {"name": "risk_direction", "critical": true, "scale": "risk_direction"},
         {"name": "credit_implication", "critical": true}, {"name": "cite", "critical": true}
       ],
-      "consumers": ["CP-2", "CP-6"]
+      "consumers": ["CP-2", "CP-6", "CP-L10"]
     },
     {
       "id": "cp1a.transactions_events",
@@ -81,7 +81,7 @@
         {"name": "perimeter_change", "critical": true, "scale": "yes_no"},
         {"name": "cite", "critical": true}
       ],
-      "consumers": ["CP-2", "CP-6"]
+      "consumers": ["CP-2", "CP-6", "CP-L10"]
     },
     {
       "id": "cp1a.ratings_register",

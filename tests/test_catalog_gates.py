@@ -18,7 +18,7 @@ from rbotlib.isolation_capture import Capture
 from rbotlib.rules import RBOT_ROOT, Rules
 from spec_fixture import SOURCES, build_tree, stand_in
 
-NINE = {"CP-0", "CP-1", "CP-1A", "CP-1B", "CP-1D", "CP-2", "CP-3", "CP-5", "CP-6"}
+SHIPPED = {"CP-0", "CP-1", "CP-1A", "CP-1B", "CP-1D", "CP-2", "CP-3", "CP-5", "CP-6", "CP-L10"}
 QUICK = "CP-0 CP-1 CP-1A CP-1B MODEL CP-L10 CP-3 FIT CP-5 CP-6 CP-8".split()
 
 
@@ -41,7 +41,7 @@ def declared_record(module: str) -> state.Record:
 
 
 def test_module_ids_are_the_shipped_module_folders(stand_root: Path) -> None:
-    assert module_ids(RBOT_ROOT) == NINE
+    assert module_ids(RBOT_ROOT) == SHIPPED
     assert "CP-L10" in module_ids(stand_root) and "CP-99" not in module_ids(stand_root)
     assert module_ids(stand_root / "absent") == frozenset()
 
@@ -69,7 +69,7 @@ def test_attempt_target_accepts_cpl10_for_accept_and_resume(stand_root: Path) ->
     assert attempts.declared(record, "CP-L10") == record["steps"]["CP-L10"]
 
 
-@pytest.mark.parametrize("module", ["CP-99", "CP-L", "CP-L10"])
+@pytest.mark.parametrize("module", ["CP-99", "CP-L"])
 def test_attempt_target_refuses_non_modules(module: str) -> None:
     with pytest.raises(RunError, match="unsupported module target"):
         attempts.target(declared_record(module), module, RBOT_ROOT)
@@ -80,7 +80,7 @@ def test_isolation_check_accepts_cpl10(tmp_path: Path, rules: Rules) -> None:
     assert code.observe(*roots, "CP-L10", Capture()).identity.target == "CP-L10"
 
 
-@pytest.mark.parametrize("target", ["CP-99", "CP-L", "CP-L10", "CP-8"])
+@pytest.mark.parametrize("target", ["CP-99", "CP-L", "CP-8"])
 def test_isolation_check_refuses_non_modules(tmp_path: Path, target: str) -> None:
     roots = (RBOT_ROOT, RBOT_ROOT)
     with pytest.raises(RunError, match="canonical installed"):
