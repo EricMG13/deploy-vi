@@ -19,7 +19,7 @@ from typing import Any
 
 import proxy_continue
 
-from rbotlib import fetched, state
+from rbotlib import approve, fetched, state
 from rbotlib.catalog import load_catalog
 from rbotlib.corpus import CorpusError, Pack, Registry, repo_root
 from rbotlib.fsio import write_atomic
@@ -96,6 +96,11 @@ def new_out(out: Path, pack_id: str, module: str) -> Path:
     return root / f"{module}-{n}"
 
 
+def _switched_off(module: str, step: dict[str, Any]) -> bool:
+    """A step approval skipped with its own recorded reason (Deep Research not approved)."""
+    return step["status"] == "skipped" and step.get("reason") == approve.SKIPS.get(module)
+
+
 def _unqualified(run: Path, deps: list[str]) -> tuple[Source | None, list[str]]:
     record = state.read(run)
     if record["approval"] is None:
@@ -103,6 +108,8 @@ def _unqualified(run: Path, deps: list[str]) -> tuple[Source | None, list[str]]:
     missing, models = [], {}
     for module in deps:
         step = record["steps"].get(module)
+        if step is not None and _switched_off(module, step):
+            continue  # switched off by approval: this source run never needed the module
         path = output_path(run, f"handoffs/{module}.md")
         ok = step is not None and step["status"] in TERMINAL and path.is_file()
         if ok and hashlib.sha256(path.read_bytes()).hexdigest() != step.get("sha256"):

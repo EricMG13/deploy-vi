@@ -34,7 +34,7 @@ def build(
     env: str | None = "1",
     questions: bool = True,
 ) -> tuple[Path, Path]:
-    """An approved real-contract run with RQ-1 approved, CP-DR planned and CP-1A accepted."""
+    """An approved real-contract run with Q1 approved, CP-DR planned and CP-1A accepted."""
     if env is None:
         monkeypatch.delenv("RBOT_FETCH", raising=False)
     else:
@@ -48,7 +48,7 @@ def build(
     return root, run
 
 
-def save_page(run: Path, body: str = BODY, question: str = "RQ-1") -> Path:
+def save_page(run: Path, body: str = BODY, question: str = "Q1") -> Path:
     front = {
         "url": URL,
         "retrieved": "2026-10-17",
@@ -72,20 +72,20 @@ def cpdr(run: Path, source: str = SAVED, locator: str = f"{URL} retrieved 2026-1
         table(
             "cpdr.questions",
             "| question_id | question | consumer_module | status |",
-            "| RQ-1 | Is demand recovering? | CP-2 | Answered |",
+            "| Q1 | Is demand recovering? | CP-2 | Answered |",
         ),
         table(
             "cpdr.evidence",
             "| evidence_id | question_id | claim | claim_type | source_type | source_date "
             "| independence | cite |",
-            "| E1 | RQ-1 | Demand is recovering in the second quarter of 2026 | fact | Fetched "
+            "| E1 | Q1 | Demand is recovering in the second quarter of 2026 | fact | Fetched "
             "| 2026-10-17 | Pub Example (publisher) | [C1] |",
         ),
         table(
             "cpdr.answers",
             "| question_id | answer | evidence_ids | contrary_evidence | uncertainty "
             "| consequence_for | cite |",
-            "| RQ-1 | Demand is recovering [C1] | E1 | none found: one page read | One page "
+            "| Q1 | Demand is recovering [C1] | E1 | none found: one page read | One page "
             "| CP-2: read demand as recovering | [C1] |",
         ),
         table(
@@ -181,7 +181,7 @@ def test_cpdr_dispatch_holds_the_grant_only_when_recorded_and_available(
     code, text = message(run, root, "CP-DR", capsys)
     command = f"python {root}/scripts/rbot.py fetch --run {run} --url <URL> --question <id>"
     assert code == 0 and f"Fetch command: {json.dumps(command)}" in text
-    assert f"Approved research questions: {json.dumps(['RQ-1'])}" in text
+    assert f"Approved research questions: {json.dumps(['Q1'])}" in text
     assert json.dumps(str(run / "fetched")) in text and NO_FETCH not in text
     assert str(run / "handoffs/CP-DR.md") in text
     monkeypatch.delenv("RBOT_FETCH")  # recorded on, but the variable is gone
@@ -252,7 +252,7 @@ def test_the_fetch_command_survives_spaces_in_paths(
     text = message(run, root, "CP-DR", capsys)[1]
     line = next(x for x in text.splitlines() if x.startswith("Fetch command: "))
     command = json.loads(line.removeprefix("Fetch command: "))
-    assert shlex.split(command.replace("<URL>", URL).replace("<id>", "RQ-1")) == [
+    assert shlex.split(command.replace("<URL>", URL).replace("<id>", "Q1")) == [
         "python", str(root / "scripts/rbot.py"), "fetch", "--run", str(run),
-        "--url", URL, "--question", "RQ-1",
+        "--url", URL, "--question", "Q1",
     ]  # fmt: skip

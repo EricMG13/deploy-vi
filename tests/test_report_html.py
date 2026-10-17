@@ -211,13 +211,13 @@ def test_cp_dr_view_lists_each_fetched_source_with_url_and_date(
     corpus_pack: Callable[[str], Path], tmp_path: Path, assets: Assets
 ) -> None:
     run = complete_run(corpus_pack, tmp_path)
-    save_fetched(run, "01-example.com.md", "https://example.com/a", "RQ-1")
+    save_fetched(run, "01-example.com.md", "https://example.com/a", "Q1")
     doc = run_json.build(run, RBOT_ROOT, NOW)
     got = render(Page(run, doc), assets)
     view = section_of(got, "module-cp-dr")
     assert "Fetched sources" in view and "Fetched sources: none" not in view
     assert "https://example.com/a" in view and "2026-10-10" in view
-    assert "fetched/01-example.com.md" in view and "RQ-1" in view
+    assert "fetched/01-example.com.md" in view and "Q1" in view
     assert view.count("<table") == 5
     assert "Deep Research: not in this run" not in got
 

@@ -82,13 +82,13 @@ def test_markdown_lists_fetched_sources_under_the_cp_dr_section(
     corpus_pack: Callable[[str], Path], tmp_path: Path
 ) -> None:
     run = complete_run(corpus_pack, tmp_path)
-    save_fetched(run, "01-example.com.md", "https://example.com/a", "RQ-1")
+    save_fetched(run, "01-example.com.md", "https://example.com/a", "Q1")
     doc = run_json.build(run, RBOT_ROOT, NOW)
     text = render_markdown(doc, [], build_all(doc, run_dir=run))
     cpdr = text.split("(CP-DR)\n\n")[1].split("\n### ")[0]
     fetched = cpdr.split("#### Fetched sources")[1]
     assert "https://example.com/a" in fetched and "2026-10-10" in fetched
-    assert "RQ-1" in fetched and "fetched/01-example.com.md" in fetched
+    assert "Q1" in fetched and "fetched/01-example.com.md" in fetched
     assert "none" not in fetched.split("\n\n")[1]
 
 
