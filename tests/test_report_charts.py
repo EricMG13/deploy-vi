@@ -20,6 +20,7 @@ from rbotlib.fit import HEADROOM_COLUMNS
 from rbotlib.handoff import Handoff, parse
 from rbotlib.report import ReportError
 from rbotlib.report.charts import CHART_IDS, REGISTRY, build_all
+from rbotlib.rules import RBOT_ROOT, load_rules
 
 Record = dict[str, Any]
 HANDOFFS = FIXTURES / "handoffs"
@@ -47,7 +48,7 @@ def base(tmp_path_factory: pytest.TempPathFactory) -> Record:
     assert main(["model", "--run", str(run)]) == 0
     handoffs = {
         n: {"tables": _tables(parse((HANDOFFS / f"{n}.md").read_text(encoding="utf-8")))}
-        for n in ("CP-1D", "CP-3", "CP-5")
+        for n in ("CP-1D", "CP-3", "CP-5", "CP-L10")
     }
     handoffs["MODEL"] = {"tables": _tables(parse((run / "handoffs/MODEL.md").read_text("utf-8")))}
     limits = [
@@ -110,7 +111,8 @@ def test_every_registered_chart_builds_on_fixture_handoffs(run: Record, chart_id
 def test_the_registry_is_the_catalog_charts_plus_the_analysis_charts() -> None:
     text = Path("rbot/catalog.json").read_text(encoding="utf-8")
     named = {c for c in CHART_IDS if f'"{c}"' in text}
-    assert named | {"chart.adjusted_debt_bridge", "chart.issue_counts"} == set(CHART_IDS)
+    analysis = {"chart.adjusted_debt_bridge", "chart.issue_counts", "chart.topic_counts"}
+    assert named | analysis == set(CHART_IDS)
 
 
 def test_twin_rows_equal_spec_values(run: Record) -> None:
@@ -228,3 +230,36 @@ def test_undrawable_chart_carries_reason(run: Record) -> None:
     assert "MODEL skipped" in _one(run, "chart.maturity_wall")["note"]
     with pytest.raises(ReportError):
         build_all(run, ["chart.nope"])
+
+
+def test_topic_counts_gives_one_chart_per_family_with_exact_counts(run: Record) -> None:
+    rows = run["handoffs"]["CP-L10"]["tables"]["cpl10.screen_topics"]
+    cols = rows["columns"]
+    topics = [dict(zip(cols, r, strict=True)) for r in rows["rows"]]
+    entries = build_all(run, ["chart.topic_counts"])
+    families = list(dict.fromkeys(t["family"] for t in topics))
+    assert len(entries) == len(families) > 1
+    scales = load_rules(RBOT_ROOT).scales
+    for entry, family in zip(entries, families, strict=True):
+        data = entry["data"]
+        assert entry["kind"] == "stackedColumns" and entry["origin"] == "host"
+        assert family in data["title"] and data["summary"] and entry["twin"]["rows"]
+        assert data["categories"] == list(scales["materiality"])
+        assert [s["label"] for s in data["series"]] == list(scales["disposition"])
+        here = [t for t in topics if t["family"] == family]
+        for s in data["series"]:
+            want = [
+                sum(1 for t in here if t["materiality"] == m and t["disposition"] == s["label"])
+                for m in data["categories"]
+            ]
+            assert [d["v"] for d in s["values"]] == [str(n) for n in want]
+            assert all(d["prov"] == "calculated" for d in s["values"])
+        assert all(len(r) == len(entry["twin"]["columns"]) for r in entry["twin"]["rows"])
+
+
+def test_topic_counts_needs_cpl10_in_the_run(run: Record) -> None:
+    del run["steps"]["CP-L10"], run["handoffs"]["CP-L10"]
+    assert build_all(run, ["chart.topic_counts"]) == []  # a depth without CP-L10 has no such view
+    run["steps"]["CP-L10"] = {"status": "failed", "reason": "no source"}
+    (entry,) = build_all(run, ["chart.topic_counts"])
+    assert entry["data"] is None and "CP-L10 failed: no source" in entry["note"]

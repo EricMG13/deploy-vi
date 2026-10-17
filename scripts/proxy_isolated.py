@@ -28,8 +28,17 @@ from rbotlib.rules import RBOT_ROOT, load_rules
 
 ISOLATED = "isolated"
 FIXTURE_DIR = "tests/fixtures/handoffs"
+QUICK_DIR = "quick"
 TERMINAL = ("accepted", "blocked")
 Native = proxy_continue.Native
+
+
+def fixture_path(module_id: str, depth: str, folder: Path | None = None) -> Path:
+    """The fixture Handoff for a module: `quick/<ID>.md` at quick when it exists, else `<ID>.md`."""
+    base = folder if folder is not None else Path(__file__).resolve().parents[1] / FIXTURE_DIR
+    if depth == "quick" and (base / QUICK_DIR / f"{module_id}.md").is_file():
+        return base / QUICK_DIR / f"{module_id}.md"
+    return base / f"{module_id}.md"
 
 
 @dataclass(frozen=True)
@@ -38,9 +47,15 @@ class Source:
     where: str  # source run path, or "fixtures"
     folder: Path
     models: dict[str, str]  # module -> recorded model label (runs only)
+    depth: str = ""  # fixtures only: picks `quick/<ID>.md` at quick
+
+    def path(self, module: str) -> Path:
+        if self.label == "fixtures":
+            return fixture_path(module, self.depth, self.folder)
+        return output_path(self.folder, f"{module}.md")
 
     def read(self, module: str) -> bytes:
-        return output_path(self.folder, f"{module}.md").read_bytes()
+        return self.path(module).read_bytes()
 
     def model(self, module: str) -> str | None:
         return self.models.get(module) if self.label != "fixtures" else "fixture"
@@ -101,12 +116,12 @@ def _unqualified(run: Path, deps: list[str]) -> tuple[Source | None, list[str]]:
     return Source(run.name, str(run), run / "handoffs", models), []
 
 
-def _fixture_source(registry: Registry, deps: list[str]) -> Source:
+def _fixture_source(registry: Registry, deps: list[str], depth: str) -> Source:
     folder = repo_root(registry) / FIXTURE_DIR
-    absent = [m for m in deps if not (folder / f"{m}.md").is_file()]
+    absent = [m for m in deps if not fixture_path(m, depth, folder).is_file()]
     if absent:
         raise CorpusError(f"no fixture Handoff for: {', '.join(absent)}")
-    return Source("fixtures", "fixtures", folder, {})
+    return Source("fixtures", "fixtures", folder, {}, depth)
 
 
 def _candidates(envelope: Path, from_run: str | None) -> list[Path]:
@@ -124,7 +139,7 @@ def find_source(
     registry: Registry, out: Path, pack_id: str, deps: list[str], args: argparse.Namespace
 ) -> Source:
     if args.fixtures:
-        return _fixture_source(registry, deps)
+        return _fixture_source(registry, deps, args.depth)
     reasons = []
     for run in _candidates(out / pack_id / "pack" / "rbot-runs", args.from_run):
         source, missing = _unqualified(run, deps)
@@ -171,7 +186,7 @@ def import_module(run: Path, selected: dict[str, Any], source: Source, native: N
     output_path(run, "handoffs").mkdir(exist_ok=True)
     output_path(run, f"handoffs/{module}.md").write_bytes(imported)
     reporter = (
-        f"proxy_run --module: imported {source.folder / f'{module}.md'} "
+        f"proxy_run --module: imported {source.path(module)} "
         f"sha256 {hashlib.sha256(original).hexdigest()}; run_id front matter rewritten"
     )
     flags = [
