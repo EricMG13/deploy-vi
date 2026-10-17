@@ -109,7 +109,9 @@ def test_real_menu_blocked_refusal_then_simulated_approval_rename(
     assert final["steps"]["CP-0"] == cp0
     assert (target / "handoffs/CP-0.md").read_bytes() == raw
     assert final["report"] == {"written_at": None, "html_sha256": None, "md_sha256": None}
-    assert final["plan"] == "CP-0 CP-1 CP-1A CP-1B CP-1D MODEL CP-2 CP-3 FIT CP-5 CP-6".split()
+    assert (
+        final["plan"] == "CP-0 CP-1 CP-1A CP-DR CP-1B CP-1D MODEL CP-2 CP-3 FIT CP-5 CP-6".split()
+    )
     assert final["deep_research"] is False and final["prior_case"]["accepted"] is False
     assert "approve --run" in (target / "log/rbot.log").read_text()
     assert hashlib.sha256(raw).hexdigest() == cp0["sha256"]

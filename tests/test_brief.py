@@ -77,7 +77,7 @@ def test_from_cp0_prefills_every_table(tmp_path: Path, capsys: pytest.CaptureFix
     assert fields["analyst"] == ["—", "Gap", "—", "—"]
     assert h.tables["brief.portfolios"].rows[0][-1] == "prepared/portfolios/TEST_CLO_I.json"
     assert h.tables["brief.research_questions"].rows == [
-        ["RQ-1", "How is Las Vegas Strip visitation trending into 2027?", "CP-2", "Yes"]
+        ["Q1", "How is Las Vegas Strip visitation trending into 2027?", "CP-2", "Yes"]
     ]
     assert h.tables["brief.prior_case"].rows == []
     assert "- `objective`: not found in the Source Pack" in h.body

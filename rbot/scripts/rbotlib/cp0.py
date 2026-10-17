@@ -22,7 +22,7 @@ from rbotlib.inventory import RunError, output_path
 from rbotlib.rules import Rules
 from rbotlib.validate import Finding
 
-CONSUMERS = ("CP-1A", "CP-1B", "CP-2")
+CONSUMERS = ("CP-2", "CP-3", "CP-6")
 MAX_QUESTIONS = 5
 _PAGE_LINE = re.compile(r"^<<< (page \d+|sheet .*) >>>$", re.M)
 

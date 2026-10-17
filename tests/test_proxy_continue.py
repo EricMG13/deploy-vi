@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
+import os
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
@@ -18,7 +20,7 @@ import proxy_run
 from cp0_fixture import cp0_handoff, registry_classification
 from rbotlib import attempts, dispatch, runs, state
 from rbotlib.cli import main as native
-from rbotlib.corpus import load_registry
+from rbotlib.corpus import CorpusError, load_registry
 from rbotlib.inventory import RunError
 from rbotlib.rules import RBOT_ROOT
 
@@ -51,17 +53,38 @@ def test_continue_prepares_exact_native_message_without_reporting_send(tmp_path:
 
 
 def test_explicit_fetch_and_blank_module_refuse_before_creating_output(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.delenv("RBOT_FETCH", raising=False)
     registry, run = prepared(tmp_path)
     before = outcome_bytes(run)
     for flags, message in [
-        (["--fetch"], "Plan10 fetch unavailable"),
+        (["--fetch"], "--fetch requires RBOT_FETCH=1"),
         (["--module", ""], "--module requires a nonempty Module id"),
     ]:
         assert proxy_run.main(args(registry, *flags)) == 1
         assert message in capsys.readouterr().out
         assert outcome_bytes(run) == before
+
+
+def _options(*flags: str) -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    proxy_run._transport_options(parser)
+    return parser.parse_args(list(flags))
+
+
+def test_fetch_needs_the_variable_and_the_variable_needs_fetch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("RBOT_FETCH", raising=False)
+    with pytest.raises(CorpusError, match="--fetch requires RBOT_FETCH=1"):
+        proxy_continue.check_options(_options("--fetch"))
+    proxy_continue.check_options(_options())
+    monkeypatch.setenv("RBOT_FETCH", "1")
+    proxy_continue.check_options(_options("--fetch"))
+    assert os.environ["RBOT_FETCH"] == "1"
+    with pytest.raises(CorpusError, match="RBOT_FETCH is set; pass --fetch"):
+        proxy_continue.check_options(_options())
 
 
 def test_native_imported_fixture_cannot_qualify_isolated_upstream(
