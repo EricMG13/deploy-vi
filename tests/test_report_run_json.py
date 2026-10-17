@@ -17,7 +17,20 @@ from rbotlib.report import ReportError, run_json
 from rbotlib.rules import RBOT_ROOT
 
 Record = dict[str, Any]
-PLAN = ["CP-0", "CP-1", "CP-1A", "CP-1B", "CP-1D", "MODEL", "CP-2", "CP-3", "FIT", "CP-5", "CP-6"]
+PLAN = [
+    "CP-0",
+    "CP-1",
+    "CP-1A",
+    "CP-DR",
+    "CP-1B",
+    "CP-1D",
+    "MODEL",
+    "CP-2",
+    "CP-3",
+    "FIT",
+    "CP-5",
+    "CP-6",
+]
 NOW = "2026-10-14T00:00:00+00:00"
 
 

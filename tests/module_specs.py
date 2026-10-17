@@ -548,3 +548,40 @@ TABLES["CP-L10"] = [
     ),
 ]
 INPUTS["CP-L10"] = Inputs("CP-0 CP-1 CP-1A MODEL", "CP-1B", "issuer market", "objective as_of_date")
+
+
+TABLES["CP-DR"] = [
+    TableSpec(
+        "cpdr.questions",
+        1,
+        "question_id* question* consumer_module* status*:research_status",
+        "CP-2 CP-3 CP-6 REPORT",
+    ),
+    TableSpec(
+        "cpdr.evidence",
+        1,
+        (
+            "evidence_id* question_id* claim* claim_type* source_type*:source_type "
+            "source_date* independence* cite*"
+        ),
+        "CP-2 CP-2A CP-3 CP-6 REPORT",
+    ),
+    TableSpec(
+        "cpdr.answers",
+        1,
+        (
+            "question_id* answer* evidence_ids* contrary_evidence* uncertainty* "
+            "consequence_for* cite*"
+        ),
+        "CP-2 CP-2A CP-3 CP-6 REPORT",
+    ),
+    TableSpec(
+        "cpdr.sector_view",
+        1,
+        "sector* outlook*:sector_outlook drivers* competitors* regulation* risks* cite*",
+        "CP-2 CP-6 REPORT",
+    ),
+]
+INPUTS["CP-DR"] = Inputs(
+    "CP-0 CP-1A", "CP-1", "issuer market", "research_questions issuer as_of_date"
+)

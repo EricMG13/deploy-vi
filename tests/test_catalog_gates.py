@@ -18,7 +18,19 @@ from rbotlib.isolation_capture import Capture
 from rbotlib.rules import RBOT_ROOT, Rules
 from spec_fixture import SOURCES, build_tree, stand_in
 
-SHIPPED = {"CP-0", "CP-1", "CP-1A", "CP-1B", "CP-1D", "CP-2", "CP-3", "CP-5", "CP-6", "CP-L10"}
+SHIPPED = {
+    "CP-0",
+    "CP-1",
+    "CP-1A",
+    "CP-1B",
+    "CP-1D",
+    "CP-DR",
+    "CP-2",
+    "CP-3",
+    "CP-5",
+    "CP-6",
+    "CP-L10",
+}
 QUICK = "CP-0 CP-1 CP-1A CP-1B MODEL CP-L10 CP-3 FIT CP-5 CP-6 CP-8".split()
 
 
