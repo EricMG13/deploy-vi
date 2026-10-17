@@ -37,11 +37,14 @@ classification corrections require the CP-0 Module/native qualification, never s
 Turn2: `grade --run "<RUN>"`; show every installed Pathway/depth/grade, blocking Modules,
 missing documents and lifting sources. Current menu: Full Credit Assessment at full and at
 quick. Quick skips Deep Research and the Full-only Modules; its output is screening-only.
-Show Primary (preselected for sourced tranche rows), research questions/Prior Case offer
-and actual fetch availability. Deep Research/Prior Case are unavailable; keep refusals.
+Show Primary (preselected for sourced tranche rows) and the fetch note `grade` prints, before
+Approval. At full, Deep Research is available: show the offered research questions, ask which
+to keep, and pass `--deep-research yes|no` and `--untick <id>…` for those dropped (all dropped
+or none offered means no Deep Research). Prior Case is unavailable; keep refusals.
 Obtain supported choices and analyst. Blocked requires acknowledgement naming blocking
 Modules before `--acknowledge-blocked`. Run `approve --run "<RUN>" --pathway "<ID>"
---depth full|quick --primary yes|no --analyst "<name>" --deep-research no --prior-case no`, with
+--depth full|quick --primary yes|no --analyst "<name>" --deep-research yes|no
+[--untick <id>…] --prior-case no`, with
 that acknowledgement only if received. Exit1 waits with its reason. Success: take the exact
 `approved: <path>` renamed run for all commands, show `plan`, then no further checkpoints.
 

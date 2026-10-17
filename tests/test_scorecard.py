@@ -74,11 +74,35 @@ def test_accepted_run_reports_measured_ratios_and_unknowns(run: Path, tmp_path: 
     assert {pending_row[k] for k in ("Attempts", "Citations", "Gaps", "Started", "Model")} == {
         "unknown"
     }
-    assert "Steps accepted (verified): 1/11" in text
+    assert "Steps accepted (verified): 1/12" in text
     assert "| CP-3 | 0/129 | step not accepted: cells unfilled |" in text
     assert "unknown: model.json is not in the run." in text
     assert text.rstrip().splitlines()[-1].startswith("Not verified: Copilot behaviour")
     assert "GPT models" in text and "fetch" in text
+
+
+def test_the_fetch_line_is_the_recorded_mode_not_the_live_variable(
+    run: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("RBOT_FETCH", "1")  # live variable differs from the recorded `off`
+    text = score(run, tmp_path / "out")
+    assert "- Fetch: off" in text.splitlines()
+    assert "fetch was off, so no network fetch was run" in text.splitlines()[-1]
+
+
+def test_a_run_approved_with_fetch_on_scores_fetch_on(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("RBOT_FETCH", "1")
+    pre = pending(tmp_path, RBOT_ROOT)
+    send(pre, RBOT_ROOT)
+    assert accept(pre) == 0
+    ready(pre, RBOT_ROOT)
+    on = approve(pre, RBOT_ROOT)
+    monkeypatch.delenv("RBOT_FETCH")
+    text = score(on, tmp_path / "out")
+    assert "- Fetch: on" in text.splitlines()
+    assert "fetched-page quality" in text.splitlines()[-1]
 
 
 def test_output_path_naming_and_default_pack_id(run: Path, tmp_path: Path) -> None:
@@ -108,7 +132,7 @@ def test_handoff_edited_after_acceptance_is_not_counted_accepted(run: Path, tmp_
     cp0 = cols(text, "CP-0")
     assert cp0["Status"] == "accepted" and cp0["Accepted"] == "no"
     assert "MISMATCH: Handoff bytes differ from the recorded digest" in cp0["Notes"]
-    assert cp0["Citations"] == "unknown" and "Steps accepted (verified): 0/11" in text
+    assert cp0["Citations"] == "unknown" and "Steps accepted (verified): 0/12" in text
 
 
 def test_a_deleted_handoff_is_not_counted_accepted(run: Path, tmp_path: Path) -> None:

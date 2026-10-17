@@ -14,7 +14,7 @@ from rbotlib.rules import RBOT_ROOT, Rules
 from rbotlib.validate import EXIT_MALFORMED, check
 
 CP0 = (FIXTURES / "handoffs" / "CP-0.md").read_text(encoding="utf-8")
-QUESTION = "| RQ-1 | How is Las Vegas Strip visitation trending into 2027? |"
+QUESTION = "| Q1 | How is Las Vegas Strip visitation trending into 2027? |"
 CLASSES = {
     "acme_10k.txt": ("issuer", "Annual report", "Acme Holdings, Inc.", "Yes"),
     "acme_ca.txt": ("issuer", "Credit agreement", "Acme Holdings, Inc.", "Yes"),
@@ -118,7 +118,12 @@ PREFILL = [
     (
         f"{QUESTION} Las Vegas drives the largest segment's Adjusted EBITDA | CP-2 |",
         f"{QUESTION} Las Vegas drives the largest segment's Adjusted EBITDA | CP-4 |",
-        "research_questions: RQ-1: consumer_module 'CP-4' is not CP-1A, CP-1B or CP-2",
+        "research_questions: Q1: consumer_module 'CP-4' is not CP-2, CP-3 or CP-6",
+    ),
+    (
+        f"{QUESTION} Las Vegas drives the largest segment's Adjusted EBITDA | CP-2 |",
+        f"{QUESTION} Las Vegas drives the largest segment's Adjusted EBITDA | CP-1A |",
+        "research_questions: Q1: consumer_module 'CP-1A' is not CP-2, CP-3 or CP-6",
     ),
 ]
 
@@ -133,8 +138,8 @@ def test_every_prefill_rule_of_module_md_is_checked(
 
 
 def test_at_most_five_research_questions(cp0: Contract, rules: Rules) -> None:
-    row = next(line for line in CP0.splitlines() if line.startswith("| RQ-1 |"))
-    more = "\n".join(row.replace("RQ-1", f"RQ-{n}") for n in range(1, 7))
+    row = next(line for line in CP0.splitlines() if line.startswith("| Q1 |"))
+    more = "\n".join(row.replace("Q1", f"Q{n}") for n in range(1, 7))
     found = _codes(CP0.replace(row, more), cp0, rules)
     assert "research_questions: 6 questions; MODULE.md allows at most 5" in found
 

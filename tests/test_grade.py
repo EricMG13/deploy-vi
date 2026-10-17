@@ -128,8 +128,12 @@ def test_no_issuer_source_blocks_the_model_and_names_the_cause(root: Path, tmp_p
 
 
 def test_the_menu_shows_every_pathway_and_the_approval_flags(
-    root: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    root: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.delenv("RBOT_FETCH", raising=False)
     run = _acme(tmp_path)
     _graded(root, run, FILES, primary=True)
     out = capsys.readouterr().out
@@ -138,8 +142,36 @@ def test_the_menu_shows_every_pathway_and_the_approval_flags(
     assert "| Portfolio Decision | quick | Blocked | FIT | — | Portfolio limits, Portfolio" in out
     assert "  - would lift: Portfolio positions and Portfolio limits (Portfolio Context)" in out
     assert "not pre-ticked: the Run Brief has no new tranche" in out
-    assert "- `objective` is a gap" in out and "Fetch: Deep Research fetches" in out
+    assert "- `objective` is a gap" in out and OFF_NOTE in out
     assert out.count("\n| ") == 13
+
+
+OFF_NOTE = (
+    "Fetch is not available on this host: Deep Research will work from the Source Pack "
+    "alone (ADR 0004)."
+)
+ON_NOTE = (
+    "Deep Research may fetch public pages for the questions you approve; each page is saved "
+    "under fetched/ and cited with its URL and retrieval date."
+)
+
+
+@pytest.mark.parametrize("case", [(None, OFF_NOTE), ("1", ON_NOTE), ("yes", OFF_NOTE)])
+def test_the_fetch_note_follows_the_host_and_is_printed_by_grade(
+    root: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    case: tuple[str | None, str],
+) -> None:
+    value, note = case
+    if value is None:
+        monkeypatch.delenv("RBOT_FETCH", raising=False)
+    else:
+        monkeypatch.setenv("RBOT_FETCH", value)
+    grading = _graded(root, _acme(tmp_path), FILES, primary=True)
+    out = capsys.readouterr().out
+    assert grading["fetch_note"] == note and note in out
 
 
 def test_grading_is_deterministic_and_pins_its_inputs(root: Path, tmp_path: Path) -> None:
