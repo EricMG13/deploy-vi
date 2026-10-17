@@ -1,0 +1,74 @@
+/* Front Pages A: Credit Snapshot, Earnings Update, Relative Value. Tokens only. */
+
+.fpa .fp-grid { align-items: start; }
+.fpa-pad { padding: 10px 12px; }
+.fpa-panel .sub-h { margin: 12px 12px 4px; }
+.fpa-panel .tw + .sub-h { margin-top: 14px; }
+.fpa-panel .cond { margin: 0; }
+.fpa-reason { background: var(--neg-fill); color: var(--ink); border-top: 1px solid var(--rule); }
+.fpa-reason svg { color: var(--neg); flex: none; }
+
+/* verdict-bar figure buttons */
+.fpa-ref { background: transparent; border: 0; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; min-height: 24px; text-decoration: underline dotted; text-underline-offset: 3px; }
+.fpa-ref.strong { font-weight: 600; }
+.fpa-ref:hover { text-decoration-style: solid; }
+
+/* key findings */
+.fpa-kf { list-style: none; margin: 0; padding: 0; counter-reset: kf; }
+.fpa-kf li { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 8px; padding: 9px 12px; border-top: 1px solid var(--rule-soft); font-size: 13px; line-height: 1.5; }
+.fpa-kf li:first-child { border-top: 0; }
+.fpa-kf-k { font: 600 10.5px/1.7 var(--font-text); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+.fpa-kf-k.tone-pos { color: var(--pos); }
+.fpa-kf-k.tone-neg { color: var(--neg); }
+.fpa-kf-v { min-width: 0; }
+.fpa-date { font-size: 11.5px; color: var(--ink-2); margin-right: 4px; }
+
+/* company */
+.fpa-desc { padding: 10px 12px; font-size: 13px; line-height: 1.5; border-bottom: 1px solid var(--rule); }
+.fpa-pair { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.fpa-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
+.fpa-cols > * { min-width: 0; }
+
+/* chart strip: model strip (three plots) and the maturity wall */
+.fpa-strip { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1.3fr); gap: 0 12px; padding: 8px 12px 10px; align-items: start; }
+.fpa-strip > * { min-width: 0; }
+.fpa-strip .chart-slot, .fpa-pad .chart-slot, .fpa-cols .chart-slot { margin: 0; }
+
+/* tabs */
+.fpa-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--rule); padding: 0 8px; flex-wrap: wrap; }
+.fpa-tab { background: transparent; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 0 12px; min-height: 36px; font: 600 11.5px/1.2 var(--font-display); letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-2); cursor: pointer; }
+.fpa-tab:hover { color: var(--ink); }
+.fpa-tab.on { color: var(--blue); border-bottom-color: var(--blue); }
+.fpa-pane[hidden] { display: none; }
+
+/* strengths and weaknesses */
+.fpa-thesis { margin: 0; padding: 12px 12px 4px; font-size: 13.5px; line-height: 1.55; max-width: 92ch; }
+.fpa-sw-h { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font: 600 11.5px/1.3 var(--font-text); }
+.fpa-sw-h.tone-pos { color: var(--pos); }
+.fpa-sw-h.tone-neg { color: var(--neg); }
+.fpa-sw { margin: 0; }
+.fpa-sw dt { font-weight: 600; font-size: 12.5px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--rule-soft); }
+.fpa-sw dt:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.fpa-sw dd { margin: 2px 0 0; font-size: 12.5px; line-height: 1.5; }
+
+
+/* what changed */
+.fpa-chg-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; border-bottom: 1px solid var(--rule); }
+.fpa-chg-sum { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.fpa-chg { justify-content: flex-start; }
+
+@media (max-width: 1360px) {
+  .fpa-strip { grid-template-columns: minmax(0, 1fr); }
+  .fpa-cols { grid-template-columns: minmax(0, 1fr); }
+}
+@media print {
+  .fpa-pane[hidden] { display: block; }
+  .fpa-tabs { display: none; }
+}
+
+.fpa-sub { margin-top: 3px; font-size: 11.5px; color: var(--ink-2); line-height: 1.45; }
+.fpa-sub-k { font-weight: 600; }
+.fpa-panel .dt .c-prose { min-width: 190px; max-width: 360px; }
+.fpa-panel .calc-inline { white-space: normal; text-align: left; max-width: 100%; height: auto; }
+.fpa-honest { background: var(--cau-fill); border-bottom: 1px solid var(--rule); color: var(--ink); }
+.fpa-honest svg { color: var(--cau); flex: none; }

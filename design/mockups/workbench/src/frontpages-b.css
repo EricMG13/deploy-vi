@@ -1,0 +1,161 @@
+/* Front Pages B: Covenant & Refinancing, Distressed & Restructuring, Portfolio Decision. Tokens only. */
+
+/* the call lines read in two columns on the Covenant page, as in the comp */
+.view-covenant_refinancing .verdict-lines { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 24px; }
+.view-covenant_refinancing .verdict-lines .v-line:nth-child(2) { margin-top: 0; }
+.view-covenant_refinancing .verdict-lines .v-line:nth-child(2) { border-top-color: var(--navy-line); }
+.view-fpb .v-line .fig { color: #fff; }
+.view-fpb .v-line .fig .fv { font-family: var(--font-mono); font-weight: 600; }
+.view-fpb .v-line .fig .mk { color: var(--on-navy-2); opacity: 0.65; }
+.view-fpb .v-line .fig:hover .fv { text-decoration: underline dotted; text-underline-offset: 3px; }
+.view-fpb .v-line .txt { color: #fff; }
+.view-fpb .v-line .gapchip { color: var(--on-navy-2); }
+.view-fpb .v-line .badge { font-size: 12px; }
+
+/* panel bodies */
+.fb-pbody { min-width: 0; }
+.fb-pad { padding: 4px 12px 10px; }
+.fb-pad .tw { margin: 0 -12px; }
+.fb-pad .sub-h { margin-left: 0; margin-right: 0; }
+.fb-note { margin: 0; padding: 8px 12px; font-size: 12px; line-height: 1.5; color: var(--ink); border-top: 1px solid var(--rule-soft); }
+.fb-note b { font-weight: 600; }
+.fb-note .fig .fv { font-family: var(--font-mono); font-weight: 600; }
+.p-note .fig .fv { font-family: var(--font-mono); font-weight: 600; font-size: 11.5px; }
+
+/* chart beside a table */
+.fb-split { display: grid; gap: 0; align-items: start; min-width: 0; }
+.fb-split > * { min-width: 0; }
+.fb-gap-split, .fb-cap-split, .fb-lme-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.fb-cov-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.fb-run-split { grid-template-columns: minmax(0, 1fr) 232px; }
+.fb-wall-split { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+.fb-cap2-split { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+.fb-split > .fb-r { border-left: 1px solid var(--rule-soft); align-self: stretch; }
+.fb-split .chart-slot { padding-top: 4px; }
+.fb-sub-h { padding: 8px 12px 0; margin: 0; }
+.fb-t { table-layout: auto; }
+.fb-cellsub { display: flex; flex-direction: column; gap: 1px; align-items: flex-start; }
+.fb-sub { font-size: 10.5px; font-weight: 400; color: var(--ink-2); }
+.fb-cov th.c-rowh { font-weight: 400; min-width: 104px; }
+.fb-tn { font-weight: 600; line-height: 1.3; }
+.fb-cov .c-scale { white-space: nowrap; }
+.fb-cov td, .fb-cov th { padding-left: 6px; padding-right: 6px; }
+.fb-cov th:first-child, .fb-cov td:first-child { padding-left: 12px; }
+.fb-cov .c-num { white-space: nowrap; }
+.fb-pf th, .fb-pf td { background: var(--ground); }
+.fb-run th.c-rowh { font-weight: 400; }
+.fb-run .c-num { font-weight: 600; }
+.fb-total th, .fb-total td, .dt tr.fb-total td, .dt tr.fb-total th { background: var(--hover-row); font-weight: 600; border-top: 1px solid var(--rule); }
+.fb-breach th, .fb-breach td, .dt tr.fb-breach td, .dt tr.fb-breach th { background: var(--neg-fill); }
+.fb-u { font-size: 10.5px; color: var(--ink-2); margin-left: 4px; font-family: var(--font-text); }
+.fb-ms { display: inline-flex; align-items: baseline; justify-content: flex-end; }
+.fb-fit .c-num, .fb-instr .c-num { white-space: nowrap; }
+
+/* two panels in two stacks, or two columns inside one */
+.fb-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: start; }
+.fb-colstack { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.fb-2col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.fb-col { min-width: 0; }
+.fb-col .sub-h { margin-left: 0; }
+
+/* red flags */
+.fb-flags { list-style: none; margin: 0; padding: 0; }
+.fb-flag { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; padding: 7px 12px; border-top: 1px solid var(--rule-soft); align-items: start; }
+.fb-flag:first-child { border-top: 0; }
+.fb-fn { font-weight: 600; font-size: 12.5px; line-height: 1.4; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.fb-fp { font-size: 12px; color: var(--ink-2); margin-top: 2px; line-height: 1.45; }
+.fb-prot { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 600; color: var(--pos); background: var(--pos-fill); border-radius: 2px; padding: 0 5px; }
+
+/* protection score */
+.fb-prot-t td, .fb-prot-t th { vertical-align: middle; }
+.fb-score { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.fb-bars { display: inline-flex; gap: 2px; }
+.fb-bars span { width: 9px; height: 5px; background: var(--rule); }
+.fb-bars.tone-neg span.on { background: var(--neg); }
+.fb-bars.tone-cau span.on { background: var(--cau); }
+.fb-bars.tone-pos span.on { background: var(--pos); }
+.fb-score .fv { font-family: var(--font-mono); font-weight: 600; }
+.fb-prot-t .tone-neg-text { color: var(--neg); }
+.fb-prot-t .c-prose { min-width: 0; max-width: none; font-size: 12px; color: var(--ink-2); }
+.fb-refi .c-text { min-width: 0; }
+.fb-refi .c-prose { min-width: 0; max-width: none; font-size: 12px; }
+.fb-capt td, .fb-capt th, .fb-gapt td, .fb-gapt th { padding-left: 6px; padding-right: 6px; }
+.fb-capt th:first-child, .fb-gapt th:first-child { padding-left: 12px; }
+.fb-capt th.c-rowh { font-weight: 600; }
+.fb-gapt th.c-rowh { font-weight: 400; font-family: var(--font-mono); }
+.fb-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); }
+
+/* credit view strip, strengths and weaknesses */
+.fb-cv { display: flex; flex-wrap: wrap; gap: 6px 24px; padding: 8px 0 10px; }
+.fb-cvi { display: flex; flex-direction: column; gap: 3px; }
+.fb-cvl { font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); font-weight: 600; }
+.fb-cv-txt { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.fb-cvt p { margin: 3px 0 0; font-size: 12.5px; }
+.fb-swh { display: flex; align-items: center; gap: 5px; font: 600 12px var(--font-text); margin: 0 0 4px; }
+.fb-swl { margin: 0; }
+.fb-swl dt { font-weight: 600; font-size: 12.5px; padding-top: 6px; border-top: 1px solid var(--rule-soft); }
+.fb-swl dt:first-child { border-top: 0; padding-top: 0; }
+.fb-swl dd { margin: 1px 0 6px; font-size: 12.5px; line-height: 1.45; }
+.fb-thesis { margin: 0 0 4px; padding: 8px 0 0; font-size: 13.5px; line-height: 1.5; max-width: 90ch; }
+.fb-thesis b { font-weight: 600; }
+
+/* cards: paths, challenge */
+.fb-cards { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--rule); }
+.fb-card { padding: 8px 12px; border-top: 1px solid var(--rule-soft); }
+.fb-card:first-child { border-top: 0; }
+.fb-ch { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-bottom: 4px; }
+.fb-ch h3 { font: 600 13px/1.35 var(--font-text); margin: 0; }
+.fb-csub { font-size: 12px; color: var(--ink-2); flex-basis: 100%; }
+.fb-dl { display: grid; grid-template-columns: 124px minmax(0, 1fr); gap: 2px 12px; margin: 0; font-size: 12.5px; line-height: 1.45; }
+.fb-dl dt { color: var(--ink-2); font-size: 11.5px; padding-top: 1px; }
+.fb-dl dd { margin: 0; }
+
+/* Portfolio Fit */
+.fb-fitbody .fb-facts { display: grid; grid-template-columns: repeat(4, auto); gap: 2px 14px; justify-content: start; margin: 0 0 4px; padding: 0; }
+.fb-facts dt { font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); font-weight: 600; grid-row: 1; }
+.fb-facts dd { margin: 0; font-size: 12.5px; grid-row: 2; font-family: var(--font-mono); }
+.fb-facts dd:nth-of-type(4) { font-family: var(--font-text); }
+.fb-facts dt:nth-of-type(1), .fb-facts dd:nth-of-type(1) { grid-column: 1; }
+.fb-facts dt:nth-of-type(2), .fb-facts dd:nth-of-type(2) { grid-column: 2; }
+.fb-facts dt:nth-of-type(3), .fb-facts dd:nth-of-type(3) { grid-column: 3; }
+.fb-facts dt:nth-of-type(4), .fb-facts dd:nth-of-type(4) { grid-column: 4; }
+.fb-limits { list-style: none; margin: 0; padding: 0; border: 1px solid var(--rule); display: grid; grid-template-columns: 1fr 1fr; }
+.fb-lim { padding: 7px 10px; border-top: 1px solid var(--rule-soft); border-left: 1px solid var(--rule-soft); display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.fb-lim:nth-child(odd) { border-left: 0; }
+.fb-lim:nth-child(-n + 2) { border-top: 0; }
+.fb-lh { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.fb-ln { font-size: 12px; font-weight: 600; flex: 1 1 100%; line-height: 1.35; }
+.fb-lid { font-size: 11px; color: var(--ink-2); }
+.fb-lk { font-size: 11px; color: var(--ink-2); }
+.fb-ls { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 600; margin-left: auto; }
+.fb-lb { position: relative; height: 8px; background: var(--neu-fill); border: 1px solid var(--rule); }
+.fb-lf { position: absolute; left: 0; top: 0; bottom: 0; background: var(--neu); }
+.fb-lb.tone-pos .fb-lf { background: var(--pos); }
+.fb-lb.tone-cau .fb-lf { background: var(--cau); }
+.fb-lb.tone-neg .fb-lf { background: var(--neg); }
+.fb-lt { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); transform: translateX(-1px); }
+.fb-lv { display: grid; grid-template-columns: repeat(3, auto auto); gap: 0 6px; justify-content: start; align-items: baseline; font-size: 12px; }
+.fb-lv > span { font-size: 10.5px; color: var(--ink-2); }
+.fb-lv .fig .fv { font-family: var(--font-mono); font-weight: 600; }
+.fb-lv > .fig { margin-right: 10px; white-space: nowrap; }
+.fb-lv .fig .fv { white-space: nowrap; }
+.fb-facts .fig, .fb-facts .fig .fv { white-space: nowrap; }
+.fb-rtrig td, .fb-rtrig th { padding-left: 6px; padding-right: 6px; }
+.fb-rtrig th:first-child { padding-left: 12px; }
+.view-portfolio_decision .tile-sub { display: block; max-width: 168px; white-space: normal; line-height: 1.3; }
+.fb-notes { margin: 0; padding-left: 18px; font-size: 12px; color: var(--ink-2); line-height: 1.5; }
+.fb-ph { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink); }
+.fb-pst { font-weight: 400; color: var(--ink-2); }
+.fb-prec .c-scale, .fb-fit .c-scale, .fb-instr .c-scale { white-space: nowrap; }
+
+@media (max-width: 1100px) {
+  .fb-cov-split, .fb-gap-split, .fb-cap-split, .fb-lme-split, .fb-wall-split, .fb-cap2-split, .fb-run-split { grid-template-columns: minmax(0, 1fr); }
+  .fb-split > .fb-r { border-left: 0; border-top: 1px solid var(--rule-soft); }
+  .fb-cols, .fb-2col, .fb-cv-txt, .fb-limits { grid-template-columns: minmax(0, 1fr); }
+  .fb-lim { border-left: 0; }
+  .fb-lim:nth-child(2) { border-top: 1px solid var(--rule-soft); }
+}
+@media print {
+  .view-covenant_refinancing .verdict-lines { display: flex; }
+  .fb-split, .fb-cols, .fb-2col { break-inside: avoid; }
+}
