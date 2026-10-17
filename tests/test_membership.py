@@ -115,6 +115,14 @@ def test_quick_lists_exclude_full_only_modules() -> None:
     ]  # fmt: skip
 
 
+def test_cp_dr_follows_cp_1a_in_the_full_list() -> None:
+    pathway = load_catalog(RBOT_ROOT).pathway("FULL_CREDIT_ASSESSMENT")
+    assert pathway is not None
+    full = list(pathway.depths["full"])
+    assert full[full.index("CP-1A") + 1] == "CP-DR"
+    assert "CP-DR" not in pathway.depths["quick"]
+
+
 def test_a_host_table_needs_its_host_step_in_the_pathway(tmp_path: Path, rules: Rules) -> None:
     """Rest review M1: take FIT out of the list and `snapshot.portfolio_fit` has no producer."""
     root = tmp_path / "rbot"
