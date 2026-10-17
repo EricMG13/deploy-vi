@@ -1,0 +1,212 @@
+[
+ {
+  "marker": 1,
+  "page": 1,
+  "line_text": "CUSIP: 12769GAC4",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 2,
+  "page": 1,
+  "line_text": "Coupon rate: 6.5000000000000000000%",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 3,
+  "page": 1,
+  "line_text": "Maturity date: 2/15/2032",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 4,
+  "page": 1,
+  "line_text": "Next call date: 2/15/2027",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 5,
+  "page": 1,
+  "line_text": "Last trade price: $93.28",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 6,
+  "page": 1,
+  "line_text": "Last trade yield: 8.063520%",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 7,
+  "page": 1,
+  "line_text": "Last trade date: 10/1/2026",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 8,
+  "page": 1,
+  "line_text": "Observed at: 2026-10-02T09:31:13Z",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 9,
+  "page": 1,
+  "line_text": "CUSIP: 12769GAD2",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 10,
+  "page": 1,
+  "line_text": "Coupon rate: 6.0000000000000000000%",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 11,
+  "page": 1,
+  "line_text": "Maturity date: 10/15/2032",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 12,
+  "page": 1,
+  "line_text": "Next call date: 10/15/2027",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 13,
+  "page": 1,
+  "line_text": "Last trade price: $84.94",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 14,
+  "page": 1,
+  "line_text": "Last trade yield: 9.318398%",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 15,
+  "page": 1,
+  "line_text": "Last trade date: 10/1/2026",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 16,
+  "page": 1,
+  "line_text": "Observed at: 2026-10-02T09:31:27Z",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 17,
+  "page": 1,
+  "line_text": "CUSIP: 552953CK5",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 18,
+  "page": 1,
+  "line_text": "Coupon rate: 6.1250000000000000000%",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 19,
+  "page": 1,
+  "line_text": "Maturity date: 9/15/2029",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 20,
+  "page": 1,
+  "line_text": "Next call date: 10/11/2026",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 21,
+  "page": 1,
+  "line_text": "Last trade price: $98.42",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 22,
+  "page": 1,
+  "line_text": "Last trade yield: 6.722997%",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 23,
+  "page": 1,
+  "line_text": "Last trade date: 10/1/2026",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 24,
+  "page": 1,
+  "line_text": "Observed at: 2026-10-02T09:32:08Z",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 25,
+  "page": 1,
+  "line_text": "CUSIP: 707569AV1",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 26,
+  "page": 1,
+  "line_text": "Coupon rate: 4.1250000000000000000%",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 27,
+  "page": 1,
+  "line_text": "Maturity date: 7/1/2029",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 28,
+  "page": 1,
+  "line_text": "Next call date: 10/11/2026",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 29,
+  "page": 1,
+  "line_text": "Last trade price: $93.76",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 30,
+  "page": 1,
+  "line_text": "Last trade yield: 6.644415%",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 31,
+  "page": 1,
+  "line_text": "Last trade date: 10/1/2026",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 32,
+  "page": 1,
+  "line_text": "Observed at: 2026-10-02T09:32:31Z",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 33,
+  "page": 1,
+  "line_text": "June 30, 2026 (unaudited)",
+  "document_sha256": "e2490912d9cc688135e15732e0fcf4aafd715e91e4d580edd577483535507bab"
+ },
+ {
+  "marker": 34,
+  "page": 4,
+  "line_text": "550,000 | Caesars Entertainment, Inc., Sr. Secd. Note, 144A, 6.500%, 2/15/2032 | 536,927",
+  "document_sha256": "e2490912d9cc688135e15732e0fcf4aafd715e91e4d580edd577483535507bab"
+ },
+ {
+  "marker": 35,
+  "page": 1,
+  "line_text": "- No spread, benchmark curve, seniority, dealer quote, trade size, or intraday timestamp was displayed in the observed summary.",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ }
+]

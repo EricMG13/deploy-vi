@@ -1,0 +1,326 @@
+[
+ {
+  "marker": 1,
+  "page": 1,
+  "line_text": "Observed at: 2026-10-02T09:31:13Z",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 2,
+  "page": 1,
+  "line_text": "CUSIP: 12769GAC4",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 3,
+  "page": 1,
+  "line_text": "Maturity date: 2/15/2032",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 4,
+  "page": 1,
+  "line_text": "Next call date: 2/15/2027",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 5,
+  "page": 1,
+  "line_text": "Last trade price: $93.28",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 6,
+  "page": 1,
+  "line_text": "Last trade yield: 8.063520%",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 7,
+  "page": 1,
+  "line_text": "Last trade date: 10/1/2026",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 8,
+  "page": 1,
+  "line_text": "Observed at: 2026-10-02T09:31:27Z",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 9,
+  "page": 1,
+  "line_text": "CUSIP: 12769GAD2",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 10,
+  "page": 1,
+  "line_text": "Maturity date: 10/15/2032",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 11,
+  "page": 1,
+  "line_text": "Next call date: 10/15/2027",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 12,
+  "page": 1,
+  "line_text": "Last trade price: $84.94",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 13,
+  "page": 1,
+  "line_text": "Last trade yield: 9.318398%",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 14,
+  "page": 1,
+  "line_text": "Last trade date: 10/1/2026",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 15,
+  "page": 9,
+  "line_text": "CEI Senior Secured Notes due 2032 | 2032 | 6.50% | 1,500 | 1,487 | 1,486",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 16,
+  "page": 9,
+  "line_text": "CEI Senior Notes due 2032 | 2032 | 6.00% | 1,100 | 1,088 | 1,087",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 17,
+  "page": 10,
+  "line_text": "The CEI Senior Secured Notes due 2032 rank equally with all existing and future first-priority lien obligations of the Company and the subsidiary guarantors.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 18,
+  "page": 10,
+  "line_text": "The CEI Senior Notes due 2032 rank equally with all existing and future senior unsecured indebtedness of the Company and the subsidiary guarantors.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 19,
+  "page": 1,
+  "line_text": "- No spread, benchmark curve, seniority, dealer quote, trade size, or intraday timestamp was displayed in the observed summary.",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 20,
+  "page": 1,
+  "line_text": "- No spread, benchmark curve, seniority, dealer quote, trade size, or intraday timestamp was displayed in the observed summary.",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 21,
+  "page": 1,
+  "line_text": "- The page displayed a price/yield chart, but this extract does not transcribe chart points.",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 22,
+  "page": 1,
+  "line_text": "Observed at: 2026-10-02T09:32:08Z",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 23,
+  "page": 1,
+  "line_text": "CUSIP: 552953CK5",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 24,
+  "page": 1,
+  "line_text": "Coupon rate: 6.1250000000000000000%",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 25,
+  "page": 1,
+  "line_text": "Maturity date: 9/15/2029",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 26,
+  "page": 1,
+  "line_text": "Next call date: 10/11/2026",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 27,
+  "page": 1,
+  "line_text": "Last trade price: $98.42",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 28,
+  "page": 1,
+  "line_text": "Last trade yield: 6.722997%",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 29,
+  "page": 1,
+  "line_text": "Last trade date: 10/1/2026",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 30,
+  "page": 1,
+  "line_text": "Observed at: 2026-10-02T09:32:31Z",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 31,
+  "page": 1,
+  "line_text": "CUSIP: 707569AV1",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 32,
+  "page": 1,
+  "line_text": "Coupon rate: 4.1250000000000000000%",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 33,
+  "page": 1,
+  "line_text": "Maturity date: 7/1/2029",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 34,
+  "page": 1,
+  "line_text": "Next call date: 10/11/2026",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 35,
+  "page": 1,
+  "line_text": "Last trade price: $93.76",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 36,
+  "page": 1,
+  "line_text": "Last trade yield: 6.644415%",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 37,
+  "page": 1,
+  "line_text": "Last trade date: 10/1/2026",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 38,
+  "page": 1,
+  "line_text": "- No spread, benchmark curve, seniority, dealer quote, trade size, or intraday timestamp was displayed in the observed summary.",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 39,
+  "page": 1,
+  "line_text": "- No spread, benchmark curve, seniority, dealer quote, trade size, or intraday timestamp was displayed in the observed summary.",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 40,
+  "page": 16,
+  "line_text": "Adjusted EBITDA | $920 | $955 | $1,807 | $1,839",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 41,
+  "page": 4,
+  "line_text": "Net cash provided by operating activities | 675 | 680",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 42,
+  "page": 4,
+  "line_text": "Purchase of property and equipment | (335) | (453)",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 43,
+  "page": 9,
+  "line_text": "Annual maturities of long-term debt | $55 | $114 | $767 | $1,574 | $3,962 | $5,335 | $11,807",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 44,
+  "page": 5,
+  "line_text": "Each of the Company and Fertitta Gaming’s obligation to consummate the Merger is subject to the satisfaction or waiver of certain conditions, including, among others, approval of the Merger by the holders of at least a majority of all of the outstanding shares of Company Common Stock, the expiration or termination of any applicable waiting period under the HSR Act, and the receipt of certain gaming regulatory approvals.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 45,
+  "page": 25,
+  "line_text": "The Merger is subject to certain conditions, some or all of which may not be satisfied, and the Merger may not be completed on a timely basis, if at all.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 46,
+  "page": 2,
+  "line_text": "Current portion of long-term debt | 114 | 114",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 47,
+  "page": 2,
+  "line_text": "Long-term debt | 11,585 | 11,670",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 48,
+  "page": 9,
+  "line_text": "Unamortized discounts and deferred finance charges | $108 | $121",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 49,
+  "page": 5,
+  "line_text": "Cash interest paid for rent related to GLPI and VICI Leases | 686 | 672",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 50,
+  "page": 17,
+  "line_text": "Subsequent to June 30, 2026, we launched mobile sports betting and iGaming in Alberta, Canada on July 13, 2026.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 51,
+  "page": 10,
+  "line_text": "As of June 30, 2026, the Company had $1.9 billion of available borrowing capacity under the CEI Revolving Credit Facility, after consideration of $96 million in outstanding letters of credit, $56 million committed for regulatory purposes, the outstanding amount, and the reserves described above.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 52,
+  "page": 20,
+  "line_text": "Adjusted EBITDA | $410 | $469 | $(59) | (12.6)% | $836 | $902 | $(66) | (7.3)%",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 53,
+  "page": 20,
+  "line_text": "Our Las Vegas segment’s net revenues, net income, Adjusted EBITDA and Adjusted EBITDA margin declined for the three and six months ended June 30, 2026, as compared to the same prior year periods, primarily due to lower city-wide leisure customer visitation resulting in decreased non-gaming revenues, lower hotel occupancy and compressed hotel rates.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 54,
+  "page": 1,
+  "line_text": "- FINRA labels the price and yield as the last trade, not bid, mid, ask, or an evaluated price.",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ }
+]
