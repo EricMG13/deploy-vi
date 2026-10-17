@@ -65,7 +65,7 @@ Read `content/provenance-and-states.md` in full. In short:
 
 Real Caesars Entertainment (CZR) Q2 2026 figures from its public filings, FINRA TRACE pages, the credit agreement, the 2032 notes indenture, the merger documents and two peers' releases (MGM, PENN). Every figure carries its file, line and verbatim excerpt (`data/`). No RBOT run has produced judgements on Caesars yet, so every score, recommendation, valuation, thesis, gate status and severity is **illustrative** and must be labelled so; the Test CLO I portfolio is **synthetic** and labelled so. Never invent a figure: use the data, or show n/a with its reason. Read `data/README.md` first.
 
-Real analysis text also exists: live CAOS runs (RBOT's methodology source) on the same Caesars pack produced accepted module outputs, in `data/caos-runs/`. They are cautious: every module With limitations, confidence about 40–60 of 100, no Recommendation or Valuation, relative value "Unclear", distress gate "Not Applicable". Read `data/caos-runs/README.md`: it says where they conflict with the illustrative layer and asks for both states to be designed.
+Real analysis text also exists: live CAOS runs (RBOT's methodology source) on the same Caesars pack produced accepted module outputs, in `data/caos-runs/`. They are cautious: every module With limitations, confidence mostly 37–59 of 100, no Recommendation or Valuation, relative value "Unclear", distress gate "Not Applicable". Read `data/caos-runs/README.md`: it says where they conflict with the illustrative layer and asks for both states to be designed.
 
 ## 8. What is in this pack
 
