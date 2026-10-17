@@ -284,6 +284,8 @@ def _approval(record: Record) -> None:
         },
         f"{STATE}.approval",
     )
+    if record["approval"].get("fetch", "off") not in ("on", "off"):
+        raise RunError(f"{STATE}.approval.fetch: must be on or off")
 
 
 def _physical(path: Path) -> Path:

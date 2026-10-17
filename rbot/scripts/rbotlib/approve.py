@@ -30,7 +30,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from rbotlib import bootstrap
+from rbotlib import bootstrap, fetch
 from rbotlib import brief as rb
 from rbotlib import state as rs
 from rbotlib.catalog import load_catalog
@@ -275,6 +275,7 @@ def _new_state(
         "pathway_grade": graded["status"],
         "acknowledged_blocked_modules": graded["blocking_modules"] if blocked else [],
         "limitations_shown": graded["limitations"],
+        "fetch": "on" if fetch.available() else "off",
     }
     return state
 

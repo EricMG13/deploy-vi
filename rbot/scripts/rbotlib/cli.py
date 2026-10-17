@@ -18,6 +18,7 @@ from rbotlib import (
     calc,
     corpus,
     dispatch,
+    fetch,
     fit,
     grade,
     inventory,
@@ -187,6 +188,7 @@ def _arguments(argv: list[str] | None) -> argparse.Namespace:
     add_model_command(sub)
     grade.add_command(sub)
     approve.add_commands(sub)
+    fetch.add_command(sub)
     calc.add_command(sub)
     fit.add_command(sub)
     state.add_command(sub)

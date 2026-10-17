@@ -14,6 +14,9 @@ cp "$repo/rbot/scripts/rbot.py" "$work/src/rbot.py"
 cp -R "$repo/tests" "$work/tests"
 # rbotlib.rules.RBOT_ROOT is two folders above the package: the workspace.
 cp "$repo/rbot/rules.json" "$repo/rbot/catalog.json" "$repo/rbot/canon.md" "$work/"
+# tests/spec_fixture.build_tree (the fetch command tests) copies the real CP-0 module.
+mkdir -p "$work/modules"
+cp -R "$repo/rbot/modules/CP-0" "$work/modules/CP-0"
 cat > "$work/pyproject.toml" <<'TOML'
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -24,8 +27,8 @@ markers = ["corpus: reads the local issuer corpus"]
 [tool.mutmut]
 source_paths = ["src"]
 only_mutate = ["src/rbotlib/fetch.py", "src/rbotlib/fetched.py"]
-also_copy = ["rules.json", "catalog.json", "canon.md"]
-pytest_add_cli_args_test_selection = ["tests/test_fetch_policy.py", "tests/test_fetch.py", "tests/test_fetch_save.py", "tests/test_fetch_guard.py", "tests/test_fetched.py"]
+also_copy = ["rules.json", "catalog.json", "canon.md", "modules"]
+pytest_add_cli_args_test_selection = ["tests/test_fetch_policy.py", "tests/test_fetch.py", "tests/test_fetch_save.py", "tests/test_fetch_guard.py", "tests/test_fetched.py", "tests/test_fetch_cli.py"]
 use_git_change_detection = false
 TOML
 cd "$work"
