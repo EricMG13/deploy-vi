@@ -4,7 +4,7 @@ Private. For the owner's private Claude Design project only.
 
 ## Read in this order
 
-1. `PROMPT.md`: the message to paste into Claude Design with this pack.
+1. `PROMPT.md`: the message to paste into Claude Design with this pack; `PROMPT-STEP2.md` and `DECISION.md` after the direction pick (Direction C, Workbench).
 2. `BRIEF.md`: the design brief (product, readers, the ask, look and feel, brand, non-negotiables, data).
 3. `content/`: what every surface must say.
    - `00-app-shell.md`: destinations, navigation per Pathway, module-view anatomy, global behaviour, platform constraints
