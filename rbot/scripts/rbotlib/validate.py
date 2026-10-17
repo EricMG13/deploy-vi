@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NamedTuple
 
+from rbotlib import state
 from rbotlib.contract import Column, Contract, TableSpec
 from rbotlib.handoff import Handoff, HandoffError, Table, cells, markers, parse, unfenced
 from rbotlib.rules import Rules
@@ -511,6 +512,90 @@ def _host_findings(
     return host_preflight.findings(h, contract.module_id, run)
 
 
+# --- depth rules: the §2.20 LITE policy and the run's depth against each `basis` -----------
+
+DEPTH_BASIS = {"full": "Full", "quick": "Screening"}
+SCREEN_TABLE = "cpl10.screen_topics"
+SCREEN_COLUMNS = ("topic_id", "family", "materiality", "evidence_status", "disposition")
+
+
+def _column(table: Table, name: str) -> int | None:
+    names = [c.casefold() for c in table.columns]
+    return names.index(name) if name in names else None
+
+
+def _topic_policy(topic: str, materiality: str, evidence: str, disposition: str) -> list[Finding]:
+    found: list[Finding] = []
+    if (
+        materiality == "High"
+        and evidence in ("Missing", "Conflicted")
+        and disposition != "Gap only"
+    ):
+        found.append(
+            Finding("screen_policy", f"{topic}: High with {evidence} evidence must be Gap only")
+        )
+    if disposition == "Immaterial" and evidence != "Sufficient":
+        found.append(Finding("screen_policy", f"{topic}: Immaterial needs Sufficient evidence"))
+    return found
+
+
+def _screen_policy(h: Handoff, rules: Rules) -> list[Finding]:
+    """High with Missing/Conflicted evidence is Gap only, Immaterial needs Sufficient evidence,
+    and every screen family has a row. A Blocked Handoff may leave topics short or at `—` (like
+    `min_rows`), so it is not held to these. Messages name ids and values, never source text."""
+    table = h.tables.get(SCREEN_TABLE)
+    at = [_column(table, n) for n in SCREEN_COLUMNS] if table else []
+    if table is None or None in at or h.front_matter.get("qa_status") == "Blocked":
+        return []  # column_missing is already reported for an absent column
+    topic_at, family_at, materiality_at, evidence_at, disposition_at = (i or 0 for i in at)
+    rows = [r for r in table.rows if len(r) == len(table.columns)]
+    found: list[Finding] = []
+    for r in rows:
+        found += _topic_policy(r[topic_at], r[materiality_at], r[evidence_at], r[disposition_at])
+    present = {r[family_at] for r in rows}
+    return found + [
+        Finding("screen_policy", f"no screen topic row for the family {f!r}")
+        for f in rules.scales["screen_family"]
+        if f not in present
+    ]
+
+
+def _run_depth(run: Path | None) -> str | None:
+    """The approved depth in the run's state; None without a run, a state file or an approval.
+
+    A state file that exists but cannot be read raises, as every other run-state reader does."""
+    if run is None or not (run / state.STATE).is_file():
+        return None
+    depth = state.read(run)["depth"]
+    return depth if isinstance(depth, str) else None
+
+
+def _basis_depth(spec: TableSpec, h: Handoff, depth: str, rules: Rules) -> list[Finding]:
+    table = h.tables.get(spec.id)
+    labelled = any(c.name == "basis" and c.scale == "depth_basis" for c in spec.columns)
+    at = _column(table, "basis") if table and labelled else None
+    if table is None or at is None:
+        return []
+    want = DEPTH_BASIS[depth]
+    return [
+        Finding(
+            "basis_depth", f"{spec.id} row {n} basis is {row[at]!r}; a {depth} run needs {want!r}"
+        )
+        for n, row in enumerate(table.rows, 1)
+        if len(row) == len(table.columns) and row[at] != want and not rules.is_placeholder(row[at])
+    ]
+
+
+def _depth_findings(
+    h: Handoff, contract: Contract, rules: Rules, run: Path | None
+) -> list[Finding]:
+    found = _screen_policy(h, rules) if any(t.id == SCREEN_TABLE for t in contract.tables) else []
+    depth = _run_depth(run)
+    for spec in contract.tables if depth else []:
+        found += _basis_depth(spec, h, depth or "", rules)
+    return found
+
+
 def check(
     text: str, contract: Contract, rules: Rules, run: Path | None = None
 ) -> tuple[int, list[Finding]]:
@@ -532,6 +617,7 @@ def check(
     for spec in contract.tables:
         findings += _table(spec, h, rules)
     findings += _citations(h, rules)
+    findings += _depth_findings(h, contract, rules, run)
     findings += _module_findings(h, contract, rules, run)
     findings += _host_findings(h, contract, run, findings)
     if any(f.code == "run_error" for f in findings):
