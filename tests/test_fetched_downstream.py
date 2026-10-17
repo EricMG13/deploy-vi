@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import shutil
 from pathlib import Path
 
@@ -241,3 +242,17 @@ def test_isolated_import_refuses_a_symlinked_folder(
     with pytest.raises(CorpusError, match="symlinked fetched/ folder"):
         proxy_isolated.import_fetched(run, src)
     assert not (run / "fetched").exists()
+
+
+def test_the_fetch_command_survives_spaces_in_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root, run = build(tmp_path / "a b", monkeypatch)
+    assert " " in str(root) and " " in str(run)
+    text = message(run, root, "CP-DR", capsys)[1]
+    line = next(x for x in text.splitlines() if x.startswith("Fetch command: "))
+    command = json.loads(line.removeprefix("Fetch command: "))
+    assert shlex.split(command.replace("<URL>", URL).replace("<id>", "RQ-1")) == [
+        "python", str(root / "scripts/rbot.py"), "fetch", "--run", str(run),
+        "--url", URL, "--question", "RQ-1",
+    ]  # fmt: skip

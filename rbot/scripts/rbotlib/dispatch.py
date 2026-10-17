@@ -372,7 +372,10 @@ def _fetch_grant(run: Path, root: Path, record: state.Record) -> tuple[str, list
             "an unanswered question is Unanswered, never answered from memory.",
             [],
         )
-    command = f"python {root}/scripts/rbot.py fetch --run {run} --url <URL> --question <id>"
+    fixed = shlex.join(
+        ["python", str(root / "scripts" / "rbot.py"), "fetch", "--run", str(run), "--url"]
+    )
+    command = f"{fixed} <URL> --question <id>"
     return (
         "Fetching is granted for the approved research questions only, with the exact "
         "Fetch command and no other tool.",
