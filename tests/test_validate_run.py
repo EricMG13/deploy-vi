@@ -16,6 +16,8 @@ from rbotlib.rules import Rules
 from rbotlib.validate import EXIT_MALFORMED, check, excerpt_found, normalise, pages, run_findings
 
 CITATION = "| C1 | TEST_10Q.txt | p.3 | revenue was 100 |"
+FETCHED_FRONT = "---\nurl: http://example.com/note\nretrieved: 2026-10-17\n"
+LOCATOR = "http://example.com/note retrieved 2026-10-17"
 
 
 @pytest.fixture
@@ -41,7 +43,7 @@ def run(tmp_path: Path) -> Path:
     assert main(["prepare", "--run", str(run)]) == 0
     (run / "fetched").mkdir()
     (run / "fetched" / "01-example.com.md").write_text(
-        "---\ntitle: Example note\n---\nGaming revenue grew 4%.\n", encoding="utf-8"
+        FETCHED_FRONT + "title: Example note\n---\nGaming revenue grew 4%.\n", encoding="utf-8"
     )
     (run.parent / "other").mkdir()
     (run.parent / "other" / "x.md").write_text("revenue was 100 here\n", encoding="utf-8")
@@ -95,7 +97,7 @@ def test_unknown_sources_and_unanchored_excerpts_are_malformed(
     "row",
     [
         '| C1 | TEST_10Q.txt | pp.2-3 | In the quarter ... was 100 ("reported") |',
-        "| C1 | fetched/01-example.com.md | section 1 | gaming revenue grew 4% |",
+        f"| C1 | fetched/01-example.com.md | {LOCATOR} | gaming revenue grew 4% |",
         "| C1 | levels.png | top left | Image-Read: CZR TLB 99.5 |",
     ],
 )
@@ -154,7 +156,15 @@ def _row(source: str, locator: str, excerpt: str) -> str:
         (_row("fin.csv", "p.1", "2025 Net revenues 11,486"), "citation_unanchored"),
         (_row("fetched/a\x00b.md", "p.1", "revenue was 100 here"), "source_unknown"),
         (_row("TEST_10Q.txt", "s.1", "Cover page ... Notes"), "citation_unanchored"),
-        (_row("fetched/01-example.com.md", "s.1", "title: Example note"), "citation_unanchored"),
+        (_row("fetched/01-example.com.md", LOCATOR, "title: Example note"), "citation_unanchored"),
+        (_row("fetched/01-example.com.md", "s.1", "gaming revenue grew 4%"), "citation_unanchored"),
+        (
+            _row(
+                "fetched/01-example.com.md", LOCATOR.replace("17", "18"), "gaming revenue grew 4%"
+            ),
+            "citation_unanchored",
+        ),
+        (_row("fetched/01-example.com.md", LOCATOR, "revenue fell 40%"), "citation_unanchored"),
     ],
 )
 def test_weak_forged_and_out_of_place_citations_are_findings(
@@ -179,7 +189,7 @@ def test_weak_forged_and_out_of_place_citations_are_findings(
         _row("TEST_10Q.txt", "Note 6 PP&E", "revenue was 100"),
         _row("terms.md", "p.1", "OID \\| 99.0\u201399.5"),
         _row("fin.csv", "p.1", r"Net revenues \| 11,486"),
-        _row("fetched/01-example.com.md", "s.1", "gaming revenue grew 4%"),
+        _row("fetched/01-example.com.md", LOCATOR, "gaming revenue grew 4%"),
     ],
 )
 def test_page_forms_sheet_rows_and_fetched_bodies_anchor(
@@ -201,13 +211,16 @@ def test_a_symlinked_fetched_folder_and_bare_front_matter(
     handoff_text: str, contract: Contract, rules: Rules, run: Path, tmp_path: Path
 ) -> None:
     bare = run / "fetched" / "02-bare.md"
-    bare.write_text("---\ntitle: Front matter only\n---", encoding="utf-8")
-    row = _row("fetched/02-bare.md", "s.1", "title: Front matter only")
+    bare.write_text(
+        "---\nurl: http://example.com/bare\nretrieved: 2026-10-17\ntitle: Front matter only\n---",
+        encoding="utf-8",
+    )
+    row = _row("fetched/02-bare.md", "http://example.com/bare retrieved 2026-10-17", "title: Front")
     code, findings = _codes(handoff_text.replace(CITATION, row), contract, rules, run)
     assert code == EXIT_MALFORMED and findings[0].startswith("citation_unanchored")
     (run / "fetched").rename(tmp_path / "real-fetched")
     (run / "fetched").symlink_to(tmp_path / "real-fetched", target_is_directory=True)
-    row = _row("fetched/01-example.com.md", "s.1", "gaming revenue grew 4%")
+    row = _row("fetched/01-example.com.md", LOCATOR, "gaming revenue grew 4%")
     code, findings = _codes(handoff_text.replace(CITATION, row), contract, rules, run)
     assert code == EXIT_MALFORMED and findings[0].startswith("source_unknown")
 

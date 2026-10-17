@@ -78,6 +78,14 @@ def complete_run(
     if not portfolios:  # no Portfolio Context in the pack or in CP-0: FIT is skipped
         kept = [x for x in cp0.splitlines(keepends=True) if "TEST_CLO_I" not in x[:60]]
         cp0 = re.sub(r" ?\[C1[67]\]", "", "".join(kept))
+    # the CP-DR fixture answers Q1 to Q3, so the approved run offers those questions
+    asked = "| {0} | Fixture question {0}? | Fixture reason | CP-2 | Fixture evidence |\n"
+    cp0 = re.sub(
+        r"^\| RQ-1 \|.*\n",
+        lambda _: "".join(asked.format(f"Q{n}") for n in (1, 2, 3)),
+        cp0,
+        flags=re.M,
+    )
     (run / "handoffs/CP-0.md").write_text(cp0, encoding="utf-8")
     send(run, RBOT_ROOT)
     assert accept(run) == 0

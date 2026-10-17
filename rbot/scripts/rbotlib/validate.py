@@ -227,7 +227,7 @@ _PAGE_WORD = r"\b(?:pp?|pgs?|pages?)(?![A-Za-z_&])\.?"
 _PAGE_LOCATOR = re.compile(_PAGE_WORD + r"\s*(\d+)(?:\s*[-\u2013]\s*(\d+))?", re.I)
 _PAGE_LIKE = re.compile(_PAGE_WORD, re.I)
 _PAGE_LINE = re.compile(r"^<<< page (\d+) >>>$", re.M)
-_FRONT_MATTER = re.compile(r"\A---\n.*?\n---(?:\n|\Z)", re.S)
+_FRONT_MATTER = re.compile(r"\A---\n(.*?)\n---(?:\n|\Z)", re.S)
 _QUOTES = str.maketrans(
     {
         "\u2018": "'",
@@ -387,8 +387,8 @@ def _sheet_rows(text: str) -> str:
     return "".join(out)
 
 
-def _fetched(run: Path, source: str) -> str | None:
-    """The body of a flat file directly in fetched/ (front matter stripped), else None."""
+def _fetched(run: Path, source: str) -> tuple[dict[str, str], str] | None:
+    """The front matter and body of a flat file directly in fetched/, else None."""
     if not source.startswith("fetched/") or any(ord(c) < 32 for c in source):
         return None
     if len(source.encode("utf-8")) > 255:
@@ -398,12 +398,16 @@ def _fetched(run: Path, source: str) -> str | None:
     path = (run / source).resolve()
     if path.parent != (run / "fetched").resolve() or not path.is_file():
         return None
-    return "<<< page 1 >>>\n" + _FRONT_MATTER.sub("", _read(path), count=1)
+    text = _read(path)
+    head = _FRONT_MATTER.match(text)
+    front = dict(line.partition(":")[::2] for line in head.group(1).split("\n")) if head else {}
+    return {k.strip(): v.strip() for k, v in front.items()}, _FRONT_MATTER.sub("", text, count=1)
 
 
 class Source(NamedTuple):
     text: str
     rows: bool  # a sheet: an excerpt must anchor within one row
+    locator: str | None = None  # a fetched page: the only locator that anchors (ruling R9)
 
 
 def _source_text(
@@ -411,7 +415,12 @@ def _source_text(
 ) -> Source | Finding | None:
     """The text a citation must anchor in; None for an Image-Read source (nothing to anchor)."""
     if (fetched := _fetched(run, source)) is not None:
-        return Source(fetched, False)
+        front, body = fetched
+        if not front.get("url") or not front.get("retrieved"):
+            return Finding("citation_unanchored", f"{source!r} has no url and retrieved date")
+        return Source(
+            "<<< page 1 >>>\n" + body, False, f"{front['url']} retrieved {front['retrieved']}"
+        )
     record = records.get(source)
     if record is None:
         return Finding("source_unknown", f"{source!r} is not in prepared/index.json or fetched/")
@@ -435,6 +444,16 @@ def _scope(by_page: dict[int, str], locator: str) -> list[str] | None:
     return None if _PAGE_LIKE.search(locator) else list(by_page.values())
 
 
+def _locator(row: list[str], source_text: Source) -> Finding | None:
+    """A fetched page anchors only under the locator its front matter dictates (ruling R9)."""
+    if source_text.locator is None or row[2] == source_text.locator:
+        return None
+    return Finding(
+        "citation_unanchored",
+        f"{row[0]}: locator must be {source_text.locator!r}, not {row[2]!r}",
+    )
+
+
 def _anchor(row: list[str], source_text: Source) -> Finding | None:
     cid, source, locator, excerpt = row[:4]
     if too_short(excerpt):
@@ -443,7 +462,8 @@ def _anchor(row: list[str], source_text: Source) -> Finding | None:
         if len(joined.split()) >= MIN_EXCERPT_TOKENS and len(joined) >= MIN_EXCERPT_CHARS:
             need = f"each part between ellipses needs {MIN_PART_TOKENS} words"
         return Finding("citation_unanchored", f"{cid}: excerpt needs {need}: {excerpt!r}")
-    scope = _scope(pages(source_text.text), locator)
+    by_page = pages(source_text.text)
+    scope = list(by_page.values()) if source_text.locator else _scope(by_page, locator)
     if scope is None:
         return Finding("citation_unanchored", f"{cid}: page locator {locator!r} not understood")
     if source_text.rows:
@@ -477,7 +497,7 @@ def _run_findings(h: Handoff, run: Path) -> list[Finding]:
         if isinstance(source, Finding):
             found.append(source)
         elif source is not None:
-            found += [f for f in [_anchor(row, source)] if f]
+            found += [f for f in [_locator(row, source) or _anchor(row, source)] if f]
     return found
 
 
@@ -525,6 +545,10 @@ def _module_findings(
     """A module's own checks beyond its tables: CP-0's in `rbotlib.cp0` (Plan 04), CP-3's gate."""
     if contract.module_id == "CP-3":
         return _blocked_gate(h, rules)
+    if contract.module_id == "CP-DR":
+        from rbotlib import research_policy  # imported here: it builds on this module's Finding
+
+        return research_policy.findings(h, run)
     if contract.module_id != "CP-0":
         return []
     from rbotlib import cp0  # imported here: cp0 builds on this module's Finding
