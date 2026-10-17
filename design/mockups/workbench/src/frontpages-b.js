@@ -142,7 +142,7 @@
       title: o.title,
       question: QUESTIONS[run.front_page],
       illustrative: true,
-      bylineNodes: WB.bylineNodes(meta),
+      meta,
       notices: o.notices || [],
       tiles: o.tiles || cfg.tiles,
       lines: o.lines || cfg.lines,
@@ -440,7 +440,8 @@
       if (nc != null) kids.push(cellNode(rf, nc, 'flag'), '. ');
       const ids = uniq(String(V(ct, 0, 'basis')).match(/\bG\d+\b/g) || []);
       if (ids.length) kids.push(WB.inline('Ratios are on RBOT’s basis (' + ids.join(', ') + ').', mod(ct)));
-      lines.push({ label: 'COVENANTS', tone: 'neu', children: kids });
+      // a covenant test that reads Breached makes this a negative call line (it never folds)
+      lines.push({ label: 'COVENANTS', tone: ct.rows.some((x, r) => V(ct, r, 'status') === 'Breached') ? 'neg' : 'neu', children: kids });
     } else lines.push({ label: 'COVENANTS', tone: 'neu', children: 'No covenant tests in this run.' });
     lines.push(runwayLine(run));
     lines.push(tranchesLine());
@@ -514,7 +515,7 @@
       if (r == null) kids.push('none');
       else kids.push(el('b', { title: String(V(t, r, 'class_id')) }, WB.claimName(V(t, r, 'class_id'))), ', ', fig(t, r, 'recovery_pct', String(V(t, r, 'recovery_pct')) + ' recovery'));
     });
-    return { label: 'FULCRUM', tone: 'neg', children: kids };
+    return { label: 'FULCRUM', tone: 'neg', children: kids, leadTo: ';' };
   }
   function recoveriesPanels(shown, gs) {
     if (!shown) return [{ node: condPanel('Recoveries', 'CP-4C', 'Not shown: the distress gate is Not met' + (WB.state.honest ? ' (honest state: the live CAOS CP-4C returned Not Applicable).' : '.'), 'recoveries'), label: 'Recoveries', na: true, owners: ['CP-4C'] }];
@@ -700,7 +701,7 @@
     if (gs && WB.state.honest) lines.push({ label: 'GATE', tone: 'pos', children: 'Not met. The live CAOS CP-4C run found no named distress trigger and returned Not Applicable; the fixture\u2019s own triggers are in the gate table below.' });
     else if (gs) {
       const ev = String(V(gs.t, gs.r, 'evidence'));
-      lines.push({ label: 'GATE', tone: /^met$/i.test(gs.status) ? 'neg' : /not met/i.test(gs.status) ? 'pos' : 'cau', children: [fig(gs.t, gs.r, 'status'), ' ', WB.inline(ev, mod(gs.t))] });
+      lines.push({ label: 'GATE', tone: /^met$/i.test(gs.status) ? 'neg' : /not met/i.test(gs.status) ? 'pos' : 'cau', children: [el('strong', { class: 'v-lead' }, gs.status), '. ', WB.inline(ev, mod(gs.t))] });
     }
     lines.push(runwayLine(run));
     cfg.lines.filter((l) => l.label !== 'FULCRUM').forEach((l) => lines.push(l));

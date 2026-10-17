@@ -20,7 +20,7 @@ One-line facts:
 - **Portfolio Fit**: Test CLO I, synthetic (`fit`): proposed US$5,000,000 of the secured 2032s Fits, max US$15,773,213 under C-01; loans and unrated notes Watch, max US$883,300 under C-04.
 - **Main risk**: the credit view's primary downside (CP-2), with its citations. A reserved slot: always one of the lines the call shows, never folded behind "more".
 
-Call-line order: Fulcrum, main risk, Instrument, Portfolio Fit, Gate, Liquidity. The bar shows two lines (the fulcrum and the main risk; the distress gate is a tile) and keeps the rest behind one disclosure that names them.
+Call-line order: Fulcrum, main risk, Instrument, Portfolio Fit, Gate, Liquidity. The bar shows up to four lines and every negative line besides: the fulcrum and the main risk, plus the Fit line when a portfolio Breaches, the gate line when the gate is Met and the liquidity line when the runway is short of its uses never fold (the bar grows); the Instrument line sits behind one disclosure that names it.
 
 ## 3. Blocks (page order)
 
@@ -46,7 +46,7 @@ Call-line order: Fulcrum, main risk, Instrument, Portfolio Fit, Gate, Liquidity.
 
 ## 4. First viewport priority
 
-The call with the gate (tile), the fulcrum line and the main risk line; the gate table with its six triggers; the recovery chart. The instrument, Fit, gate and liquidity lines sit behind the disclosure.
+The call with the gate (tile), the fulcrum line and the main risk line; the gate table with its six triggers; the recovery chart. The Fit (Breaches), gate (Met) and liquidity lines are in the bar; the instrument line sits behind the disclosure.
 
 ## 5. Page-specific states
 

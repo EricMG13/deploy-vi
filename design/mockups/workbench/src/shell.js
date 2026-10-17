@@ -108,6 +108,8 @@
     } else {
       try {
         WB.views[name].render(canvas, run, { id: h.id, anchor: h.anchor });
+        // the real-run state: panels whose verdicts are the fixture's own are labelled and dimmed under a bar that no longer agrees with them
+        if (name === 'front' && WB.state.honest) WB.markFixtureView(canvas);
       } catch (err) {
         canvas.appendChild(el('div', { class: 'view view-state' }, el('div', { class: 'state-body' }, WB.conditionLine('This view failed to render: ' + err.message))));
         throw err;
@@ -134,6 +136,23 @@
     booted = true;
   }
   WB.rerender = () => route(true);
+
+  /* The real-run state (DECISION refinement 5) is part of the URL: ?state=real survives a reload and can be shared. */
+  WB.readStateFromUrl = function () {
+    WB.state.honest = new URLSearchParams(location.search).get('state') === 'real';
+  };
+  WB.setHonest = function (on) {
+    WB.state.honest = !!on;
+    const u = new URL(location.href);
+    if (on) u.searchParams.set('state', 'real');
+    else u.searchParams.delete('state');
+    history.replaceState(null, '', u.pathname + u.search + u.hash);
+    WB.rerender();
+    // the page was rebuilt: the switch is a new node, so focus goes back to it
+    const b = WB.qs('.v-state');
+    if (b) b.focus({ preventScroll: true });
+    WB.announce(on ? 'Real-run state on: judgements the live CAOS run did not produce read Not produced.' : 'Real-run state off: the fixture\u2019s own judgements show.');
+  };
 
   /* ---------- chrome: rail, navigator, title ---------- */
   function renderChrome(h, run) {
@@ -357,16 +376,6 @@
       });
     });
     body.appendChild(list);
-    const sw = el('button', { type: 'button', class: 'rs-switch', role: 'switch', 'aria-checked': WB.state.honest ? 'true' : 'false' }, [
-      el('span', { class: 'sw-track' }, el('span', { class: 'sw-dot' })),
-      el('span', { class: 'sw-l' }, [el('strong', null, 'Show the real-run state'), el('span', null, 'Replace the illustrative verdicts with what the live CAOS runs produced: no Recommendation, no Valuation, relative value Unclear, distress gate Not met.')]),
-    ]);
-    sw.addEventListener('click', () => {
-      WB.state.honest = !WB.state.honest;
-      sw.setAttribute('aria-checked', String(WB.state.honest));
-      WB.rerender();
-    });
-    body.appendChild(sw);
     openLayer('runs', body, opener, { dim: false });
     const iss = WB.qs('.nav-issuer', shell.nav);
     if (iss) iss.setAttribute('aria-expanded', 'true');
@@ -507,6 +516,7 @@
       row(WB.mark('synthetic', { size: 14 }), 'Synthetic.', 'TEST DATA invented for the design. Not a fact about the issuer.'),
       row(WB.mark('model', { size: 14 }), 'Model-written.', 'Prose or judgement written by the model. Its figures stay clickable.'),
       row(WB.mark('illustrative', { size: 14 }), 'Illustrative.', 'A judgement no RBOT run has produced yet. Every test run is a design fixture.'),
+      row(WB.mark('none', { size: 14 }), 'No source stated.', 'The module names no source for this figure. It is shown, never hidden; the passport says so and gives the row it sits in.'),
       row(WB.mark('gap', { size: 14 }), 'n/a.', 'The sources cannot support the figure. It is never zero or blank. A gap id such as G8 opens the reason.'),
       el('p', { class: 'hk-n' }, 'In dense tables the marks are quiet and strengthen on row hover or focus. The shapes differ, so colour is never the only carrier.'),
       el('h3', null, 'Colour is a signal, never alone'),
@@ -542,7 +552,30 @@
      From 1360px up it is always the full pane (the CSS ignores data-insp there). */
   const narrow = () => !window.matchMedia('(min-width: 1360px)').matches;
   function setInspOpen(open) {
-    if (shell.root) shell.root.dataset.insp = open ? 'open' : 'closed';
+    if (!shell.root) return;
+    shell.root.dataset.insp = open ? 'open' : 'closed';
+    if (!open) {
+      delete shell.root.dataset.inspSide;
+      shell.root.style.removeProperty('--insp-left');
+    }
+  }
+  /* Below 1360px an open inspector is an overlay on the canvas: the #app grid and the canvas do not move. It sits on the right edge; when the selected
+     figure would be under it, it docks on the left edge of the canvas instead, so the figure stays visible without any scrolling. */
+  function placeInspector() {
+    const root = shell.root;
+    delete root.dataset.inspSide;
+    root.style.removeProperty('--insp-left');
+    const pane = WB.qs('.insp-pane', shell.insp);
+    if (!narrow() || !pane || !insp.selected || !document.contains(insp.selected)) return;
+    const fig = insp.selected.getBoundingClientRect();
+    const pr = pane.getBoundingClientRect();
+    const over = (a0, a1, b0, b1) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
+    if (!over(fig.left, fig.right, pr.left, pr.right)) return;
+    const left = shell.canvas.getBoundingClientRect().left;
+    // a figure wider than the room beside the pane is under either: keep the side that covers less of it
+    if (over(fig.left, fig.right, left, left + pr.width) >= over(fig.left, fig.right, pr.left, pr.right)) return;
+    root.dataset.inspSide = 'left';
+    root.style.setProperty('--insp-left', left + 'px');
   }
   function clearSelection() {
     if (insp.selected) insp.selected.classList.remove('is-selected');
@@ -593,6 +626,7 @@
     else if (insp.tab === 'gaps' && !inInspector) insp.tab = 'source';
     setInspOpen(true);
     renderInspector();
+    placeInspector();
     if (!o.noFocus) {
       const h = WB.qs('.pp-title', shell.insp) || WB.qs('.insp-empty', shell.insp);
       if (h) h.focus({ preventScroll: true });
@@ -602,10 +636,10 @@
   function ppField(label, value, mono) {
     return [el('dt', null, label), el('dd', { class: mono ? 'num wrap' : '' }, value)];
   }
-  function chipButton(desc, id, label, synthetic) {
+  function chipButton(desc, id, label, synthetic, gap) {
     // an input's id: a code (C12, total_debt) prints mono; a label (Current value) prints as text
     const code = /^[A-Za-z]{0,3}\d+$|^[a-z0-9_:.@-]+$|^[A-Z0-9_:.@-]+$/.test(String(id));
-    const b = el('button', { type: 'button', class: 'pchip', 'data-pdesc': '1' }, [synthetic ? WB.mark('synthetic') : id && /^C\d+/.test(id) ? WB.mark('cited') : WB.mark('calculated'), el('span', { class: 'pc-id' + (code ? ' num' : ' pc-id-t') }, id), el('span', { class: 'pc-l' }, label)]);
+    const b = el('button', { type: 'button', class: 'pchip', 'data-pdesc': '1' }, [gap ? WB.mark('gap') : synthetic ? WB.mark('synthetic') : id && /^C\d+/.test(id) ? WB.mark('cited') : WB.mark('calculated'), el('span', { class: 'pc-id' + (code ? ' num' : ' pc-id-t') }, id), label ? el('span', { class: 'pc-l' }, label) : null]);
     b.addEventListener('click', () => WB.inspect(desc, b));
     return b;
   }
@@ -646,6 +680,10 @@
     if (p.cites.length && !p.inputs.length) {
       root.appendChild(el('h4', { class: 'pp-h' }, 'Cites (' + p.cites.length + ')'));
       root.appendChild(el('div', { class: 'pp-chips' }, p.cites.map((c) => chipButton(c.desc, c.id, c.label, c.synthetic))));
+    }
+    if (p.gapChips && p.gapChips.length) {
+      root.appendChild(el('h4', { class: 'pp-h' }, 'Gaps (' + p.gapChips.length + ')'));
+      root.appendChild(el('div', { class: 'pp-chips' }, p.gapChips.map((g) => chipButton(g.desc, g.id, g.label, false, true))));
     }
     if (p.usedIn != null || p.evidenceAnchor) {
       const bits = [];
@@ -748,11 +786,14 @@
     strip.addEventListener('click', openInspectorEmpty);
     const close = el('button', { type: 'button', class: 'btn-x insp-close', 'aria-label': 'Close the inspector', title: 'Close the inspector' }, WB.icon('close', { size: 14, stroke: 1.8 }));
     close.addEventListener('click', closeInspector);
+    // the pane is one box: docked as a column from 1360px up, an overlay on the canvas below that
     root.replaceChildren(
       strip,
-      el('header', { class: 'insp-h' }, [el('h2', null, 'Inspector'), bar, close]),
-      el('div', { class: 'insp-body', id: 'insp-panel', role: 'tabpanel', 'aria-labelledby': 'it-' + insp.tab }, body),
-      el('footer', { class: 'insp-f' }, [el('strong', null, 'Keys'), ' ', el('span', { class: 'num' }, '←↑→↓'), ' figures · ', el('span', { class: 'num' }, 'Enter'), ' passport · ', el('span', { class: 'num' }, 'Esc'), ' back'])
+      el('div', { class: 'insp-pane' }, [
+        el('header', { class: 'insp-h' }, [el('h2', null, 'Inspector'), bar, close]),
+        el('div', { class: 'insp-body', id: 'insp-panel', role: 'tabpanel', 'aria-labelledby': 'it-' + insp.tab }, body),
+        el('footer', { class: 'insp-f' }, [el('strong', null, 'Keys'), ' ', el('span', { class: 'num' }, '←↑→↓'), ' figures · ', el('span', { class: 'num' }, 'Enter'), ' passport · ', el('span', { class: 'num' }, 'Esc'), ' back']),
+      ])
     );
   }
 
@@ -826,6 +867,7 @@
   WB.start = function () {
     const root = el('div', { id: 'app', 'data-nav': window.matchMedia('(min-width: 1360px)').matches ? 'open' : 'closed', 'data-insp': 'closed' });
     shell.root = root;
+    WB.readStateFromUrl();
     shell.rail = el('nav', { class: 'rail on-navy', 'aria-label': 'Destinations' });
     shell.nav = el('aside', { class: 'navigator', id: 'navigator', 'aria-label': 'Navigator' });
     shell.canvas = el('main', { class: 'canvas', id: 'canvas', tabindex: '-1', 'aria-label': 'Report' });

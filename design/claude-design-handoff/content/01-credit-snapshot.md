@@ -51,7 +51,7 @@ Lines:
 
 ## 4. First viewport priority
 
-The call (three Strategy Recommendations, Valuation, Credit Score, Direction, the main risk line, the Fit line, the Instrument line); key findings with the main risk; company and operating model; the chart strip. A Quick run's Screening basis is a tag in the byline row (the words, its icon and the module code), not a call line.
+The call (three Strategy Recommendations, each with its "Capped by Fit" badge where its portfolio's Fit caps or breaches it, Valuation, Credit Score, Direction, the main risk line, the Fit line, the Instrument line; a negative line never folds); key findings with the main risk; company and operating model; the chart strip. A Quick run's Screening basis is a tag in the byline row (the words, its icon and the module code), not a call line.
 
 ## 5. Page-specific states
 

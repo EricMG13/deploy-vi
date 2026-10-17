@@ -26,7 +26,7 @@ One-line facts:
 
 Numbers in the call print by unit: yields to 2 decimals (8.06%, 9.32%), prices to 2 decimals (93.28); the passport's "Served as" keeps the value as the run holds it.
 
-Call-line order: Preferred, Relative Value (honest state), Portfolio Fit, main risk, Instrument. The bar shows three lines with the main risk among them. A Blocked CP-3D is not a call line: it is a tag in the byline row (the word Blocked, its icon and the module code CP-3D); the tag's passport holds the full sentence and the module's panels keep the reason.
+Call-line order: Preferred, Relative Value (honest state), Portfolio Fit, main risk, Instrument. The bar shows three lines with the main risk among them; a line whose tone is negative (a Fit line with Breaches) never folds. A Blocked CP-3D is not a call line: it is a tag in the byline row (the word Blocked, its icon and the module code CP-3D); the tag's passport holds the full sentence and the module's panels keep the reason.
 
 ## 3. Blocks (page order)
 

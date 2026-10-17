@@ -16,7 +16,7 @@ Claude Design project: "RBOT Report application design", file `Direction C - Wor
   - Navigator: modules with status and filters, then the page's sections.
   - Canvas: the navy verdict bar with the six position tiles and three call lines, then key findings beside company and operating model, then the four-chart strip.
   - Inspector: about 260px on the right.
-  - At 1280×800 the navigator starts closed; the rail, the module switcher (`/`) and the inspector stay.
+  - At 1280×800 the navigator starts closed; the rail and the module switcher (`/`) stay, and the inspector is a 36px strip that opens as an overlay on the canvas (no reflow) when a figure is selected.
 - **FORM.** Workbench; three Claude Design directions, the owner's pick. No impeccable concept seed was run: the directions were generated in Claude Design from this pack.
 - **FINISH.** Unreviewed and undocumented is unfinished. This build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance.
 
@@ -26,5 +26,5 @@ Claude Design project: "RBOT Report application design", file `Direction C - Wor
 2. Make provenance marks quieter by default in dense tables (a small muted mark), stronger on row hover or focus, and full in the inspector. Test both densities on the Capital structure and Model tables.
 3. Navigator family markers must not use hue: use icons or a neutral tint, so colour stays a signal.
 4. Chart gap labels sit on their axis position, not floating above the plot.
-5. The honest state (the real run produced no Recommendation) is a designed state of the verdict bar, not a design tweak.
+5. The honest state (the real run produced no Recommendation) is a designed state of the verdict bar, not a design tweak. Owner ruling (C2): a switch in the bar's header, state in the URL, every judgement tile honest, the fixture's own verdicts below the bar labelled and dimmed.
 6. Specify 1280×800 behaviour, keyboard order across the rail, navigator, canvas and inspector, and print (the inspector does not print; passports print as endnotes).

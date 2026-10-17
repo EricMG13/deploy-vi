@@ -17,14 +17,14 @@
     }
     return null;
   }
-  async function open(hash, size) {
+  async function open(hash, size, search) {
     if (size) {
       frame.style.width = size[0] + 'px';
       frame.style.height = size[1] + 'px';
     }
     frame.src = 'about:blank';
     await sleep(20);
-    frame.src = BASE + hash;
+    frame.src = BASE + (search || '') + hash;
     const ok = await until(() => frame.contentDocument && frame.contentDocument.documentElement.dataset.ready === '1' && frame.contentWindow.WB && frame.contentDocument.location.hash === hash.replace(/^$/, frame.contentDocument.location.hash), 20000);
     return ok ? frame.contentWindow : null;
   }
@@ -126,23 +126,25 @@
     w = await open('#/czr-full-credit-assessment/front');
     const before = $$('.tile-sq.np').length;
     $('.nav-issuer').click();
-    await until(() => $('.rs-switch'));
+    await until(() => $('.rs-row'));
     check('run switcher lists eight runs', $$('.rs-row').length === 8, $$('.rs-row').length);
     check('run switcher groups by Pathway', $$('.rs-g').length === 6, $$('.rs-g').length);
-    $('.rs-switch').click();
+    key(w, w.document.body, 'Escape');
+    await sleep(60);
+    // the real-run switch lives in the verdict bar (C2.3)
+    $('.v-state').click();
     await sleep(300);
     const after = $$('.tile-sq.np').length;
     check('honest state: Not produced tiles appear', before === 0 && after >= 4, before + ' -> ' + after);
     check('honest state: reason and producing module named', $$('.tile .tile-why').length >= 4 && $$('.tile .tile-mod').length >= 4, text('.tile-why'));
     check('honest state: a Not produced tile opens its reason as a passport', (() => { const b = $$('.tile .tile-btn').find((x) => /not produced/i.test(x.getAttribute('aria-label') || '')); if (!b) return false; b.click(); return /not produced/i.test(text('.pp-title')) && /Reason/.test(text('.pp-f')); })(), text('.pp-title'));
-    key(w, $('.rs-switch') || w.document.body, 'Escape');
+    $('.nav-issuer').click();
+    await until(() => $('.rs-row'));
+    key(w, w.document.body, 'Escape');
     await sleep(50);
     check('Escape closes the run switcher', !$('.rs'));
-    $('.nav-issuer').click();
-    await until(() => $('.rs-switch'));
-    $('.rs-switch').click();
-    key(w, w.document.body, 'Escape');
-    await sleep(100);
+    $('.v-state').click();
+    await sleep(150);
 
     /* ---- router edge cases ---- */
     w = await open('#/nope/front');
@@ -284,8 +286,9 @@
     /* ---- W6 polish: the call, words for ids, one state per limit ---- */
     w = await open('#/czr-earnings-update/front');
     const visibleLines = $$('.verdict-lines > .v-line').map((l) => l.querySelector('.v-ll').textContent);
-    check('call: at most three call lines show, in the content doc order', visibleLines.length === 3 && visibleLines[0] === 'THE QUARTER' && visibleLines[2] === 'NO RECOMMENDATION', visibleLines.join(','));
-    check('call: the other lines sit behind one disclosure that names them (the main risk never folds, Watch does)', $('.verdict-lines details.v-more') && /WATCH/.test(text('.v-more-s')) && !/MAIN RISK/.test(text('.v-more-s')), text('.v-more-s'));
+    // C2: with the lines shorter (a bold lead, one Sources button) the Earnings Update bar shows all four lines; nothing folds
+    check('call: the four Earnings Update lines show, in the content doc order (C2: Watch no longer folds)', visibleLines.join(',') === 'THE QUARTER,MAIN RISK,NO RECOMMENDATION,WATCH', visibleLines.join(','));
+    check('call: a bar with every line showing has no disclosure', !$('.verdict-lines details.v-more'), text('.v-more-s'));
     check('call: Earnings Update has no Recommendation tile (content doc 02 states it as a line)', !$$('.tile-l').some((t) => /^Recommendation$/i.test(t.textContent)), $$('.tile-l').map((t) => t.textContent).join(','));
     const barH = $('.verdict').getBoundingClientRect().height + ($('.verdict-lines') ? $('.verdict-lines').getBoundingClientRect().height : 0);
     check('call: the bar leaves the first key panel in the first viewport (1440x900)', barH < 330 && $('#p-fp-headline').getBoundingClientRect().top < 360, Math.round(barH));
@@ -353,7 +356,8 @@
     } else check('C1.1 cite chip present on CP-1B', false);
 
     // item 2: main risk on every Front Page, notices as tags, bar height within W6's numbers
-    const W6_BAR = { 'czr-full-credit-assessment': 255, 'czr-full-credit-assessment-quick': 298, 'czr-earnings-update': 301, 'czr-relative-value': 268, 'czr-relative-value-blocked': 297, 'czr-covenant-refinancing': 307, 'czr-portfolio-decision': 340, 'larchmere-distressed-restructuring': 301 };
+    // C2: ceilings revisited. A breach is never folded and a capped Strategy tile carries its badge, so the bars grew (the budget gives way): the numbers are C2's measured heights plus 10px
+    const W6_BAR = { 'czr-full-credit-assessment': 270, 'czr-full-credit-assessment-quick': 290, 'czr-earnings-update': 310, 'czr-relative-value': 275, 'czr-relative-value-blocked': 275, 'czr-covenant-refinancing': 330, 'czr-portfolio-decision': 375, 'larchmere-distressed-restructuring': 440 };
     for (const runId of Object.keys(W6_BAR)) {
       w = await open('#/' + runId + '/front', [1440, 900]);
       const shown = $$('.verdict-lines > .v-line .v-ll').map((l) => l.textContent.trim());
@@ -385,7 +389,8 @@
     w = await open('#/czr-portfolio-decision/fit', [1280, 800]);
     check('C1.3 @1280 fit: the canvas header names the issuer', /Caesars Entertainment/.test(text('.m-bar')), text('.m-bar').slice(0, 100));
     w = await open('#/czr-full-credit-assessment/front', [1280, 800]);
-    const iw = () => $('#inspector').getBoundingClientRect().width;
+    // below 1360px the inspector's column is always the 36px strip; the open pane is an overlay, so its width is the pane's
+    const iw = () => { const pn = $('.insp-pane'); return pn && pn.getBoundingClientRect().width > 0 ? pn.getBoundingClientRect().width : $('#inspector').getBoundingClientRect().width; };
     check('C1.3 @1280 nothing selected: the inspector is a slim strip', iw() > 0 && iw() < 80, iw());
     const strip = $('.insp-open');
     check('C1.3 @1280 the strip is a labelled, keyboard-reachable control', strip && strip.tagName === 'BUTTON' && strip.getAttribute('aria-label') && strip.tabIndex >= 0 && strip.getBoundingClientRect().width > 0, strip && strip.getAttribute('aria-label'));
@@ -472,6 +477,322 @@
     check('C1.6 the rail logo keeps role=img and its accessible name, and shows the whole icon', logo && logo.getAttribute('role') === 'img' && /State Street/.test(logo.getAttribute('aria-label')) && dim && Math.abs(logo.getBoundingClientRect().width / logo.getBoundingClientRect().height - dim[0] / dim[1]) < 0.15, logo && logo.getBoundingClientRect().width + 'x' + logo.getBoundingClientRect().height);
     w = await open('#/czr-full-credit-assessment/system');
     check('C1.6 the Design system specimen search does not swallow errors silently: it logs a count or none were thrown', w.document.documentElement.dataset.errors === '0' && typeof w.__wbSpecimenSkips === 'number', String(w.__wbSpecimenSkips));
+
+    {
+    /* =====================================================================================================
+       C2: second-critique fixes. Each check names the reported cause; the block ran red on the build at 2154cce.
+       ===================================================================================================== */
+    const RUNS8 = ['czr-full-credit-assessment', 'czr-full-credit-assessment-quick', 'czr-earnings-update', 'czr-relative-value', 'czr-relative-value-blocked', 'czr-covenant-refinancing', 'czr-portfolio-decision', 'larchmere-distressed-restructuring'];
+    const llabel = (p) => (p.querySelector('.v-ll') ? p.querySelector('.v-ll').textContent.trim() : '');
+    const rectOf = (n) => n.getBoundingClientRect();
+    const tx = (sel, root) => ((root.querySelector(sel) || {}).textContent || '').trim();
+    const hit = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+
+    /* ---- C2.1 breaches are never hidden ---- */
+    for (const runId of RUNS8) {
+      w = await open('#/' + runId + '/front', [1440, 900]);
+      const foldedNeg = $$('.verdict-lines details .v-line').filter((p) => p.querySelector('.v-ll.tone-neg') || p.querySelector('.v-verdict.tone-neg')).map(llabel);
+      check('C2.1 ' + runId + ': no negative call line folds into "more"', foldedNeg.length === 0, foldedNeg.join(','));
+      const fitBad = $$('.verdict-lines .v-line').filter((p) => p.querySelector('.v-verdict.tone-neg') && !p.querySelector('.v-ll.tone-neg')).map(llabel);
+      check('C2.1 ' + runId + ': a Fit line that carries Breaches reads as a negative line', fitBad.length === 0, fitBad.join(','));
+    }
+    for (const sz of [[1440, 900], [1280, 800]]) {
+      w = await open('#/larchmere-distressed-restructuring/front', sz);
+      const shown = $$('.verdict-lines > .v-line').map(llabel);
+      check('C2.1 Larchmere @' + sz[0] + ': Fit (Breaches), the gate (Met), fulcrum and main risk all show', ['PORTFOLIO FIT', 'GATE', 'FULCRUM', 'MAIN RISK'].every((l) => shown.includes(l)), shown.join(','));
+    }
+    for (const sz of [[1440, 900], [1280, 800]]) {
+      w = await open('#/czr-portfolio-decision/front', sz);
+      const segs = $$('.verdict-lines .v-fit');
+      check('C2.1 Portfolio Decision @' + sz[0] + ': one unbreakable segment per portfolio (name, tag, counts, Details)', segs.length === 2 && segs.every((s) => s.querySelector('.v-verdict') && s.querySelector('.v-lnk')) && /Test CLO I/.test(segs[0].textContent) && /Test Indexed HY I/.test(segs[1].textContent), segs.map((s) => s.textContent).join(' | '));
+      check('C2.1 Portfolio Decision @' + sz[0] + ': the Breaches count sits in the Indexed HY segment, not under the CLO name', segs.length === 2 && /1 Breaches/.test(segs[1].textContent) && !/Breaches/.test(segs[0].textContent), segs.map((s) => s.textContent).join(' | '));
+      check('C2.1 Portfolio Decision @' + sz[0] + ': no segment wraps onto a second line', segs.length === 2 && segs.every((s) => s.getClientRects().length === 1 && rectOf(s).height < 24), segs.map((s) => Math.round(rectOf(s).height)).join(','));
+    }
+    const capExpect = (strat) => {
+      const t = frame.contentWindow.WB.table('cp6.portfolio_recommendation');
+      if (!t) return null;
+      const ix = (n) => t.columns.indexOf(n);
+      const rows = t.rows.filter((r) => r[ix('strategy')] === strat);
+      if (!rows.length) return null;
+      const br = rows.filter((r) => r[ix('fit_verdict')] === 'Breaches');
+      const cp = rows.filter((r) => r[ix('final')] !== r[ix('uncapped')]);
+      const use = br.length ? br : cp.filter((r) => r[ix('fit_verdict')] !== 'Breaches');
+      return { breach: br.length, capped: cp.length, cap: Array.from(new Set(use.map((r) => r[ix('cap')]))) };
+    };
+    for (const runId of ['larchmere-distressed-restructuring', 'czr-portfolio-decision', 'czr-full-credit-assessment']) {
+      w = await open('#/' + runId + '/front', [1440, 900]);
+      for (const strat of ['CLO', 'Indexed Loans', 'Indexed HY']) {
+        const tile = $$('.v-tiles .tile').find((t) => tx('.tile-l', t) === strat || (t.querySelector('.tile-l') && t.querySelector('.tile-l').textContent.trim() === strat));
+        const ex = capExpect(strat);
+        const badge = tile && tile.querySelector('.tile-cap');
+        if (ex && (ex.breach || ex.capped)) {
+          check('C2.1 ' + runId + ': the ' + strat + ' tile says its Recommendation is capped by Fit (word and icon, the run’s own cap)', badge && /Capped by Fit/.test(badge.textContent) && badge.querySelector('svg') && (ex.cap.length !== 1 || badge.textContent.includes(ex.cap[0])) && (!ex.breach || badge.classList.contains('tone-neg')), badge ? badge.textContent : 'no badge ' + JSON.stringify(ex));
+        } else check('C2.1 ' + runId + ': the ' + strat + ' tile with no Fit cap carries no badge', !badge, badge && badge.textContent);
+      }
+    }
+
+    /* ---- C2.2 provenance on every value ---- */
+    w = await open('#/czr-full-credit-assessment/front');
+    const kvRow = (re) => $$('.kv tr').find((tr) => re.test(tr.textContent));
+    const moody = kvRow(/Moody/);
+    const moodyFig = moody && moody.querySelector('button.fig[data-ref]');
+    check('C2.2 the Moody’s rating is a focusable figure with a passport (the row cites a synthetic source)', moodyFig && moodyFig.classList.contains('fig-synthetic') && /B1/.test(moodyFig.textContent), moody && moody.innerHTML.slice(0, 160));
+    if (moodyFig) {
+      moodyFig.click();
+      await sleep(60);
+      check('C2.2 the rating passport is SYNTHETIC and names TEST DATA', /SYNTHETIC/.test(text('.pp-kind')) && /TEST DATA/.test(text('.pp-f') + text('.pp-ex')), text('.pp-kind') + ' | ' + text('.pp-f').slice(0, 80));
+    }
+    const spRow = kvRow(/S&P/);
+    check('C2.2 the S&P rating and its outlook are figures too', spRow && spRow.querySelectorAll('button.fig[data-ref]').length >= 2, spRow && spRow.querySelectorAll('button.fig[data-ref]').length);
+    const sectorRow = kvRow(/Sector/);
+    check('C2.2 sector and country (short text in a citing row) are figures', sectorRow && sectorRow.querySelector('button.fig[data-ref]') && kvRow(/Country/).querySelector('button.fig[data-ref]'), sectorRow && sectorRow.innerHTML.slice(0, 120));
+    // every text value in a row that cites a source resolves to cited or synthetic; plain only when the row cites nothing
+    // (the row-label column of a multi-row table and unit descriptors stay plain)
+    const plainText = [];
+    for (const runId of RUNS8) {
+      const wr = await open('#/' + runId + '/front');
+      for (const [tid, t] of wr.WB.run._tables) {
+        if (tid.indexOf('@') >= 0 || t.columns.indexOf('cite') < 0) continue;
+        const kinds = wr.WB.columnKinds(t);
+        const lead = kinds.findIndex((k) => k.kind !== 'hidden' && !/_id$/.test(k.name));
+        kinds.forEach((k, c) => {
+          if (k.kind !== 'text' || k.modelWritten || /^(unit_label|unit|currency)$/.test(k.name) || (t.rows.length > 1 && c === lead)) return;
+          t.rows.forEach((row, r) => {
+            const info = wr.WB.rowInfo(t, r);
+            if (info && info.cites.length && !wr.WB.isEmpty(row[c]) && wr.WB.cellOrigin(t, r, c).kind === 'plain') plainText.push(runId + ':' + tid + '.' + k.name + '#' + r);
+          });
+        });
+      }
+      if (plainText.length > 3) break;
+    }
+    check('C2.2 no text value in a citing row resolves to plain', plainText.length === 0, plainText.length + ' e.g. ' + plainText.slice(0, 3).join(' | '));
+    w = await open('#/czr-relative-value/front');
+    {
+      const t = $('.dt[data-table="snapshot.instrument_levels"]');
+      const heads = t ? Array.from(t.querySelectorAll('thead th')).map((h) => h.textContent.trim()) : [];
+      const ix = heads.findIndex((h) => /coupon/i.test(h));
+      const cells = t && ix >= 0 ? Array.from(t.querySelectorAll('tbody tr[data-r]')).map((tr) => tr.children[ix]).filter((td) => td && td.textContent.trim()) : [];
+      const dix = heads.findIndex((h) => /level date/i.test(h));
+      const dcells = t && dix >= 0 ? Array.from(t.querySelectorAll('tbody tr[data-r]')).map((tr) => tr.children[dix]).filter((td) => td && td.textContent.trim()) : [];
+      check('C2.2 Relative Value: every level date is a figure with a passport (a date is a stated value)', dcells.length >= 4 && dcells.every((td) => td.querySelector('button.fig[data-ref], .gapchip')), dcells.length + ' cells, ' + dcells.filter((td) => !td.querySelector('button.fig[data-ref], .gapchip')).length + ' plain');
+      check('C2.2 Relative Value: every coupon / spread value is a figure with a passport', cells.length >= 4 && cells.every((td) => td.querySelector('button.fig[data-ref], .gapchip')), cells.length + ' cells, ' + cells.filter((td) => !td.querySelector('button.fig[data-ref], .gapchip')).length + ' plain');
+    }
+    // a figure with no source stated: a visible mark and a passport that says so
+    w = await open('#/czr-full-credit-assessment/front');
+    const nones = $$('#canvas .fig-none');
+    check('C2.2 a no-source figure is on the page (EV 17,600, Equity 1,758)', nones.length >= 2, nones.length);
+    check('C2.2 every no-source figure carries a visible mark of its own shape', nones.length >= 2 && nones.every((n) => { const m = n.querySelector('svg.mk-none'); return m && rectOf(m).width > 4; }), nones.map((n) => !!n.querySelector('svg.mk-none')).join(','));
+    if (nones[0]) {
+      nones[0].click();
+      await sleep(60);
+      check('C2.2 a no-source passport says "No source stated by the module" with the row’s context', /NO SOURCE STATED/i.test(text('.pp-kind')) && /No source stated by the module/.test(text('.pp-f')) && /(Equity|Enterprise|EV)/i.test(text('.pp-title') + text('.pp-f')), text('.pp-kind') + ' | ' + text('.pp-title') + ' | ' + text('.pp-f').slice(0, 160));
+    }
+    // every gap chip's accessible name carries its reason
+    for (const runId of ['czr-full-credit-assessment', 'czr-covenant-refinancing', 'larchmere-distressed-restructuring', 'czr-relative-value']) {
+      w = await open('#/' + runId + '/front');
+      const bare = $$('.gapchip').filter((g) => !/[:,] ?.{6,}/.test((g.getAttribute('aria-label') || '').replace(/^Not available/, '')) || /^Not available(, [^:]*)?$/.test(g.getAttribute('aria-label') || ''));
+      check('C2.2 ' + runId + ': every gap chip’s accessible name includes its reason', $$('.gapchip').length > 0 && bare.length === 0, bare.length + ' bare of ' + $$('.gapchip').length + ' e.g. ' + (bare[0] && bare[0].getAttribute('aria-label')));
+    }
+    // the key sheet and the Design system carry the new kind
+    w.document.querySelector('.rail-btn[aria-label^="How to read"]').click();
+    await sleep(80);
+    check('C2.2 the ? key sheet lists "No source stated" with its own mark', /No source stated/.test(text('.hk')) && $('.hk .mk-none'), text('.hk').slice(0, 80));
+    w = await open('#/czr-full-credit-assessment/system');
+    check('C2.2 the Design system’s provenance specimens include the no-source kind (mark and passport)', $('#ds-marks .mk-none, [id$="marks"] .mk-none') && /No source stated by the module/.test(text('#ds-passports, [id$="passports"]') || text('#canvas')), !!$('.mk-none'));
+
+    /* ---- C2.3 a complete honest state ---- */
+    const NP_OK = new Set(['Covenant tests', 'Distress gate']);
+    for (const runId of RUNS8) {
+      w = await open('#/' + runId + '/front', [1440, 900], '?state=real');
+      const tiles = $$('.v-tiles .tile');
+      const leftover = tiles.filter((t) => !t.querySelector('.tile-sq.np') && !NP_OK.has(tx('.tile-l', t))).map((t) => tx('.tile-l', t) + '=' + tx('.tile-word', t));
+      check('C2.3 ' + runId + ': in the real-run state no judgement tile shows a fixture value (state read from the URL)', tiles.length > 0 && leftover.length === 0 && $$('.tile-sq.ill').length === 0, leftover.join(', '));
+      check('C2.3 ' + runId + ': every Not produced tile gives a reason and its producing module', $$('.tile-sq.np').length > 0 && tiles.filter((t) => t.querySelector('.tile-sq.np')).every((t) => t.querySelector('.tile-why') && tx('.tile-why', t).length > 8 && t.querySelector('.tile-mod')), '');
+      check('C2.3 ' + runId + ': the bar’s ILLUSTRATIVE tag becomes REAL-RUN STATE', /REAL-RUN STATE/.test(text('.v-meta .v-tag')) && !/ILLUSTRATIVE/.test(text('.v-meta')), text('.v-meta .v-tag'));
+    }
+    w = await open('#/czr-earnings-update/front', [1440, 900], '?state=real');
+    check('C2.3 Earnings Update: Direction, Sector Outlook and Since last Report give the run’s own gap text', ['Credit Direction', 'Sector Outlook', 'Since last Report'].every((l) => { const t = $$('.v-tiles .tile').find((x) => tx('.tile-l', x) === l); return t && /never produced|no earlier|real run/i.test(t.querySelector('.tile-btn').getAttribute('aria-label')); }), $$('.v-tiles .tile .tile-btn').map((b) => b.getAttribute('aria-label').slice(0, 60)).join(' | '));
+    w = await open('#/czr-full-credit-assessment/front', [1440, 900]);
+    check('C2.3 the toggle sits in the verdict bar header beside the tag: a labelled switch with aria-pressed', $('.v-meta .v-state') && $('.v-meta .v-state').tagName === 'BUTTON' && $('.v-meta .v-state').getAttribute('aria-pressed') === 'false' && /real-run state/i.test($('.v-meta .v-state').textContent) && $('.v-meta .v-state').tabIndex >= 0 && $('.v-meta .v-state').parentNode === $('.v-meta .v-tag').parentNode, $('.v-meta .v-state') && $('.v-meta .v-state').outerHTML.slice(0, 120));
+    check('C2.3 the normal bar keeps its ILLUSTRATIVE tag', /ILLUSTRATIVE/.test(text('.v-meta .v-tag')), text('.v-meta .v-tag'));
+    if ($('.v-state')) {
+      $('.v-state').click();
+      await sleep(250);
+      check('C2.3 pressing the switch turns the state on: aria-pressed, REAL-RUN STATE, Not produced tiles', $('.v-state') && $('.v-state').getAttribute('aria-pressed') === 'true' && /REAL-RUN STATE/.test(text('.v-meta .v-tag')) && $$('.tile-sq.np').length === 6, $$('.tile-sq.np').length);
+      check('C2.3 the state is in the URL so it survives reload and can be shared', /[?&]state=real/.test(w.location.search), w.location.href.slice(-60));
+      $('.v-state').click();
+      await sleep(250);
+      check('C2.3 turning it off clears the URL flag', !/state=real/.test(w.location.search) && $$('.tile-sq.np').length === 0, w.location.search);
+    }
+    w = await open('#/czr-full-credit-assessment/front', null, '?state=real');
+    check('C2.3 a reload with the flag restores the real-run state', $('.v-state') && $('.v-state').getAttribute('aria-pressed') === 'true' && $$('.tile-sq.np').length === 6, $$('.tile-sq.np').length);
+    $('.nav-issuer').click();
+    await until(() => $('.rs-row'));
+    check('C2.3 the run switcher no longer carries the toggle (it moved to the bar)', !$('.rs-switch'), !!$('.rs-switch'));
+    key(w, w.document.body, 'Escape');
+    // the panels below the bar: illustrative verdicts are dimmed and labelled while the real-run state is on
+    w = await open('#/larchmere-distressed-restructuring/front', [1440, 900]);
+    const gateBadge = () => $('.dt[data-table="cp4c.distress_gate"] .badge');
+    const normalColour = gateBadge() ? w.getComputedStyle(gateBadge()).color : null;
+    check('C2.3 Larchmere (normal): no panel is labelled as the fixture’s own view', $$('.panel .tag-fixture').length === 0, $$('.panel .tag-fixture').length);
+    w = await open('#/larchmere-distressed-restructuring/front', [1440, 900], '?state=real');
+    const gatePanel = $('.dt[data-table="cp4c.distress_gate"]') && $('.dt[data-table="cp4c.distress_gate"]').closest('.panel');
+    check('C2.3 Larchmere (real-run): the gate panel is labelled "Fixture’s own view"', gatePanel && /Fixture.s own view/.test(tx('.tag-fixture', gatePanel)), gatePanel && gatePanel.querySelector('.p-l').textContent.slice(0, 100));
+    const dimmed = gateBadge() ? w.getComputedStyle(gateBadge()).color : null;
+    const probeSpan = w.document.createElement('span');
+    probeSpan.style.color = 'var(--ink-2)';
+    w.document.body.appendChild(probeSpan);
+    const ink2 = w.getComputedStyle(probeSpan).color;
+    check('C2.3 Larchmere (real-run): the Met / Not met words under the Not met bar are no longer a signal colour', normalColour && dimmed && normalColour !== dimmed && dimmed === ink2, normalColour + ' -> ' + dimmed + ' (ink-2 ' + ink2 + ')');
+    check('C2.3 Larchmere (real-run): the bar reads Not met, REAL-RUN STATE', /Not met/.test(text('.v-tiles')) && /REAL-RUN STATE/.test(text('.v-tag')), text('.v-tiles').slice(0, 60));
+    w = await open('#/czr-full-credit-assessment/front', [1440, 900], '?state=real');
+    check('C2.3 Snapshot (real-run): panels that hold illustrative verdicts are labelled "Fixture’s own view"', $$('.panel .tag-fixture').length >= 1, $$('.panel .tag-fixture').length);
+
+    /* ---- C2.4 call lines read as a call ---- */
+    for (const runId of RUNS8) {
+      w = await open('#/' + runId + '/front', [1440, 900]);
+      const lines = $$('.verdict-lines .v-line');
+      const glyphs = $$('.verdict-lines .v-line .mk, .verdict-lines .v-line .cm, .verdict-lines .v-line .gapchip, .verdict-lines .v-line .calc-inline, .verdict-lines .v-line .fig, .verdict-lines .v-line .fpa-ref');
+      check('C2.4 ' + runId + ': no per-clause glyph, code or figure button inside the bar’s prose', glyphs.length === 0, glyphs.length + ' e.g. ' + (glyphs[0] && glyphs[0].className));
+      const bad = [];
+      lines.forEach((p) => {
+        const l = llabel(p);
+        if (l === 'PORTFOLIO FIT') return;
+        const lead = p.querySelector('.v-lead');
+        const body = p.textContent.replace(l, '').replace(/\s+/g, ' ').trim();
+        const lt = lead ? lead.textContent.trim() : '';
+        const rest = body.slice(body.indexOf(lt) + lt.length);
+        if (!lead || !lt || !body.startsWith(lt) || !(rest === '' || /^[,;:.]/.test(rest.trimStart()) || /^[,;:.]/.test(rest))) bad.push(l + ' lead=' + JSON.stringify(lt) + ' next=' + JSON.stringify(rest.slice(0, 6)));
+        else if (lt.length > 120) bad.push(l + ' lead too long ' + lt.length);
+      });
+      check('C2.4 ' + runId + ': each line is label, a bold lead from its own first clause, then the rest', lines.length > 0 && bad.length === 0, bad.join(' | '));
+      const srcBad = [];
+      lines.forEach((p) => {
+        const b = p.querySelectorAll('button.v-src');
+        const others = Array.from(p.querySelectorAll('button')).filter((x) => !x.classList.contains('v-src') && !x.classList.contains('v-verdict'));
+        const last = p.lastElementChild;
+        if (b.length > 1 || others.length || (b.length === 1 && last !== b[0])) srcBad.push(llabel(p) + ' src=' + b.length + ' other=' + others.length);
+        if (b.length === 1 && !(/^Sources \d+( · \d+ gaps?)?$|^\d+ gaps?$/.test(b[0].textContent.trim()) && /^Sources, \d+|^\d+ gaps?/.test(b[0].getAttribute('aria-label')))) srcBad.push(llabel(p) + ' label=' + b[0].textContent + ' aria=' + b[0].getAttribute('aria-label'));
+      });
+      check('C2.4 ' + runId + ': each line ends in one "Sources n" affordance (screen reader: one sentence, then "Sources, n")', lines.length > 0 && srcBad.length === 0, srcBad.join(' | '));
+      const probe = w.document.createElement('span');
+      probe.style.cssText = 'display:block;width:80ch;height:0;visibility:hidden';
+      lines[0].appendChild(probe);
+      const ch80 = rectOf(probe).width;
+      probe.remove();
+      const wide = lines.filter((p) => rectOf(p).width > ch80 + 2).map(llabel);
+      check('C2.4 ' + runId + ': line measure is about 80ch', lines.length > 0 && wide.length === 0, wide.join(',') + ' (80ch = ' + Math.round(ch80) + 'px; widest ' + Math.round(Math.max.apply(null, lines.map((p) => rectOf(p).width))) + ')');
+      check('C2.4 ' + runId + ': no sentence about the test run sits in a call line', !/test run|design fixture/i.test($('.verdict-lines').textContent), (/.{20}(test run|design fixture).{20}/i.exec($('.verdict-lines').textContent) || [''])[0]);
+    }
+    w = await open('#/czr-full-credit-assessment/front', [1440, 900]);
+    {
+      const mr = $$('.verdict-lines .v-line').find((p) => llabel(p) === 'MAIN RISK');
+      const src = mr && mr.querySelector('.v-src');
+      check('C2.4 Snapshot main risk: "Sources 2 · 1 gap" (C12, C13 and G8)', src && /^Sources 2 · 1 gap$/.test(src.textContent.trim()), src && src.textContent);
+      check('C2.4 the main-risk lead is the text before its first comma, semicolon or colon (or the whole sentence)', mr && /Merger debt of unstated size on top of falling Las Vegas earnings/.test(tx('.v-lead', mr)), mr && tx('.v-lead', mr));
+      if (src) {
+        src.click();
+        await sleep(80);
+        const chips = $$('.pp-chips .pchip');
+        check('C2.4 the Sources passport lists every citation and gap of the line, each a chip', chips.length === 3 && chips.filter((c) => /^C\d+/.test(c.textContent)).length === 2 && chips.some((c) => /G8/.test(c.textContent)), chips.map((c) => c.textContent.slice(0, 30)).join(' | '));
+        if (chips[0]) {
+          chips[0].click();
+          await sleep(60);
+          check('C2.4 a citation chip opens its own passport with Back', $('.pp-back') && /CITED|SYNTHETIC/.test(text('.pp-kind')) && $('.pp-ex'), text('.pp-kind') + ' ' + text('.pp-title'));
+          $('.pp-back').click();
+          await sleep(40);
+          const gapChip = $$('.pp-chips .pchip').find((c) => /G8/.test(c.textContent));
+          if (gapChip) {
+            gapChip.click();
+            await sleep(60);
+            check('C2.4 a gap chip opens its own gap passport', /N\/A/i.test(text('.pp-kind')), text('.pp-kind'));
+          } else check('C2.4 a gap chip opens its own gap passport', false, 'no G8 chip after Back');
+        }
+      }
+      const fix = $('.v-by .v-fix');
+      check('C2.4 the Design-fixture byline tag is a button', fix && fix.tagName === 'BUTTON' && fix.getAttribute('data-ref'), fix && fix.outerHTML.slice(0, 100));
+      if (fix) {
+        fix.click();
+        await sleep(60);
+        check('C2.4 its passport holds the moved fixture sentence, verbatim', /This test run uses three synthetic tranches in its place\./.test(text('.pp-f') + text('.pp-note') + text('.pp-title')), text('.pp-f').slice(0, 160));
+      }
+    }
+    w = await open('#/larchmere-distressed-restructuring/front', [1440, 900]);
+    {
+      const mr = $$('.verdict-lines .v-line').find((p) => llabel(p) === 'MAIN RISK');
+      check('C2.4 Larchmere main risk: lead "Cash earnings no longer cover fixed charges", Sources 3', mr && tx('.v-lead', mr) === 'Cash earnings no longer cover fixed charges' && /^Sources 3$/.test(tx('.v-src', mr)), mr && tx('.v-lead', mr) + ' | ' + tx('.v-src', mr));
+    }
+    w = await open('#/czr-covenant-refinancing/front', [1440, 900]);
+    check('C2.4 Covenant & Refinancing: its call columns are plain figures with one Sources affordance per line (no marked mono figures)', $$('.verdict-lines .v-line').length >= 4 && $$('.verdict-lines .fig').length === 0 && $$('.verdict-lines .v-line .v-src').length >= 3, $$('.verdict-lines .fig').length + ' figs, ' + $$('.verdict-lines .v-src').length + ' src');
+
+    /* ---- C2.5 the inspector at laptop width opens over the canvas, without reflow ---- */
+    w = await open('#/czr-full-credit-assessment/front', [1280, 800]);
+    {
+      const grid0 = w.getComputedStyle($('#app')).gridTemplateColumns;
+      const canvas0 = rectOf($('#canvas')).width;
+      const bar0 = rectOf($('.verdict')).width;
+      // the figure furthest to the right on the page, scrolled to the middle of the view: the overlay's default side would cover it
+      const fig = $$('#canvas .fig').filter((f) => rectOf(f).width > 0).sort((a, b) => rectOf(b).right - rectOf(a).right)[0];
+      fig.scrollIntoView({ block: 'center' });
+      await sleep(60);
+      check('C2.5 a figure near the right edge exists to select', fig && rectOf(fig).right > 1280 - 330, fig && Math.round(rectOf(fig).right));
+      const before = rectOf(fig);
+      fig.focus();
+      fig.click();
+      await sleep(150);
+      const pane = $('.insp-pane');
+      check('C2.5 @1280 selecting opens the inspector as an overlay: the #app grid is unchanged', w.getComputedStyle($('#app')).gridTemplateColumns === grid0, grid0 + ' -> ' + w.getComputedStyle($('#app')).gridTemplateColumns);
+      check('C2.5 @1280 no layout in the canvas moves (canvas, verdict bar, the figure)', Math.abs(rectOf($('#canvas')).width - canvas0) < 1 && Math.abs(rectOf($('.verdict')).width - bar0) < 1 && Math.abs(rectOf(fig).left - before.left) < 1 && Math.abs(rectOf(fig).top - before.top) < 1, canvas0 + ' -> ' + rectOf($('#canvas')).width + '; bar ' + bar0 + ' -> ' + rectOf($('.verdict')).width);
+      const cs = pane && w.getComputedStyle(pane);
+      check('C2.5 @1280 the overlay floats over the canvas with a shadow and a close control', pane && (cs.position === 'fixed' || cs.position === 'absolute') && cs.boxShadow !== 'none' && rectOf(pane).width >= 280 && $('.insp-close') && rectOf($('.insp-close')).width > 0, pane && cs.position + ' / ' + cs.boxShadow.slice(0, 40));
+      check('C2.5 @1280 the selected figure is not under the overlay', pane && !hit(rectOf(fig), rectOf(pane)), pane && JSON.stringify([rectOf(fig).left | 0, rectOf(fig).right | 0, rectOf(pane).left | 0, rectOf(pane).right | 0]));
+      key(w, w.document.activeElement, 'Escape');
+      await sleep(120);
+      check('C2.5 @1280 Esc returns to the strip and focus to the figure', (!$('.insp-pane') || rectOf($('.insp-pane')).width === 0) && rectOf($('#inspector')).width < 80 && w.document.activeElement === fig, rectOf($('#inspector')).width + ' / ' + (w.document.activeElement && w.document.activeElement.className));
+      // and a figure on the left half: the overlay may stay on the right; nothing moves either
+      const left = $$('#canvas .fig').filter((f) => { const r = rectOf(f); return r.width > 0 && r.left < 500; })[0];
+      left.scrollIntoView({ block: 'center' });
+      await sleep(60);
+      left.focus();
+      left.click();
+      await sleep(150);
+      check('C2.5 @1280 a figure on the left is not covered either', $('.insp-pane') && !hit(rectOf(left), rectOf($('.insp-pane'))), '');
+      $('.insp-close').click();
+      await sleep(100);
+      check('C2.5 @1280 the close control returns to the strip', rectOf($('#inspector')).width < 80, rectOf($('#inspector')).width);
+    }
+    w = await open('#/czr-full-credit-assessment/front', [1440, 900]);
+    {
+      const fig = $$('#canvas .fig')[0];
+      fig.focus();
+      fig.click();
+      await sleep(100);
+      const ip1440 = $('.insp-pane');
+      check('C2.5 @1440 nothing changes: the inspector stays a docked 300px column (no overlay)', ip1440 && rectOf($('#inspector')).width === 300 && w.getComputedStyle(ip1440).position !== 'fixed' && w.getComputedStyle(ip1440).boxShadow === 'none', ip1440 ? w.getComputedStyle(ip1440).position : 'no .insp-pane');
+    }
+    for (const sz of [[1280, 800], [1440, 900]]) {
+      w = await open('#/czr-full-credit-assessment/front', sz);
+      // with the inspector open (the state in which the strip crowded at 1280: the canvas lost 264px to it)
+      const f0 = $$('#canvas .fig').filter((f) => rectOf(f).width > 0)[0];
+      f0.focus();
+      f0.click();
+      await sleep(150);
+      const strip = $('.chart-slot[data-chart="chart.model_strip"]');
+      strip.scrollIntoView({ block: 'center' });
+      await sleep(60);
+      const labs = $$('.chart-slot[data-chart="chart.model_strip"] svg text.ax.cx').map((t) => ({ r: rectOf(t), s: t.textContent })).filter((x) => x.r.width > 0);
+      const bad = [];
+      labs.forEach((a, i) => labs.forEach((b, j) => {
+        if (j <= i || Math.abs(a.r.top - b.r.top) > 3) return;
+        const gap = a.r.left < b.r.left ? b.r.left - a.r.right : a.r.left - b.r.right;
+        if (gap < 10) bad.push(a.s + '/' + b.s + ' gap ' + Math.round(gap));
+      }));
+      check('C2.5 @' + sz[0] + ' (inspector open): the Model chart strip\u2019s x-axis labels never crowd (10px apart at least)', labs.length >= 3 && bad.length === 0, bad.slice(0, 4).join(' | ') + ' of ' + labs.map((x) => x.s).join(' '));
+      const na = $$('.chart-slot[data-chart="chart.model_strip"] svg text.na');
+      check('C2.5 @' + sz[0] + ': the n/a marks stay on the axis at their own category', na.length >= 2, na.length);
+    }
+
+    }
 
     /* ---- print ---- */
     w = await open('#/czr-full-credit-assessment/module/CP-1B');

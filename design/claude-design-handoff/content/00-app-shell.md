@@ -35,6 +35,12 @@ The Pathway's summary screen. Whatever the layout, it must:
 - present blocks that each say what they are, collapse and expand, and link one step to the module that owns them ("Full analysis");
 - replace a conditional block that does not apply with one line naming the condition.
 
+The call in the verdict bar (the rules every Front Page follows):
+- **A breach is never hidden.** A call line whose tone is negative (Breaches, Breached, Blocked, a gate Met, a runway shorter than its uses) never folds behind "more", and neither does the main risk; the cap yields to them and the bar grows. Each portfolio in the Fit line is one unbreakable segment (name, synthetic tag, Fits / Watch / Breaches counts, Details). A Strategy tile whose portfolio's Fit caps or breaches its Recommendation says so on the tile: the word "Capped by Fit", an icon and the run's own cap.
+- **A line reads as a call.** Label, a bold lead taken from the line's own first clause (to its first comma, semicolon or colon, else its first sentence), the rest of the sentence, and one trailing "Sources n" ("· 1 gap" when it carries gap ids) that opens a passport listing every citation and gap of the line, each opening its own passport. No per-clause glyph or code sits inside the bar's prose; key findings and module prose keep theirs. A line is at most about 80 characters wide. A screen reader hears one sentence, then "Sources, n".
+- **The test run is not part of the call.** A sentence that describes the test run ("This test run uses three synthetic tranches in its place.") moves to the passport of the Design-fixture tag in the byline; none is dropped.
+- The bar's header carries the ILLUSTRATIVE (or REAL-RUN STATE) tag and the real-run switch beside it (`provenance-and-states.md` §3).
+
 ## 3. A module view
 
 Every module view has the same anatomy (Report A screenshot `03-module-cp-1b.png`):
@@ -61,6 +67,7 @@ Every module view has the same anatomy (Report A screenshot `03-module-cp-1b.png
 - "How to read a figure": a key to the provenance marks, scales and status marks.
 - The source passport popover (see `provenance-and-states.md` §1) from any figure, chart mark or chip; keyboard reachable; Escape closes and returns focus.
 - Collapse all / Expand all per view; Key findings never collapse.
+- Inspector width: from 1360px the inspector is a docked 300px column. Below that it is a 36px strip and a selection opens it as an overlay on the canvas (a shadow, a close control) without changing the page grid or any layout in the canvas; the overlay sits on the right edge and docks on the canvas's left edge when the selected figure would be under it. Escape and the close control return to the strip and give focus back to the figure.
 - Keyboard: one tab stop per block of figures (arrows move within), one per chart (arrows move between marks).
 - Print: Front Page on one landscape page; every other view on new pages with sections open.
 

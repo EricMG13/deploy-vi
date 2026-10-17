@@ -180,6 +180,8 @@
     model: [['path', { d: 'M1.5 8.5l.6-2.4 4.6-4.6 1.8 1.8-4.6 4.6z' }]],
     gap: [['circle', { cx: 5, cy: 5, r: 3.3 }], ['path', { d: 'M2.7 7.3l4.6-4.6' }]],
     illustrative: [['rect', { x: 1, y: 1, width: 8, height: 8, 'stroke-dasharray': '2 1.5' }]],
+    // no source stated: a ring holding a question mark (the gap mark is a slashed ring, the illustrative mark a dashed square)
+    none: [['circle', { cx: 5, cy: 5, r: 4.1 }], ['path', { d: 'M3.9 4.1a1.2 1.2 0 1 1 1.7 1.1c-.4.2-.6.4-.6.9', 'stroke-linecap': 'round' }], ['path', { d: 'M5 7.7h.01', 'stroke-linecap': 'round' }]],
   };
   WB.originWord = {
     cited: 'Cited',
@@ -927,6 +929,9 @@
   const HOST_OWNERS = new Set(['MODEL', 'PROJECTION', 'FIT']);
   /* table id -> the numeric column that holds a judgement (content doc 04: the protection score is an illustrative five-point scale) */
   WB.JUDGEMENT_NUMERIC = { 'cp4.protection_score': 'score' };
+  const DATE_COL = /(^|_)date(_|$)/;
+  WB.DATE_COL = DATE_COL; // a date value (a level date, an event date) is a stated value like any text; other id columns name things
+  const RATING_COL = /(^|_)(rating|ratings|outlook)(_|$)/;
   const HOST_DERIVED = /(multiple|_pct$|pct_|_x$|ratio|leverage|cover|margin|growth|share|headroom|max_size|exposure_pct)/;
 
   /* Origin of one cell: { kind, row, ... }. kind is cited | calculated | synthetic | model | illustrative | gap | none | plain */
@@ -948,7 +953,7 @@
       const gmc = gref && WB.modelCell(gref.lineId, gref.columnId);
       return gmc && gmc.value == null ? { kind: 'gap', model: gref } : { kind: 'gap' };
     }
-    if (col.kind === 'id') return { kind: 'plain' };
+    if (col.kind === 'id' && !DATE_COL.test(col.name)) return { kind: 'plain' };
     if (col.name === 'cr_score') return { kind: 'illustrative', key: 'cr_score' };
     // numeric judgements: a score a module assigns (lender protection by area) is illustrative, whatever evidence the row cites
     if (WB.JUDGEMENT_NUMERIC[table.twinOf || table.id] === col.name) return { kind: 'illustrative', key: col.name + ':' + table.id, info: WB.rowInfo(table, r) };
@@ -957,7 +962,16 @@
       if (col.modelWritten) return { kind: 'model', info };
       return { kind: info && info.cites.length ? (info.synthetic ? 'synthetic' : 'cited') : 'plain', info };
     }
-    if (col.kind === 'text') return { kind: 'plain' };
+    if (col.kind === 'text' || col.kind === 'id') {
+      // a short text value takes the provenance of its row, like prose and numbers do: a row that cites a source gives it that source's mark
+      // and passport (cited or synthetic); plain only when the row cites nothing. The row-label column of a table and unit descriptors name
+      // things rather than state values, so they stay plain. An agency rating or outlook is always a figure: with no source it reads "no source stated".
+      const lead = kinds.findIndex((k) => k.kind !== 'hidden' && !/_id$/.test(k.name));
+      if (/^(unit_label|unit|currency)$/.test(col.name) || (table.rows.length > 1 && c === lead)) return { kind: 'plain' };
+      if (info && info.cites.length) return { kind: info.synthetic ? 'synthetic' : 'cited', info };
+      if (RATING_COL.test(col.name)) return { kind: 'none', info };
+      return { kind: 'plain' };
+    }
     // numeric: a Model line cell carries its own basis; derived columns of host tables are calculated
     const mcRef = WB.modelCellFor(table, r, c);
     if (mcRef) {
@@ -1012,9 +1026,22 @@
   };
   WB.ORIGIN_NOTE = ORIGIN_NOTE;
 
+  /* the other values of a row in words ("Line Equity · Basis Market"), for a passport that has no source to show */
+  WB.rowContextText = function (table, r, c) {
+    const out = [];
+    WB.columnKinds(table).forEach((k) => {
+      if (k.kind === 'hidden' || k.index === c || out.length >= 4) return;
+      const v = table.rows[r][k.index];
+      if (WB.isEmpty(v) || k.kind === 'prose' || String(v).length > 48 || /[a-z]_[a-z]/.test(String(v))) return; // machine ids stay out of the sentence
+      out.push(k.label + ' ' + (k.kind === 'numeric' ? WB.fmtNum(v, { group: true }) : WB.humanize(String(v))));
+    });
+    return out.join(' \u00B7 ');
+  };
+
   function citeChip(c) {
     return { id: c.id, module: c.module, label: (c.source || '') + (c.locator ? ' · ' + c.locator : ''), synthetic: !!c.synthetic, missing: !!c.missing, desc: { t: 'cite', module: c.module, id: c.id } };
   }
+  WB.citeChipData = citeChip;
 
   /* the label of a row in words: the first visible column, humanised (snake ids and period ids read as words) */
   WB.rowLabel = function (table, r) {
@@ -1054,7 +1081,7 @@
   };
 
   WB.buildPassport = function (d) {
-    const P0 = { kind: 'none', title: '', code: '', id: '', sub: '', fields: [], formula: null, inputs: [], excerpt: null, cites: [], usedIn: null, gaps: [], note: '', table: null, chart: null };
+    const P0 = { kind: 'none', title: '', code: '', id: '', sub: '', fields: [], formula: null, inputs: [], excerpt: null, cites: [], usedIn: null, gaps: [], gapChips: [], note: '', table: null, chart: null };
     if (!d) return Object.assign(P0, { title: 'Nothing selected' });
     if (d.t === 'cite') {
       const c = WB.citation(d.module, d.id);
@@ -1169,6 +1196,12 @@
       if (o.kind === 'calculated' && o.scale) p.note = 'Set by a deterministic rule (interfaces §7 for Portfolio Fit; covenant and gate rules for tests), not by a judgement.';
       if (o.kind === 'none' && o.register) p.note = 'A register row from the host. This table carries no citation column.';
       if (o.kind === 'none' && info && !info.cites.length) p.note = 'The row’s cite column is empty, so no source is stated for this value.';
+      if (o.kind === 'none') {
+        // a figure with no source stated: the passport says so, and names the row it sits in
+        p.fields.push(['Source', 'No source stated by the module', false]);
+        const around = WB.rowContextText(table, d.r, d.c);
+        if (around) p.fields.push(['In the row', around, false]);
+      }
       return p;
     }
     if (d.t === 'row') {
@@ -1243,7 +1276,7 @@
       });
     }
     if (d.t === 'note') {
-      return Object.assign(P0, { kind: d.kind || 'none', code: d.code || '', title: d.title || '', sub: d.sub || '', fields: d.fields || [], note: d.note || ORIGIN_NOTE[d.kind] || '', excerpt: d.excerpt || null, cites: d.cites || [], table: d.table || null });
+      return Object.assign(P0, { kind: d.kind || 'none', code: d.code || '', title: d.title || '', sub: d.sub || '', fields: d.fields || [], note: d.note || ORIGIN_NOTE[d.kind] || '', excerpt: d.excerpt || null, cites: d.cites || [], gapChips: d.gapChips || [], table: d.table || null });
     }
     if (d.t === 'chart') {
       const ch = (WB.run.charts || []).find((x) => x.chart_id === d.chartId);

@@ -22,7 +22,7 @@ One-line facts, in order:
 - **Main risk**: the credit view's primary downside (CP-2), in the model's words with its citations. A reserved slot: it is always one of the lines the call shows and never folds behind "more".
 - **Recommendation**: stated as absent. This Pathway runs no CP-3, CP-6 or Portfolio Fit, so it produces **no Recommendation, no Valuation and no Portfolio Fit**: the page answers whether the credit view moves, not whether to own the issuer.
 
-Call-line order and cap: the quarter, main risk, the no-Recommendation line, then the watch line. The bar shows three lines; the main risk is one of them and the cap folds the others, so the watch line sits behind one disclosure that names it.
+Call-line order and cap: the quarter, main risk, the no-Recommendation line, then the watch line. With the lines read as a call (a bold lead, one Sources button) the bar shows all four and nothing folds; a line whose tone is negative would never fold in any case.
 
 ## 3. Blocks (page order)
 
@@ -48,7 +48,7 @@ Call-line order and cap: the quarter, main risk, the no-Recommendation line, the
 
 ## 4. First viewport priority
 
-Visible at 1440x900 with no scroll: the call (Credit Score, Direction, Outlook, the quarter line, the main risk line, the no-Recommendation line; the watch line sits behind the disclosure); the headline results table with its chart; the variance drivers.
+Visible at 1440x900 with no scroll: the call (Credit Score, Direction, Outlook, the quarter line, the main risk line, the no-Recommendation line, the watch line); the headline results table with its chart; the variance drivers.
 
 ## 5. Page-specific states
 

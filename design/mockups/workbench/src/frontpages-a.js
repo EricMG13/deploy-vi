@@ -476,7 +476,8 @@
         const absent = ['CP-3', 'CP-6', 'FIT'].filter((id) => !planHas(run, id));
         if (absent.length) {
           const names = absent.map((id) => (id === 'FIT' ? 'Portfolio Fit' : id));
-          b.lines.appendChild(callLine('NO RECOMMENDATION', 'neu', 'No ' + names.slice(0, -1).join(', ') + (names.length > 1 ? ' or ' : '') + names[names.length - 1] + ' in this Pathway, so no Recommendation, Valuation or Fit: the page answers whether the credit view moves, not whether to own the issuer.'));
+          // fixed copy: its lead is written here, since the sentence has commas of its own
+          b.lines.appendChild(callLine('NO RECOMMENDATION', 'neu', [el('strong', { class: 'v-lead' }, 'No Recommendation, Valuation or Fit'), ': this Pathway runs no ' + names.slice(0, -1).join(', ') + (names.length > 1 ? ' or ' : '') + names[names.length - 1] + '. The page answers whether the credit view moves, not whether to own the issuer.']));
         }
       }
       return b.frag;

@@ -12,8 +12,11 @@ These are product rules, not styling. Any direction may draw them however it lik
 | **Model-written** | Prose or a judgement written by the model | Marked once per block; its figures inside stay clickable to their own sources |
 | **Illustrative** | A judgement no RBOT run has produced yet (scores, recommendations, theses, gate statuses, severities, chosen multiples) | Labelled "Illustrative"; derived numbers (e.g. recoveries from an illustrative EV multiple) are illustrative too |
 | **n/a (gap)** | The sources cannot support the figure | The missing item in plain words and the reason; a gap id (G8) links to the module's gap list |
+| **No source stated** | A figure the module gives no source (an enterprise value that no row cites) | The words "No source stated by the module", with the row it sits in. It is shown with its own quiet mark (a ring holding a question mark), never left unmarked and never hidden |
 
 Rules:
+- Every value has an origin, text included: a short text value (a rating, a coupon, a sector, a date) in a row that cites a source takes that source's mark and passport (cited or synthetic); it reads plain only when its row cites nothing. An agency rating or outlook is always a figure: with no source it reads "No source stated". Names that label a row (the first column of a table, a unit) stay plain.
+- A gap chip's accessible name carries its reason ("Not available, G8: Merger debt ..."), never just "Not available".
 - Cited, calculated and model-written content must never look alike, and the difference must not rest on colour alone (WCAG: shape, pattern, outline or text too).
 - The figure itself is the button. Two clicks from any figure on any Front Page reaches its source excerpt.
 - A missing value is shown as missing with its reason. Never zero, never blank, never interpolated.
@@ -52,6 +55,7 @@ Owner ruling (2026-10-17, superseding the 2026-10-11 neutral-scales rule): **col
 ## 3. States every design must cover
 
 - **Module status** on every module (navigation and its view): Pass, With limitations (with the reason and its gap chips), Blocked (the view still renders its tables with gaps).
+- **The real-run state** (the live CAOS run produced no Recommendation, no Valuation, no Credit Score, Direction or Sector Outlook, no earlier Report to compare with): a switch in the verdict bar's header, beside the tag, whose state is in the URL (`?state=real`) so it survives a reload and can be shared. Every judgement tile the run itself says the live run never produced reads "Not produced" with the run's own gap text for the reason; a tile still flagged illustrative reads the same (by this document's own definition an illustrative judgement is one no RBOT run has produced yet). The bar's ILLUSTRATIVE tag becomes REAL-RUN STATE. Below the bar, a panel that holds only the fixture's own verdicts is labelled "Fixture's own view" and its verdict words lose their signal colour, so a Not met bar never sits over an undimmed Met table.
 - **Conditional blocks** not shown are replaced by one line naming the condition, e.g. "What changed since the last Report: not shown, no Prior Case was accepted at Approval" or "Transaction summary: not a Primary run".
 - **Steps not run** (Deep Research, What changed) appear as one line each under Limitations.
 - **Absent destinations**: a Pathway without Portfolio Fit shows that destination as absent with its reason, not hidden silently.

@@ -44,7 +44,7 @@ design/mockups/workbench/
 - **Signal (meaning for the creditor; never alone):** positive forest `#0E7A46` (fill `#DCF5E7`), caution amber `#8A5300` (fill `#FFF1C7`), negative brick `#B3261E` (fill `#FBE0DD`; white on brick allowed), neutral slate; on navy the pale tints `#7EE2A8`, `#FFD166`, `#FFB4B0`. Chart comparison `#C4410C`; issuer series electric blue.
 - **Type:** Red Hat Display (titles 18/600, panel heads 13/600 caps with 0.04em tracking), Red Hat Text (body 13.5/400 on 1.5, labels 11.5/500), Red Hat Mono (every figure in a table, every code, formula and id; 12px in tables; tabular numerals). Prose figures stay in Red Hat Text with tabular numerals.
 - **Shape and depth:** square-cornered panels with a 1px rule; 2–4px radius only on chips, tiles, inputs; no shadows except floating layers (module switcher, search, run switcher).
-- **Layout:** rail 56px navy; navigator 240px; inspector 300px; canvas fluid between. At widths below 1360px the navigator starts closed (toggle in the rail); rail, the `/` module switcher and the inspector stay.
+- **Layout:** rail 56px navy; navigator 240px; inspector 300px; canvas fluid between. At widths below 1360px the navigator starts closed (toggle in the rail); rail and the `/` module switcher stay, and the inspector is a 36px strip that opens as an overlay on the canvas (no reflow) when a figure is selected (C2).
 
 ## 4. Data contract (read-only; `rbot-run/1`)
 
@@ -68,7 +68,7 @@ Provenance of a figure: a cell in a row whose `cite` holds only `calc:` is **cal
 - **Inspector:** tabs Source, Table, Gaps. Selecting any figure, chart mark or chip shows its passport: cited (source, locator, verbatim excerpt, "Used in n places"), calculated (formula with each input as a labelled chip that opens its own passport: refinement 1), synthetic (the TEST DATA rationale), gap (missing item, reason, effect), model-written, illustrative. Table tab: the focused chart's table twin. Gaps tab: every gap on the current page. Focus moves to the inspector heading; Escape returns focus to the figure.
 - **Keyboard:** rail → navigator → canvas → inspector in tab order; one tab stop per table or chart, arrows inside; `/` opens the switcher; `?` opens "How to read a figure".
 - **Print:** rail, navigator and inspector hidden; canvas full width; panels expanded; passports of the page's figures as numbered endnotes.
-- **Honest state (refinement 5):** a verdict tile whose value the run did not produce reads "Not produced" with the reason and the module that would produce it; a toggle in the run switcher, "Show the real-run state", replaces the illustrative verdicts with the real CAOS outcomes stated in `design/claude-design-handoff/data/caos-runs/README.md` (no Recommendation, Valuation not produced, relative value Unclear, distress gate Not met).
+- **Honest state (refinement 5):** a verdict tile whose value the run did not produce reads "Not produced" with the reason and the module that would produce it; a switch in the verdict bar's header, "Real-run state" (state in the URL, `?state=real`; C2), replaces the illustrative verdicts with the real CAOS outcomes stated in `design/claude-design-handoff/data/caos-runs/README.md` (no Recommendation, Valuation not produced, relative value Unclear, distress gate Not met).
 
 ## 6. Views
 

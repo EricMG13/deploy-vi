@@ -16,7 +16,7 @@ Title: "Covenant and refinancing view". Judgements **illustrative** except the c
 | Refinancing pressure | High (illustrative; highest year of the maturity pressure table) |
 | Credit Direction | Deteriorating (illustrative) |
 
-One-line facts:
+One-line facts (read as a call: a bold lead, the figures as plain words, one Sources button per line; the marked figures live in the panels below):
 - **Covenants**: Total Leverage 3.02x against a 6.50x ceiling; FCCR 4.63x against a 2.00x floor; tested for the revolver and Term A only, Term B-1 has no maintenance test. Ratios are on RBOT's basis (G34).
 - **Liquidity**: US$2,928m against mandatory uses of US$2,601m over 12 months from 30 June 2026, lease payments included: 13.5 months; the revolver matures 31 January 2028.
 - **New tranches**: merger debt unstated; CR Score n/a (G39, G8).

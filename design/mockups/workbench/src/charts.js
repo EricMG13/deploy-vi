@@ -815,6 +815,31 @@
   }
 
   /* ---------- engine: lines (small multiples) ---------- */
+  /* Category labels for a row of periods. Each label is {i: first period, span: periods it covers, text}; neighbours keep 11px (singles) or 8px (grouped labels, whose width is estimated high) between their ends: 10px or more drawn. */
+  function axisLabels(cats, band) {
+    const lw = (t) => String(t).length * 6.8; // the axis font's width, measured: tw() reads narrow for these capitals and digits
+    const kindOf = (c) => (/^FY\d\d$/.test(c.short) ? 'fy' : /^\d\dE$/.test(c.short) ? 'proj' : /^(LTM|PF)$/.test(c.short) ? 'mid' : null);
+    const roomy = (list, min) => list.every((q, k) => k === 0 || (q.i + q.span / 2) * band - lw(q.text) / 2 - ((list[k - 1].i + list[k - 1].span / 2) * band + lw(list[k - 1].text) / 2) >= min);
+    const singles = cats.map((c, i) => ({ i, span: 1, text: c.short }));
+    if (roomy(singles, 11)) return singles;
+    const groups = [];
+    cats.forEach((c, i) => {
+      const k = kindOf(c);
+      const last = groups[groups.length - 1];
+      if (k && last && last.k === k) {
+        last.span++;
+        last.shorts.push(c.short);
+      } else groups.push({ i, span: 1, k, shorts: [c.short] });
+    });
+    const grouped = groups.map((g) => {
+      const a = g.shorts[0];
+      const z = g.shorts[g.shorts.length - 1];
+      const text = g.shorts.length === 1 ? a : g.k === 'fy' ? a + '\u2013' + z.slice(2) : g.k === 'proj' ? a + '\u2013' + z : g.k === 'mid' ? g.shorts.join('\u00B7') : a;
+      return { i: g.i, span: g.span, text };
+    });
+    if (roomy(grouped, 8)) return grouped;
+    return singles.filter((q, k) => k % 2 === 0 || k === singles.length - 1).filter((q, k, arr) => k === 0 || roomy([arr[k - 1], q], 11));
+  }
   function engineLines(ctx, sp) {
     const W = ctx.W;
     const grid = gridLayout(W, sp.panels.length, sp.minPanelW || 240, 14);
@@ -841,10 +866,10 @@
       ctx.svg.appendChild(T(ox + 2, oy + 12, p.title, 'ttl'));
       if (p.unit) ctx.svg.appendChild(T(ox + grid.pw - 2, oy + 12, p.unit, 'ax unit', 'end'));
       axisV(ctx, sc, y, L, R);
-      // in a tight band the fiscal-year prefix is written once: FY23 24 25 LTM PF 26E
-      const firstFY = sp.cats.findIndex((c) => /^FY\d\d$/.test(c.short));
       const tight = band < 36;
-      sp.cats.forEach((c, i) => ctx.svg.appendChild(T(xAt(i), bot + 14, tight && i > firstFY && firstFY >= 0 && /^FY\d\d$/.test(c.short) ? c.short.slice(2) : c.short, 'ax cx', 'middle')));
+      // the period labels never crowd: one label per period while each has 12px of air, else grouped (FY23–25 · LTM · PF · 26E–28E), else every other one;
+      // the n/a marks below stay at their own period whatever the axis prints
+      axisLabels(sp.cats, band).forEach((q) => ctx.svg.appendChild(T(L + band * (q.i + q.span / 2), bot + 14, q.text, 'ax cx', 'middle')));
       if (divider != null && divider > 0 && divider < nC) {
         const dx = L + band * divider;
         ctx.svg.appendChild(S('line', { class: 'divider', x1: dx, x2: dx, y1: top - 10, y2: bot, 'aria-hidden': 'true' }));

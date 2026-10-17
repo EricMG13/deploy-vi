@@ -43,6 +43,17 @@
     valuation: { reason: 'The live CAOS run returned Requires More Work for CP-3: no Valuation.', short: 'CP-3: Requires More Work', producer: 'CP-3' },
     score: { reason: 'The live CP-3 fundamental score is Not Scorable: no factor weights were supplied.', short: 'CP-3: Not Scorable', producer: 'CP-3' },
   };
+  /* A judgement the run itself says the live CAOS run never produced: its reason is the module's own gap text (full in the passport,
+     the clause after the colon on the tile). The fallback is fixed copy, used only when the run carries no such gap. */
+  function gapHonest(moduleId, re, fallback) {
+    const it = WB.gapItems(moduleId).find((g) => re.test(g.text));
+    if (!it) return Object.assign({ producer: moduleId }, fallback);
+    const colon = it.text.indexOf(':');
+    const clause = (colon > 0 ? it.text.slice(colon + 1) : it.text).split(/[;.]/)[0].trim();
+    return { reason: it.text, short: clause.charAt(0).toUpperCase() + clause.slice(1), producer: moduleId };
+  }
+  /* any other tile flagged illustrative is, by the product's own definition (provenance-and-states.md), a judgement no RBOT run has produced yet */
+  const NOT_PRODUCED = { reason: 'A judgement no RBOT run has produced yet: in this design fixture it is illustrative.', short: 'No RBOT run has produced it' };
   const NO_CP6 = 'This Pathway runs no CP-6, so it produces no Recommendation.';
   const NO_CP3 = 'This Pathway runs no CP-3, so it produces no Valuation.';
   /* call lines in the order each Front Page's content doc gives them; the bar shows the first three (the main risk always among them, see
@@ -56,7 +67,7 @@
     portfolio_decision: ['PORTFOLIO FIT', 'INSTRUMENT', 'MAIN RISK'],
   };
   // Covenant's call is four facts; the Distressed bar shows its fulcrum and the main risk (the gate is a tile), the rest sit behind the disclosure
-  WB.CALL_MAX = { covenant_refinancing: 4, distressed_restructuring: 2 };
+  WB.CALL_MAX = { covenant_refinancing: 4, distressed_restructuring: 4, earnings_update: 4 };
 
   function mkTile(label, key, scale, table, r, col, miss, honest) {
     if (honest && !WB.state.honest) honest = null;
@@ -65,7 +76,23 @@
     const v = WB.cellValue(table, r, col);
     if (WB.isEmpty(v)) return { label, key, scale, value: null, reason: miss.reason, short: miss.short, producer: miss.producer };
     const o = WB.cellOrigin(table, r, table.columns.indexOf(col));
-    return { label, key, scale, value: v, ref: cellRef(table, r, col), illustrative: o.kind === 'illustrative' };
+    if (WB.state.honest && o.kind === 'illustrative') return { label, key, scale, value: null, reason: NOT_PRODUCED.reason, short: NOT_PRODUCED.short, producer: WB.citeModule(table.owner) };
+    return { label, key, scale, value: v, ref: cellRef(table, r, col), illustrative: o.kind === 'illustrative', producer: WB.citeModule(table.owner) };
+  }
+  /* a Strategy's Recommendation that its portfolio's Fit caps or breaches: counted from the run's own cp6.portfolio_recommendation rows
+     (uncapped, cap, final, fit_verdict); nothing is computed beyond counting rows. */
+  function fitCap(strategy) {
+    const t = WB.table('cp6.portfolio_recommendation');
+    if (!t || !t.rows.length) return null;
+    const ix = (n) => t.columns.indexOf(n);
+    const rows = t.rows.map((x, i) => i).filter((i) => t.rows[i][ix('strategy')] === strategy);
+    const breach = rows.filter((i) => t.rows[i][ix('fit_verdict')] === 'Breaches');
+    const capped = rows.filter((i) => !breach.includes(i) && t.rows[i][ix('final')] !== t.rows[i][ix('uncapped')]);
+    if (!breach.length && !capped.length) return null;
+    const use = breach.length ? breach : capped;
+    const caps = Array.from(new Set(use.map((i) => t.rows[i][ix('cap')])));
+    const says = breach.length ? breach.length + ' of ' + rows.length + ' instruments Breaches, cap ' + caps.join(' or ') : capped.length + ' of ' + rows.length + ' instruments held to the cap ' + caps.join(' or ');
+    return { tone: breach.length ? 'neg' : 'cau', icon: breach.length ? 'cross' : 'warn', value: caps.length === 1 ? caps[0] : '', aria: strategy + ': capped by Fit. ' + says + '.', desc: { t: 'cell', table: t.id, r: use[0], c: ix('cap') } };
   }
   function worstOf(values, order) {
     let w = null;
@@ -77,13 +104,22 @@
     const fp = run.front_page;
     const honest = WB.state.honest;
     const cv = WB.table('snapshot.credit_view');
+    // the run's own words for the judgements the live CAOS run never produced
+    const cvMod = cv ? WB.citeModule(cv.owner) : 'CP-2';
+    HONEST.direction = gapHonest(cvMod, /Direction/, { reason: 'The live CAOS run never produced the Credit Direction word.', short: 'The live run never produced it' });
+    HONEST.outlook = gapHonest(cvMod, /Sector Outlook/, { reason: 'The live CAOS run never produced the Sector Outlook word.', short: 'The live run never produced it' });
+    HONEST.change = gapHonest('CP-8', /Prior Report/i, { reason: 'No earlier RBOT Report exists, so there is nothing to compare with.', short: 'No earlier RBOT Report exists' });
     const rec = strategyRows();
     const tiles = [];
     const lines = [];
     const strategyTiles = () => {
       for (const s of ['CLO', 'Indexed Loans', 'Indexed HY']) {
         const r = rec ? pickRow(rec, 'strategy', s) : -1;
-        tiles.push(mkTile(s === 'CLO' ? 'CLO' : s, 'recommendation', 'rec', rec, r, 'recommendation', { reason: NO_CP6, short: 'CP-6 not in this Pathway', producer: 'CP-6' }, HONEST.rec));
+        const tile = mkTile(s === 'CLO' ? 'CLO' : s, 'recommendation', 'rec', rec, r, 'recommendation', { reason: NO_CP6, short: 'CP-6 not in this Pathway', producer: 'CP-6' }, HONEST.rec);
+        // a Recommendation its portfolio's Fit caps or breaches says so on the tile
+        const cap = tile.value != null ? fitCap(s) : null;
+        if (cap) tile.cap = cap;
+        tiles.push(tile);
       }
     };
     const valuationTile = () => {
@@ -97,14 +133,14 @@
       strategyTiles();
       valuationTile();
       cvTile('Credit Score', 'credit_score', 'score', 'credit_score', HONEST.score);
-      cvTile('Credit Direction', 'credit_direction', 'dir', 'credit_direction');
+      cvTile('Credit Direction', 'credit_direction', 'dir', 'credit_direction', HONEST.direction);
     } else if (fp === 'earnings_update') {
       cvTile('Credit Score', 'credit_score', 'score', 'credit_score', HONEST.score);
-      cvTile('Credit Direction', 'credit_direction', 'dir', 'credit_direction');
-      cvTile('Sector Outlook', 'sector_outlook', 'outlook', 'sector_outlook');
+      cvTile('Credit Direction', 'credit_direction', 'dir', 'credit_direction', HONEST.direction);
+      cvTile('Sector Outlook', 'sector_outlook', 'outlook', 'sector_outlook', HONEST.outlook);
       const wc = WB.table('cp8.what_changed');
       const r = wc ? pickRow(wc, 'field', 'Credit Direction') : -1;
-      tiles.push(mkTile('Since last Report', 'change', 'plain', wc, r, 'change', { reason: 'No Prior Case was accepted at Approval, so the page cannot say what changed.', producer: 'CP-8' }));
+      tiles.push(mkTile('Since last Report', 'change', 'plain', wc, r, 'change', { reason: 'No Prior Case was accepted at Approval, so the page cannot say what changed.', producer: 'CP-8' }, HONEST.change));
       const cp = WB.table('snapshot.company_profile');
       tiles.push(mkTile('Sponsor Quality', 'sponsor_quality', 'plain', cp, cp && cp.rows.length ? 0 : -1, 'sponsor_quality', { reason: 'No company profile in this run.', producer: 'CP-1A' }));
       // content doc 02: the absent Recommendation is stated as a call line (NO RECOMMENDATION), not as a tile
@@ -125,16 +161,16 @@
         ps.rows.forEach((r, i) => {
           if (+r[si] < +ps.rows[br][si]) br = i;
         });
-        tiles.push({ label: 'Lender protection', key: 'score', scale: 'five', value: ps.rows[br][si], word: ps.rows[br][si] + ' of 5', ref: cellRef(ps, br, 'score'), illustrative: true });
+        tiles.push({ label: 'Lender protection', key: 'score', scale: 'five', value: ps.rows[br][si], word: ps.rows[br][si] + ' of 5', ref: cellRef(ps, br, 'score'), illustrative: true, producer: 'CP-4' });
       } else tiles.push({ label: 'Lender protection', value: null, reason: 'No protection score in this run.', producer: 'CP-4' });
       const mp = WB.table('cp3c.maturity_pressure');
       if (mp && mp.rows.length) {
         const pi = mp.columns.indexOf('pressure');
         const w = worstOf(mp.rows.map((r) => r[pi]), ['Low', 'Medium', 'High']);
         const wr = mp.rows.findIndex((r) => r[pi] === w);
-        tiles.push({ label: 'Refinancing pressure', key: 'pressure', scale: 'press', value: w, ref: cellRef(mp, wr, 'pressure'), illustrative: true });
+        tiles.push({ label: 'Refinancing pressure', key: 'pressure', scale: 'press', value: w, ref: cellRef(mp, wr, 'pressure'), illustrative: true, producer: 'CP-3C' });
       } else tiles.push({ label: 'Refinancing pressure', value: null, reason: 'No maturity pressure table in this run.', producer: 'CP-3C' });
-      cvTile('Credit Direction', 'credit_direction', 'dir', 'credit_direction');
+      cvTile('Credit Direction', 'credit_direction', 'dir', 'credit_direction', HONEST.direction);
     } else if (fp === 'distressed_restructuring') {
       const dg = WB.table('cp4c.distress_gate');
       if (honest) tiles.push({ label: 'Distress gate', key: 'gate', scale: 'gate', value: 'Not met', ref: { t: 'note', kind: 'cited', code: 'CAOS CP-4C', title: 'Distress gate: Not met', sub: 'Real run outcome', fields: [['Served as', 'Not Applicable: no named distress trigger', false]], note: 'The live CAOS CP-4C run found no named distress trigger and returned Not Applicable.' }, illustrative: false });
@@ -170,7 +206,9 @@
 
     /* call lines */
     if (cv && cv.rows.length && cv.columns.indexOf('primary_downside') >= 0) {
-      lines.push({ label: 'MAIN RISK', tone: 'neg', children: WB.inline(WB.cellValue(cv, 0, 'primary_downside'), WB.citeModule(cv.owner)) });
+      // a sentence about the test run ("This test run uses three synthetic tranches in its place.") is not part of the call: the Design-fixture tag holds it
+      const risk = WB.splitFixtureCaveats(WB.cellValue(cv, 0, 'primary_downside'));
+      lines.push({ label: 'MAIN RISK', tone: 'neg', children: WB.inline(risk.text, WB.citeModule(cv.owner)), caveats: risk.moved });
     }
     if (honest && (fp === 'credit_snapshot' || fp === 'relative_value')) {
       lines.push({ label: 'RELATIVE VALUE', tone: 'cau', children: 'Unclear. The live CAOS CP-3 says Requires More Work for both priced 2032 bonds; no security is Preferred.' });
@@ -188,23 +226,28 @@
         if (!seen.includes(r[pid])) seen.push(r[pid]);
       });
       const kids = [];
+      let anyBreach = false;
+      // each portfolio is one unbreakable segment: its name, synthetic tag, Fits / Watch / Breaches counts and Details never split across lines
       seen.forEach((p) => {
         const rows = pf.rows.filter((r) => r[pid] === p);
         const fit = (run.fit || []).find((f) => f.portfolio_id === p);
         const pj = fit && fit.inputs && fit.inputs.portfolio;
-        const name = (pj && pj.portfolio_name) || p;
+        const name = String((pj && pj.portfolio_name) || p).replace(/ Ltd.*$/, '');
         const syn = pj && /synthetic|fictional/i.test((pj.notes || []).join(' '));
-        kids.push(el('b', null, String(name).replace(/ Ltd.*$/, '')), ' ', syn ? el('span', { class: 'v-syn' }, 'SYNTHETIC') : null, ' ');
+        const seg = [el('b', null, name), syn ? el('span', { class: 'v-syn' }, 'SYNTHETIC') : null];
         ['Fits', 'Watch', 'Breaches'].forEach((v) => {
           const n = rows.filter((r) => r[vi] === v).length;
           if (!n) return;
+          if (v === 'Breaches') anyBreach = true;
           const sg = WB.signal(v);
           const first = pf.rows.indexOf(rows.find((r) => r[vi] === v));
-          kids.push(el('button', { type: 'button', class: 'v-verdict tone-' + sg.tone, 'data-ref': WB.ref(cellRef(pf, first, 'verdict')) }, [WB.icon(sg.icon, { size: 11, stroke: 2 }), n + ' ' + v]), ' ');
+          seg.push(el('button', { type: 'button', class: 'v-verdict tone-' + sg.tone, 'data-ref': WB.ref(cellRef(pf, first, 'verdict')), 'aria-label': name + ': ' + n + ' ' + v }, [WB.icon(sg.icon, { size: 11, stroke: 2 }), n + ' ' + v]));
         });
-        kids.push(el('a', { class: 'v-lnk', href: WB.href(WB.views.fit ? 'fit' : 'module/FIT', null) }, 'Details'), '. ');
+        seg.push(el('a', { class: 'v-lnk', href: WB.href(WB.views.fit ? 'fit' : 'module/FIT', null) }, 'Details'));
+        kids.push(el('span', { class: 'v-fit', role: 'group', 'aria-label': 'Portfolio Fit, ' + name }, seg), ' ');
       });
-      lines.push({ label: 'PORTFOLIO FIT', tone: 'neu', children: kids });
+      // a portfolio with Breaches makes this a negative call line: it never folds into "more"
+      lines.push({ label: 'PORTFOLIO FIT', tone: anyBreach ? 'neg' : 'neu', children: kids });
     };
     if (fp !== 'earnings_update') fitLine();
     const bi = bestInstrument();
@@ -226,10 +269,12 @@
         const si = rc.columns.indexOf('scenario');
         const ci = rc.columns.indexOf('class_id');
         const f = rc.rows.filter((r) => r[fi] === 'Yes').map((r) => WB.claimName(r[ci]) + ' (' + String(r[si]).replace(/: /, ', ') + ')');
-        lines.push({ label: 'FULCRUM', tone: 'neg', children: f.length ? f.join('; ') : 'No fulcrum class in the scenarios shown.' });
+        lines.push({ label: 'FULCRUM', tone: 'neg', children: f.length ? f.join('; ') : 'No fulcrum class in the scenarios shown.', leadTo: f.length ? ';' : false });
       }
     }
-    return { tiles, lines, meta };
+    // under the real-run state a tile still flagged illustrative (a Covenant protection score, a pressure word) is not something the live run produced
+    const shown = honest ? tiles.map((t) => (t.illustrative && t.value != null ? { label: t.label, key: t.key, scale: t.scale, value: null, reason: NOT_PRODUCED.reason, short: NOT_PRODUCED.short, producer: t.producer } : t)) : tiles;
+    return { tiles: shown, lines, meta };
   };
   WB.callBar = function (run, extra, notices) {
     const cfg = WB.callConfig(run);
@@ -248,7 +293,7 @@
       title: fpName,
       question: questions[run.front_page] || '',
       illustrative: true,
-      bylineNodes: WB.bylineNodes(meta),
+      meta,
       notices: notices || [],
       tiles: cfg.tiles,
       lines: cfg.lines,

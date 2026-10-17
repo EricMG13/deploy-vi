@@ -44,15 +44,21 @@
     const o = opts || {};
     const idList = ids || [];
     const label = o.label != null ? o.label : idList.join(' ');
-    const reason = o.reason || '';
+    // the reason the module gives for the id(s); a chip no gap explains says so, so its accessible name never stops at "Not available"
+    let reason = o.reason || '';
+    if (!reason && idList.length) {
+      const found = o.items && o.items.length ? o.items : WB.gapsByIds(idList);
+      if (found[0]) reason = found[0].text;
+    }
+    if (!reason) reason = 'Reason not recorded by the module';
     const b = el(
       'button',
       {
         type: 'button',
         class: 'gapchip' + (o.cls ? ' ' + o.cls : ''),
         'data-ref': WB.ref(o.desc || { t: 'gap', ids: idList, items: o.items }),
-        'aria-label': 'Not available' + (label ? ', ' + label : '') + (reason ? ': ' + reason : ''),
-        title: reason || 'Not available',
+        'aria-label': 'Not available' + (label ? ', ' + label : '') + ': ' + reason,
+        title: reason,
         'data-rg-r': o.rg ? o.rg.r : false,
         'data-rg-c': o.rg ? o.rg.c : false,
       },
@@ -279,6 +285,18 @@
     }
     return sec;
   };
+  /* The real-run state, below the bar: a panel that holds verdicts only the fixture produced (illustrative figures) says so in its head
+     ("Fixture's own view"), and its verdict words lose their signal colour (components.css .is-fixture). */
+  WB.markFixtureView = function (root) {
+    WB.qsa('.panel', root).forEach((panel) => {
+      if (panel.classList.contains('panel-cond') || !panel.querySelector('.fig-illustrative')) return;
+      panel.classList.add('is-fixture');
+      const left = panel.querySelector('.p-l');
+      if (!left || left.querySelector('.tag-fixture')) return;
+      const tag = el('span', { class: 'tag tag-fixture', title: 'The live CAOS run produced none of the verdicts in this panel. They are the design fixture\u2019s own.' }, [WB.icon('info', { size: 11, stroke: 1.8 }), el('span', null, 'Fixture\u2019s own view')]);
+      left.insertBefore(tag, left.querySelector('.p-note'));
+    });
+  };
   WB.collapseAll = function (root, open) {
     for (const p of WB.qsa('.panel[data-collapsible="1"]', root || document)) if (p._setOpen) p._setOpen(open);
   };
@@ -338,10 +356,21 @@
       if (col.name === 'class_id' && table.columns.indexOf('claim') < 0 && WB.claimName(v) !== String(v)) return { node: el('span', { class: 'idv hum', title: String(v) }, [WB.claimName(v), ' ', el('span', { class: 'num idv-sub' }, String(v))]), cls: 'c-text' };
       // names held in an id column (bond names, KPI labels) read as text; codes stay mono
       if (col.textual) return { node: el('span', { class: 'idv hum' }, String(v)), cls: 'c-text' };
+      // a date value in a row that cites a source is a figure like any stated value
+      if (WB.DATE_COL.test(col.name) && (o.kind === 'cited' || o.kind === 'synthetic' || o.kind === 'none')) return { node: WB.fig({ t: 'cell', table: table.id, r, c }, el('span', { class: 'fv num idv' }, String(v)), { kind: o.kind, rg, cls: 'fig-txt', label: WB.figLabel(String(v), o.kind) }), cls: 'c-id' };
       return { node: el('span', { class: 'num idv' }, String(v)), cls: 'c-id' };
     }
     // text and prose
     const shownText = /^[A-Z][A-Z0-9_]+$/.test(String(v)) ? WB.PATHWAYS[v] || WB.colLabel(String(v)) : WB.humanize(String(v));
+    // a short text value in a row that cites a source (or an agency rating with none) is a figure: its mark, its passport.
+    // Text that holds its own chips (a citation, a gap id) stays text, since a button cannot hold a button.
+    if (col.kind === 'text' && (o.kind === 'cited' || o.kind === 'synthetic' || o.kind === 'none')) {
+      const body = WB.inline(shownText, mod);
+      if (!body.querySelector('button')) {
+        const spoken = WB.inline(shownText, mod, { text: true });
+        return { node: WB.fig({ t: 'cell', table: table.id, r, c }, el('span', { class: 'fv txt' }, body), { kind: o.kind, rg, cls: 'fig-txt', label: WB.figLabel(spoken, o.kind) }), cls: 'c-text' };
+      }
+    }
     const wrap = el('span', { class: 'txt' }, WB.inline(shownText, mod));
     if (o.kind === 'model') {
       const b = WB.fig({ t: 'note', kind: 'model', code: table.id, title: col.label, sub: WB.moduleName(mod), fields: [['Served as', String(v).slice(0, 220), false]], note: WB.ORIGIN_NOTE.model, table: { id: table.id, row: r, col: c } }, WB.mark('model'), { kind: 'model', noMark: true, cls: 'fig-ghost', rg, label: 'Model-written text, ' + col.label });
@@ -742,6 +771,13 @@
       const b = el('button', { type: 'button', class: 'tile-btn', 'data-ref': WB.ref(t.ref), 'aria-label': t.label + ': ' + (sg.word || t.value) + (t.illustrative ? ', illustrative' : '') }, inner);
       wrap.appendChild(b);
     } else wrap.appendChild(inner);
+    // a Recommendation its portfolio's Fit caps or breaches says so on the tile: word, icon and the run's own cap
+    if (t.cap) {
+      const c = t.cap;
+      wrap.appendChild(
+        el('button', { type: 'button', class: 'tile-cap tone-' + c.tone, 'data-ref': WB.ref(c.desc), 'aria-label': c.aria }, [WB.icon(c.icon, { size: 11, stroke: 2 }), el('span', { class: 'tile-cap-w' }, 'Capped by Fit'), c.value ? el('span', { class: 'tile-cap-v' }, '\u2192 ' + c.value) : null])
+      );
+    }
     return wrap;
   };
 
@@ -760,18 +796,162 @@
     return el('span', { class: 'issuer-id' }, kids);
   };
 
-  /* The byline in parts: analyst, a quiet "Design fixture" tag for a test run, the date; extra parts (e.g. "Fictional issuer") lead. */
-  WB.bylineNodes = function (meta, lead) {
+  /* The byline in parts: analyst, a quiet "Design fixture" tag for a test run (a button: its passport holds the sentences about the test run
+     that the call lines no longer carry), the date; extra parts (e.g. "Fictional issuer") lead. caveats: [[line label, sentence]]. */
+  WB.fixtureTag = function (caveats) {
+    const desc = {
+      t: 'note',
+      kind: 'illustrative',
+      code: '',
+      title: 'Design fixture',
+      sub: 'Every test run is a design fixture',
+      fields: [['Reading', 'This Report is built from a test run. Its judgements are illustrative and its synthetic values are marked.', false]].concat((caveats || []).map(([line, sentence]) => [WB.sentenceCase(line), sentence, false])),
+      note: (caveats || []).length ? 'The sentences above describe the test run, not the credit. They sit here so the call reads as a call; none is dropped.' : 'No call line carries a sentence about the test run in this Report.',
+    };
+    return el('button', { type: 'button', class: 'v-fix', 'data-ref': WB.ref(desc), 'aria-label': 'Design fixture. Open what this means for the test run.', title: 'Every test run is a design fixture' }, 'Design fixture');
+  };
+  WB.sentenceCase = (s) => String(s).charAt(0).toUpperCase() + String(s).slice(1).toLowerCase();
+  WB.bylineNodes = function (meta, lead, caveats) {
     const parts = [];
     (lead || []).forEach((x) => x && parts.push(el('span', null, x)));
-    if (meta.analystName) parts.push(el('span', null, [meta.analystName, meta.designFixture ? el('span', { class: 'v-fix', title: 'Every test run is a design fixture' }, 'Design fixture') : null]));
+    if (meta.analystName) parts.push(el('span', null, [meta.analystName, meta.designFixture ? WB.fixtureTag(caveats) : null]));
     if (meta.asOf) parts.push(el('span', null, WB.fmtDate(meta.asOf)));
     return parts.flatMap((p, i) => (i ? [el('span', { class: 'v-dot', 'aria-hidden': 'true' }, '·'), p] : [p]));
   };
 
+  /* Sentences about the test run ("This test run uses three synthetic tranches in its place.") are not part of the call:
+     they are detected from the text, split off whole and kept for the Design-fixture tag's passport. */
+  WB.splitFixtureCaveats = function (text) {
+    const keep = [];
+    const moved = [];
+    String(text == null ? '' : text).split(/(?<=[.!?])\s+/).forEach((sentence) => (/\btest run\b|\bdesign fixture\b/i.test(sentence) ? moved : keep).push(sentence));
+    return { text: keep.join(' '), moved };
+  };
+
+  /* ---------- call lines in the bar: label, a bold lead, the rest, one trailing "Sources n" ---------- */
+  const LEAD_DELIM = /[;:]|,(?!\d)/;
+  function addGap(acc, key, entry) {
+    if (!acc.gaps.has(key)) acc.gaps.set(key, entry);
+  }
+  /* what a chip, a figure or a reference inside a line stands for: its citations and its gaps */
+  function harvestRef(acc, desc) {
+    if (!desc) return;
+    const addCite = (module, id) => {
+      const k = module + ':' + id;
+      if (!acc.cites.has(k)) acc.cites.set(k, WB.citation(module, id) || { id, module, missing: true });
+    };
+    if (desc.t === 'cite') addCite(desc.module, desc.id);
+    else if (desc.t === 'note') {
+      (desc.cites || []).forEach((c) => c.desc && c.desc.t === 'cite' && addCite(c.desc.module, c.desc.id));
+      if (desc.code === 'calc' && desc.fields && desc.fields[0]) acc.calcs.push(desc.fields[0][1]);
+    } else if (desc.t === 'gap') {
+      (desc.ids || []).forEach((id) => {
+        const found = WB.gapsByIds([id])[0];
+        addGap(acc, 'id:' + id, { id, ids: [id], label: found ? found.missing : '', desc: { t: 'gap', ids: [id] } });
+      });
+    } else if (desc.t === 'cell') {
+      const table = WB.table(desc.table);
+      if (!table) return;
+      const o = WB.cellOrigin(table, desc.r, desc.c);
+      if (o.kind === 'gap') {
+        const g = WB.cellGap(table, desc.r, desc.c);
+        const ids = g.item ? g.item.ids : [];
+        addGap(acc, g.item ? 'item:' + g.item.module + '|' + g.item.text : 'cell:' + desc.table + '|' + desc.r + '|' + desc.c, { id: ids.join(' ') || 'n/a', ids, label: ids.join(' ') || 'n/a', desc: { t: 'cell', table: desc.table, r: desc.r, c: desc.c } });
+      } else {
+        const info = o.info || WB.rowInfo(table, desc.r);
+        if (info) info.citations.forEach((c) => addCite(c.module, c.id));
+      }
+    }
+  }
+  WB.flattenCallLine = function (p) {
+    if (p.dataset.flat) return;
+    p.dataset.flat = '1';
+    const label = p.querySelector(':scope > .v-ll');
+    const acc = { cites: new Map(), gaps: new Map(), calcs: [] };
+    let widget = false;
+    let hasLead = false;
+    const out = [];
+    const visit = (n) => {
+      if (n === label) return;
+      if (n.nodeType === 3) {
+        out.push(n.textContent);
+        return;
+      }
+      if (n.nodeType !== 1) return;
+      const cl = n.classList;
+      // the Fit line's segments, verdict words and links are the line's content, not provenance glyphs
+      if (cl.contains('v-fit') || cl.contains('v-verdict') || n.tagName === 'A') {
+        widget = true;
+        out.push(n);
+        return;
+      }
+      if (cl.contains('v-lead')) {
+        hasLead = true;
+        out.push(n);
+        return;
+      }
+      if (n.tagName === 'BUTTON' && n.dataset.ref) {
+        harvestRef(acc, WB.getRef(n.dataset.ref));
+        // a figure keeps its words; a citation, gap or calculation chip leaves the prose
+        if (cl.contains('fig') || cl.contains('fpa-ref')) out.push((n.querySelector('.fv') || n).textContent);
+        return;
+      }
+      Array.from(n.childNodes).forEach(visit);
+    };
+    Array.from(p.childNodes).forEach(visit);
+    const parts = [];
+    out.forEach((x) => {
+      if (typeof x === 'string' && typeof parts[parts.length - 1] === 'string') parts[parts.length - 1] += x;
+      else parts.push(x);
+    });
+    const tidy = (str) => str.replace(/\s+/g, ' ').replace(/\s+([.,;:])/g, '$1');
+    const nodes = [label, ' '];
+    const pureText = !widget && !hasLead && parts.every((x) => typeof x === 'string');
+    let bodyText = parts.map((x) => (typeof x === 'string' ? x : x.textContent)).join('');
+    if (pureText) {
+      const full = tidy(parts.join('')).trim();
+      // the lead is the line's own first clause: to the first comma (not in a number), semicolon or colon, else to the end of the first sentence
+      const re = p.dataset.leadTo ? new RegExp(p.dataset.leadTo) : LEAD_DELIM;
+      const delim = full.search(re);
+      const sentence = /^(.+?[a-z0-9)%\]])([.!?])(\s|$)/i.exec(full);
+      const end = sentence ? sentence[1].length : -1;
+      // whichever comes first: the first clause's delimiter, or the end of the first sentence
+      const cut = delim >= 0 && (end < 0 || delim < end) ? delim : end >= 0 ? end : full.length;
+      const lead = full.slice(0, cut).trim();
+      if (lead) nodes.push(el('strong', { class: 'v-lead' }, lead), full.slice(cut));
+      else nodes.push(full);
+      bodyText = full;
+    } else {
+      parts.forEach((x) => nodes.push(typeof x === 'string' ? tidy(x) : x));
+    }
+    const nC = acc.cites.size;
+    const nG = acc.gaps.size;
+    if (nC || nG) {
+      const gapWord = nG + (nG === 1 ? ' gap' : ' gaps');
+      const labelText = (nC ? 'Sources ' + nC : '') + (nC && nG ? ' · ' : '') + (nG ? gapWord : '');
+      const aria = (nC ? 'Sources, ' + nC : '') + (nC && nG ? ', ' : '') + (nG ? gapWord : '');
+      const cites = Array.from(acc.cites.values());
+      const allSyn = cites.length > 0 && cites.every((c) => c.synthetic);
+      const name = WB.sentenceCase(label ? label.textContent.trim() : 'Call');
+      const desc = {
+        t: 'note',
+        kind: cites.length ? (allSyn ? 'synthetic' : 'cited') : 'gap',
+        code: '',
+        title: name + ': sources',
+        sub: 'Every citation and gap behind this line',
+        fields: [['The line', bodyText.replace(/\s+/g, ' ').trim().slice(0, 280), false]].concat(acc.calcs.map((f) => ['Calculation', f, true])),
+        cites: cites.map(WB.citeChipData),
+        gapChips: Array.from(acc.gaps.values()).map((g) => ({ id: g.id, label: g.label === g.id ? '' : g.label, desc: g.desc })),
+        note: 'Each source and each gap opens its own passport.',
+      };
+      nodes.push(' ', el('button', { type: 'button', class: 'v-src', 'data-ref': WB.ref(desc), 'aria-label': aria }, [WB.icon('doc-stack', { size: 11 }), el('span', null, labelText)]));
+    }
+    p.replaceChildren(...nodes.filter((x) => x !== ''));
+  };
+
   /* Call lines: at most `max` show; the rest sit behind one disclosure that names them. `order` lists labels by priority.
-     The main risk has a reserved slot: it is always one of the lines that show, on every Front Page, and the cap folds the other lines.
-     Idempotent: a page that adds or removes lines after the bar is built calls it again. */
+     A line that is a negative call (Breaches, Breached, a gate Met, a runway short of its uses) never folds, and neither does the main risk:
+     the cap yields to them and the bar grows. Idempotent: a page that adds or removes lines after the bar is built calls it again. */
   WB.CALL_RESERVED = ['MAIN RISK'];
   WB.capCallLines = function (container, opts) {
     if (!container) return;
@@ -781,13 +961,15 @@
     container.dataset.max = String(max);
     if (order.length) container.dataset.order = order.join('|');
     const lines = WB.qsa('.v-line', container);
+    lines.forEach(WB.flattenCallLine);
     const label = (p) => (p.querySelector('.v-ll') ? p.querySelector('.v-ll').textContent.trim() : '');
     const rank = (p) => {
       const i = order.indexOf(label(p));
       return i < 0 ? order.length + lines.indexOf(p) / 100 : i;
     };
     const sorted = lines.slice().sort((a, b) => rank(a) - rank(b));
-    const reserved = sorted.filter((p) => WB.CALL_RESERVED.includes(label(p)));
+    const negative = (p) => !!p.querySelector(':scope > .v-ll.tone-neg');
+    const reserved = sorted.filter((p) => WB.CALL_RESERVED.includes(label(p)) || negative(p));
     const others = sorted.filter((p) => !reserved.includes(p));
     const room = Math.max(0, max - reserved.length);
     const shown = reserved.concat(others.slice(0, room)).sort((a, b) => rank(a) - rank(b));
@@ -806,15 +988,27 @@
     return el('button', { type: 'button', class: 'v-note tone-' + o.tone, 'data-ref': WB.ref(o.desc), 'aria-label': o.word + ': ' + o.code + '. Open the full note.' }, [WB.icon(o.icon, { size: 12, stroke: 2 }), el('span', { class: 'v-note-w' }, o.word), el('span', { class: 'v-note-c num' }, o.code)]);
   };
 
-  /* cfg: { title, question, illustrative, byline (string) | bylineNodes, notices:[{word, tone, icon, code, desc}], tiles:[tile], lines:[{label, tone, children}], honest, tools, maxLines, order } */
+  /* The real-run state switch, in the bar's header beside the tag: a labelled button whose state is aria-pressed. */
+  WB.stateSwitch = function (on) {
+    const b = el('button', { type: 'button', class: 'v-state', 'aria-pressed': on ? 'true' : 'false', title: 'Show what the live CAOS run produced in place of the fixture’s own judgements' }, [el('span', { class: 'sw-track', 'aria-hidden': 'true' }, el('span', { class: 'sw-dot' })), el('span', { class: 'v-state-l' }, 'Real-run state')]);
+    b.addEventListener('click', () => WB.setHonest(!WB.state.honest));
+    return b;
+  };
+
+  /* cfg: { title, question, illustrative, meta | bylineNodes | byline, notices:[{word, tone, icon, code, desc}], tiles:[tile], lines:[{label, tone, children, caveats, leadTo}], honest, stateSwitch, tools, maxLines, order }
+     `meta` builds the byline here, so the sentences the lines hand over (caveats) reach the Design-fixture tag. */
   WB.verdictBar = function (cfg) {
-    const bar = el('section', { class: 'verdict on-navy', 'aria-label': 'The call' + (cfg.title ? ': ' + cfg.title : '') });
-    // row 1: what the page is and the question it answers; row 2: its standing (illustrative, analyst, date, honest state) and tools
+    const bar = el('section', { class: 'verdict on-navy' + (cfg.honest ? ' is-real' : ''), 'aria-label': 'The call' + (cfg.title ? ': ' + cfg.title : '') });
+    // row 1: what the page is and the question it answers; row 2: its standing (illustrative or real-run state, analyst, date) and tools
     bar.appendChild(el('div', { class: 'v-head' }, [cfg.issuer === false ? null : WB.issuerNode({ sep: true }), el('h1', { class: 'v-title' }, cfg.title), cfg.question ? el('span', { class: 'v-q' }, cfg.question) : null, cfg.tools || null]));
+    const caveats = (cfg.lines || []).flatMap((l) => (l.caveats || []).map((sentence) => [l.label, sentence]));
+    const byline = cfg.meta ? WB.bylineNodes(cfg.meta, null, caveats) : cfg.bylineNodes || null;
+    const tag = cfg.honest ? el('span', { class: 'v-tag is-real' }, [WB.icon('gauge', { size: 11, stroke: 2 }), 'REAL-RUN STATE']) : cfg.illustrative ? el('span', { class: 'v-tag' }, 'ILLUSTRATIVE') : null;
     bar.appendChild(
       el('div', { class: 'v-meta' }, [
-        cfg.illustrative ? el('span', { class: 'v-tag' }, 'ILLUSTRATIVE') : null,
-        cfg.bylineNodes ? el('span', { class: 'v-by' }, cfg.bylineNodes) : cfg.byline ? el('span', { class: 'v-by' }, cfg.byline) : null,
+        tag,
+        cfg.stateSwitch === false || !tag ? null : WB.stateSwitch(!!cfg.honest),
+        byline ? el('span', { class: 'v-by' }, byline) : cfg.byline ? el('span', { class: 'v-by' }, cfg.byline) : null,
         (cfg.notices || []).map((n) => WB.noticeTag(n)),
         cfg.honest ? el('span', { class: 'v-honest' }, [WB.icon('info', { size: 12, stroke: 1.8 }), cfg.honest]) : null,
       ])
@@ -827,7 +1021,7 @@
       const box = el(
         'div',
         { class: 'verdict-lines on-navy', 'data-roving': '1' },
-        cfg.lines.map((l) => el('p', { class: 'v-line' }, [el('span', { class: 'v-ll tone-' + (l.tone || 'neu') }, l.label), ' ', l.children]))
+        cfg.lines.map((l) => el('p', { class: 'v-line', 'data-lead-to': l.leadTo || false }, [el('span', { class: 'v-ll tone-' + (l.tone || 'neu') }, l.label), ' ', l.children]))
       );
       WB.capCallLines(box, { max: cfg.maxLines || 3, order: cfg.order || [] });
       out.appendChild(box);

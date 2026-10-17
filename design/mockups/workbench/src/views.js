@@ -1042,7 +1042,7 @@
     let illus;
     let honest;
     // the same bar the Front Page draws: title, question, standing, tiles and capped call lines
-    const barCfg = (h) => Object.assign(WB.callConfig(run), { title: meta.frontPageName, illustrative: true, bylineNodes: WB.bylineNodes(meta), honest: h ? 'Honest state: the live CAOS run produced no Recommendation' : null, maxLines: WB.CALL_MAX[run.front_page] || 3, order: WB.CALL_ORDER[run.front_page] || [] });
+    const barCfg = (h) => Object.assign(WB.callConfig(run), { title: meta.frontPageName, illustrative: true, meta, stateSwitch: false, honest: h ? 'Honest state: the live CAOS run produced no Recommendation' : null, maxLines: WB.CALL_MAX[run.front_page] || 3, order: WB.CALL_ORDER[run.front_page] || [] });
     try {
       WB.state.honest = false;
       illus = WB.verdictBar(barCfg(false));
@@ -1061,7 +1061,7 @@
       title: meta.issuer.replace(/, Inc\.?$/, '') + ': ' + meta.frontPageName,
       question: WB.moduleQuestion(blockedFrom),
       illustrative: false,
-      bylineNodes: WB.bylineNodes(meta),
+      meta,
       notices: [
         { word: 'Blocked', tone: 'neg', icon: 'status-blocked', code: blockedFrom, desc: noticeDesc(blockedFrom, 'Blocked: ' + WB.moduleName(blockedFrom), blockedSentence) },
         { word: 'Screening basis', tone: 'cau', icon: 'info', code: 'CP-2', desc: noticeDesc('CP-2', 'Screening basis (Quick depth)', 'The Recommendations, Credit Score and Direction rest on a screen, not the full assessment.') },
@@ -1073,7 +1073,7 @@
       spec('verdict', 'Verdict bar', 'run_brief snapshot.run_header; pathway; tables snapshot.recommendation, credit_view, instrument_recommendation; step status', [
         el('p', { class: 'ds-cap' }, 'Illustrative: every judgement tile is the module’s view in a design fixture.'),
         el('div', { class: 'ds-vb' }, illus),
-        el('p', { class: 'ds-cap' }, 'Honest: the real-run state, tiles read Not produced with the reason and the module.'),
+        el('p', { class: 'ds-cap' }, 'Real-run state: the tag reads REAL-RUN STATE and every judgement tile the live run did not produce reads Not produced, with the reason and the module. The switch that turns it on sits in the live Front Page\u2019s bar and the state is in the URL (?state=real); these specimens do not carry it.'),
         el('div', { class: 'ds-vb' }, honest),
         el('p', { class: 'ds-cap' }, 'Notices' + (blockedReal ? '' : ' (specimen)') + ': a Blocked module and a Screening basis are tags in the byline row (word, icon, module code); the main risk keeps its call line, the cap folds the other lines.'),
         el('div', { class: 'ds-vb' }, blockedBar),
@@ -1084,13 +1084,14 @@
     const T = (label, key, scale, value, extra) => Object.assign({ label, key, scale, value, illustrative: true }, extra || {});
     const tiles = [
       T('Recommendation', 'recommendation', 'rec', '2 - Modest OW'), T('Recommendation', 'recommendation', 'rec', '3 - MW'), T('Recommendation', 'recommendation', 'rec', '5 - Strong UW'),
+      T('CLO', 'recommendation', 'rec', '3 - MW', { cap: { tone: 'neg', icon: 'cross', value: 'Avoid', aria: 'CLO: capped by Fit (specimen).', desc: { t: 'note', kind: 'calculated', code: 'FIT', title: 'Capped by Fit (specimen)', sub: 'Portfolio Fit', fields: [['Rule', 'Breaches caps at Avoid; Watch caps at 3 - MW', false]], note: 'On a Front Page this opens the run\u2019s own portfolio Recommendation row.' } } }),
       T('Valuation', 'valuation', 'val', 'V2 - Attractive'), T('Credit Score', 'credit_score', 'score', '3 - Fair'),
       T('Credit Direction', 'credit_direction', 'dir', 'Improving'), T('Credit Direction', 'credit_direction', 'dir', 'Stable'), T('Credit Direction', 'credit_direction', 'dir', 'Deteriorating'),
       T('Sector Outlook', 'sector_outlook', 'outlook', 'Positive'), T('Distress gate', 'gate', 'gate', 'Not met'), T('Distress gate', 'gate', 'gate', 'Met'),
       T('Covenant tests', 'status', 'cov', 'Tight', { sub: '2 maintenance' }), T('Refinancing pressure', 'pressure', 'press', 'High'), T('Lender protection', 'score', 'five', '2', { word: '2 of 5' }),
       T('Since last Report', 'change', 'plain', 'Deteriorated'), { label: 'Valuation', value: null, reason: 'The Pathway runs no CP-3.', producer: 'CP-3' },
     ];
-    comps.push(spec('tiles', 'Position tile, every scale', 'tile {label, key, scale rec|val|score|dir|outlook|gate|cov|press|five|plain, value, ref, illustrative}; value null renders Not produced', el('div', { class: 'verdict ds-tiles' }, el('div', { class: 'v-tiles' }, tiles.map((t) => WB.tile(t)))), true));
+    comps.push(spec('tiles', 'Position tile, every scale', 'tile {label, key, scale rec|val|score|dir|outlook|gate|cov|press|five|plain, value, ref, illustrative, cap}; value null renders Not produced; cap adds the Capped by Fit badge', el('div', { class: 'verdict ds-tiles' }, el('div', { class: 'v-tiles' }, tiles.map((t) => WB.tile(t)))), true));
 
     // chips and badges
     const chipRows = el('div', { class: 'ds-row' }, ['pass', 'limitations', 'blocked', 'notrun'].map((s) => WB.statusChip(s)));
@@ -1100,7 +1101,7 @@
     comps.push(spec('badges', 'Scale and word badges', 'snapshot.recommendation.recommendation; instrument_recommendation.valuation; credit_view.*; severity, pressure and confidence columns (direction per column)', el('div', { class: 'ds-row' }, scaleWords.map(([w, c]) => el('span', { class: 'ds-badge-c' }, [WB.badge(w, c), el('code', { class: 'num' }, c)])))));
 
     // marks
-    const KINDS = ['cited', 'calculated', 'synthetic', 'model', 'gap', 'illustrative'];
+    const KINDS = ['cited', 'calculated', 'synthetic', 'model', 'gap', 'illustrative', 'none'];
     comps.push(
       spec('marks', 'Provenance marks, quiet and full', 'cite column ([Cn], calc:), citations[].synthetic, model cells basis and sources; scales are illustrative', el('div', { class: 'tw' }, el('table', { class: 'dt' }, [el('caption', { class: 'sr-only' }, 'Provenance marks'), el('thead', null, el('tr', null, ['Kind', 'Quiet (in a table)', 'Full (selected, in a passport)', 'Word'].map((h) => el('th', { scope: 'col' }, h)))), el('tbody', null, KINDS.map((k) => el('tr', null, [el('th', { scope: 'row', class: 'c-rowh' }, k), el('td', null, el('span', { class: 'ds-mq' }, WB.mark(k, { size: 14 }))), el('td', null, el('span', { class: 'pp ds-mf' }, WB.mark(k, { size: 14 }))), el('td', null, WB.originWord[k] || k)])))])))
     );
@@ -1181,6 +1182,7 @@
     const gapCell = firstMcell((l, c) => c.value == null);
     const modelCell = findCell((o) => o.kind === 'model');
     const illCell = findCell((o) => o.kind === 'illustrative');
+    const noneCell = findCell((o) => o.kind === 'none');
     comps.push(
       spec(
         'passports',
@@ -1193,6 +1195,7 @@
           passportSpecimen('Gap', gapCell),
           passportSpecimen('Model-written', modelCell),
           passportSpecimen('Illustrative', illCell),
+          passportSpecimen('No source stated', noneCell),
         ]),
         true
       )
