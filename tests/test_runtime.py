@@ -330,7 +330,7 @@ def test_runtime_prompt_budget_and_actual_menu(installed: Path) -> None:
     ]:
         assert len(path.read_bytes()) <= budget
     assert [(p["id"], list(p["depths"])) for p in data["pathways"]] == [
-        ("FULL_CREDIT_ASSESSMENT", ["full"])
+        ("FULL_CREDIT_ASSESSMENT", ["full", "quick"])
     ]
 
 

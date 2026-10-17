@@ -22,10 +22,15 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from test_accept import accept, send
+from test_bootstrap import ready
 
 from conftest import CORPUS
 from cp0_fixture import cp0_handoff, registry_classification
+from rbotlib import state
+from rbotlib.catalog import load_catalog
 from rbotlib.cli import main
+from rbotlib.rules import RBOT_ROOT
 
 # pack -> (status, blocking modules, limited modules) for FULL_CREDIT_ASSESSMENT full.
 NO_STATEMENTS = (
@@ -101,3 +106,72 @@ def test_full_credit_assessment_grades_on_the_corpus(
 
 def test_every_corpus_pack_has_a_hand_checked_grade() -> None:
     assert sorted(GRADES) == sorted(p.id for p in CORPUS.packs)
+
+
+# pack -> (status, blocking modules, limited modules) for FULL_CREDIT_ASSESSMENT quick, the
+# KNOWN values of tests/test_grade.py, except ccl: the real contracts also limit CP-1 there (as
+# at full, above; the synthetic KNOWN tree has no such limit). CP-L10 adds no limit of its own.
+QUICK_GRADES: dict[str, tuple[str, list[str], list[str]]] = {
+    "czr-2026q2-lite-full-credit-screen": ("With limitations", [], ["FIT"]),
+    "ccl-fy2025-lite-full-credit-screen": ("With limitations", [], ["CP-1", "CP-3", "FIT"]),
+}
+
+
+def _briefed(pack_id: str, prepared_run: Callable[[str], Path], tmp_path: Path) -> Path:
+    pack = CORPUS.pack(pack_id)
+    run = tmp_path / "rbot-runs" / "20261011-grade-pending"
+    shutil.copytree(prepared_run(pack_id), run)
+    (run / "handoffs").mkdir(exist_ok=True)
+    issuer = (pack.data["issuer"]["name"], pack.data["issuer"]["id"])
+    classes = registry_classification(pack)
+    text = cp0_handoff(run, issuer, pack.data["as_of"], classes, primary=pack.data["primary"])
+    (run / "handoffs" / "CP-0.md").write_text(text, encoding="utf-8")
+    assert main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"]) == 0
+    assert main(["grade", "--run", str(run)]) == 0
+    return run
+
+
+@pytest.mark.corpus
+@pytest.mark.parametrize("pack_id", sorted(QUICK_GRADES))
+def test_full_credit_assessment_grades_at_quick_on_the_corpus(
+    pack_id: str, prepared_run: Callable[[str], Path], tmp_path: Path
+) -> None:
+    run = _briefed(pack_id, prepared_run, tmp_path)
+    grading = json.loads((run / "grading.json").read_text(encoding="utf-8"))
+    quick = grading["pathways"][0]["depths"]["quick"]
+    got = (quick["status"], quick["blocking_modules"], quick["limited_modules"])
+    assert got == QUICK_GRADES[pack_id]
+
+
+@pytest.mark.corpus
+def test_approve_at_quick_plans_the_committed_quick_list(
+    corpus_pack: Callable[[str], Path], tmp_path: Path
+) -> None:
+    pack = shutil.copytree(
+        corpus_pack("czr-2026q2-lite-full-credit-screen"),
+        tmp_path / "working pack",
+        ignore=shutil.ignore_patterns("rbot-runs"),
+    )
+    assert main(["new-run", "--pack", str(pack)]) == 0
+    run = next((pack / "rbot-runs").iterdir())
+    for command in ("inventory", "prepare"):
+        assert main([command, "--run", str(run)]) == 0
+    (run / "handoffs").mkdir()
+    cp0 = CORPUS.pack("czr-2026q2-lite-full-credit-screen")
+    issuer = (cp0.data["issuer"]["name"], cp0.data["issuer"]["id"])
+    text = cp0_handoff(
+        run, issuer, cp0.data["as_of"], registry_classification(cp0), primary=cp0.data["primary"]
+    )
+    (run / "handoffs/CP-0.md").write_text(text, encoding="utf-8")
+    send(run, RBOT_ROOT)
+    assert accept(run) == 0
+    ready(run, RBOT_ROOT)
+    args = ["--root", str(RBOT_ROOT), "approve", "--run", str(run)]
+    args += ["--pathway", "FULL_CREDIT_ASSESSMENT", "--depth", "quick"]
+    args += ["--primary", "no", "--analyst", "Approver"]
+    assert main(args) == 0
+    plan = state.read(next(run.parent.iterdir()))["plan"]
+    pathway = load_catalog(RBOT_ROOT).pathway("FULL_CREDIT_ASSESSMENT")
+    assert pathway is not None
+    assert plan == list(pathway.depths["quick"])
+    assert "CP-L10" in plan and "CP-2" not in plan

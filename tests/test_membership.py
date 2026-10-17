@@ -98,7 +98,21 @@ def test_the_committed_list_is_the_derived_list_of_built_steps(rules: Rules) -> 
     expected = [s for s in _spec_list("full") if s in derive(rules, "full") and s in built]
     assert list(pathway.depths["full"]) == expected
     quick = derive(rules, "quick")
-    assert not quick <= built and "quick" not in pathway.depths  # CP-L10 and CP-8 come later
+    assert "CP-8" in quick and "CP-8" not in built  # CP-8 arrives in Plan 11
+    expected = [s for s in _spec_list("quick") if s in quick and s in built]
+    assert list(pathway.depths["quick"]) == expected
+
+
+def test_quick_lists_exclude_full_only_modules() -> None:
+    pathway = load_catalog(RBOT_ROOT).pathway("FULL_CREDIT_ASSESSMENT")
+    assert pathway is not None
+    full_only = {"CP-2", "CP-DR", "CP-1D", "CP-2A", "CP-2E", "CP-2G", "PROJECTION"}
+    for depth, steps in pathway.depths.items():
+        if depth == "quick":
+            assert not full_only & set(steps)
+    assert list(pathway.depths["quick"]) == [
+        "CP-0", "CP-1", "CP-1A", "CP-1B", "MODEL", "CP-L10", "CP-3", "FIT", "CP-5", "CP-6"
+    ]  # fmt: skip
 
 
 def test_a_host_table_needs_its_host_step_in_the_pathway(tmp_path: Path, rules: Rules) -> None:

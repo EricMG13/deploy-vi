@@ -35,12 +35,13 @@ edits. Use `brief --run "<RUN>" --set "<field>=<value>"` or
 `--set-tranche "<TRANCHE_ID>" "<field>=<value>"`. Explain source wins/analyst context;
 classification corrections require the CP-0 Module/native qualification, never silent edits.
 Turn2: `grade --run "<RUN>"`; show every installed Pathway/depth/grade, blocking Modules,
-missing documents and lifting sources. Current menu: Full Credit Assessment/full only.
+missing documents and lifting sources. Current menu: Full Credit Assessment at full and at
+quick. Quick skips Deep Research and the Full-only Modules; its output is screening-only.
 Show Primary (preselected for sourced tranche rows), research questions/Prior Case offer
-and actual fetch availability. Deep Research/Prior Case/Quick are unavailable; keep refusals.
+and actual fetch availability. Deep Research/Prior Case are unavailable; keep refusals.
 Obtain supported choices and analyst. Blocked requires acknowledgement naming blocking
 Modules before `--acknowledge-blocked`. Run `approve --run "<RUN>" --pathway "<ID>"
---depth full --primary yes|no --analyst "<name>" --deep-research no --prior-case no`, with
+--depth full|quick --primary yes|no --analyst "<name>" --deep-research no --prior-case no`, with
 that acknowledgement only if received. Exit1 waits with its reason. Success: take the exact
 `approved: <path>` renamed run for all commands, show `plan`, then no further checkpoints.
 
