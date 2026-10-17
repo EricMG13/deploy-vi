@@ -96,6 +96,14 @@ def load_catalog(root: Path) -> Catalog:
     )
 
 
+def module_ids(root: Path) -> frozenset[str]:
+    """Ids of the Modules shipped under `root`: a folder holding a contract.json."""
+    folder = root / "modules"
+    if not folder.is_dir():
+        return frozenset()
+    return frozenset(p.parent.name for p in folder.glob("*/contract.json"))
+
+
 def load_contracts(root: Path, rules: Rules, problems: list[str]) -> dict[str, Contract]:
     contracts: dict[str, Contract] = {}
     modules = root / "modules"

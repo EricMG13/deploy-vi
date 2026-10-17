@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from rbotlib import bootstrap, brief, grade, origins, state
-from rbotlib.catalog import load_catalog
+from rbotlib.catalog import load_catalog, module_ids
 from rbotlib.contract import Contract, Input, load_contract
 from rbotlib.fsio import write_atomic
 from rbotlib.handoff import Handoff, parse
@@ -471,7 +471,7 @@ def prepare_message(run: Path, root: Path, module: str, findings: str | None = N
     from rbotlib.current import reconcile
 
     reconcile(run, root)
-    if re.fullmatch(r"CP-[0-9]+[A-Z]?", module) is None or module in ("CP-8",):
+    if module not in module_ids(root):
         raise RunError(f"undeclared module target {module!r}")
     owner = state._Locked(run)
     try:

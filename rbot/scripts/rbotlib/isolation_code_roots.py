@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
 
+from rbotlib.catalog import module_ids
 from rbotlib.contract import Contract, load_contract
 from rbotlib.inventory import RunError, output_path
 from rbotlib.isolation_capture import Capture, admit, tree
@@ -101,11 +101,7 @@ def observe(
     away. The executing root is installed RBOT_ROOT, never a supplied substitute.
     No source run, pack, Handoff, prepared portfolio, log or history is selected.
     """
-    if (
-        not isinstance(canonical_target, str)
-        or re.fullmatch(r"CP-[0-9]+[A-Z]?", canonical_target) is None
-        or canonical_target == "CP-8"
-    ):
+    if not isinstance(canonical_target, str) or canonical_target not in module_ids(target_root):
         raise RunError("isolation code roots: canonical installed Module target required")
     roots = (source_root.absolute(), target_root.absolute(), RBOT_ROOT)
     contract_path = output_path(roots[1], f"modules/{canonical_target}/contract.json")

@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from rbotlib import dispatch, state
+from rbotlib.catalog import module_ids
 from rbotlib.fsio import write_atomic
 from rbotlib.handoff import parse
 from rbotlib.inventory import RunError, output_path
@@ -290,7 +291,7 @@ def read_history(run: Path, module: str, step: state.Record) -> list[state.Recor
     """Read every guarded hash-bound event; refuse corrupt/extra/interrupted publication."""
     run = state.run_path(run)
     record = state.read(run)
-    if target(record, module) != step:
+    if declared(record, module) != step:
         raise RunError("attempt evidence: supplied step differs from current owned state")
     hashes = step.get("accept_history", [])
     if not isinstance(hashes, list) or not all(state._sha(h) for h in hashes):
@@ -329,9 +330,14 @@ def publish_event(run: Path, module: str, event: state.Record) -> None:
         write_atomic(dispatch._target(run, f"validate/{module}.json"), encode(event["result"]))
 
 
-def target(record: state.Record, module: str) -> state.Record:
-    if module not in ("CP-0", "CP-1", "CP-1A", "CP-1B", "CP-1D", "CP-2", "CP-3", "CP-5", "CP-6"):
+def target(record: state.Record, module: str, root: Path) -> state.Record:
+    if module not in module_ids(root):
         raise RunError(f"unsupported module target {module!r}")
+    return declared(record, module)
+
+
+def declared(record: state.Record, module: str) -> state.Record:
+    """The Module step the run's own state declares; the state owns which ids exist."""
     step = record["steps"].get(module)
     if step is None or step["kind"] != "module":
         raise RunError(f"{module}: undeclared module target")
@@ -350,7 +356,7 @@ def _duplicate(events: list[state.Record], values: state.Record) -> None:
 def _receipt_event(
     run: Path, root: Path, module: str, record: state.Record, receipt: DispatchReceipt
 ) -> state.Record:
-    step = target(record, module)
+    step = target(record, module, root)
     events = read_history(run, module, step)
     values = asdict(receipt)
     _duplicate(events, values)

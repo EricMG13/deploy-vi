@@ -240,7 +240,7 @@ def test_unknown_target_before_source_or_rules_read(
     roots: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(code, "load_rules", forbidden)
-    with pytest.raises(FileNotFoundError, match="CP-99"):
+    with pytest.raises(RunError, match="canonical installed"):
         code.observe(*roots, "CP-99", Capture())
 
 

@@ -33,10 +33,9 @@ def _plan(root: Path, record: state.Record) -> list[str]:
     else:
         pathway = catalog.pathway(record["pathway"])
         if (
-            record["pathway"] != "FULL_CREDIT_ASSESSMENT"
-            or record["depth"] != "full"
-            or pathway is None
-            or list(pathway.depths.get("full", ())) != plan
+            pathway is None
+            or record["depth"] not in pathway.depths
+            or list(pathway.depths[record["depth"]]) != plan
         ):
             raise RunError("selected root: unsupported or corrupt approved plan")
     checked: list[str] = plan
