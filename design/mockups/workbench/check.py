@@ -7,6 +7,7 @@ Asserts data-ready="1" and data-errors="0" on <html>, prints a table, exits 1 on
                                    every run's Front Page, two module views, Model, Portfolio Fit, Evidence and Limitations,
                                    and the Design system of two runs
   python3 check.py --run <stem>    one run only
+  (the table also prints data-unresolved per page: n/a cells with no stated reason; counted, never failing)
   python3 check.py --url-only '#/run/view'   load one hash and print the html attributes
 Needs a static server on 127.0.0.1:8765 with the repo root as document root; started here if absent.
 """
@@ -196,18 +197,22 @@ def main():
             run, label, path = job
             attrs, ms, r = load(f"#/{run}/{path}")
             ok = attrs.get("data-ready") == "1" and attrs.get("data-errors") == "0" and attrs.get("data-run") == run
-            return (run, label, attrs.get("data-ready", "-"), attrs.get("data-errors", "-"), ms, ok, attrs.get("data-error-first", ""))
+            return (run, label, attrs.get("data-ready", "-"), attrs.get("data-errors", "-"), ms, ok, attrs.get("data-error-first", ""), attrs.get("data-unresolved", "-"))
 
         with cf.ThreadPoolExecutor(max_workers=a.jobs) as ex:
             results = list(ex.map(one, jobs))
         w = max(len(r[0]) for r in results)
-        print(f"{'run':<{w}}  {'view':<18} ready errors     ms  status")
+        print(f"{'run':<{w}}  {'view':<18} ready errors unres     ms  status")
         bad = 0
-        for run, label, ready, errs, ms, ok, first in results:
+        unres_total = 0
+        for run, label, ready, errs, ms, ok, first, unres in results:
             if not ok:
                 bad += 1
-            print(f"{run:<{w}}  {label:<18} {ready:>5} {errs:>6} {ms:>6}  {'PASS' if ok else 'FAIL ' + first}")
+            unres_total += int(unres) if unres.isdigit() else 0
+            print(f"{run:<{w}}  {label:<18} {ready:>5} {errs:>6} {unres:>5} {ms:>6}  {'PASS' if ok else 'FAIL ' + first}")
         print(f"\n{len(results)} page loads, {len(results) - bad} pass, {bad} fail")
+        # documented fail-open: an n/a cell that neither the module's gaps nor the Model explain is a fixture-data issue, so it is counted, never a failure
+        print(f"{unres_total} unresolved n/a cells in total across these pages (data-unresolved; the passport says 'Reason not recorded by the module'; not a failure)")
         if a.shots:
             out_dir = SHOTS / a.tag
             out_dir.mkdir(parents=True, exist_ok=True)

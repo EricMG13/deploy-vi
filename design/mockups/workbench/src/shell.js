@@ -47,10 +47,10 @@
   }
   WB.viewAvailability = viewAvailability;
 
-  function stateMessage(canvas, title, text, extra) {
+  function stateMessage(canvas, title, text, extra, withIssuer) {
     canvas.appendChild(
       el('div', { class: 'view view-state' }, [
-        el('div', { class: 'm-bar' }, el('div', { class: 'm-title' }, el('h1', null, title))),
+        el('div', { class: 'm-bar' }, el('div', { class: 'm-title' }, [withIssuer ? WB.issuerNode({ sep: true }) : null, el('h1', null, title)])),
         el('div', { class: 'state-body' }, [WB.conditionLine(text), extra || null]),
       ])
     );
@@ -76,6 +76,7 @@
     const run = WB.runIds.includes(h.run) ? WB.loadRun(h.run) : null;
     canvas.replaceChildren();
     WB.clearRefs();
+    WB.resetUnresolved();
     WB.page = { outline: [], gapModules: [], title: '' };
     WB.setNavExtra(null);
     clearSelection();
@@ -103,7 +104,7 @@
     } else if (!WB.views[name]) {
       stateMessage(canvas, 'View not found', 'This Report has no view called "' + name + '". Views: ' + Object.keys(WB.views).join(', ') + '.');
     } else if (!av.ok) {
-      stateMessage(canvas, WB.views[name].title, av.reason);
+      stateMessage(canvas, WB.views[name].title, av.reason, null, true);
     } else {
       try {
         WB.views[name].render(canvas, run, { id: h.id, anchor: h.anchor });
@@ -252,15 +253,18 @@
     nav.appendChild(el('div', { class: 'nav-group-h' }, el('span', { class: 'nav-h' }, 'Analysis \u00B7 ' + plan.length)));
     nav.appendChild(chips);
     const shown = rows.filter((r) => filter === 'all' || r.status === filter);
+    // a status icon spends signal colour, so it shows only where a row departs from the run's most common status (the norm);
+    // the status word stays in each row's accessible name and tooltip, and in the module view. Ties go to the first of the order below.
+    const norm = ['limitations', 'pass', 'notrun', 'blocked'].reduce((best, k) => (counts[k] > (counts[best] || 0) ? k : best), 'limitations');
     const ul = el('ul', { class: 'nav-modules' });
     shown.forEach((r) => {
       const active = h.view === 'module' ? (h.id || plan[0]) === r.id : (h.view === 'model' && r.id === 'MODEL') || (h.view === 'fit' && r.id === 'FIT');
       const a = el(
         'a',
-        { class: 'nav-row' + (active ? ' is-active' : ''), href: WB.moduleHref(r.id), 'aria-current': active ? 'page' : false, title: WB.moduleName(r.id) + ': ' + WB.STATUS_WORD[r.status] },
+        { class: 'nav-row' + (active ? ' is-active' : ''), href: WB.moduleHref(r.id), 'aria-current': active ? 'page' : false, title: WB.moduleName(r.id) + ': ' + WB.STATUS_WORD[r.status], 'aria-label': WB.moduleName(r.id) + ', ' + r.id + ': ' + WB.STATUS_WORD[r.status] },
         [
           el('span', { class: 'nr-n num' }, String(r.i + 1)),
-          el('span', { class: 'nr-i tone-' + WB.STATUS_TONE[r.status] }, WB.icon(WB.STATUS_ICON[r.status], { size: 14, stroke: 1.8, label: WB.STATUS_WORD[r.status] })),
+          el('span', { class: 'nr-i tone-' + WB.STATUS_TONE[r.status] }, r.status === norm ? null : WB.icon(WB.STATUS_ICON[r.status], { size: 14, stroke: 1.8, label: WB.STATUS_WORD[r.status] })),
           el('span', { class: 'nr-t' }, WB.moduleName(r.id)),
           el('span', { class: 'nr-c num' }, r.id),
         ]
@@ -511,7 +515,7 @@
       el('h3', null, 'Module status'),
       el('div', { class: 'hk-sig' }, ['pass', 'limitations', 'blocked', 'notrun'].map((s) => WB.statusChip(s))),
       el('h3', null, 'Numbers'),
-      el('p', { class: 'hk-n' }, 'Numbers print as served; negatives in parentheses, thousands grouped. The passport shows "Served as".'),
+      el('p', { class: 'hk-n' }, 'Yields and prices print to 2 decimals, amounts in whole millions, negatives in parentheses, thousands grouped. The passport shows "Served as": the value as the run holds it.'),
       el('h3', null, 'Keys'),
       el('div', { class: 'hk-keys' }, [
         el('span', null, [el('kbd', null, '/'), ' search']),
@@ -534,6 +538,12 @@
     insp.history = [];
     if (shell.insp) renderInspector();
   }
+  /* Below 1360px an inspector with nothing selected is a slim strip: selecting a figure opens it at full width, closing returns to the strip.
+     From 1360px up it is always the full pane (the CSS ignores data-insp there). */
+  const narrow = () => !window.matchMedia('(min-width: 1360px)').matches;
+  function setInspOpen(open) {
+    if (shell.root) shell.root.dataset.insp = open ? 'open' : 'closed';
+  }
   function clearSelection() {
     if (insp.selected) insp.selected.classList.remove('is-selected');
     insp.selected = null;
@@ -543,6 +553,27 @@
       insp.history = [];
       renderInspector();
     }
+    setInspOpen(false);
+  }
+  /* close the inspector back to its strip (narrow widths) and hand focus back to the figure, or to the strip when it was opened empty */
+  function closeInspector() {
+    if (insp.selected) insp.selected.classList.remove('is-selected');
+    insp.desc = null;
+    insp.passport = null;
+    insp.history = [];
+    renderInspector();
+    setInspOpen(false);
+    const r = shell.returnEl;
+    if (r && document.contains(r)) r.focus();
+    else shell.canvas.focus();
+  }
+  function openInspectorEmpty() {
+    setInspOpen(true);
+    renderInspector();
+    // the strip is rebuilt with the pane: it is where focus returns when the empty inspector is closed
+    shell.returnEl = WB.qs('.insp-open', shell.insp);
+    const h = WB.qs('.insp-empty', shell.insp);
+    if (h) h.focus({ preventScroll: true });
   }
   /* WB.inspect(desc, originEl): the public entry. desc is a passport descriptor; chart agents pass { t: 'chart', chartId }. */
   WB.inspect = function (desc, originEl, opts) {
@@ -560,6 +591,7 @@
     insp.passport = WB.buildPassport(desc);
     if (o.tab) insp.tab = o.tab;
     else if (insp.tab === 'gaps' && !inInspector) insp.tab = 'source';
+    setInspOpen(true);
     renderInspector();
     if (!o.noFocus) {
       const h = WB.qs('.pp-title', shell.insp) || WB.qs('.insp-empty', shell.insp);
@@ -639,7 +671,11 @@
       root.appendChild(el('h4', { class: 'pp-h' }, 'Gaps in this module'));
       root.appendChild(gapList(p.gaps));
     }
-    if (foot) root.appendChild(el('p', { class: 'pp-id num', title: 'Raw id in the run file' }, foot));
+    // the raw id in whole tokens (table, row, column): each wraps only at its own separators, so nothing is cut mid-word
+    if (foot) {
+      const tok = (t) => el('span', { class: 'pp-tok' }, t.split(/([/#:@._-])/).flatMap((part, i) => (i % 2 ? [part, el('wbr')] : [part])));
+      root.appendChild(el('p', { class: 'pp-id num', title: 'Raw id in the run file' }, foot.split(' \u00B7 ').map(tok)));
+    }
     return root;
   }
   WB.renderPassport = (p) => renderPassportEl(p, { static: true });
@@ -708,8 +744,13 @@
     else if (!insp.passport) body = el('div', { class: 'insp-empty', tabindex: '-1' }, [el('strong', null, 'Select a figure'), el('p', null, 'Cited, calculated, synthetic, model-written and illustrative figures each open a passport here. Select a chart mark or a chip, or press ? for the key.')]);
     else if (insp.tab === 'table') body = renderTableTab(insp.passport);
     else body = renderPassportEl(insp.passport);
+    const strip = el('button', { type: 'button', class: 'insp-open', 'aria-label': 'Open the inspector', title: 'Open the inspector' }, [WB.icon('chevron-left', { size: 14, stroke: 1.8 }), el('span', { class: 'io-l' }, 'Inspector')]);
+    strip.addEventListener('click', openInspectorEmpty);
+    const close = el('button', { type: 'button', class: 'btn-x insp-close', 'aria-label': 'Close the inspector', title: 'Close the inspector' }, WB.icon('close', { size: 14, stroke: 1.8 }));
+    close.addEventListener('click', closeInspector);
     root.replaceChildren(
-      el('header', { class: 'insp-h' }, [el('h2', null, 'Inspector'), bar]),
+      strip,
+      el('header', { class: 'insp-h' }, [el('h2', null, 'Inspector'), bar, close]),
       el('div', { class: 'insp-body', id: 'insp-panel', role: 'tabpanel', 'aria-labelledby': 'it-' + insp.tab }, body),
       el('footer', { class: 'insp-f' }, [el('strong', null, 'Keys'), ' ', el('span', { class: 'num' }, '←↑→↓'), ' figures · ', el('span', { class: 'num' }, 'Enter'), ' passport · ', el('span', { class: 'num' }, 'Esc'), ' back'])
     );
@@ -783,7 +824,7 @@
     return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
   }
   WB.start = function () {
-    const root = el('div', { id: 'app', 'data-nav': window.matchMedia('(min-width: 1360px)').matches ? 'open' : 'closed' });
+    const root = el('div', { id: 'app', 'data-nav': window.matchMedia('(min-width: 1360px)').matches ? 'open' : 'closed', 'data-insp': 'closed' });
     shell.root = root;
     shell.rail = el('nav', { class: 'rail on-navy', 'aria-label': 'Destinations' });
     shell.nav = el('aside', { class: 'navigator', id: 'navigator', 'aria-label': 'Navigator' });
@@ -811,10 +852,16 @@
           return;
         }
         if (shell.insp.contains(document.activeElement)) {
+          if (narrow() && shell.root.dataset.insp === 'closed') return;
+          e.preventDefault();
+          // narrow: Esc also closes the inspector back to its strip; wide: it only hands focus back and the passport stays
+          if (narrow()) {
+            closeInspector();
+            return;
+          }
           const r = shell.returnEl;
           if (r && document.contains(r)) r.focus();
           else shell.canvas.focus();
-          e.preventDefault();
         }
         return;
       }

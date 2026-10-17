@@ -20,7 +20,8 @@ One-line facts:
 - **Covenants**: Total Leverage 3.02x against a 6.50x ceiling; FCCR 4.63x against a 2.00x floor; tested for the revolver and Term A only, Term B-1 has no maintenance test. Ratios are on RBOT's basis (G34).
 - **Liquidity**: US$2,928m against mandatory uses of US$2,601m over 12 months from 30 June 2026, lease payments included: 13.5 months; the revolver matures 31 January 2028.
 - **New tranches**: merger debt unstated; CR Score n/a (G39, G8).
-- The Pathway produces **no Recommendation, no Valuation and no Portfolio Fit** (it runs no CP-3, CP-6 or Fit): it describes protection and refinancing capacity, not whether to own.
+- **Main risk**: the credit view's primary downside (CP-2), with its citations. A reserved slot: always one of the four lines the call shows.
+- The Pathway produces **no Recommendation, no Valuation and no Portfolio Fit** (it runs no CP-3, CP-6 or Fit): it describes protection and refinancing capacity, not whether to own. This is a notice tag in the byline row (the words "Not in this Pathway" with their icon and the modules CP-3, CP-6, FIT), not a call line; the tag's passport holds the sentence and the what-changed condition.
 
 ## 3. Blocks (page order)
 

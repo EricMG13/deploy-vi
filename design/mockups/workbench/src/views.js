@@ -113,7 +113,7 @@
     const top = node.getBoundingClientRect().top - canvas.getBoundingClientRect().top + canvas.scrollTop - 64;
     canvas.scrollTo({ top: Math.max(0, top) });
   }
-  const viewBar = (title, bits) => el('div', { class: 'm-bar' }, el('div', { class: 'm-title' }, [el('h1', null, title)].concat(bits || [])));
+  const viewBar = (title, bits) => el('div', { class: 'm-bar' }, el('div', { class: 'm-title' }, [WB.issuerNode({ sep: true }), el('h1', null, title)].concat(bits || [])));
   const sp = () => el('span', { class: 'p-sp' });
 
   /* =====================================================================
@@ -902,7 +902,18 @@
   function allTables() {
     return Array.from(WB.run._tables.values()).filter((t) => t.id.indexOf('@') < 0 && !/^ds\./.test(t.id));
   }
+  /* Specimen search. WB.cellOrigin can throw for a cell shape it does not classify (an odd column in a register table); the specimen search then
+     skips that cell. That is a documented fail-open for a design-system sample only: it is counted in window.__wbSpecimenSkips, warned once
+     with the count and the first cell, and never added to data-errors (a figure on a real page that throws is an error and is recorded there). */
+  window.__wbSpecimenSkips = 0;
   function findCell(pred) {
+    let first = null;
+    const warn = () => {
+      if (window.__wbSpecimenSkips && !window.__wbSpecimenWarned) {
+        window.__wbSpecimenWarned = true;
+        console.warn('Design system: ' + window.__wbSpecimenSkips + ' cell(s) skipped while picking specimens because WB.cellOrigin threw; the first was ' + first);
+      }
+    };
     for (const t of allTables()) {
       for (let r = 0; r < Math.min(t.rows.length, 40); r++) {
         for (let c = 0; c < t.columns.length; c++) {
@@ -910,12 +921,18 @@
           try {
             o = WB.cellOrigin(t, r, c);
           } catch (e) {
+            window.__wbSpecimenSkips++;
+            if (!first) first = t.id + '[' + r + ',' + c + ']: ' + e.message;
             continue;
           }
-          if (pred(o, t, r, c)) return { t: 'cell', table: t.id, r, c };
+          if (pred(o, t, r, c)) {
+            warn();
+            return { t: 'cell', table: t.id, r, c };
+          }
         }
       }
     }
+    warn();
     return null;
   }
   function firstMcell(pred) {
@@ -1037,13 +1054,20 @@
     const blockedId = Object.keys(run.steps || {}).find((k) => WB.stepStatus(k) === 'blocked');
     const blockedReal = !!blockedId;
     const blockedFrom = blockedId || (run.plan || []).find((k) => (WB.step(k) || {}).kind === 'module') || 'CP-1';
+    const noticeDesc = (code, title, reading) => ({ t: 'note', kind: 'none', code, title, sub: 'Module ' + code, fields: [['Reading', reading, false]], note: 'A notice tag opens its full sentence here.' });
+    const blockedSentence = WB.moduleName(blockedFrom) + ' (' + blockedFrom + ') ' + (blockedReal ? 'is Blocked in this run.' : 'is shown here as the Blocked state: no module is Blocked in this run.');
+    // a Blocked module (or a Screening basis) is a tag in the byline row: word, icon, module code; the main risk keeps its call line
     const blockedBar = WB.verdictBar({
       title: meta.issuer.replace(/, Inc\.?$/, '') + ': ' + meta.frontPageName,
       question: WB.moduleQuestion(blockedFrom),
       illustrative: false,
       bylineNodes: WB.bylineNodes(meta),
+      notices: [
+        { word: 'Blocked', tone: 'neg', icon: 'status-blocked', code: blockedFrom, desc: noticeDesc(blockedFrom, 'Blocked: ' + WB.moduleName(blockedFrom), blockedSentence) },
+        { word: 'Screening basis', tone: 'cau', icon: 'info', code: 'CP-2', desc: noticeDesc('CP-2', 'Screening basis (Quick depth)', 'The Recommendations, Credit Score and Direction rest on a screen, not the full assessment.') },
+      ],
       tiles: [{ label: 'Valuation', value: null, reason: blockedReal ? WB.stepReason(blockedId) : 'The module did not produce an accepted result.', producer: blockedFrom }, { label: 'Recommendation', value: null, reason: 'Needs the blocked module’s result.', producer: 'CP-6' }],
-      lines: [{ label: 'BLOCKED', tone: 'neg', children: [WB.statusChip('blocked'), ' ', WB.moduleName(blockedFrom) + ' (' + blockedFrom + ') ' + (blockedReal ? 'is Blocked in this run.' : 'is shown here as the Blocked state: no module is Blocked in this run.')] }],
+      lines: WB.callConfig(run).lines.filter((l) => l.label === 'MAIN RISK'),
     });
     comps.push(
       spec('verdict', 'Verdict bar', 'run_brief snapshot.run_header; pathway; tables snapshot.recommendation, credit_view, instrument_recommendation; step status', [
@@ -1051,7 +1075,7 @@
         el('div', { class: 'ds-vb' }, illus),
         el('p', { class: 'ds-cap' }, 'Honest: the real-run state, tiles read Not produced with the reason and the module.'),
         el('div', { class: 'ds-vb' }, honest),
-        el('p', { class: 'ds-cap' }, 'Blocked' + (blockedReal ? '' : ' (specimen)') + ': a Blocked module is named with its reason.'),
+        el('p', { class: 'ds-cap' }, 'Notices' + (blockedReal ? '' : ' (specimen)') + ': a Blocked module and a Screening basis are tags in the byline row (word, icon, module code); the main risk keeps its call line, the cap folds the other lines.'),
         el('div', { class: 'ds-vb' }, blockedBar),
       ], true)
     );

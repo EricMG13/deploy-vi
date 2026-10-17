@@ -50,15 +50,15 @@ pattern .hp-ln { stroke: var(--c); stroke-width: 1.8; }
 .grid line { stroke: var(--rule); stroke-width: 1; shape-rendering: crispEdges; }
 .grid line.zero { stroke: var(--ink-3); }
 .wbc text { font-family: var(--font-text); }
-.wbc .ax { font: 10.5px var(--font-mono); fill: var(--ink-3); }
+.wbc .ax { font: var(--fs-micro) var(--font-mono); fill: var(--ink-3); }
 .wbc .ax.cx { font-family: var(--font-text); }
 .wbc .ax.unit { font-family: var(--font-text); fill: var(--ink-2); }
 .wbc .ax.proj-w { font-family: var(--font-text); fill: var(--ink-2); }
 .wbc .ttl { font: 600 11.5px var(--font-text); fill: var(--ink); }
 .wbc .cat { font: 11px var(--font-text); fill: var(--ink-2); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; }
 .wbc .cat.strong { font-size: 11.5px; fill: var(--ink); font-weight: 500; }
-.wbc .cat.sub { font-size: 10.5px; fill: var(--ink-3); font-weight: 400; }
-.wbc .val { font: 10.5px var(--font-mono); fill: var(--ink); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; }
+.wbc .cat.sub { font-size: var(--fs-micro); fill: var(--ink-3); font-weight: 400; }
+.wbc .val { font: var(--fs-micro) var(--font-mono); fill: var(--ink); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; }
 .wbc .val.tot { font-weight: 500; }
 .wbc .val.thr { fill: var(--ink-2); }
 .wbc .val.dotv { font-weight: 500; }
@@ -67,7 +67,7 @@ pattern .hp-ln { stroke: var(--c); stroke-width: 1.8; }
 .wbc .val.lbl { font-family: var(--font-text); }
 .wbc .wd { font: 600 11px var(--font-text); }
 .wbc .na { font: 600 11px var(--font-mono); fill: var(--ink-2); }
-.wbc .na-id { font: 9.5px var(--font-mono); fill: var(--ink-3); }
+.wbc .na-id { font: var(--fs-micro) var(--font-mono); fill: var(--ink-3); }
 
 /* signal tones: thresholds, breaches, fulcrums, residuals only */
 .tn-pos { color: var(--pos); fill: var(--pos); }

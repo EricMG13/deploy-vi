@@ -18,6 +18,9 @@ One-line facts:
 - **Fulcrum**: senior unsecured in the 5.0x downside (72.9% recovery); senior secured in the 4.0x stress (94.2%); none at the merger value (`calcs.K205`, `K211`).
 - **Instrument**: prefer the 6.50% secured 2032s; avoid the unsecured notes (illustrative).
 - **Portfolio Fit**: Test CLO I, synthetic (`fit`): proposed US$5,000,000 of the secured 2032s Fits, max US$15,773,213 under C-01; loans and unrated notes Watch, max US$883,300 under C-04.
+- **Main risk**: the credit view's primary downside (CP-2), with its citations. A reserved slot: always one of the lines the call shows, never folded behind "more".
+
+Call-line order: Fulcrum, main risk, Instrument, Portfolio Fit, Gate, Liquidity. The bar shows two lines (the fulcrum and the main risk; the distress gate is a tile) and keeps the rest behind one disclosure that names them.
 
 ## 3. Blocks (page order)
 
@@ -43,7 +46,7 @@ One-line facts:
 
 ## 4. First viewport priority
 
-The call with the gate and the fulcrum line; the gate table with its six triggers; the recovery chart.
+The call with the gate (tile), the fulcrum line and the main risk line; the gate table with its six triggers; the recovery chart. The instrument, Fit, gate and liquidity lines sit behind the disclosure.
 
 ## 5. Page-specific states
 

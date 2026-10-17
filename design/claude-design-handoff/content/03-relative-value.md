@@ -22,6 +22,11 @@ Title: "Analyst recommendation". Every judgement is **illustrative**.
 One-line facts:
 - **Preferred**: the 6.50% secured 2032s at 93.28, yield 8.063520%: Preferred. The 6.00% unsecured 2032s at 84.94: Avoid, 1.25 pp more yield for a claim behind US$9,468m of secured debt (`calcs.K146`, `K57`; base `tables.trace`). Judgement words illustrative; prices and yields cited (last trade, FINRA TRACE, 1 October 2026, not a bid).
 - **Portfolio Fit** (`fit`, synthetic Test CLO I): proposed US$5,000,000 of the secured 2032s Fits, max US$15,773,213 under C-01; loans and unrated notes Watch, max US$883,300 under C-04. Link: Details in Portfolio Fit.
+- **Main risk**: the credit view's primary downside (CP-2), with its citations. A reserved slot: always one of the lines the call shows, never folded behind "more".
+
+Numbers in the call print by unit: yields to 2 decimals (8.06%, 9.32%), prices to 2 decimals (93.28); the passport's "Served as" keeps the value as the run holds it.
+
+Call-line order: Preferred, Relative Value (honest state), Portfolio Fit, main risk, Instrument. The bar shows three lines with the main risk among them. A Blocked CP-3D is not a call line: it is a tag in the byline row (the word Blocked, its icon and the module code CP-3D); the tag's passport holds the full sentence and the module's panels keep the reason.
 
 ## 3. Blocks (page order)
 
@@ -47,7 +52,7 @@ One-line facts:
 
 ## 4. First viewport priority
 
-The call with its Preferred line and Fit line; the instrument levels table; the yield chart.
+The call with its Preferred line, Fit line and main risk line; the instrument levels table; the yield chart.
 
 ## 5. Page-specific states
 

@@ -17,7 +17,7 @@
 .fpa-kf { list-style: none; margin: 0; padding: 0; counter-reset: kf; }
 .fpa-kf li { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 8px; padding: 9px 12px; border-top: 1px solid var(--rule-soft); font-size: 13px; line-height: 1.5; }
 .fpa-kf li:first-child { border-top: 0; }
-.fpa-kf-k { font: 600 10.5px/1.7 var(--font-text); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+.fpa-kf-k { font: 600 var(--fs-micro)/1.7 var(--font-text); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
 .fpa-kf-k.tone-pos { color: var(--pos); }
 .fpa-kf-k.tone-neg { color: var(--neg); }
 .fpa-kf-v { min-width: 0; }

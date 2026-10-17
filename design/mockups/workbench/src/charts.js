@@ -135,8 +135,10 @@
   /* a numeric datum read from a twin cell */
   function item(ctx, t, r, col, base) {
     const c = colIdx(t, col);
-    const raw = t.rows[r][c];
-    const v = num(raw, base && base.lenient);
+    // the value as served feeds the maths; what the chart prints is the same figure by unit (WB.fmtByUnit), like its table twin
+    const served = t.rows[r][c];
+    const v = num(served, base && base.lenient);
+    const raw = WB.fmtByUnit(t, r, c) || served;
     const o = og(ctx, t, r, col);
     return Object.assign({ v, raw, desc: { t: 'cell', table: t.id, r, c }, k: isNaN(v) ? 'gap' : o.k === 'gap' ? 'gap' : o.k, word: o.word, t, r, col }, base);
   }

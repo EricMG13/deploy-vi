@@ -142,7 +142,8 @@
       title: o.title,
       question: QUESTIONS[run.front_page],
       illustrative: true,
-      bylineNodes: WB.bylineNodes(meta, [meta.tags.includes('Fictional') ? 'Fictional issuer' : '']),
+      bylineNodes: WB.bylineNodes(meta),
+      notices: o.notices || [],
       tiles: o.tiles || cfg.tiles,
       lines: o.lines || cfg.lines,
       honest: WB.state.honest ? o.honest : null,
@@ -443,6 +444,9 @@
     } else lines.push({ label: 'COVENANTS', tone: 'neu', children: 'No covenant tests in this run.' });
     lines.push(runwayLine(run));
     lines.push(tranchesLine());
+    // the main risk is a call line on every Front Page (content doc 04 states the covenant risk in the credit view's own words)
+    const mainRisk = WB.callConfig(run).lines.find((l) => l.label === 'MAIN RISK');
+    if (mainRisk) lines.push(mainRisk);
     const plan = run.plan || [];
     const missing = [];
     if (!plan.includes('CP-6')) missing.push('Recommendation');
@@ -450,11 +454,9 @@
     if (!plan.includes('FIT')) missing.push('Portfolio Fit');
     const gone = ['CP-3', 'CP-6', 'FIT'].filter((m) => !plan.includes(m)).map((m) => (m === 'FIT' ? 'Fit' : m));
     const chg = (run.front_page_blocks || []).find((b) => !b.shown && /what changed/i.test(b.title));
-    lines.push({
-      label: 'NOT IN THIS PATHWAY',
-      tone: 'neu',
-      children: [missing.length ? 'No ' + missing.join(', no ').replace(/, no (\w[\w ]*)$/, ' and no $1') + ': this Pathway runs no ' + gone.join(', ').replace(/, ([^,]*)$/, ' or $1') + '. ' : '', chg ? 'What changed: not shown' + (chg.reason ? ', ' + chg.reason : '') + '.' : ''],
-    });
+    // what this Pathway does not run is a notice tag in the byline row (word, icon, module codes); its sentence is the tag's passport
+    const absent = [missing.length ? 'No ' + missing.join(', no ').replace(/, no (\w[\w ]*)$/, ' and no $1') + ': this Pathway runs no ' + gone.join(', ').replace(/, ([^,]*)$/, ' or $1') + '.' : '', chg ? 'What changed: not shown' + (chg.reason ? ', ' + chg.reason : '') + '.' : ''].filter(Boolean);
+    const notices = absent.length ? [{ word: 'Not in this Pathway', tone: 'neu', icon: 'status-notrun', code: gone.join(' \u00B7 ') || 'What changed', desc: { t: 'note', kind: 'none', code: '', title: 'Not in this Pathway', sub: 'What this Pathway does not produce', fields: absent.map((x, i) => [i ? 'What changed' : 'Reading', x.replace(/^What changed: /, ''), false]), note: 'The page describes protection and refinancing capacity, not whether to own the issuer.' } }] : [];
 
     const colL = el('div', { class: 'fb-colstack' }, [redFlagsPanel(false)]);
     const colR = el('div', { class: 'fb-colstack' }, [protectionPanel(), refiPanel()]);
@@ -474,7 +476,7 @@
     items.push(item(capstructPanel(true), 'Capital structure by facility', ['MODEL']));
     items.push(item(tranchesPanel(true), 'New tranches', ['CP-0']));
     items.push(item(creditViewPanel(true), 'Credit view', ['CP-2']));
-    assemble(canvas, run, { title: 'Covenant and refinancing view', tiles, lines, items, honest: 'Honest state: the live CAOS run produced no Credit Score', usedBlocks: [] });
+    assemble(canvas, run, { title: 'Covenant and refinancing view', tiles, lines, notices, items, honest: 'Honest state: the live CAOS run produced no Credit Score', usedBlocks: [] });
   }
 
   /* =================================================================

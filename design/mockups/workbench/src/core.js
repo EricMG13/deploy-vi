@@ -531,6 +531,7 @@
     if (cache.has(moduleId)) return cache.get(moduleId);
     const h = WB.handoff(moduleId);
     const items = [];
+    const seenText = new Set();
     if (h && h.gaps_md) {
       const lines = h.gaps_md.split(/\n/).map((l) => l.trim()).filter(Boolean);
       for (const l of lines) {
@@ -544,6 +545,10 @@
           const dot = text.indexOf('. ');
           if (dot > 0) missing = text.slice(0, dot);
         }
+        // a module's gaps_md can state the same gap twice (the Model repeats its projection note): list it once
+        const key = text.replace(/\s+/g, ' ').trim().toLowerCase();
+        if (seenText.has(key)) continue;
+        seenText.add(key);
         items.push({ module: moduleId, ids, missing: missing.replace(/\s*\(G\d+(?:,\s*G\d+)*\)/g, '').trim(), text });
       }
     }
@@ -559,7 +564,9 @@
   };
   const STOP = new Set('the a an of and or in on to for from with by is are not no as at be this that it its per'.split(' '));
   const words = (s) => String(s).toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !STOP.has(w));
-  /* Best gap for an n/a cell: overlap between the cell's row and column words and the gap text. */
+  /* Best gap for an n/a cell: overlap between the cell's row and column words and the gap text.
+     A cell that is a Model cell with a reason code is explained by the Model (item stays null, model names the cell).
+     A cell neither the gaps nor the Model explain is counted as unresolved (WB.noteUnresolved): the passport says so and lists no gaps. */
   WB.cellGap = function (table, r, c) {
     const mod = WB.citeModule(table.owner);
     const items = WB.gapItems(mod);
@@ -575,8 +582,31 @@
         bestScore = s;
       }
     }
-    return { item: bestScore > 0 ? best : null, moduleItems: items, module: mod };
+    const ref = WB.modelCellFor(table, r, c);
+    const mc = ref && WB.modelCell(ref.lineId, ref.columnId);
+    const model = mc && mc.value == null && mc.reason ? ref : null;
+    const item = bestScore > 0 ? best : null;
+    if (!item && !model) WB.noteUnresolved(table, r, c);
+    return { item, moduleItems: items, module: mod, model };
   };
+  /* n/a cells with no stated reason, per page: window.__wbUnresolvedGaps (array, one entry per cell) and <html data-unresolved>.
+     Documented fail-open: this is a fixture-data issue (the module states no gap for the cell), so check.py prints the total and does not fail on it. */
+  const unresolved = new Map();
+  WB.resetUnresolved = function () {
+    unresolved.clear();
+    window.__wbUnresolvedGaps = [];
+    document.documentElement.dataset.unresolved = '0';
+  };
+  WB.noteUnresolved = function (table, r, c) {
+    const tid = table.twinOf || table.id;
+    const key = tid + '|' + r + '|' + c;
+    if (unresolved.has(key)) return;
+    const entry = { table: tid, row: r, col: table.columns[c], rowLabel: WB.rowLabel(table, r) };
+    unresolved.set(key, entry);
+    window.__wbUnresolvedGaps = Array.from(unresolved.values());
+    document.documentElement.dataset.unresolved = String(unresolved.size);
+  };
+  window.__wbUnresolvedGaps = [];
 
   /* ---------- step status (navigator, chips) ---------- */
   WB.stepStatus = function (id) {
@@ -740,6 +770,44 @@
     if (neg) return '(' + body + ')' + (suf || '');
     return (sign === '+' ? '+' : '') + body + (suf || '');
   };
+  /* Numbers by unit, for call lines, tiles and table cells (the run is never changed; the passport keeps the served value, grouped, under "Served as"):
+     yields and spreads-as-percent to 2 dp, prices to 2 dp, amounts in US$m as whole millions with grouping. Anything else prints as served (WB.fmtNum). */
+  const YIELD_COL = /^(yield_pct|yield_or_dm|talk_(low|mid|high)|implied_(low|mid|high)|comparable_level)$/;
+  const PRICE_COL = /^(bid|ask|mid|price)$/;
+  const NOT_AMOUNT = /(_x$|_pct|pct_|multiple|ratio|cover|leverage|margin|growth|share|rate|bps|headroom|weight|probab|score|days|months|count|years|year|period|dm$|spread|coupon|oid|floor|cap$)/;
+  const AMOUNT_UNIT = /^(USD m|US\$ ?m|USD millions|MILLIONS)$/i;
+  WB.fmtByUnit = function (table, r, c) {
+    const name = table.columns[c];
+    const raw = String(table.rows[r][c]).trim();
+    const m = /^([-−]?)(\d[\d,]*)(\.\d+)?(%?)$/.exec(raw);
+    if (!m) return null;
+    const val = parseFloat(m[2].replace(/,/g, '') + (m[3] || ''));
+    if (!isFinite(val)) return null;
+    const neg = m[1] !== '';
+    const basisCol = table.columns.indexOf('metric_basis');
+    const basis = basisCol >= 0 ? String(table.rows[r][basisCol]) : '';
+    const group = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    // a yield: yield_pct is always a percent; the other yield columns are percents when the value carries decimals or a yield basis
+    // (a discount margin is whole bps and stays as served)
+    if (YIELD_COL.test(name) && (name === 'yield_pct' || m[4] === '%' || m[3] || /^(YT[WMCP]|YTW)$/.test(basis))) {
+      return (neg ? '-' : '') + val.toFixed(2) + m[4];
+    }
+    if (PRICE_COL.test(name) && (m[3] || /^\d{2,3}$/.test(m[2])) && val < 1000 && m[4] === '') {
+      return (neg ? '-' : '') + val.toFixed(2);
+    }
+    // amounts in US$m: whole millions with grouping, negatives in parentheses
+    const unitCol = table.columns.indexOf('unit_label');
+    const rowUnit = unitCol >= 0 ? String(table.rows[r][unitCol]) : null;
+    // a chart's twin table names no unit of its own: it takes the unit of the table it was cut from
+    const src = table.twinOf ? WB.table(table.twinOf) : null;
+    const tUnit = WB.tableUnit(table) || (src ? WB.tableUnit(src) : '');
+    if (!NOT_AMOUNT.test(name) && (rowUnit != null ? AMOUNT_UNIT.test(rowUnit) : /^US\$ ?m$/.test(tUnit)) && m[4] === '') {
+      const whole = Math.round(val);
+      return neg && whole ? '(' + group(whole) + ')' : group(whole);
+    }
+    return null;
+  };
+
   /* ---------- signals: tone, icon and word for scale values ---------- */
   const HIGH_BAD = new Set(['severity', 'pressure', 'probability', 'impact', 'materiality', 'priming_risk', 'recovery_sensitivity', 'creditor_risk', 'likelihood_class', 'pressure_class']);
   const HIGH_GOOD = new Set(['confidence', 'feasibility', 'evidence_quality']);
@@ -821,15 +889,34 @@
 
   /* ---------- provenance per cell ---------- */
   const SNAP_SLOTS = { fy_2: 'FY-2', fy_1: 'FY-1', fy: 'FY', pytd: 'PYTD', ytd: 'YTD', ltm: 'LTM' };
+  /* the columns of the Model strip tables (model.metrics, model.summary) by their Model column kind; the three FY columns are the last three FYs */
+  const MODEL_KIND = { fy_2: ['FY', 2], fy_1: ['FY', 1], fy: ['FY', 0], pytd: ['PYTD', 0], ytd: ['YTD', 0], ltm: ['LTM', 0], pf_ltm: ['PF_LTM', 0] };
+  function modelColumnId(name) {
+    const spec = MODEL_KIND[name];
+    const cols = (WB.run.model && WB.run.model.columns) || [];
+    if (!spec) return null;
+    const of = cols.filter((x) => x.kind === spec[0]);
+    const col = of[of.length - 1 - spec[1]];
+    return col ? col.column_id : null;
+  }
+  /* the Model cell behind a table cell: the Snapshot financials and the Model strip tables carry Model lines by id */
   WB.modelCellFor = function (table, r, c) {
-    if (table.id !== 'snapshot.financials') return null;
+    const tid = table.twinOf || table.id;
     const name = table.columns[c];
-    const slot = SNAP_SLOTS[name];
-    if (!slot) return null;
-    const colId = WB.run.model && WB.run.model.snapshot_columns && WB.run.model.snapshot_columns[slot];
-    const lineId = WB.cellValue(table, r, 'line_id');
-    if (!colId || !lineId) return null;
-    return { lineId, columnId: colId };
+    if (tid === 'snapshot.financials') {
+      const slot = SNAP_SLOTS[name];
+      if (!slot) return null;
+      const colId = WB.run.model && WB.run.model.snapshot_columns && WB.run.model.snapshot_columns[slot];
+      const lineId = WB.cellValue(table, r, 'line_id');
+      return colId && lineId ? { lineId, columnId: colId } : null;
+    }
+    if (tid === 'model.summary' || tid === 'model.metrics') {
+      const id = WB.cellValue(table, r, tid === 'model.summary' ? 'line_id' : 'metric_id');
+      const colId = modelColumnId(name);
+      const lineId = id ? (tid === 'model.metrics' ? 'metric:' + id : id) : null;
+      return colId && lineId && WB.modelLine(lineId) ? { lineId, columnId: colId } : null;
+    }
+    return null;
   };
   WB.modelLine = (lineId) => ((WB.run.model && WB.run.model.lines) || []).find((l) => l.line_id === lineId) || null;
   WB.modelCell = function (lineId, columnId) {
@@ -855,7 +942,12 @@
       if (calc || (HOST_OWNERS.has(table.owner) && col.name !== 'recommendation' && col.name !== 'valuation')) return { kind: 'calculated', scale: true, info: WB.rowInfo(table, r) };
       return { kind: 'illustrative', scale: true, key };
     }
-    if (WB.isEmpty(v)) return { kind: 'gap' };
+    if (WB.isEmpty(v)) {
+      // an n/a that is a Model cell with a reason code resolves to that Model cell (its passport shows the code and the full reason)
+      const gref = WB.modelCellFor(table, r, c);
+      const gmc = gref && WB.modelCell(gref.lineId, gref.columnId);
+      return gmc && gmc.value == null ? { kind: 'gap', model: gref } : { kind: 'gap' };
+    }
     if (col.kind === 'id') return { kind: 'plain' };
     if (col.name === 'cr_score') return { kind: 'illustrative', key: 'cr_score' };
     // numeric judgements: a score a module assigns (lender protection by area) is illustrative, whatever evidence the row cites
@@ -941,6 +1033,26 @@
     return (table.chartId ? WB.chartTitle(table.chartId) + ' chart, from ' : '') + base + ' · ' + mod;
   };
 
+  /* an integer part in thousands groups, the rest as served: "17600.082" reads "17,600.082", "-37.5" stays "-37.5" */
+  WB.groupServed = function (v) {
+    const str = String(v == null ? '' : v);
+    const m = /^([-−+]?\$?)(\d{4,})(\.\d+)?(%|x|pp|bps)?$/.exec(str.trim());
+    return m ? m[1] + m[2].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (m[3] || '') + (m[4] || '') : str;
+  };
+  /* a citation's origin locator in words ("data:C177" reads "Data supplied to the run"); the raw locator goes to the passport foot */
+  WB.originInWords = function (origin) {
+    const s = String(origin || '');
+    let m = /^doc:.+:(\d+)$/.exec(s);
+    if (m) return 'A document in the Source Pack, line ' + m[1];
+    if (/^data:/.test(s)) return 'Data supplied to the run';
+    m = /^(CP-[0-9A-Z]+):C\d+$/.exec(s);
+    if (m) return 'Carried from ' + WB.moduleName(m[1]) + ' (' + m[1] + ')';
+    m = /^caos:[^/]+\/(CP-[0-9A-Z]+)#\d+$/.exec(s);
+    if (m) return 'Output of the CAOS run: ' + WB.moduleName(m[1]) + ' (' + m[1] + ')';
+    if (/^synthetic:/.test(s)) return 'A synthetic fixture value, invented for the design';
+    return s ? 'Recorded in the run file' : '';
+  };
+
   WB.buildPassport = function (d) {
     const P0 = { kind: 'none', title: '', code: '', id: '', sub: '', fields: [], formula: null, inputs: [], excerpt: null, cites: [], usedIn: null, gaps: [], note: '', table: null, chart: null };
     if (!d) return Object.assign(P0, { title: 'Nothing selected' });
@@ -957,8 +1069,9 @@
           ['File', c.source, true],
           ['Locator', c.locator, true],
           ['Anchored', c.anchored ? 'Yes, excerpt found at the locator' : 'No, excerpt not anchored to the file', false],
-          ['Origin', c.origin, true],
+          ['Origin', WB.originInWords(c.origin), false],
         ],
+        id: c.origin || '',
         excerpt: c.excerpt,
         usedIn: uses.length,
         usedPlaces: uses,
@@ -980,14 +1093,16 @@
       const value = table.rows[d.r][d.c];
       const rowLabel = WB.rowLabel(table, d.r);
       const where = WB.tableWhere(table);
+      // the figure in words: the label the page shows (d.label) or its row and column; a "—" row label is dropped; the owner table and module underneath; the raw id stays small at the foot
+      const colWord = d.label || col.label;
+      const rowWord = d.label || WB.isEmpty(rowLabel) ? '' : rowLabel;
       const p = Object.assign(P0, {
         kind: o.kind === 'plain' ? 'none' : o.kind,
         code: '',
         id: d.table + ' · row ' + (d.r + 1) + ' · ' + col.name,
-        // the figure in words: its row and column; the owner table and module underneath; the raw id stays small at the foot
-        title: rowLabel && rowLabel !== String(value) ? rowLabel + ' · ' + col.label : col.label,
+        title: rowWord && rowWord !== String(value) ? rowWord + ' · ' + colWord : colWord,
         sub: where,
-        fields: [['Served as', String(value), true]],
+        fields: [['Served as', WB.groupServed(value), true]],
         table: { id: d.table, row: d.r, col: d.c },
         note: ORIGIN_NOTE[o.kind] || '',
       });
@@ -996,14 +1111,13 @@
       const info = o.info || (o.kind !== 'gap' ? WB.rowInfo(table, d.r) : null);
       if (o.kind === 'gap') {
         const g = WB.cellGap(table, d.r, d.c);
-        p.title = 'n/a: ' + (rowLabel ? rowLabel + ' · ' : '') + col.label;
-        p.fields = [['Missing', col.label + (rowLabel ? ' for ' + rowLabel : ''), false]];
+        p.fields = [['Missing', colWord + (rowWord ? ' for ' + rowWord : ''), false]];
         if (g.item) {
           p.gaps = [g.item];
           p.fields.push(['Reason', g.item.text, false]);
         } else {
-          p.fields.push(['Reason', 'No specific gap is stated for this cell. The module’s gaps are listed in the Gaps tab.', false]);
-          p.gaps = g.moduleItems;
+          // no gap matches this cell and no Model cell explains it: say so, list no gaps (the module's other gaps do not apply to it)
+          p.fields.push(['Reason', 'Reason not recorded by the module', false]);
         }
         p.sub = p.sub || WB.moduleName(g.module);
         return p;
@@ -1095,14 +1209,14 @@
       const p = Object.assign(P0, {
         kind: cell.value != null ? (cell.basis === 'REPORTED' ? ((cell.sources || []).some((x) => (WB.citation(x.module, x.citation_id) || {}).synthetic) ? 'synthetic' : 'cited') : 'calculated') : 'gap',
         code: '',
-        id: line.line_id + ' @ ' + d.columnId,
+        id: line.line_id + ' \u00B7 ' + d.columnId,
         title: line.label,
         sub: 'Model · band ' + line.band + ' · ' + (col ? col.label : d.columnId),
         fields: [],
         note: '',
       });
       if (cell.value != null) {
-        p.fields.push(['Served as', String(cell.value), true], ['Basis', cell.basis || '', false], ['Unit', line.unit_label || line.unit || '', false]);
+        p.fields.push(['Served as', WB.groupServed(cell.value), true], ['Basis', cell.basis || '', false], ['Unit', line.unit_label || line.unit || '', false]);
         if (line.formula) p.formula = line.formula;
         const srcChips = (cell.sources || []).map((x) => ({ id: x.citation_id, module: x.module, label: x.source + ' · ' + x.locator, synthetic: !!(WB.citation(x.module, x.citation_id) || {}).synthetic, desc: { t: 'cite', module: x.module, id: x.citation_id } }));
         if (p.kind === 'calculated') p.inputs = srcChips;

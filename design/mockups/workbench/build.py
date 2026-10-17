@@ -10,7 +10,9 @@ as <script type="application/json" id="rbot-modules">, and the logo as a base64 
 import base64
 import json
 import pathlib
+import struct
 import sys
+import zlib
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
@@ -28,6 +30,78 @@ FONTS = (
     "https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@500;600;700"
     "&family=Red+Hat+Text:wght@400;500;600;700&family=Red+Hat+Mono:wght@400;500;600&display=swap"
 )
+
+
+def _png_pixels(data):
+    """Decode a non-interlaced 8-bit RGBA PNG (stdlib only): returns (width, height, rows of bytearray)."""
+    if data[:8] != b"\x89PNG\r\n\x1a\n":
+        sys.exit("build: the logo is not a PNG")
+    pos, idat, ihdr = 8, b"", None
+    while pos < len(data):
+        (n,) = struct.unpack(">I", data[pos : pos + 4])
+        kind = data[pos + 4 : pos + 8]
+        body = data[pos + 8 : pos + 8 + n]
+        if kind == b"IHDR":
+            ihdr = struct.unpack(">IIBBBBB", body)
+        elif kind == b"IDAT":
+            idat += body
+        pos += 12 + n
+    w, h, depth, color, _, _, interlace = ihdr
+    if (depth, color, interlace) != (8, 6, 0):
+        sys.exit("build: the logo crop needs an 8-bit RGBA, non-interlaced PNG")
+    raw, bpp = zlib.decompress(idat), 4
+    stride = w * bpp
+    rows, prev = [], bytearray(stride)
+    for y in range(h):
+        f = raw[y * (stride + 1)]
+        line = bytearray(raw[y * (stride + 1) + 1 : (y + 1) * (stride + 1)])
+        for i in range(stride):
+            a = line[i - bpp] if i >= bpp else 0
+            b = prev[i]
+            c = prev[i - bpp] if i >= bpp else 0
+            if f == 1:
+                line[i] = (line[i] + a) & 255
+            elif f == 2:
+                line[i] = (line[i] + b) & 255
+            elif f == 3:
+                line[i] = (line[i] + ((a + b) >> 1)) & 255
+            elif f == 4:
+                p = a + b - c
+                pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                line[i] = (line[i] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 255
+        rows.append(line)
+        prev = line
+    return w, h, rows
+
+
+def _png_encode(w, h, rows):
+    def chunk(kind, body):
+        return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF)
+
+    raw = b"".join(b"\x00" + bytes(r) for r in rows)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b"")
+
+
+def logo_icon(data):
+    """The wave icon of the horizontal logo, alone: the first block of opaque columns, ended by the first transparent gap
+    wider than a tenth of the logo's height (the bars of the icon sit closer than that; the wordmark starts after the gap).
+    Cropped to the icon's own bounding box, so the whole icon shows and none of the wordmark."""
+    w, h, rows = _png_pixels(data)
+    occupied = [any(r[x * 4 + 3] > 8 for r in rows) for x in range(w)]
+    first = occupied.index(True)
+    gap_min = max(2, h // 10)
+    right, gap = first, 0
+    for x in range(first, w):
+        if occupied[x]:
+            right, gap = x, 0
+        else:
+            gap += 1
+            if gap > gap_min:
+                break
+    ys = [y for y in range(h) if any(rows[y][x * 4 + 3] > 8 for x in range(first, right + 1))]
+    top, bottom = ys[0], ys[-1]
+    crop = [bytearray(rows[y][first * 4 : (right + 1) * 4]) for y in range(top, bottom + 1)]
+    return _png_encode(right - first + 1, bottom - top + 1, crop)
 
 
 def ordered(pattern, first, last=()):
@@ -63,7 +137,8 @@ def main():
         sys.exit(f"build: expected 8 runs in {RUNS}, found {len(runs)}")
     modules_src = json.loads(FP_DATA.read_text(encoding="utf-8"))["modules"]
     modules = {k: {"id": k, "name": v["name"], "question": v["question"]} for k, v in modules_src.items()}
-    logo_uri = "data:image/png;base64," + base64.b64encode(LOGO.read_bytes()).decode("ascii")
+    # the rail shows the wave icon only, cropped here from the supplied horizontal logo (owner instruction, 2026-10-17)
+    logo_uri = "data:image/png;base64," + base64.b64encode(logo_icon(LOGO.read_bytes())).decode("ascii")
 
     parts = [
         "<!DOCTYPE html>",

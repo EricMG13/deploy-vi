@@ -14,7 +14,7 @@
   const empty = (v) => WB.isEmpty(v);
   const block = (run, id) => (run.front_page_blocks || []).find((b) => b.id === id) || null;
   /* a cell, rendered by the shared renderer (provenance mark, inspector passport, gap chip, citations) */
-  const cell = (t, r, name) => WB.renderCell(t, r, col(t, name)).node;
+  const cell = (t, r, name, label) => (label ? WB.labelCell(WB.renderCell(t, r, col(t, name)).node, label) : WB.renderCell(t, r, col(t, name)).node);
   const planHas = (run, id) => (run.plan || []).includes(id);
   const fmtDate = (iso) => WB.fmtDate(iso);
 
@@ -161,8 +161,8 @@
   function callLine(label, tone, children) {
     return el('p', { class: 'v-line' }, [el('span', { class: 'v-ll tone-' + tone }, label), ' ', children]);
   }
-  function callBar(run, extra) {
-    const frag = WB.callBar(run, extra);
+  function callBar(run, extra, notices) {
+    const frag = WB.callBar(run, extra, notices);
     const lines = frag.querySelector('.verdict-lines');
     const find = (label) => (lines ? WB.qsa('.v-line', lines).find((p) => p.querySelector('.v-ll') && p.querySelector('.v-ll').textContent === label) : null);
     return { frag, lines, find };
@@ -252,23 +252,24 @@
     const cp = WB.table('snapshot.company_profile');
     if (!cp || !cp.rows.length) return WB.conditionLine('No company profile in this run.');
     // a rating and its outlook that are both n/a for the same gaps show one chip, not the same ids twice
-    const pair = (a, b) => {
+    const pair = (a, b, label) => {
       const ga = WB.cellOrigin(cp, 0, col(cp, a)).kind === 'gap' ? WB.cellGap(cp, 0, col(cp, a)) : null;
       const gb = WB.cellOrigin(cp, 0, col(cp, b)).kind === 'gap' ? WB.cellGap(cp, 0, col(cp, b)) : null;
       const same = ga && gb && ga.item && gb.item && ga.item === gb.item;
-      return el('span', { class: 'fpa-pair' }, same ? [cell(cp, 0, a)] : [cell(cp, 0, a), ' ', cell(cp, 0, b)]);
+      return el('span', { class: 'fpa-pair' }, same ? [cell(cp, 0, a, label)] : [cell(cp, 0, a, label), ' ', cell(cp, 0, b, label + ' outlook')]);
     };
+    // every cell keeps the label this table shows it under, so its passport is titled as the page reads
     const rows = [
-      ['Sector', cell(cp, 0, 'sector')],
-      ['Country', cell(cp, 0, 'country')],
-      ['Ticker', cell(cp, 0, 'ticker')],
-      ['Sponsor Quality', cell(cp, 0, 'sponsor_quality')],
-      ["Moody's", pair('corp_rating_moodys', 'outlook_moodys')],
-      ['S&P', pair('corp_rating_sp', 'outlook_sp')],
-      ['Fitch', pair('corp_rating_fitch', 'outlook_fitch')],
+      ['Sector', cell(cp, 0, 'sector', 'Sector')],
+      ['Country', cell(cp, 0, 'country', 'Country')],
+      ['Ticker', cell(cp, 0, 'ticker', 'Ticker')],
+      ['Sponsor Quality', cell(cp, 0, 'sponsor_quality', 'Sponsor Quality')],
+      ["Moody's", pair('corp_rating_moodys', 'outlook_moodys', "Moody's")],
+      ['S&P', pair('corp_rating_sp', 'outlook_sp', 'S&P')],
+      ['Fitch', pair('corp_rating_fitch', 'outlook_fitch', 'Fitch')],
     ];
     if (full) {
-      rows.push(['Management', cell(cp, 0, 'management')], ['Shareholders', cell(cp, 0, 'shareholders')], ['Morningstar issuer ID', cell(cp, 0, 'morningstar_issuer_id')], ['Listed', cell(cp, 0, 'listed')]);
+      rows.push(['Management', cell(cp, 0, 'management', 'Management')], ['Shareholders', cell(cp, 0, 'shareholders', 'Shareholders')], ['Morningstar issuer ID', cell(cp, 0, 'morningstar_issuer_id', 'Morningstar issuer ID')], ['Listed', cell(cp, 0, 'listed', 'Listed')]);
     }
     const tb = el('tbody');
     rows.forEach(([k, node]) => tb.appendChild(el('tr', null, [el('th', { scope: 'row', class: 'kv-k' }, k), el('td', { class: 'kv-v' }, node)])));
@@ -283,15 +284,18 @@
     const quick = run.depth === 'quick';
     const cv = WB.table('snapshot.credit_view');
     const barFrag = (root) => {
-      const b = callBar(run, QUESTION_TOOLS(root));
-      if (quick && b.lines) {
+      // a Quick run's Screening basis is a tag in the byline row (word, icon, module code); its sentence is the tag's passport
+      const notices = [];
+      if (quick) {
         const basis = cv && cv.rows.length ? val(cv, 0, 'basis') : null;
         const conf = cv && cv.rows.length ? val(cv, 0, 'confidence') : null;
-        const kids = ['This run is at ', basis ? ref(cellRef(cv, 0, 'basis'), basis, 'strong') : 'Screening', ' basis (Quick depth): the Recommendations, Credit Score and Direction rest on a screen, not the full assessment.'];
-        if (conf) kids.push(' Confidence ', ref(cellRef(cv, 0, 'confidence'), conf, 'strong'), '.');
-        b.lines.insertBefore(callLine('SCREENING BASIS', 'cau', kids), b.lines.firstChild);
+        const fields = [['Basis', basis || 'Screening', false]];
+        if (conf) fields.push(['Confidence', conf, false]);
+        fields.push(['Reading', 'This run is at ' + (basis || 'Screening') + ' basis (Quick depth): the Recommendations, Credit Score and Direction rest on a screen, not the full assessment.', false]);
+        const code = cv ? WB.citeModule(cv.owner) : 'CP-2';
+        notices.push({ word: 'Screening basis', tone: 'cau', icon: 'info', code, desc: { t: 'note', kind: 'none', code, title: 'Screening basis (Quick depth)', sub: WB.moduleName(code) + ' (' + code + ')', fields, note: 'A Quick run screens the issuer; it does not carry the full assessment.' } });
       }
-      return b.frag;
+      return callBar(run, QUESTION_TOOLS(root), notices).frag;
     };
 
     // key findings (CP-2 credit view, CP-1 performance, CP-6 catalysts) beside company and operating model (CP-1A)
@@ -396,7 +400,7 @@
     const v = t.rows[r][c];
     if (empty(v) || !WB.isNumeric(String(v))) return { node: WB.renderCell(t, r, c).node, cls: 'c-text' };
     const o = WB.cellOrigin(t, r, c);
-    const shown = WB.fmtNum(v);
+    const shown = WB.fmtByUnit(t, r, c) || WB.fmtNum(v);
     return { node: WB.fig({ t: 'cell', table: t.id, r, c }, shown, { kind: o.kind, label: WB.figLabel(shown, o.kind) }), cls: 'c-num' };
   }
   const proseCell = (t, r, name) => ({ node: WB.renderCell(t, r, col(t, name)).node, cls: 'c-prose' });
@@ -528,7 +532,9 @@
     const levelRef = (fid, name) => {
       const r = lv ? lv.rows.findIndex((x) => x[col(lv, 'facility_id')] === fid) : -1;
       if (r < 0 || empty(lv.rows[r][col(lv, name)])) return null;
-      return ref({ t: 'cell', table: lv.id, r, c: col(lv, name) }, name === 'yield_or_dm' ? val(lv, r, name) + '%' : val(lv, r, name), 'strong');
+      // the call line prints a yield and a price by unit (8.06%, 93.28); the passport keeps the served value
+      const shown = WB.fmtByUnit(lv, r, col(lv, name)) || val(lv, r, name);
+      return ref({ t: 'cell', table: lv.id, r, c: col(lv, name) }, name === 'yield_or_dm' ? shown + '%' : shown, 'strong');
     };
     const sentence = (row, word) => {
       const fid = row[col(sp, 'facility_id')];
@@ -575,7 +581,14 @@
     const blocked = WB.stepStatus('CP-3D') === 'blocked';
     const reason = blocked ? WB.stepReason('CP-3D') || 'CP-3D is blocked in this run.' : '';
     const barFrag = (root) => {
-      const b = callBar(run, QUESTION_TOOLS(root));
+      // a Blocked CP-3D is a tag in the byline row (word, icon, module code); the full sentence lives in the tag's passport and in the module's panels
+      const notices = [];
+      if (blocked) {
+        const why = String(reason).replace(/^Blocked:?\s*/i, '').replace(/\s*$/, '').replace(/([^.!?])$/, '$1.');
+        const sentence = 'CP-3D ' + WB.moduleName('CP-3D') + ' is Blocked: ' + why.charAt(0).toLowerCase() + why.slice(1);
+        notices.push({ word: 'Blocked', tone: 'neg', icon: 'status-blocked', code: 'CP-3D', desc: { t: 'note', kind: 'none', code: 'CP-3D', title: 'Blocked: ' + WB.moduleName('CP-3D'), sub: 'Module CP-3D', fields: [['Reason', sentence, false]], note: 'Its panels keep this reason; the tables read n/a with it. Open the module for the detail.' } });
+      }
+      const b = callBar(run, QUESTION_TOOLS(root), notices);
       if (b.lines) {
         const inst = b.find('INSTRUMENT');
         const pl = preferredLine(run);
@@ -583,10 +596,6 @@
         if (pl) {
           const fit = b.find('PORTFOLIO FIT');
           b.lines.insertBefore(pl, fit || null);
-        }
-        if (blocked) {
-          const why = String(reason).replace(/^Blocked:?\s*/i, '').replace(/\s*$/, '').replace(/([^.!?])$/, '$1.');
-          b.lines.insertBefore(callLine('BLOCKED', 'neg', [el('b', null, 'CP-3D ' + WB.moduleName('CP-3D') + ' is Blocked: '), WB.inline(why.charAt(0).toLowerCase() + why.slice(1), 'CP-3D')]), b.lines.firstChild);
         }
       }
       return b.frag;

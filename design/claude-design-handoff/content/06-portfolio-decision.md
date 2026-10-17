@@ -37,7 +37,7 @@ One-line facts:
 
 ## 4. First viewport priority
 
-The call (three Strategies, the Test CLO I final Recommendation, Valuation, Credit Score and the two lines); the per-portfolio table; the Fit bullets.
+The call (three Strategies, the Test CLO I final Recommendation, Valuation, Credit Score and the Fit, Instrument and main risk lines); the per-portfolio table; the Fit bullets.
 
 ## 5. Page-specific states
 

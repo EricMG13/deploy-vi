@@ -35,7 +35,7 @@
 .fb-sub-h { padding: 8px 12px 0; margin: 0; }
 .fb-t { table-layout: auto; }
 .fb-cellsub { display: flex; flex-direction: column; gap: 1px; align-items: flex-start; }
-.fb-sub { font-size: 10.5px; font-weight: 400; color: var(--ink-2); }
+.fb-sub { font-size: var(--fs-micro); font-weight: 400; color: var(--ink-2); }
 .fb-cov th.c-rowh { font-weight: 400; min-width: 104px; }
 .fb-tn { font-weight: 600; line-height: 1.3; }
 .fb-cov .c-scale { white-space: nowrap; }
@@ -48,7 +48,7 @@
 .fb-total th, .fb-total td, .dt tr.fb-total td, .dt tr.fb-total th { background: var(--hover-row); font-weight: 600; border-top: 1px solid var(--rule); }
 /* a Breaches row is washed, not filled: the verdict cell carries the signal (word, icon, colour) */
 .fb-breach th, .fb-breach td, .dt tr.fb-breach td, .dt tr.fb-breach th { background: var(--neg-wash); }
-.fb-u { font-size: 10.5px; color: var(--ink-2); margin-left: 4px; font-family: var(--font-text); }
+.fb-u { font-size: var(--fs-micro); color: var(--ink-2); margin-left: 4px; font-family: var(--font-text); }
 .fb-ms { display: inline-flex; align-items: baseline; justify-content: flex-end; }
 .fb-fit .c-num, .fb-instr .c-num { white-space: nowrap; }
 
@@ -65,7 +65,7 @@
 .fb-flag:first-child { border-top: 0; }
 .fb-fn { font-weight: 600; font-size: 12.5px; line-height: 1.4; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
 .fb-fp { font-size: 12px; color: var(--ink-2); margin-top: 2px; line-height: 1.45; }
-.fb-prot { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 600; color: var(--pos); background: var(--pos-fill); border-radius: 2px; padding: 0 5px; }
+.fb-prot { display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-micro); font-weight: 600; color: var(--pos); background: var(--pos-fill); border-radius: 2px; padding: 0 5px; }
 
 /* protection score */
 .fb-prot-t td, .fb-prot-t th { vertical-align: middle; }
@@ -89,7 +89,7 @@
 /* credit view strip, strengths and weaknesses */
 .fb-cv { display: flex; flex-wrap: wrap; gap: 6px 24px; padding: 8px 0 10px; }
 .fb-cvi { display: flex; flex-direction: column; gap: 3px; }
-.fb-cvl { font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); font-weight: 600; }
+.fb-cvl { font-size: var(--fs-micro); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); font-weight: 600; }
 .fb-cv-txt { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .fb-cvt p { margin: 3px 0 0; font-size: 12.5px; }
 .fb-swh { display: flex; align-items: center; gap: 5px; font: 600 12px var(--font-text); margin: 0 0 4px; }
@@ -114,7 +114,7 @@
 
 /* Portfolio Fit */
 .fb-fitbody .fb-facts { display: grid; grid-template-columns: repeat(4, auto); gap: 2px 14px; justify-content: start; margin: 0 0 4px; padding: 0; }
-.fb-facts dt { font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); font-weight: 600; grid-row: 1; }
+.fb-facts dt { font-size: var(--fs-micro); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); font-weight: 600; grid-row: 1; }
 .fb-facts dd { margin: 0; font-size: 12.5px; grid-row: 2; font-family: var(--font-mono); }
 .fb-facts dd:nth-of-type(4) { font-family: var(--font-text); }
 .fb-facts dt:nth-of-type(1), .fb-facts dd:nth-of-type(1) { grid-column: 1; }
@@ -139,7 +139,7 @@
 /* limit, current and headroom as label-value pairs that wrap as pairs, never into the next cell */
 .fb-lv { display: flex; flex-wrap: wrap; gap: 2px 14px; align-items: baseline; font-size: 12px; }
 .fb-lvp { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
-.fb-lvl { font-size: 10.5px; color: var(--ink-2); }
+.fb-lvl { font-size: var(--fs-micro); color: var(--ink-2); }
 .fb-lv .fig .fv { font-family: var(--font-mono); font-weight: 600; white-space: nowrap; }
 .fb-facts .fig, .fb-facts .fig .fv { white-space: nowrap; }
 .fb-rtrig td, .fb-rtrig th { padding-left: 6px; padding-right: 6px; }

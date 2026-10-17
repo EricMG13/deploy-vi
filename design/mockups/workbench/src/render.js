@@ -29,6 +29,17 @@
     return b;
   };
 
+  /* A cell the page shows under its own label ("Fitch") keeps that label in its passport: the passport names the figure as the page does. */
+  WB.labelCell = function (node, label) {
+    const hosts = node && node.querySelectorAll ? Array.from(node.querySelectorAll('[data-ref]')) : [];
+    if (node && node.dataset && node.dataset.ref) hosts.push(node);
+    hosts.forEach((h) => {
+      const d = WB.getRef(h.dataset.ref);
+      if (d && d.t === 'cell') d.label = label;
+    });
+    return node;
+  };
+
   WB.gapChip = function (ids, opts) {
     const o = opts || {};
     const idList = ids || [];
@@ -242,7 +253,12 @@
     left.appendChild(el('h2', { class: 'p-title' }, cfg.title));
     if (cfg.fig) left.appendChild(el('span', { class: 'p-fig num' }, cfg.fig));
     if (cfg.code) left.appendChild(el('span', { class: 'p-code num' }, cfg.code));
-    for (const t of cfg.tags || []) left.appendChild(t instanceof Node ? t : WB.tag(t.kind, t.label));
+    // Illustrative is stated once at page level (the verdict bar); a panel keeps a tag only where its basis differs from the page's (synthetic, model-written)
+    const pageIll = WB.page && WB.page.basis === 'illustrative';
+    for (const t of cfg.tags || []) {
+      if (pageIll && ((t instanceof Node && t.classList && t.classList.contains('tag-illustrative')) || (!(t instanceof Node) && t.kind === 'illustrative'))) continue;
+      left.appendChild(t instanceof Node ? t : WB.tag(t.kind, t.label));
+    }
     if (cfg.state) left.appendChild(el('span', { class: 'p-state tone-' + (cfg.state.tone || 'neu') }, [cfg.state.icon ? WB.icon(cfg.state.icon, { size: 12, stroke: 1.8 }) : null, cfg.state.word]));
     if (cfg.note) left.appendChild(el('span', { class: 'p-note' }, cfg.note));
     for (const t of cfg.tools || []) right.appendChild(t);
@@ -298,8 +314,10 @@
     const o = WB.cellOrigin(table, r, c);
     if (o.kind === 'gap') {
       const g = WB.cellGap(table, r, c);
-      const reason = g.item ? g.item.text : '';
-      return { node: WB.gapChip(g.item ? g.item.ids : [], { reason, items: g.item ? [g.item] : g.moduleItems, rg, desc: { t: 'cell', table: table.id, r, c } }), cls: 'c-gap' };
+      // the reason on the chip: the gap that explains the cell, else the Model cell's reason, else none (the passport then says so)
+      const mcell = g.model ? WB.modelCell(g.model.lineId, g.model.columnId) : null;
+      const reason = g.item ? g.item.text : mcell ? WB.REASONS[mcell.reason] || mcell.reason : '';
+      return { node: WB.gapChip(g.item ? g.item.ids : [], { reason, items: g.item ? [g.item] : [], rg, desc: { t: 'cell', table: table.id, r, c } }), cls: 'c-gap' };
     }
     if (col.kind === 'scale') {
       const sg = WB.signal(v, col.name === 'status' && table.id === 'cp4.covenant_tests' ? col.name : col.name);
@@ -307,7 +325,7 @@
       return { node: WB.fig({ t: 'cell', table: table.id, r, c }, content, { kind: o.kind, rg, label: WB.figLabel(sg.word, o.kind), cls: 'fig-scale' }), cls: 'c-scale' };
     }
     if (col.kind === 'numeric') {
-      const shown = WB.fmtNum(v, { group: true });
+      const shown = WB.fmtByUnit(table, r, c) || WB.fmtNum(v, { group: true });
       return { node: WB.fig({ t: 'cell', table: table.id, r, c }, shown, { kind: o.kind, rg, label: WB.figLabel(shown, o.kind) }), cls: 'c-num' };
     }
     if (col.kind === 'id') {
@@ -727,6 +745,21 @@
     return wrap;
   };
 
+  /* The issuer on screen at every width: name, ticker and (a fictional issuer) the Fictional tag. `sep` adds a trailing dot. */
+  WB.issuerNode = function (o) {
+    const run = WB.run;
+    if (!run) return null;
+    const meta = WB.runMeta(run);
+    const name = String(meta.issuer || meta.issuerId || '').replace(/\s*\(fictional\)\s*/i, '').replace(/,\s*Inc\.?$/, '');
+    if (!name) return null;
+    const cp = WB.table('snapshot.company_profile');
+    const tv = cp && cp.rows.length && cp.columns.indexOf('ticker') >= 0 ? WB.cellValue(cp, 0, 'ticker') : '';
+    const ticker = !WB.isEmpty(tv) ? String(tv) : String(meta.issuerId || '').replace(/-FICTIONAL$/i, '');
+    const kids = [el('b', { class: 'ii-n' }, name), ticker ? el('span', { class: 'ii-t num' }, ticker) : null, meta.tags.includes('Fictional') ? el('span', { class: 'ii-f' }, 'Fictional') : null];
+    if (o && o.sep) kids.push(el('span', { class: 'ii-sep', 'aria-hidden': 'true' }, '\u00B7'));
+    return el('span', { class: 'issuer-id' }, kids);
+  };
+
   /* The byline in parts: analyst, a quiet "Design fixture" tag for a test run, the date; extra parts (e.g. "Fictional issuer") lead. */
   WB.bylineNodes = function (meta, lead) {
     const parts = [];
@@ -737,7 +770,9 @@
   };
 
   /* Call lines: at most `max` show; the rest sit behind one disclosure that names them. `order` lists labels by priority.
+     The main risk has a reserved slot: it is always one of the lines that show, on every Front Page, and the cap folds the other lines.
      Idempotent: a page that adds or removes lines after the bar is built calls it again. */
+  WB.CALL_RESERVED = ['MAIN RISK'];
   WB.capCallLines = function (container, opts) {
     if (!container) return;
     const o = opts || {};
@@ -752,8 +787,11 @@
       return i < 0 ? order.length + lines.indexOf(p) / 100 : i;
     };
     const sorted = lines.slice().sort((a, b) => rank(a) - rank(b));
-    const shown = sorted.slice(0, max);
-    const rest = sorted.slice(max);
+    const reserved = sorted.filter((p) => WB.CALL_RESERVED.includes(label(p)));
+    const others = sorted.filter((p) => !reserved.includes(p));
+    const room = Math.max(0, max - reserved.length);
+    const shown = reserved.concat(others.slice(0, room)).sort((a, b) => rank(a) - rank(b));
+    const rest = others.slice(room);
     const kids = shown.slice();
     if (rest.length) {
       const sum = el('summary', { class: 'v-more-s' }, [WB.icon('chevron-down', { size: 11, stroke: 1.8 }), el('span', null, rest.length + ' more: '), el('span', { class: 'v-more-l' }, rest.map(label).join(' · '))]);
@@ -762,15 +800,22 @@
     container.replaceChildren(...kids);
   };
 
-  /* cfg: { title, question, illustrative, byline (string) | bylineNodes, tiles:[tile], lines:[{label, tone, children}], honest, tools, maxLines, order } */
+  /* A notice tag in the byline row (a Blocked module, a Screening basis): the word, the icon and the module code. It opens a passport with the full sentence.
+     o: { word, tone, icon, code, desc } */
+  WB.noticeTag = function (o) {
+    return el('button', { type: 'button', class: 'v-note tone-' + o.tone, 'data-ref': WB.ref(o.desc), 'aria-label': o.word + ': ' + o.code + '. Open the full note.' }, [WB.icon(o.icon, { size: 12, stroke: 2 }), el('span', { class: 'v-note-w' }, o.word), el('span', { class: 'v-note-c num' }, o.code)]);
+  };
+
+  /* cfg: { title, question, illustrative, byline (string) | bylineNodes, notices:[{word, tone, icon, code, desc}], tiles:[tile], lines:[{label, tone, children}], honest, tools, maxLines, order } */
   WB.verdictBar = function (cfg) {
     const bar = el('section', { class: 'verdict on-navy', 'aria-label': 'The call' + (cfg.title ? ': ' + cfg.title : '') });
     // row 1: what the page is and the question it answers; row 2: its standing (illustrative, analyst, date, honest state) and tools
-    bar.appendChild(el('div', { class: 'v-head' }, [el('h1', { class: 'v-title' }, cfg.title), cfg.question ? el('span', { class: 'v-q' }, cfg.question) : null, cfg.tools || null]));
+    bar.appendChild(el('div', { class: 'v-head' }, [cfg.issuer === false ? null : WB.issuerNode({ sep: true }), el('h1', { class: 'v-title' }, cfg.title), cfg.question ? el('span', { class: 'v-q' }, cfg.question) : null, cfg.tools || null]));
     bar.appendChild(
       el('div', { class: 'v-meta' }, [
         cfg.illustrative ? el('span', { class: 'v-tag' }, 'ILLUSTRATIVE') : null,
         cfg.bylineNodes ? el('span', { class: 'v-by' }, cfg.bylineNodes) : cfg.byline ? el('span', { class: 'v-by' }, cfg.byline) : null,
+        (cfg.notices || []).map((n) => WB.noticeTag(n)),
         cfg.honest ? el('span', { class: 'v-honest' }, [WB.icon('info', { size: 12, stroke: 1.8 }), cfg.honest]) : null,
       ])
     );

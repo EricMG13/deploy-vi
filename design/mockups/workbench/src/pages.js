@@ -45,16 +45,18 @@
   };
   const NO_CP6 = 'This Pathway runs no CP-6, so it produces no Recommendation.';
   const NO_CP3 = 'This Pathway runs no CP-3, so it produces no Valuation.';
-  /* call lines in the order each Front Page's content doc gives them; the bar shows the first three, the rest sit behind a disclosure */
+  /* call lines in the order each Front Page's content doc gives them; the bar shows the first three (the main risk always among them, see
+     WB.CALL_RESERVED), the rest sit behind a disclosure. A Blocked module, a Screening basis and (Covenant) what the Pathway does not run are tags in the byline row, not call lines. */
   WB.CALL_ORDER = {
-    credit_snapshot: ['SCREENING BASIS', 'MAIN RISK', 'RELATIVE VALUE', 'PORTFOLIO FIT', 'INSTRUMENT'],
-    earnings_update: ['THE QUARTER', 'WATCH', 'NO RECOMMENDATION', 'MAIN RISK'],
-    relative_value: ['BLOCKED', 'PREFERRED', 'RELATIVE VALUE', 'PORTFOLIO FIT', 'MAIN RISK', 'INSTRUMENT'],
-    covenant_refinancing: ['COVENANTS', 'LIQUIDITY', 'NEW TRANCHES', 'NOT IN THIS PATHWAY'],
-    distressed_restructuring: ['FULCRUM', 'INSTRUMENT', 'PORTFOLIO FIT', 'GATE', 'LIQUIDITY', 'MAIN RISK'],
+    credit_snapshot: ['MAIN RISK', 'RELATIVE VALUE', 'PORTFOLIO FIT', 'INSTRUMENT'],
+    earnings_update: ['THE QUARTER', 'MAIN RISK', 'NO RECOMMENDATION', 'WATCH'],
+    relative_value: ['PREFERRED', 'RELATIVE VALUE', 'PORTFOLIO FIT', 'MAIN RISK', 'INSTRUMENT'],
+    covenant_refinancing: ['COVENANTS', 'LIQUIDITY', 'MAIN RISK', 'NEW TRANCHES'],
+    distressed_restructuring: ['FULCRUM', 'MAIN RISK', 'INSTRUMENT', 'PORTFOLIO FIT', 'GATE', 'LIQUIDITY'],
     portfolio_decision: ['PORTFOLIO FIT', 'INSTRUMENT', 'MAIN RISK'],
   };
-  WB.CALL_MAX = { covenant_refinancing: 4 };
+  // Covenant's call is four facts; the Distressed bar shows its fulcrum and the main risk (the gate is a tile), the rest sit behind the disclosure
+  WB.CALL_MAX = { covenant_refinancing: 4, distressed_restructuring: 2 };
 
   function mkTile(label, key, scale, table, r, col, miss, honest) {
     if (honest && !WB.state.honest) honest = null;
@@ -229,7 +231,7 @@
     }
     return { tiles, lines, meta };
   };
-  WB.callBar = function (run, extra) {
+  WB.callBar = function (run, extra, notices) {
     const cfg = WB.callConfig(run);
     const meta = cfg.meta;
     const fpName = meta.frontPageName;
@@ -247,6 +249,7 @@
       question: questions[run.front_page] || '',
       illustrative: true,
       bylineNodes: WB.bylineNodes(meta),
+      notices: notices || [],
       tiles: cfg.tiles,
       lines: cfg.lines,
       honest: WB.state.honest ? 'Honest state: the live CAOS run produced no Recommendation' : null,
@@ -367,6 +370,8 @@
     icon: 'frontpage',
     available: () => true,
     render(canvas, run, params) {
+      // every Front Page states Illustrative once, in its verdict bar: its panels then drop the Illustrative tag (WB.panel)
+      WB.page.basis = 'illustrative';
       const custom = WB.frontPages[run.front_page];
       if (custom) return custom(canvas, run, params);
       return WB.genericFrontPage(canvas, run, params);
@@ -395,7 +400,7 @@
     const nb = stepNeighbours(id);
     const name = WB.moduleName(id);
     const top = el('div', { class: 'm-top' }, [
-      el('div', { class: 'm-title' }, [el('h1', null, name), el('span', { class: 'm-code num' }, id), WB.statusChip(st)]),
+      el('div', { class: 'm-title' }, [WB.issuerNode({ sep: true }), el('h1', null, name), el('span', { class: 'm-code num' }, id), WB.statusChip(st)]),
       el('span', { class: 'p-sp' }),
       neighbourLink(nb.prev, 'prev'),
       neighbourLink(nb.next, 'next'),
@@ -556,7 +561,7 @@
       const modules = Array.from(new Set(all.map((c) => c.module)));
       const real = all.filter((c) => !c.synthetic).length;
       const state = { kind: 'all', source: '', module: '', q: '', limit: 60 };
-      root.appendChild(el('div', { class: 'm-bar' }, el('div', { class: 'm-title' }, [el('h1', null, 'Evidence'), el('span', { class: 'm-code num' }, all.length + ' citations'), el('span', { class: 'm-sub' }, real + ' real, ' + (all.length - real) + ' synthetic'), el('span', { class: 'p-sp' })])));
+      root.appendChild(el('div', { class: 'm-bar' }, el('div', { class: 'm-title' }, [WB.issuerNode({ sep: true }), el('h1', null, 'Evidence'), el('span', { class: 'm-code num' }, all.length + ' citations'), el('span', { class: 'm-sub' }, real + ' real, ' + (all.length - real) + ' synthetic'), el('span', { class: 'p-sp' })])));
       const list = el('div', { class: 'ev-list', role: 'list' });
       const count = el('span', { class: 'ev-count', 'aria-live': 'polite' });
       const more = el('button', { type: 'button', class: 'btn-s more' }, 'Show more');
@@ -642,7 +647,7 @@
     render(canvas, run) {
       const root = el('div', { class: 'view view-lim' });
       canvas.appendChild(root);
-      root.appendChild(el('div', { class: 'm-bar' }, el('div', { class: 'm-title' }, [el('h1', null, 'Limitations'), el('span', { class: 'p-sp' }), WB.collapseTool(() => root)])));
+      root.appendChild(el('div', { class: 'm-bar' }, el('div', { class: 'm-title' }, [WB.issuerNode({ sep: true }), el('h1', null, 'Limitations'), el('span', { class: 'p-sp' }), WB.collapseTool(() => root)])));
       const L = run.limitations || {};
       const outline = [];
       const sect = (anchor, title, body, note) => {

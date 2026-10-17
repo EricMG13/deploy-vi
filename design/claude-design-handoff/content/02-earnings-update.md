@@ -19,7 +19,10 @@ Title: "Credit view". Every item is **illustrative** (`illustrative.judgements.c
 One-line facts, in order:
 - **The quarter**: net revenues US$2,993m, up 3.0%; Adjusted EBITDA US$920m, (3.7)%; margin 30.7%, (2.1) pp. Regional includes Caesars Windsor from 3 March 2026. (`calcs.K74`, `K112`, `K114`; base `figures.net_revenues_q2_2026`, `adj_ebitda_q2_2026`)
 - **Watch**: merger debt terms (G8); Las Vegas margin 40.3%, down (4.2) pp (`K134`, `K136`).
+- **Main risk**: the credit view's primary downside (CP-2), in the model's words with its citations. A reserved slot: it is always one of the lines the call shows and never folds behind "more".
 - **Recommendation**: stated as absent. This Pathway runs no CP-3, CP-6 or Portfolio Fit, so it produces **no Recommendation, no Valuation and no Portfolio Fit**: the page answers whether the credit view moves, not whether to own the issuer.
+
+Call-line order and cap: the quarter, main risk, the no-Recommendation line, then the watch line. The bar shows three lines; the main risk is one of them and the cap folds the others, so the watch line sits behind one disclosure that names it.
 
 ## 3. Blocks (page order)
 
@@ -45,7 +48,7 @@ One-line facts, in order:
 
 ## 4. First viewport priority
 
-Visible at 1440x900 with no scroll: the call (Credit Score, Direction, Outlook, the quarter line, the watch line, the no-Recommendation line); the headline results table with its chart; the variance drivers.
+Visible at 1440x900 with no scroll: the call (Credit Score, Direction, Outlook, the quarter line, the main risk line, the no-Recommendation line; the watch line sits behind the disclosure); the headline results table with its chart; the variance drivers.
 
 ## 5. Page-specific states
 
