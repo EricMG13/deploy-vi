@@ -135,6 +135,13 @@ def prose(ctx: Ctx, md: str, module: str) -> str:
     return "".join(out)
 
 
+FETCHED_COLUMNS = ("URL", "Retrieved", "Question", "File")
+
+
+def fetched_rows(run: Record) -> list[list[str]]:
+    return [[f["url"], f["retrieved"], f["question"], f["file"]] for f in run["fetched"]]
+
+
 def section(title: str, body: str, sid: str = "") -> str:
     summary = h("summary", h("h3", escape(title), cls="cb__t"))
     return h(
@@ -161,6 +168,14 @@ def module_body(ctx: Ctx, module: str) -> str:
     for tid, table in entry["tables"].items():
         if tid != "citations":
             parts.append(section(ctx.title(module, tid), ctx.table(module, tid, table)))
+    if module == "CP-DR":
+        rows = fetched_rows(ctx.run)
+        shown = (
+            table_html(FETCHED_COLUMNS, rows, module=module, caption="Fetched sources")
+            if rows
+            else h("p", "Fetched sources: none", cls="na-note")
+        )
+        parts.append(section("Fetched sources", shown, f"{sid}-fetched"))
     gaps = prose(ctx, entry["gaps_md"], module) or h("p", "No gap is raised.", cls="na-note")
     return facts + "".join(parts) + section("Gaps and limitations", gaps, f"{sid}-gaps")
 
@@ -285,16 +300,26 @@ def evidence_view(ctx: Ctx) -> str:
     )
 
 
-def limitation_groups(lim: Record) -> list[tuple[str, str, list[str]]]:
+def deep_research_absence(run: Record) -> str | None:
+    """Why Deep Research is absent: not in the depth's plan, or skipped (with the step's reason)."""
+    step = run["steps"].get("CP-DR")
+    if step is None:
+        return "not in this depth"
+    if step["status"] == "skipped":
+        return f"not in this run: {step.get('reason') or 'no reason recorded'}"
+    return None
+
+
+def limitation_groups(run: Record) -> list[tuple[str, str, list[str]]]:
     """(section id, title, entries) of the four Limitations groups, shared with `report.md`."""
+    lim = run["limitations"]
     approval = [x.get("text") or f"{x['module']}: limited by grading" for x in lim["approval"]]
     cp5 = [f"{x['module_id']}: {x['limitation']} ({x['effect_on_decision']})" for x in lim["cp5"]]
     keys = ("kind", "step", "code", "message", "reason", "ref")
     other = [" ".join(str(x[k]) for k in keys if x.get(k)) for x in lim["unforeseen"]]
-    absent = [
-        "Deep Research: not in this run: not approved",
-        "What changed: not in this run: no prior case",
-    ]
+    why = deep_research_absence(run)
+    absent = [f"Deep Research: {why}"] if why else []
+    absent.append("What changed: not in this run: no prior case")
     return [
         ("limit-approval", "Shown at Approval", approval),
         ("limit-cp5", "Found at CP-5", cp5),
@@ -308,7 +333,6 @@ def limitations_view(ctx: Ctx) -> str:
         return h("ul", "".join(h("li", escape(x)) for x in entries)) if entries else h("p", "None.")
 
     body = "".join(
-        section(title, items(entries), sid)
-        for sid, title, entries in limitation_groups(ctx.run["limitations"])
+        section(title, items(entries), sid) for sid, title, entries in limitation_groups(ctx.run)
     )
     return view("limitations", "Limitations", body)

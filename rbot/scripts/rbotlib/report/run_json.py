@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from rbotlib import state
+from rbotlib import fetched, state
 from rbotlib.catalog import load_catalog
 from rbotlib.contract import ContractError, load_contract
 from rbotlib.handoff import Handoff, HandoffError, parse, unfenced
@@ -262,6 +262,18 @@ def _terminal(record: Record) -> None:
         raise ReportError(f"run-state.json: render requires every step terminal: {open_steps}")
 
 
+def _fetched(run: Path) -> list[Record]:
+    """Each qualified `fetched/` page (sound layout, hash and approved question), by file."""
+    try:
+        found = fetched.qualified(run)
+    except RunError as exc:
+        raise ReportError(f"{run}: {exc}") from exc
+    return [
+        {"file": f.name, "url": f.url, "retrieved": f.retrieved, "question": f.question}
+        for f in (found[name] for name in sorted(found))
+    ]
+
+
 def build(run: Path, root: Path, generated_at: str) -> Record:
     """The §11.3 document without `charts` and `front_page_blocks`."""
     try:
@@ -299,6 +311,7 @@ def build(run: Path, root: Path, generated_at: str) -> Record:
         "model": model,
         "fit": fit,
         "modules": _modules(root, plan),
+        "fetched": _fetched(run),
         "limitations": limitations(record, brief, handoffs, model, _grading_limited(run, record)),
         "prior_case": {"report": None, "report_date": None, "diff": None},
     }
