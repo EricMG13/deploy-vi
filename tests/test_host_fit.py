@@ -60,7 +60,7 @@ def fit_run(tmp_path: Path, *, unreadable: bool = False, profile: bool = False) 
     run = with_cp1(approve(run, RBOT_ROOT), RBOT_ROOT, "Pass", variant="profile" if profile else "")
     if profile:
         blocked(run, RBOT_ROOT, "CP-1A")
-    for module in ("CP-1C", "CP-2A", "CP-4", "CP-2D"):
+    for module in ("CP-1C", "CP-2A", "CP-2E", "CP-4", "CP-2D"):
         state.set_status(run, module, "failed", f"FIT fixture: unavailable {module} analysis")
     assert cli.main(["model", "--run", str(run)]) == 0
     if profile:

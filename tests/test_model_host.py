@@ -211,7 +211,7 @@ def test_cp3_message_declares_the_calculator_and_its_write_paths(tmp_path: Path)
     assert cli.main(["model", "--run", str(run)]) == 0
     assert next_step.select(run, RBOT_ROOT)["step"] == "CP-1C"
     state.set_status(run, "CP-1C", "failed", "fixture peer producer failed")
-    for module in ("CP-4", "CP-2D"):
+    for module in ("CP-2E", "CP-4", "CP-2D"):
         state.set_status(
             run, module, "failed", f"CP-3 dispatch fixture: unavailable {module} analysis"
         )

@@ -95,9 +95,25 @@ def test_cp6_caps_are_fits(prepared_run: Callable[[str], Path], tmp_path: Path) 
 def test_cp5_traces_every_step_before_it(depth: str) -> None:
     pathway = load_catalog(RBOT_ROOT).pathway("FULL_CREDIT_ASSESSMENT")
     assert pathway is not None
+    expected = {
+        "full": (
+            "CP-0 CP-1 CP-1A CP-DR CP-1B CP-1D MODEL CP-1C CP-2 CP-2A CP-2E "
+            "CP-4 CP-2D CP-3 FIT CP-5 CP-6"
+        ).split(),
+        "quick": "CP-0 CP-1 CP-1A CP-1B MODEL CP-L10 CP-3 FIT CP-5 CP-6".split(),
+    }[depth]
     steps = list(pathway.depths[depth])
-    traced = [r["module_id"] for r in _rows(_handoff("CP-5", depth), "cp5.module_status")]
+    assert steps == expected
+    rows = _rows(_handoff("CP-5", depth), "cp5.module_status")
+    traced = [r["module_id"] for r in rows]
     assert traced == steps[: steps.index("CP-5")]
+    if depth == "full":
+        statuses = {r["module_id"]: r for r in rows}
+        for module in ("CP-1C", "CP-2E", "CP-4", "CP-2D"):
+            assert statuses[module]["qa_status"] == "Blocked"
+            assert statuses[module]["traceability"] == "Partly traceable"
+            assert statuses[module]["note"] != "—"
+        assert statuses["CP-2A"]["qa_status"] == "Restricted"
 
 
 def test_the_model_figures_cp2_cites_are_the_models(tmp_path: Path) -> None:
