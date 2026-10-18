@@ -188,7 +188,7 @@ def test_pane_lists_plan_modules_in_order(page: Page, assets: Assets) -> None:
     expected = ["snapshot", *(f"module-{slug(m)}" for m in mods), "model", "portfolio-fit"]
     assert re.findall(r'data-view="([^"]+)"', nav) == [*expected, "evidence", "limitations"]
     tally = re.search(r'nav__gm">([^<]*)', nav)
-    assert tally and tally.group(1) == "8 modules: 1 pass, 7 with limitations"
+    assert tally and tally.group(1) == "13 modules: 4 blocked, 1 pass, 8 with limitations"
 
 
 def test_assets_that_would_close_the_inline_bundle_are_refused(page: Page, assets: Assets) -> None:
