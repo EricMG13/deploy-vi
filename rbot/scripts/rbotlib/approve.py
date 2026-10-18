@@ -36,7 +36,7 @@ from rbotlib import state as rs
 from rbotlib.catalog import load_catalog
 from rbotlib.fsio import write_atomic
 from rbotlib.grade import BLOCKED, GRADING, SCHEMA, contracts_sha256
-from rbotlib.handoff import HandoffError
+from rbotlib.handoff import HandoffError, parse
 from rbotlib.inventory import RunError, output_path, pack_root
 from rbotlib.prior_candidates import PriorCandidate, qualify_candidates, select_newest
 from rbotlib.rules import Rules, load_rules
@@ -164,14 +164,29 @@ def _confirm_rows(brief: rb.Brief, choice: Choice) -> None:
         row[-1] = "No"
 
 
+def _prior_identity(candidates: tuple[PriorCandidate, ...], target: Path) -> None:
+    for candidate in candidates:
+        if candidate.metadata is not None and candidate.metadata["run_id"] == target.name:
+            raise ApprovalError(
+                f"Prior Report {candidate.source}: approved run {target.name} cannot be its own "
+                "prior; remove the conflicting original from the Source Pack and rebuild the run"
+            )
+
+
 def _prior(
-    run: Path, brief: rb.Brief, choice: Choice
+    run: Path, brief: rb.Brief, choice: Choice, target: Path, cp0: bytes
 ) -> tuple[str, tuple[PriorCandidate, ...]] | None:
-    """Choose original offered sources after CP-0/confirmed issuer qualification."""
-    if not choice.prior_case:
-        return None
+    """Check every usable original's pending/final identity before optional selection."""
     issuer = brief.fields["issuer_id"].value
-    candidates = qualify_candidates(run, pack_root(run), issuer, run.name) if brief.prior else ()
+    # Checked CP-0 lists every usable original, including foreign/unoffered Reports.
+    # No rows preserves legacy no-Report packs without resolving their original root.
+    table = parse(cp0.decode("utf-8")).tables.get("cp0.prior_case")
+    candidates = (
+        qualify_candidates(run, pack_root(run), issuer, run.name) if table and table.rows else ()
+    )
+    _prior_identity(candidates, target)
+    if not choice.prior_case:
+        return (issuer, candidates) if candidates else None
     offered = {row[0] for row in brief.prior}
     selected = select_newest((c for c in candidates if c.source in offered), accepted=True)
     if selected is None:
@@ -344,8 +359,8 @@ def prepare(run: Path, root: Path, rules: Rules, choice: Choice) -> Commit:
         or _sha(run / rb.CP0) != qualified.step["sha256"]
     ):
         raise ApprovalError(f"{rb.CP0} changed during Approval; run rbot grade again")
-    prior = _prior(run, brief, choice)
     target = new_name(run, brief.fields["issuer_id"].value, choice.pathway)
+    prior = _prior(run, brief, choice, target, qualified.raw)
     brief.run_id = target.name
     brief.approval = [_approval_row(brief, choice, graded, grading["brief_sha256"])]
     brief.approval[0][1] = brief.fields["analyst"].analyst_value
@@ -437,7 +452,9 @@ def _commit(run: Path, commit: Commit, where: list[Path], owner: rs._Locked) -> 
             raise RunError("checked inputs changed during Approval; nothing published")
         if commit.prior is not None:
             issuer, candidates = commit.prior
-            if qualify_candidates(run, pack_root(run), issuer, run.name) != candidates:
+            current = qualify_candidates(run, pack_root(run), issuer, run.name)
+            _prior_identity(current, commit.target)
+            if current != candidates:
                 raise RunError("Prior Report sources changed during Approval; nothing published")
         operation = "publish Approval"
         try:

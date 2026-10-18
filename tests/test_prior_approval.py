@@ -287,3 +287,85 @@ def test_actual_catalog_approval_uses_explicit_report_date_and_pending_lineage(
     assert _state(target)["prior_case"] == {"offered": True, "accepted": True, "report": "new.html"}
     assert _state(target)["cp0_lineage"]["pending_run_id"] == run.name
     assert (target / "handoffs/CP-0.md").read_bytes() == cp0
+
+
+@pytest.mark.parametrize("suffix", ["", "-2", "-3"])
+@pytest.mark.parametrize("choice", ["yes", "no"])
+@pytest.mark.parametrize("position", ["selected", "older", "foreign", "foreign-only"])
+def test_approved_target_identity_refuses_every_original_before_publication(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    suffix: str,
+    choice: str,
+    position: str,
+) -> None:
+    from rbotlib.rules import RBOT_ROOT
+
+    target = TARGET + suffix
+    reports = {
+        "collision.html": doc(target, issuer="OTHER" if position.startswith("foreign") else "ACME")
+    }
+    if position in ("older", "foreign"):
+        reports["newer.html"] = doc("newer", "2026-10-15")
+    run = ready(RBOT_ROOT, tmp_path, reports)
+    for occupied in [TARGET, TARGET + "-2"] if suffix == "-3" else [TARGET] if suffix else []:
+        (run.parent / occupied).mkdir()
+    assert ap.new_name(run, "ACME", "FULL_CREDIT_ASSESSMENT").name == target
+    before = snapshot(run)
+    sources = {p: p.read_bytes() for p in run.parent.parent.glob("*.html")}
+    folders = set(run.parent.iterdir())
+    capsys.readouterr()
+    assert _approve(RBOT_ROOT, run, "--prior-case", choice) == 1
+    assert "approved run" in capsys.readouterr().out
+    assert snapshot(run) == before and set(run.parent.iterdir()) == folders
+    assert not (run.parent / target).exists() and not list(run.glob(".approve-*"))
+    assert all(p.read_bytes() == raw for p, raw in sources.items())
+
+
+@pytest.mark.parametrize("choice", ["yes", "no"])
+def test_occupied_stem_is_not_the_computed_approved_identity(
+    root: Path, tmp_path: Path, choice: str
+) -> None:
+    from rbotlib.prior_candidates import qualify_candidates
+
+    run = ready(root, tmp_path, {"prior.html": doc(TARGET)})
+    (run.parent / TARGET).mkdir()
+    assert _approve(root, run, "--prior-case", choice) == 0
+    target = run.parent / (TARGET + "-2")
+    assert _state(target)["prior_case"]["accepted"] == (choice == "yes")
+    assert qualify_candidates(target, target.parent.parent, "ACME", target.name)[0].metadata
+
+
+@pytest.mark.parametrize("case", [(c, r) for c in ("yes", "no") for r in ("identity", "payload")])
+def test_declined_and_accepted_originals_are_rechecked_before_first_publication(
+    root: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    case: tuple[str, str],
+) -> None:
+    from rbotlib.inventory import build
+
+    choice, replacement = case
+    run = ready(root, tmp_path, {"prior.html": doc()})
+    expected = {}
+    original = ap._staged
+
+    @contextmanager
+    def stages(path: Path, contents: list[str]) -> Iterator[list[Path]]:
+        with original(path, contents) as files:
+            changed = doc(TARGET) if replacement == "identity" else doc()
+            changed["limitations"]["approval"] = ["replaced after preparation"]
+            (path.parent.parent / "prior.html").write_text(embed_json(changed))
+            (path / "inventory.json").write_text(json.dumps(build(path.parent.parent, path)))
+            expected.update(snapshot(path))
+            yield files
+
+    monkeypatch.setattr(ap, "_staged", stages)
+    capsys.readouterr()
+    assert _approve(root, run, "--prior-case", choice) == 1
+    assert ("approved run" if replacement == "identity" else "sources changed during Approval") in (
+        capsys.readouterr().out
+    )
+    assert snapshot(run) == expected and list(run.parent.iterdir()) == [run]
+    assert not list(run.glob(".approve-*"))
