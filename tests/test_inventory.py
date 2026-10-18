@@ -326,3 +326,35 @@ def test_an_unreadable_earlier_run_gives_the_real_error_text(tmp_path: Path) -> 
         locked.chmod(0o700)
     reasons = {s["path"]: s["reason"] for s in _inventory(run)["skipped"]}
     assert reasons["rbot-runs/20260101-locked"] == "unreadable: Permission denied"
+
+
+@pytest.mark.parametrize(
+    ("kind", "text", "expected"),
+    [
+        ("html", "<SCRIPT type='application/json' id = 'rbot-run'>{bad</SCRIPT>", True),
+        ("html", '<div id="rbot-run">malformed payload owner</div>', True),
+        ("html", '<!-- <script id="rbot-run">{} -->', False),
+        ("html", '<p>id="rbot-run"</p>', False),
+        ("md", '```json rbot-run\n{"broken":\n', True),
+        ("md", "   ~~~~json rbot-run\n{}\n~~~~", True),
+        ("md", "prose mentions ```json rbot-run", False),
+        ("md", "```text\n```json rbot-run\n```\n", False),
+        ("md", "```text\nexample\n```\n```json rbot-run\n{}\n```", True),
+    ],
+)
+def test_report_marker_is_structural_discovery(kind: str, text: str, expected: bool) -> None:
+    assert inventory_module.report_marker(text, kind) is expected
+
+
+def test_original_generated_markdown_is_inventoried(tmp_path: Path) -> None:
+    from test_prior_report import document
+
+    from rbotlib.report.markdown import render_markdown
+
+    pack = tmp_path / "pack"
+    run = make_run(pack)
+    earlier = pack / "rbot-runs" / "earlier"
+    earlier.mkdir()
+    (earlier / "report.md").write_text(render_markdown(document(), [], []), encoding="utf-8")
+    (entry,) = inventory_module.build(pack, run)["files"]
+    assert entry["path"] == "rbot-runs/earlier/report.md" and entry["rbot_report"] is True
