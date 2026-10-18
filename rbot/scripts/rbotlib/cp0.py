@@ -17,8 +17,9 @@ from pathlib import Path
 from typing import Any
 
 from rbotlib.brief import ASSERTED, FIELDS, GAP, SOURCED, TRANCHE, BriefError, prefill_value
-from rbotlib.handoff import Handoff, Table, markers
-from rbotlib.inventory import RunError, output_path
+from rbotlib.handoff import Handoff, Table, markers, unfenced
+from rbotlib.inventory import RunError, output_path, pack_root
+from rbotlib.prior_candidates import PriorCandidate, qualify_candidates
 from rbotlib.rules import Rules
 from rbotlib.validate import Finding
 
@@ -215,14 +216,59 @@ def _inventory(h: Handoff, run: Path, index: dict[str, Any]) -> list[Finding]:
     ]
     for name in sorted(set(rows) & listed & set(records)):
         found += _file(run, name, rows[name], records[name])
-    reports = {f["path"] for f in entries if f.get("rbot_report")}
-    found += [
-        Finding(
-            "prior_case_mismatch", f"{r.get('file')} is not flagged rbot_report in inventory.json"
-        )
-        for r in _records(h.tables.get("cp0.prior_case"))
-        if r.get("file") not in reports
+    if any(f.get("rbot_report") for f in entries) or _records(h.tables.get("cp0.prior_case")):
+        found += _prior_cases(h, run)
+    return found
+
+
+def _prior_row(row: dict[str, str], candidate: PriorCandidate) -> list[Finding]:
+    if candidate.metadata is None:
+        message = f"{candidate.source}: unusable Report metadata; omit its cp0.prior_case row"
+        return [Finding("prior_case_mismatch", message)]
+    expected = {k: candidate.metadata[k] for k in ("report_date", "run_id", "pathway", "depth")}
+    expected["offered"] = "Yes" if candidate.offered else "No"
+    return [
+        Finding("prior_case_mismatch", f"{candidate.source}: {key} differs from original Report")
+        for key, value in expected.items()
+        if row.get(key) != value
     ]
+
+
+def _gaps(h: Handoff) -> str:
+    section = re.search(r"(?ms)^##[ \t]+Gaps[ \t]*\n(.*?)(?=^##[ \t]|\Z)", unfenced(h.body))
+    return section.group(1).replace(r"\|", "|") if section else ""
+
+
+def _prior_cases(h: Handoff, run: Path) -> list[Finding]:
+    # Pending CP-0 knows the issuer before state does. Bootstrap later binds its
+    # front identity to readiness; use the physical run id across CP-0 lineage.
+    candidates = qualify_candidates(
+        run, pack_root(run), h.front_matter.get("issuer_id", ""), run.name
+    )
+    sources = {candidate.source: candidate for candidate in candidates}
+    found = []
+    seen = set()
+    for row in _records(h.tables.get("cp0.prior_case")):
+        name = row.get("file", "")
+        if name in seen:
+            found.append(Finding("prior_case_mismatch", f"{name}: duplicate cp0.prior_case row"))
+        seen.add(name)
+        if name not in sources:
+            message = f"{name} is not flagged rbot_report in inventory.json"
+            found.append(Finding("prior_case_mismatch", message))
+        else:
+            found += _prior_row(row, sources[name])
+    gaps = _gaps(h)
+    for candidate in candidates:
+        if candidate.metadata is not None and candidate.source not in seen:
+            message = f"{candidate.source}: usable original Report missing from cp0.prior_case"
+            found.append(Finding("prior_case_mismatch", message))
+        if candidate.issue is not None and candidate.issue not in gaps:
+            message = (
+                f"{candidate.source}: name the original Report metadata issue in Gaps: "
+                f"{candidate.issue}"
+            )
+            found.append(Finding("prior_case_mismatch", message))
     return found
 
 
@@ -280,7 +326,7 @@ def run_findings(h: Handoff, run: Path) -> list[Finding]:
     try:
         index = _load(run / "prepared/index.json")
         return _inventory(h, run, index) + _portfolios(h, run, index)
-    except _RunInputError as exc:
+    except (_RunInputError, RunError) as exc:
         return [Finding("run_error", str(exc))]
 
 
