@@ -37,7 +37,8 @@ from rbotlib.catalog import load_catalog
 from rbotlib.fsio import write_atomic
 from rbotlib.grade import BLOCKED, GRADING, SCHEMA, contracts_sha256
 from rbotlib.handoff import HandoffError
-from rbotlib.inventory import RunError, output_path
+from rbotlib.inventory import RunError, output_path, pack_root
+from rbotlib.prior_candidates import PriorCandidate, qualify_candidates, select_newest
 from rbotlib.rules import Rules, load_rules
 
 STATE = "run-state.json"
@@ -152,18 +153,35 @@ def _confirm(brief: rb.Brief, choice: Choice) -> None:
 
 
 def _confirm_rows(brief: rb.Brief, choice: Choice) -> None:
-    """Tick the research questions and accept the newest Prior Case, as approved."""
+    """Tick research questions; Prior Case acceptance needs fresh source qualification."""
     ids = [q[0] for q in brief.questions]
     unknown = [q for q in choice.untick if q not in ids]
     if unknown:
         raise ApprovalError(f"no research question {', '.join(unknown)}; questions: {ids}")
     for q in brief.questions:
         q[-1] = "No" if q[0] in choice.untick else "Yes"
-    if choice.prior_case and not brief.prior:
-        raise ApprovalError("no Prior Case was offered: the pack holds no earlier RBOT Report")
-    newest = max(brief.prior, key=lambda r: r[1]) if choice.prior_case else None
     for row in brief.prior:
-        row[-1] = "Yes" if row is newest else "No"
+        row[-1] = "No"
+
+
+def _prior(
+    run: Path, brief: rb.Brief, choice: Choice
+) -> tuple[str, tuple[PriorCandidate, ...]] | None:
+    """Choose original offered sources after CP-0/confirmed issuer qualification."""
+    if not choice.prior_case:
+        return None
+    issuer = brief.fields["issuer_id"].value
+    candidates = qualify_candidates(run, pack_root(run), issuer, run.name) if brief.prior else ()
+    offered = {row[0] for row in brief.prior}
+    selected = select_newest((c for c in candidates if c.source in offered), accepted=True)
+    if selected is None:
+        raise ApprovalError(
+            "no Prior Case was offered: the pack holds no eligible earlier RBOT Report; "
+            "check CP-0 original Report sources, rebuild the brief and run rbot grade"
+        )
+    for row in brief.prior:
+        row[-1] = "Yes" if row[0] == selected.source else "No"
+    return issuer, candidates
 
 
 def new_name(run: Path, issuer_id: str, pathway: str) -> Path:
@@ -227,6 +245,7 @@ class Commit:
     brief: str
     state: str
     inputs: dict[str, str]
+    prior: tuple[str, tuple[PriorCandidate, ...]] | None
 
 
 def _checked(run: Path, root: Path, grading: dict[str, Any]) -> None:
@@ -311,11 +330,6 @@ def prepare(run: Path, root: Path, rules: Rules, choice: Choice) -> Commit:
     _confirm(brief, choice)
     approved_q = any(q[-1] == "Yes" for q in brief.questions)
     choice = replace(choice, deep_research=choice.deep_research and "CP-DR" in plan and approved_q)
-    target = new_name(run, brief.fields["issuer_id"].value, choice.pathway)
-    brief.run_id = target.name
-    brief.approval = [_approval_row(brief, choice, graded, grading["brief_sha256"])]
-    brief.approval[0][1] = brief.fields["analyst"].analyst_value
-    text = rb.render(brief)
     state = dict(state, steps={**state.get("steps", {})})
     qualified = _cp0_step(run, root, rules)
     if (
@@ -330,6 +344,12 @@ def prepare(run: Path, root: Path, rules: Rules, choice: Choice) -> Commit:
         or _sha(run / rb.CP0) != qualified.step["sha256"]
     ):
         raise ApprovalError(f"{rb.CP0} changed during Approval; run rbot grade again")
+    prior = _prior(run, brief, choice)
+    target = new_name(run, brief.fields["issuer_id"].value, choice.pathway)
+    brief.run_id = target.name
+    brief.approval = [_approval_row(brief, choice, graded, grading["brief_sha256"])]
+    brief.approval[0][1] = brief.fields["analyst"].analyst_value
+    text = rb.render(brief)
     from rbotlib.origins import capture
 
     state["steps"]["CP-0"] = qualified.step
@@ -360,6 +380,7 @@ def prepare(run: Path, root: Path, rules: Rules, choice: Choice) -> Commit:
             rb.BRIEF: grading["brief_sha256"],
             GRADING: _sha(run / GRADING),
         },
+        prior,
     )
 
 
@@ -414,6 +435,10 @@ def _commit(run: Path, commit: Commit, where: list[Path], owner: rs._Locked) -> 
         _inputs(run)
         if any(_sha(output_path(run, name)) != sha for name, sha in commit.inputs.items()):
             raise RunError("checked inputs changed during Approval; nothing published")
+        if commit.prior is not None:
+            issuer, candidates = commit.prior
+            if qualify_candidates(run, pack_root(run), issuer, run.name) != candidates:
+                raise RunError("Prior Report sources changed during Approval; nothing published")
         operation = "publish Approval"
         try:
             for staged, (path, original) in zip(stages, originals, strict=True):
