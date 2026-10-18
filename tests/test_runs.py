@@ -12,6 +12,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from test_state import STAMP, seeded
 
+from conftest import HANG_TIMEOUT
 from rbotlib import __version__
 from rbotlib.cli import main
 from rbotlib.state import read
@@ -202,7 +203,7 @@ def test_independent_cli_processes_refuse_duplicate_unfinished_run(tmp_path: Pat
     command = [sys.executable, str(SCRIPT), "new-run", "--pack", str(pack)]
     first = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     second = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    results = [(process, process.communicate(timeout=10)) for process in (first, second)]
+    results = [(process, process.communicate(timeout=HANG_TIMEOUT)) for process in (first, second)]
     assert sorted(process.returncode for process, _ in results) == [0, 1]
     runs = [path for path in (pack / "rbot-runs").iterdir() if path.is_dir()]
     assert len(runs) == 1
@@ -257,7 +258,7 @@ sys.exit(main(["new-run", "--pack", str(pack)]))
     )
     import time
 
-    deadline = time.monotonic() + 8
+    deadline = time.monotonic() + HANG_TIMEOUT
     while not signal.exists():
         assert first.poll() is None
         assert time.monotonic() < deadline
@@ -274,9 +275,9 @@ sys.exit(main(["new-run", "--pack", str(pack)]))
         with pytest.raises(subprocess.TimeoutExpired):
             second.communicate(timeout=0.3)
         release.touch()
-        out, err = first.communicate(timeout=8)
+        out, err = first.communicate(timeout=HANG_TIMEOUT)
         assert first.returncode == 0, err
-        loser, err = second.communicate(timeout=8)
+        loser, err = second.communicate(timeout=HANG_TIMEOUT)
         assert second.returncode == 1, err
         run = Path(out.strip())
         assert str(run) in loser
@@ -286,7 +287,7 @@ sys.exit(main(["new-run", "--pack", str(pack)]))
         for process in (first, second):
             if process.poll() is None:
                 process.kill()
-            process.communicate(timeout=8)
+            process.communicate(timeout=HANG_TIMEOUT)
 
 
 @pytest.mark.parametrize("content", [False, True])
@@ -456,7 +457,7 @@ def _public_approve(run: Path) -> None:
         ],
         capture_output=True,
         text=True,
-        timeout=10,
+        timeout=HANG_TIMEOUT,
     )
     assert child.returncode == 0, child.stdout + child.stderr
 
