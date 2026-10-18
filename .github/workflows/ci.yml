@@ -41,7 +41,7 @@ jobs:
       - run: uv run python scripts/check_bandit_floor.py bandit.json
       - run: uv run pip-audit --strict
       - run: npx --yes jscpd@5.2.0 --threshold 3 --min-lines 10 rbot/scripts scripts tests
-      - name: PR at most 800 changed lines
+      - name: PR at most 4000 changed lines
         if: github.event_name == 'pull_request'
         env:
           BASE_REF: origin/${{ github.base_ref }}

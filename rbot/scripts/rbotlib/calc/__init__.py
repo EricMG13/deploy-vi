@@ -11,25 +11,67 @@ from __future__ import annotations
 
 import argparse
 import json
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from types import ModuleType
 
-from rbotlib.calc import bond_analytics
+from rbotlib.calc import (
+    bond_analytics,
+    covenant_headroom,
+    liquidity_bridge,
+    peer_statistics,
+)
 from rbotlib.calc.bond_analytics import CalcError
 from rbotlib.fsio import write_atomic
 
-CALCULATORS: dict[str, ModuleType] = {"bond_analytics": bond_analytics}
+CALCULATORS: dict[str, ModuleType] = {
+    "bond_analytics": bond_analytics,
+    "covenant_headroom": covenant_headroom,
+    "liquidity_bridge": liquidity_bridge,
+    "peer_statistics": peer_statistics,
+}
+
+
+def _unique_fields(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    data: dict[str, object] = {}
+    for field, value in pairs:
+        if field in data:
+            raise CalcError(f"JSON: duplicate field {field!r}")
+        data[field] = value
+    return data
+
+
+def _supported_text(data: object) -> None:
+    pending: list[tuple[str, object]] = [("input", data)]
+    while pending:
+        where, value = pending.pop()
+        if isinstance(value, str):
+            try:
+                value.encode("utf-8")
+            except UnicodeEncodeError as exc:
+                raise CalcError(f"{where}: unsupported Unicode surrogate") from exc
+        elif isinstance(value, dict):
+            for key, item in value.items():
+                pending.extend(((f"{where} key", key), (f"{where}.{key!r}", item)))
+        elif isinstance(value, list):
+            pending.extend((f"{where}[{i}]", item) for i, item in enumerate(value))
 
 
 def read_input(path: Path) -> object:
     """The input document; a number keeps its written digits as a Decimal."""
     try:
-        data: object = json.loads(path.read_text(encoding="utf-8"), parse_float=Decimal)
+        data: object = json.loads(
+            path.read_text(encoding="utf-8"), parse_float=Decimal, object_pairs_hook=_unique_fields
+        )
     except json.JSONDecodeError as exc:
         raise CalcError(f"{path}: not valid JSON: {exc}") from exc
     except UnicodeDecodeError as exc:
         raise CalcError(f"{path}: not UTF-8 text ({exc.reason})") from exc
+    except CalcError:
+        raise
+    except (ValueError, RecursionError, InvalidOperation) as exc:
+        raise CalcError(f"{path}: unsupported JSON ({exc})") from exc
+    _supported_text(data)
     return data
 
 

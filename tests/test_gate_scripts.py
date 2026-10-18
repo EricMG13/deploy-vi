@@ -4,6 +4,8 @@ import os
 import subprocess
 from pathlib import Path
 
+import pytest
+
 import check_bandit_floor
 import check_suppressions
 
@@ -63,6 +65,23 @@ def _git(repo: Path, *args: str) -> None:
     subprocess.run(["git", "-C", str(repo), *ident, *args], check=True, capture_output=True)
 
 
+@pytest.mark.parametrize(("lines", "expected_code"), [(3999, 0), (4000, 0), (4001, 1)])
+def test_pr_size_boundary(tmp_path: Path, lines: int, expected_code: int) -> None:
+    _git(tmp_path, "init", "-q", "-b", "main")
+    _git(tmp_path, "commit", "-q", "--allow-empty", "-m", "base")
+    (tmp_path / "ordinary.md").write_text("line\n" * lines, encoding="utf-8")
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "work")
+    script = Path(__file__).parents[1] / "scripts" / "check_pr_size.sh"
+    env = {**os.environ, "BASE_REF": "HEAD~1"}
+    result = subprocess.run(["bash", str(script)], cwd=tmp_path, env=env, capture_output=True)
+    assert (result.returncode, result.stdout, result.stderr) == (
+        expected_code,
+        f"{lines} changed lines (limit 4000)\n".encode(),
+        b"",
+    )
+
+
 def test_pr_size_ignores_the_corpus_synthetic_packs(tmp_path: Path) -> None:
     _git(tmp_path, "init", "-q", "-b", "main")
     _git(tmp_path, "commit", "-q", "--allow-empty", "-m", "base")
@@ -75,7 +94,7 @@ def test_pr_size_ignores_the_corpus_synthetic_packs(tmp_path: Path) -> None:
     script = Path(__file__).parents[1] / "scripts" / "check_pr_size.sh"
     env = {**os.environ, "BASE_REF": "HEAD~1"}
     result = subprocess.run(["bash", str(script)], cwd=tmp_path, env=env, capture_output=True)
-    assert (result.returncode, result.stdout) == (0, b"10 changed lines (limit 800)\n")
+    assert (result.returncode, result.stdout) == (0, b"10 changed lines (limit 4000)\n")
 
 
 def test_the_mutation_script_refuses_a_folder_that_is_not_a_plain_one_under_a_temp_root() -> None:
