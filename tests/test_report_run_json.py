@@ -307,7 +307,7 @@ def test_fit_is_read_only_for_an_accepted_step(tmp_path: Path) -> None:
 @pytest.fixture
 def fetched_pages(finished: Path) -> Iterator[Path]:
     """One qualified page and one for an unticked question, removed after the test."""
-    first = save_fetched(finished, "01-example.com.md", "https://example.com/a", "RQ-1")
+    first = save_fetched(finished, "01-example.com.md", "https://example.com/a", "Q1")
     other = save_fetched(finished, "02-other.org.md", "https://other.org/b", "RQ-9")
     yield finished
     first.unlink()
@@ -325,7 +325,7 @@ def test_fetched_lists_each_qualified_file_and_omits_the_unqualified(
             "file": "fetched/01-example.com.md",
             "url": "https://example.com/a",
             "retrieved": "2026-10-10",
-            "question": "RQ-1",
+            "question": "Q1",
         }
     ]
 

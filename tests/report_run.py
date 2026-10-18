@@ -81,7 +81,7 @@ def complete_run(
     # the CP-DR fixture answers Q1 to Q3, so the approved run offers those questions
     asked = "| {0} | Fixture question {0}? | Fixture reason | CP-2 | Fixture evidence |\n"
     cp0 = re.sub(
-        r"^\| RQ-1 \|.*\n",
+        r"^\| Q1 \|.*\n",
         lambda _: "".join(asked.format(f"Q{n}") for n in (1, 2, 3)),
         cp0,
         flags=re.M,
@@ -109,7 +109,7 @@ def complete_run(
     raise AssertionError("the run did not reach done")
 
 
-def save_fetched(run: Path, name: str, url: str, question: str = "RQ-1", **front: str) -> Path:
+def save_fetched(run: Path, name: str, url: str, question: str = "Q1", **front: str) -> Path:
     """Write `fetched/<name>` in the saved-page layout (hash from `fetched.render`)."""
     from rbotlib import fetched
 

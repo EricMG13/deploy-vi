@@ -250,6 +250,12 @@ def test_step_switched_off_by_approval_satisfies_r3_and_is_named() -> None:
     assert "switched off by approval: FIT (no portfolio context)" in got[3]
 
 
+def test_deep_research_not_approved_satisfies_r3_and_is_named() -> None:
+    got = acceptance.r3(r3_rows(CP_DR=("skipped", approve.SKIPS["CP-DR"])))
+    assert got[1] == "PASS"
+    assert "switched off by approval: CP-DR (not approved)" in got[3]
+
+
 def test_runtime_skip_fails_r3() -> None:
     reason = "required input CP-3: failed"
     got = acceptance.r3(r3_rows(CP_6=("skipped", reason)))

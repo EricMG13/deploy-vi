@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from pathlib import Path
 
 import proxy_isolated
@@ -18,6 +19,8 @@ import proxy_run
 from rbotlib import attempts, cli, dispatch, runs, state
 from rbotlib import next as selection
 from rbotlib.rules import RBOT_ROOT
+
+REAL_FIXTURES = Path(__file__).parent / "fixtures/handoffs"
 
 
 @pytest.fixture(autouse=True)
@@ -130,6 +133,7 @@ def test_fixture_mode_labels_fixture_and_ignores_runs(tmp_path: Path) -> None:
     fixtures.mkdir(parents=True)
     for module in ("CP-0", "CP-1", "CP-1A"):
         (fixtures / f"{module}.md").write_bytes((source / f"handoffs/{module}.md").read_bytes())
+    shutil.copy(REAL_FIXTURES / "CP-DR.md", fixtures)  # the source run switched Deep Research off
     assert proxy_run.main(run_flag(registry, "--module", "CP-1B", "--fixtures")) == 0
     run = iso_run(tmp_path / "repo/corpus-runs")
     for module in ("CP-1", "CP-1A"):
@@ -182,6 +186,7 @@ def test_accept_refusal_stops_with_native_exit_and_keeps_bytes(tmp_path: Path) -
         if module == "CP-1":
             raw = raw.replace(b"module_id: CP-1", b"module_id: CP-1Z")
         (fixtures / f"{module}.md").write_bytes(raw)
+    shutil.copy(REAL_FIXTURES / "CP-DR.md", fixtures)
     assert proxy_run.main(run_flag(registry, "--module", "CP-1B", "--fixtures")) == 4
     run = iso_run(tmp_path / "repo/corpus-runs")
     step = state.read(run)["steps"]["CP-1"]
@@ -257,3 +262,22 @@ def test_native_next_must_select_the_cp0_module_before_approval(
     assert proxy_run.main(run_flag(registry, "--module", "CP-1B")) == 1
     assert seen
     assert "native next did not select CP-0 before Approval" in capsys.readouterr().out
+
+
+def test_source_run_with_deep_research_switched_off_qualifies(tmp_path: Path) -> None:
+    _, run = source_run(tmp_path)
+    steps = state.read(run)["steps"]
+    assert steps["CP-DR"]["status"] == "skipped"
+    source, missing = proxy_isolated._unqualified(run, ["CP-0", "CP-DR"])
+    assert source is not None and missing == []
+
+
+def test_source_run_with_an_unexplained_skip_does_not_qualify(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, run = source_run(tmp_path)
+    record = state.read(run)
+    record["steps"]["CP-DR"]["reason"] = "required input CP-3: failed"
+    monkeypatch.setattr(state, "read", lambda _: record)
+    source, missing = proxy_isolated._unqualified(run, ["CP-DR"])
+    assert source is None and missing == ["CP-DR"]

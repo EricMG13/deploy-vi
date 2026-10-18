@@ -98,18 +98,18 @@ def test_no_fetch_tool_when_off(
 ) -> None:
     run = approved(root, tmp_path)  # approved with the variable unset: recorded `off`
     assert state.read(run)["approval"]["fetch"] == "off"
-    assert refuse(run, capsys, "--question", "RQ-1") == NO_TOOL
+    assert refuse(run, capsys, "--question", "Q1") == NO_TOOL
     monkeypatch.setenv("RBOT_FETCH", "1")  # set now, but the recorded mode is off
-    assert refuse(run, capsys, "--question", "RQ-1") == NO_TOOL
+    assert refuse(run, capsys, "--question", "Q1") == NO_TOOL
     record = state.read(run)
     del record["approval"]["fetch"]  # an older state with no key reads as off
     (run / "run-state.json").write_text(json.dumps(record), encoding="utf-8")
-    assert refuse(run, capsys, "--question", "RQ-1") == NO_TOOL
+    assert refuse(run, capsys, "--question", "Q1") == NO_TOOL
     for value in ("0", ""):  # the variable is not exactly 1: refused before any file is read
         monkeypatch.setenv("RBOT_FETCH", value)
         capsys.readouterr()
         args = argparse.Namespace(
-            run_dir=str(tmp_path / "missing"), root=root, url=URL, question="RQ-1"
+            run_dir=str(tmp_path / "missing"), root=root, url=URL, question="Q1"
         )
         assert fetch.run_command(args) == 1
         assert capsys.readouterr().err == NO_TOOL
@@ -128,34 +128,34 @@ def test_refusals_in_order(
     (tmp_path / "b").mkdir()
     (tmp_path / "c").mkdir()
     pending = _ready(root, tmp_path / "a", rows=PRIOR)
-    assert refuse(pending, capsys, "--question", "RQ-1") == "rbot fetch: the run is not approved\n"
+    assert refuse(pending, capsys, "--question", "Q1") == "rbot fetch: the run is not approved\n"
     no_dr = approved(root, tmp_path / "b", "--deep-research", "no")
-    assert refuse(no_dr, capsys, "--question", "RQ-1") == (
+    assert refuse(no_dr, capsys, "--question", "Q1") == (
         "rbot fetch: Deep Research is not approved for this run\n"
     )
     run = approved(root, tmp_path / "c")
-    ids = "approved questions: RQ-1\n"
+    ids = "approved questions: Q1\n"
     assert refuse(run, capsys) == f"rbot fetch: --question is required; {ids}"
     unknown = refuse(run, capsys, "--question", "RQ-9")
     assert unknown == f"rbot fetch: 'RQ-9' is not an approved question; {ids}"
     brief = run / "run-brief.md"
     text = brief.read_text(encoding="utf-8")
-    row = "| RQ-1 | Is demand recovering? | CP-2 | Yes |"
+    row = "| Q1 | Is demand recovering? | CP-2 | Yes |"
     assert row in text
     brief.write_text(text.replace(row, row.replace("Yes", "No")), encoding="utf-8")
-    unticked = refuse(run, capsys, "--question", "RQ-1")
-    assert unticked == "rbot fetch: 'RQ-1' is not an approved question; approved questions: none\n"
+    unticked = refuse(run, capsys, "--question", "Q1")
+    assert unticked == "rbot fetch: 'Q1' is not an approved question; approved questions: none\n"
     brief.write_text(text, encoding="utf-8")
-    bad = refuse(run, capsys, "--question", "RQ-1", url="http://127.0.0.1/")
+    bad = refuse(run, capsys, "--question", "Q1", url="http://127.0.0.1/")
     assert bad == "host '127.0.0.1' is an IP address\n"
     state.set_status(run, "CP-DR", "skipped", "test")
-    skipped = refuse(run, capsys, "--question", "RQ-1")
+    skipped = refuse(run, capsys, "--question", "Q1")
     assert skipped == "rbot fetch: CP-DR is skipped in this run\n"
     record = state.read(run)
     record["plan"].remove("CP-DR")
     del record["steps"]["CP-DR"]
     (run / "run-state.json").write_text(json.dumps(record), encoding="utf-8")
-    assert refuse(run, capsys, "--question", "RQ-1") == (
+    assert refuse(run, capsys, "--question", "Q1") == (
         "rbot fetch: CP-DR is not in this run's plan\n"
     )
 
@@ -173,7 +173,7 @@ def test_success_prints_the_path(
         run,
         root,
         URL,
-        "RQ-1",
+        "Q1",
         env={"RBOT_FETCH": "1"},
         resolver=lambda host, port: ["93.184.216.34"],
         connector=srv.connector,
@@ -181,14 +181,14 @@ def test_success_prints_the_path(
     assert saved == run / "fetched" / "01-pub.example.md"
     via(monkeypatch, srv)
     capsys.readouterr()
-    assert main(cmd(run, "http://pub.example/other", "--question", "RQ-1")) == 0
+    assert main(cmd(run, "http://pub.example/other", "--question", "Q1")) == 0
     assert capsys.readouterr().out == "fetched/02-pub.example.md\n"
     count = len(list((run / "fetched").iterdir()))
-    assert main(cmd(run, URL, "--question", "RQ-1")) == 0
+    assert main(cmd(run, URL, "--question", "Q1")) == 0
     assert capsys.readouterr().out == "fetched/01-pub.example.md\n"
     assert len(list((run / "fetched").iterdir())) == count == 2
     requests = len(srv.requests)
-    assert main(cmd(run, URL + "#frag", "--question", "RQ-1")) == 0  # saved: no network
+    assert main(cmd(run, URL + "#frag", "--question", "Q1")) == 0  # saved: no network
     assert len(srv.requests) == requests
 
 
@@ -202,11 +202,11 @@ def test_failures_are_one_line_exit_1(
     run = on(monkeypatch, root, tmp_path)
     srv = server({})  # every path answers 404
     via(monkeypatch, srv)
-    assert refuse(run, capsys, "--question", "RQ-1") == ("page answered with status 404\n")
+    assert refuse(run, capsys, "--question", "Q1") == ("page answered with status 404\n")
     monkeypatch.setattr(fetch, "save_page", lambda *a: (_ for _ in ()).throw(OSError("disk")))
     srv = server({"/page": html(PAGE)})
     via(monkeypatch, srv)
-    assert refuse(run, capsys, "--question", "RQ-1") == "rbot fetch: disk\n"
+    assert refuse(run, capsys, "--question", "Q1") == "rbot fetch: disk\n"
 
 
 def test_log_holds_no_source_text(
@@ -219,9 +219,9 @@ def test_log_holds_no_source_text(
     run = on(monkeypatch, root, tmp_path)
     srv = server({"/page": html(PAGE)})
     via(monkeypatch, srv)
-    assert main(cmd(run, URL, "--question", "RQ-1")) == 0
+    assert main(cmd(run, URL, "--question", "Q1")) == 0
     log = (run / "log" / "rbot.log").read_text(encoding="utf-8")
-    assert log.splitlines()[-1].endswith(f"fetch --run {run} --url {URL} --question RQ-1\t0")
+    assert log.splitlines()[-1].endswith(f"fetch --run {run} --url {URL} --question Q1\t0")
     assert "Revenue grew" not in log and "Annual Report" not in log
 
 
@@ -245,7 +245,7 @@ def test_real_cli_refuses_loopback(
         [
             sys.executable,
             rbot.__file__,
-            *cmd(run, "http://127.0.0.1/", "--question", "RQ-1"),
+            *cmd(run, "http://127.0.0.1/", "--question", "Q1"),
         ],
         env={**os.environ, "RBOT_FETCH": "1"},
         capture_output=True,
