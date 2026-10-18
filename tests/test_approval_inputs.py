@@ -12,6 +12,7 @@ from state_receipt_assertions import artifact_bytes
 from test_approval_authority import args
 from test_bootstrap import pending, ready
 
+from conftest import HANG_TIMEOUT
 from rbotlib import state
 from rbotlib.rules import load_rules
 
@@ -57,7 +58,7 @@ def test_public_approval_refuses_unsupported_input_before_read(
         path.mkdir()
     process = subprocess.Popen(command(run), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
-        out, err = process.communicate(timeout=3)
+        out, err = process.communicate(timeout=HANG_TIMEOUT)
     except subprocess.TimeoutExpired:
         lock_held = (run / state.LOCK).exists()
         process.kill()
@@ -86,7 +87,7 @@ def test_public_regular_control_preserves_cp0_and_reapproval_refuses(tmp_path: P
     run = pending(tmp_path, ROOT)
     ready(run, ROOT)
     cp0 = (run / INPUTS[0]).read_bytes()
-    result = subprocess.run(command(run), capture_output=True, timeout=3)
+    result = subprocess.run(command(run), capture_output=True, timeout=HANG_TIMEOUT)
     assert result.returncode == 0, result.stdout + result.stderr
     target = next(run.parent.iterdir())
     record = state.read(target)
@@ -94,7 +95,7 @@ def test_public_regular_control_preserves_cp0_and_reapproval_refuses(tmp_path: P
     assert record["steps"]["CP-1"]["status"] == "pending"
     assert (target / INPUTS[0]).read_bytes() == cp0
     before = snapshot(target, "")
-    again = subprocess.run(command(target), capture_output=True, timeout=3)
+    again = subprocess.run(command(target), capture_output=True, timeout=HANG_TIMEOUT)
     assert again.returncode == 1 and b"was approved" in again.stdout + again.stderr
     assert snapshot(target, "") == before
     assert (target / state.LOCK).exists()
