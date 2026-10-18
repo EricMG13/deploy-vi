@@ -12,7 +12,7 @@ from state_receipt_assertions import outcome_bytes
 
 import rbotlib.approve as ap
 from builders import make_run
-from conftest import FIXTURES
+from conftest import FIXTURES, HANG_TIMEOUT
 from rbotlib.approve import ApprovalError, new_name
 from rbotlib.bootstrap import QualifiedCP0
 from rbotlib.cli import main
@@ -354,14 +354,14 @@ def test_a_concurrent_approve_is_refused_by_the_lock(
 
     def slow(run: Path, root: Path, rules: Rules) -> QualifiedCP0:
         inside.set()
-        assert done.wait(10)
+        assert done.wait(HANG_TIMEOUT)
         return real(run, root, rules)
 
     monkeypatch.setattr(ap, "_cp0_step", slow)
     codes: dict[str, int] = {}
     first = threading.Thread(target=lambda: codes.update(fca=_approve(root, run)))
     first.start()
-    assert inside.wait(10)
+    assert inside.wait(HANG_TIMEOUT)
     codes["eu"] = _approve(root, run, pathway="EARNINGS_UPDATE")
     done.set()
     first.join()

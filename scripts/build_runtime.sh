@@ -17,7 +17,10 @@ git -C "$builder_repo" cat-file commit "$builder_sha" > "$builder_stage/commit"
 git -C "$builder_repo" cat-file tree "$builder_tree" > "$builder_stage/root"
 git -C "$builder_repo" ls-tree -rz "$builder_sha:rbot" > "$builder_stage/entries"
 # Git attributes may filter/substitute archive bytes; the stamper checks every blob.
-git -C "$builder_repo" archive "$builder_sha" rbot | tar -x -C "$builder_stage"
+# Via a file, not a pipe: tar stops at its end marker and a pipe would SIGPIPE git (exit 141).
+git -C "$builder_repo" archive --output "$builder_stage/archive.tar" "$builder_sha" rbot
+tar -x -f "$builder_stage/archive.tar" -C "$builder_stage"
+rm -f -- "$builder_stage/archive.tar"
 builder_here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 "$builder_python" "$builder_here/build_runtime.py" --repo "$builder_repo" \
   --stage "$builder_stage" --out "$4"

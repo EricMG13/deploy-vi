@@ -19,6 +19,9 @@ from rbotlib.render import render_module
 from rbotlib.rules import RBOT_ROOT, Rules, load_rules
 
 FIXTURES = Path(__file__).parent / "fixtures"
+# Upper bound (seconds) for tests that only guard against a hang; sized for a loaded
+# parallel run, where interpreter start-up alone can take several seconds.
+HANG_TIMEOUT = 30
 
 
 def fixture_json(name: str) -> dict[str, Any]:
