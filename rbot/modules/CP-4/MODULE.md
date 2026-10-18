@@ -50,7 +50,7 @@ Write one Handoff, `handoffs/CP-4.md`, carrying these tables:
 
 - `document_type` takes exactly one of: Annual report; Quarterly report; Earnings release; Bond report; Credit agreement; Indenture; Offering memorandum; Lender presentation; Term sheet; Rating report; Investor presentation; Market levels export; Sector RV Workbook; Forward curve; Equity value export; Portfolio positions; Portfolio limits; RBOT Report; Other
 
-**Tests with headroom** — at least 1 row(s); read by CP-6, CP-3, REPORT.
+**Tests with headroom** — at least 1 row(s); read by CP-2D, CP-6, CP-3, REPORT.
 
 <!-- table: cp4.covenant_tests -->
 | test* | test_type* | direction* | threshold* | current_value* | unit_label* | basis* | headroom* | status* | cite* |

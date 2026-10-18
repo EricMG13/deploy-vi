@@ -106,7 +106,7 @@ def test_the_committed_list_is_the_derived_list_of_built_steps(rules: Rules) -> 
 def test_quick_lists_exclude_full_only_modules() -> None:
     pathway = load_catalog(RBOT_ROOT).pathway("FULL_CREDIT_ASSESSMENT")
     assert pathway is not None
-    full_only = {"CP-2", "CP-DR", "CP-1C", "CP-1D", "CP-2A", "CP-2E", "CP-2G", "PROJECTION"}
+    full_only = {"CP-2", "CP-DR", "CP-1C", "CP-1D", "CP-2A", "CP-2D", "CP-2E", "CP-2G", "PROJECTION"}
     for depth, steps in pathway.depths.items():
         if depth == "quick":
             assert not full_only & set(steps)

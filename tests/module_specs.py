@@ -688,3 +688,32 @@ TABLES["CP-4"] = [
     ),
 ]
 INPUTS["CP-4"] = Inputs("CP-0 CP-1 MODEL", "CP-1A CP-1D CP-2 CP-L10", "issuer", "as_of_date")
+
+
+TABLES["CP-2D"] = [
+    TableSpec(
+        "cp2d.liquidity_sources",
+        1,
+        "component* amount* currency* unit*:unit accessible*:yes_no restriction cite*",
+        "CP-2G CP-3C CP-4C CP-6 REPORT",
+    ),
+    TableSpec(
+        "cp2d.cash_uses_12m",
+        1,
+        "use* amount* currency* unit*:unit timing* mandatory*:yes_no cite*",
+        "CP-2G CP-3C CP-4C REPORT",
+    ),
+    TableSpec(
+        "cp2d.bridge",
+        3,
+        "step* kind*:bridge_kind amount* currency* unit*:unit basis* cite*",
+        "CP-6 CP-3C CP-4C CP-2G REPORT",
+    ),
+    TableSpec(
+        "cp2d.runway",
+        4,
+        "item* value* unit_label* basis* cite",
+        "CP-6 CP-3C CP-4C CP-2G CP-2H REPORT",
+    ),
+]
+INPUTS["CP-2D"] = Inputs("CP-0 CP-1 MODEL", "CP-4 CP-2 CP-L10 CP-2A CP-1B", "issuer", "as_of_date")

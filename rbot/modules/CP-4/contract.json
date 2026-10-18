@@ -58,7 +58,7 @@
         {"name": "status", "critical": true, "scale": "trigger_status"},
         {"name": "cite", "critical": true}
       ],
-      "consumers": ["CP-6", "CP-3", "REPORT"]
+      "consumers": ["CP-2D", "CP-6", "CP-3", "REPORT"]
     },
     {
       "id": "cp4.capacity_register", "title": "Debt, lien and RP capacity by basket", "min_rows": 1,

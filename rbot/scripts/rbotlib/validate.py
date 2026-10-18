@@ -31,6 +31,10 @@ from rbotlib.rules import Rules
 EXIT_VALID, EXIT_USAGE, EXIT_MALFORMED, EXIT_BLOCKED, EXIT_IDENTITY = 0, 1, 2, 3, 4
 MAX_HANDOFF_BYTES = 98_304
 ROW_KEYS = {
+    "cp2d.liquidity_sources": ("component", "currency", "unit", "accessible", "restriction"),
+    "cp2d.cash_uses_12m": ("use", "currency", "unit", "timing", "mandatory"),
+    "cp2d.bridge": ("step",),
+    "cp2d.runway": ("item",),
     "cp4.covenant_tests": ("test",),
     "cp4.capacity_register": ("capacity_type", "basket"),
     "cp2a.downside_paths": ("path_id",),
@@ -587,10 +591,45 @@ def _legal_gate(h: Handoff) -> list[Finding]:
     ]
 
 
+def _liquidity_values(h: Handoff, table_id: str, column: str) -> list[str]:
+    table = h.tables.get(table_id)
+    at = _column(table, column) if table else None
+    if table is None or at is None:
+        return []  # structural validation supplies the missing table/column finding
+    return [row[at] for row in table.rows if len(row) == len(table.columns)]
+
+
+def _liquidity_order(h: Handoff) -> list[Finding]:
+    """Check the authored interface shape, never claim calculator/source origin."""
+    if h.front_matter.get("qa_status") == "Blocked":
+        return []  # partial critical tables remain honest gaps; duplicate keys still refuse
+    found = []
+    kinds = _liquidity_values(h, "cp2d.bridge", "kind")
+    if kinds and (
+        kinds[0] != "Opening total"
+        or kinds[-1] != "Closing total"
+        or any(k not in {"Delta", "Use"} for k in kinds[1:-1])
+    ):
+        found.append(Finding("liquidity_bridge_order", "bridge needs opening, movements, closing"))
+    if _liquidity_values(h, "cp2d.runway", "item") != [
+        "Accessible liquidity",
+        "Mandatory uses 12m",
+        "Headroom",
+        "Months of runway",
+        "Pinch point",
+    ]:
+        found.append(
+            Finding("liquidity_runway_order", "runway needs all five canonical rows in order")
+        )
+    return found
+
+
 def _module_findings(
     h: Handoff, contract: Contract, rules: Rules, run: Path | None
 ) -> list[Finding]:
     """A module's own checks beyond its tables: CP-0's in `rbotlib.cp0` (Plan 04), CP-3's gate."""
+    if contract.module_id == "CP-2D":
+        return _liquidity_order(h)
     if contract.module_id == "CP-4":
         return _legal_gate(h)
     if contract.module_id == "CP-2A":
