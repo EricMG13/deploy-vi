@@ -12,4 +12,4 @@
 
 **Limit:** each worker is a separate process, so the session fixtures `corpus_pack` and `prepared_run` run once per worker (materialise, `rbot inventory`, `rbot prepare` repeated per pack a worker touches). The shared pack trees are guarded by a digest check at teardown (`tests/conftest.py`): a test that writes into them fails loudly instead of flaking by worker grouping. Report tests launch headless Chrome; concurrent workers each start a browser, so memory and CPU rise with `-n`.
 
-**Measured:** TBD-by-controller
+**Measured** (10-core Mac, `RBOT_REQUIRE_CORPUS=1 uv run pytest -n auto`, 10 workers): serial chunked run at db2d91b, 4198 passed, coverage 95 %, about 2.5 h. Parallel on the pre-Plan-10 tree: 4003 passed in 41 m 04 s (a first run, 34 m 39 s, had 20 two-to-three-second subprocess timeouts and one `build_runtime.sh` SIGPIPE race, fixed by `HANG_TIMEOUT = 30` and archiving to a file). Final, merged onto main bd717eb: 4207 passed, 1 skipped (`test_smoke_transfer`, needs a built package), coverage 94.96 % (floor 80 %), 43 m 19 s, about 3.5x faster. Run times vary 35-43 m with machine load; the floor applies to the combined total.
