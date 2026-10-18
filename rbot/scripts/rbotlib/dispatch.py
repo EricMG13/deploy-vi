@@ -411,6 +411,7 @@ def _calculator_writes(run: Path, module: str) -> tuple[str | None, list[str]]:
         "CP-1C": "peer_statistics",
         "CP-4": "covenant_headroom",
         "CP-2D": "liquidity_bridge",
+        "CP-2E": "rate_fx_sensitivity",
     }.get(module)
     if name is None:
         return None, []

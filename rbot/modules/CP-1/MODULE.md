@@ -79,7 +79,7 @@ Write one Handoff, `handoffs/CP-1.md`, carrying these tables:
 
 - `value_type` takes exactly one of: PERIOD_END; PERIOD_FLOW; RATE
 
-**Debt facility register** — at least 1 row(s); read by MODEL, CP-3, CP-4, CP-2D, FIT, CP-1D, CP-2.
+**Debt facility register** — at least 1 row(s); read by MODEL, CP-3, CP-4, CP-2E, CP-2D, FIT, CP-1D, CP-2.
 
 <!-- table: cp1.debt_facility_register -->
 | facility_id* | facility_name* | period_id* | facility_type* | currency* | carrying_value | drawn_amount | commitment | secured_status* | seniority* | margin_or_coupon* | maturity_date | lease_classification* | rate_type | reference_rate | spread_bps | floor_bps | fixed_rate | annual_amortisation | source_id | source_locator |

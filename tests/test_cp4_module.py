@@ -176,7 +176,7 @@ def test_full_catalog_order_and_quick_exclusion(rules: Rules) -> None:
     pathway = load_catalog(RBOT_ROOT).pathway("FULL_CREDIT_ASSESSMENT")
     assert pathway is not None
     full = pathway.depths["full"]
-    assert full[full.index("CP-2A") + 1] == "CP-4"
+    assert full[full.index("CP-2A") + 1 : full.index("CP-2A") + 3] == ("CP-2E", "CP-4")
     assert full.index("CP-4") < full.index("CP-3")
     assert "CP-4" not in pathway.depths["quick"]
     contracts = load_contracts(RBOT_ROOT, rules, [])

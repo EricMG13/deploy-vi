@@ -717,3 +717,28 @@ TABLES["CP-2D"] = [
     ),
 ]
 INPUTS["CP-2D"] = Inputs("CP-0 CP-1 MODEL", "CP-4 CP-2 CP-L10 CP-2A CP-1B", "issuer", "as_of_date")
+
+
+TABLES["CP-2E"] = [
+    TableSpec(
+        "cp2e.exposures",
+        1,
+        "exposure* kind*:exposure_kind amount currency* unit*:unit hedge_status* "
+        "transmission* credit_implication* cite*",
+        "CP-2G CP-3 CP-6 REPORT",
+    ),
+    TableSpec(
+        "cp2e.sensitivities",
+        1,
+        "sensitivity* shock* formula* cash_impact* currency* unit*:unit status*:calc_status cite*",
+        "CP-2G CP-6 CP-3 REPORT",
+    ),
+    TableSpec(
+        "cp2e.hedges",
+        0,
+        "hedge* notional* currency* unit*:unit covered_instrument* rate_or_strike* "
+        "maturity_date* cite*",
+        "CP-2G CP-3C REPORT",
+    ),
+]
+INPUTS["CP-2E"] = Inputs("CP-0 CP-1 MODEL", "CP-2 CP-2A", "issuer market", "as_of_date")

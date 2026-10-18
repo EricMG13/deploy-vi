@@ -1,0 +1,36 @@
+{
+  "basis": {
+    "currency": "USD", "unit": "MILLIONS", "perimeter": "SYNTHETIC Group",
+    "period_start": "2026-01-01", "period_end": "2026-12-31", "cite": "[C1] [C2]",
+    "limitation": "SYNTHETIC mechanical witness; no real issuer or host qualification"
+  },
+  "rate_exposure_id": "Debt",
+  "gross_floating_rate_debt": "500",
+  "hedged_floating_rate_debt": "300",
+  "total_debt": "1000",
+  "hedge_qualification": {
+    "qualified": true, "hedge_ids": ["Swap1"], "covered_instruments": ["Debt"],
+    "instrument_type": "Interest-rate swap", "notional": "400", "rate_or_strike": "3%",
+    "linear_protection": true, "coverage_start": "2025-01-01",
+    "coverage_end": "2027-12-31", "maturity_date": "2027-12-31",
+    "basis": {
+      "currency": "USD", "unit": "MILLIONS", "perimeter": "SYNTHETIC Group",
+      "period_start": "2026-01-01", "period_end": "2026-12-31", "cite": "[C2]"
+    }
+  },
+  "fx_exposures": [{
+    "exposure_id": "FX", "net_exposure": "120", "adverse_move_pct": "0.10",
+    "basis": {
+      "currency": "USD", "unit": "MILLIONS", "perimeter": "SYNTHETIC Group",
+      "period_start": "2026-01-01", "period_end": "2026-12-31", "cite": "[C3]"
+    }
+  }],
+  "cost_exposures": [{
+    "exposure_id": "Energy", "annual_spend": "80", "adverse_move_pct": "0.25",
+    "basis": {
+      "currency": "USD", "unit": "MILLIONS", "perimeter": "SYNTHETIC Group",
+      "period_start": "2026-01-01", "period_end": "2026-12-31", "cite": "[C4]"
+    }
+  }],
+  "channels_nonoverlapping": true
+}
