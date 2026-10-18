@@ -17,7 +17,7 @@ Follow [the current workflow](gpt-subagents.md) and [owner amendment](2026-10-13
 - Defects: causal failing test before fixing; no invented figures, fake zero or hidden catch-all.
 - Confidence-review: ranked doubts, actual callers, refutations, confirmed fixes and unknowns.
 - Checks: affected functional tests, relevant money/ordering mutations/properties, retained branch/corpus gates; no separate review or tournament approval.
-- Ordinary budget incl tests/docs/evidence/headroom≤800; existing exclusions only; dependencies need a decision record.
+- Ordinary budget incl tests/docs/evidence/headroom≤4,000 per coherent PR ([owner, 2026-10-18](2026-10-18-batch-size-amendment.md)); existing exclusions only; dependencies need a decision record.
 - Preserve Excel/xlsx inputs. No report/workbook exports; Model JSON/Markdown retain exact calculation/provenance.
 - No push/merge/publication; work desktop inspection stays paused.
 
