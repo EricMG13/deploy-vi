@@ -14,7 +14,7 @@ from typing import Any, NamedTuple
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
-from report_run import complete_run
+from report_run import complete_run, save_fetched
 
 from rbotlib.catalog import load_catalog, load_contracts
 from rbotlib.report import ReportError, run_json
@@ -187,7 +187,8 @@ def test_pane_lists_plan_modules_in_order(page: Page, assets: Assets) -> None:
     mods = [m for m in mods if m not in ("MODEL", "FIT", "CP-5", "CP-6")]
     expected = ["snapshot", *(f"module-{slug(m)}" for m in mods), "model", "portfolio-fit"]
     assert re.findall(r'data-view="([^"]+)"', nav) == [*expected, "evidence", "limitations"]
-    assert "7 modules: 1 pass, 6 with limitations" in nav
+    tally = re.search(r'nav__gm">([^<]*)', nav)
+    assert tally and tally.group(1) == "8 modules: 1 pass, 7 with limitations"
 
 
 def test_assets_that_would_close_the_inline_bundle_are_refused(page: Page, assets: Assets) -> None:
@@ -195,3 +196,49 @@ def test_assets_that_would_close_the_inline_bundle_are_refused(page: Page, asset
         bad = dataclasses.replace(assets, **{field: "</style></script>"})
         with pytest.raises(ReportError, match="contains"):
             render_html(page.doc, [], [], bad)
+
+
+def test_cp_dr_view_has_a_fetched_sources_none_line_for_a_pack_only_run(
+    page: Page, assets: Assets
+) -> None:
+    text = render(page, assets)
+    view = section_of(text, "module-cp-dr")
+    assert "Fetched sources: none" in view and view.count("<table") == 4
+    assert "Deep Research: not in this run" not in text
+
+
+def test_cp_dr_view_lists_each_fetched_source_with_url_and_date(
+    corpus_pack: Callable[[str], Path], tmp_path: Path, assets: Assets
+) -> None:
+    run = complete_run(corpus_pack, tmp_path)
+    save_fetched(run, "01-example.com.md", "https://example.com/a", "RQ-1")
+    doc = run_json.build(run, RBOT_ROOT, NOW)
+    got = render(Page(run, doc), assets)
+    view = section_of(got, "module-cp-dr")
+    assert "Fetched sources" in view and "Fetched sources: none" not in view
+    assert "https://example.com/a" in view and "2026-10-10" in view
+    assert "fetched/01-example.com.md" in view and "RQ-1" in view
+    assert view.count("<table") == 5
+    assert "Deep Research: not in this run" not in got
+
+
+def test_limitations_name_the_real_reason_deep_research_was_skipped(
+    page: Page, assets: Assets
+) -> None:
+    doc = copy.deepcopy(page.doc)
+    doc["steps"]["CP-DR"] = {"status": "skipped", "reason": "not approved"}
+    del doc["handoffs"]["CP-DR"]
+    assert "Deep Research: not in this run: not approved" in render(page, assets, doc)
+    doc["steps"]["CP-DR"]["reason"] = "no questions ticked"
+    assert "Deep Research: not in this run: no questions ticked" in render(page, assets, doc)
+
+
+def test_limitations_say_not_in_this_depth_when_the_plan_lacks_cp_dr(
+    page: Page, assets: Assets
+) -> None:
+    doc = copy.deepcopy(page.doc)
+    doc["plan"].remove("CP-DR")
+    del doc["steps"]["CP-DR"], doc["handoffs"]["CP-DR"], doc["modules"]["CP-DR"]
+    got = render(page, assets, doc)
+    assert "Deep Research: not in this depth" in got
+    assert "Deep Research: not in this run" not in got
