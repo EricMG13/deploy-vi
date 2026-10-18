@@ -50,10 +50,19 @@ FIT_TABLE = "snapshot.portfolio_fit"
 RUN_LINE = re.compile(r"^- Run: ([^;\n]*)", re.MULTILINE)
 NOT_VERIFIED = (
     "Not verified: Copilot behaviour (this is a proxy run, never a certification), GPT models, "
-    "fetch (no network fetch is run or measured), the provider identity behind model labels "
+    "{fetch}, the provider identity behind model labels "
     "(caller-reported), worker isolation beyond the dispatch message, module A/B qualification "
     "(pending from Plan 05), and report rendering unless the Report line says it was written."
 )
+FETCH_NOT_VERIFIED = {
+    "off": "fetch (fetch was off, so no network fetch was run or measured)",
+    "on": "fetched-page quality (fetch was on; pages were saved but not independently checked)",
+}
+
+
+def fetch_mode(record: state.Record) -> str:
+    """The mode recorded at Approval (absent reads as off), never the live variable."""
+    return str(record["approval"].get("fetch", "off"))
 
 
 @dataclass
@@ -528,6 +537,7 @@ def build(run: Path, pack_id: str | None) -> tuple[str, str]:
         f"- Run: {clean(record['run_id'])}; created {clean(record['created_at'])}",
         f"- Steps accepted (verified): {accepted}/{len(rows)}",
         report_line(record),
+        f"- Fetch: {fetch_mode(record)}",
         "- Source: recorded run evidence only; nothing here was re-run or estimated.",
         "",
         "## Steps",
@@ -545,7 +555,7 @@ def build(run: Path, pack_id: str | None) -> tuple[str, str]:
         "",
         *fit_section(run),
         "",
-        NOT_VERIFIED,
+        NOT_VERIFIED.format(fetch=FETCH_NOT_VERIFIED[fetch_mode(record)]),
         "",
     ]
     name = (

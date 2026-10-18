@@ -77,7 +77,7 @@ def test_from_cp0_prefills_every_table(tmp_path: Path, capsys: pytest.CaptureFix
     assert fields["analyst"] == ["—", "Gap", "—", "—"]
     assert h.tables["brief.portfolios"].rows[0][-1] == "prepared/portfolios/TEST_CLO_I.json"
     assert h.tables["brief.research_questions"].rows == [
-        ["RQ-1", "How is Las Vegas Strip visitation trending into 2027?", "CP-2", "Yes"]
+        ["Q1", "How is Las Vegas Strip visitation trending into 2027?", "CP-2", "Yes"]
     ]
     assert h.tables["brief.prior_case"].rows == []
     assert "- `objective`: not found in the Source Pack" in h.body
@@ -166,7 +166,8 @@ def test_a_bad_prefill_or_missing_cp0_exits_1(
 def test_brief_citations_anchor_in_the_primary_pack(
     prepared_run: Callable[[str], Path], tmp_path: Path
 ) -> None:
-    run = shutil.copytree(prepared_run("czr-2026q2-primary"), tmp_path / "run")
+    run = tmp_path / "run"
+    shutil.copytree(prepared_run("czr-2026q2-primary"), run)
     (run / "handoffs").mkdir(exist_ok=True)
     shutil.copy(CP0, run / "handoffs" / "CP-0.md")
     assert run_findings(parse(CP0.read_text(encoding="utf-8")), run) == []
@@ -514,7 +515,8 @@ def test_exactly_one_mode_is_given(
 def test_tranche_edits_keep_the_brief_anchored_in_the_primary_pack(
     prepared_run: Callable[[str], Path], tmp_path: Path
 ) -> None:
-    run = shutil.copytree(prepared_run("czr-2026q2-primary"), tmp_path / "run")
+    run = tmp_path / "run"
+    shutil.copytree(prepared_run("czr-2026q2-primary"), run)
     (run / "handoffs").mkdir(exist_ok=True)
     shutil.copy(CP0, run / "handoffs" / "CP-0.md")
     assert main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"]) == 0

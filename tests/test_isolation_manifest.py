@@ -881,7 +881,7 @@ def test_explicit_amended_permissions_preserve_native_variants(name: str) -> Non
             "2026-05-29",
             "prepared/portfolios/FUND.json",
         ],
-        "research_questions": ["RQ-1", "Question", "CP-2", "Yes"],
+        "research_questions": ["Q1", "Question", "CP-2", "Yes"],
         "prior_case": ["old/report.html", "2025-06-30", "20250630-prior", "No"],
     }
     if name in rows:

@@ -78,6 +78,14 @@ def complete_run(
     if not portfolios:  # no Portfolio Context in the pack or in CP-0: FIT is skipped
         kept = [x for x in cp0.splitlines(keepends=True) if "TEST_CLO_I" not in x[:60]]
         cp0 = re.sub(r" ?\[C1[67]\]", "", "".join(kept))
+    # the CP-DR fixture answers Q1 to Q3, so the approved run offers those questions
+    asked = "| {0} | Fixture question {0}? | Fixture reason | CP-2 | Fixture evidence |\n"
+    cp0 = re.sub(
+        r"^\| Q1 \|.*\n",
+        lambda _: "".join(asked.format(f"Q{n}") for n in (1, 2, 3)),
+        cp0,
+        flags=re.M,
+    )
     (run / "handoffs/CP-0.md").write_text(cp0, encoding="utf-8")
     send(run, RBOT_ROOT)
     assert accept(run) == 0
@@ -99,3 +107,19 @@ def complete_run(
             code = accept(run, module=step)
             assert code in (0, 3), f"{step}: acceptance exit {code}"
     raise AssertionError("the run did not reach done")
+
+
+def save_fetched(run: Path, name: str, url: str, question: str = "Q1", **front: str) -> Path:
+    """Write `fetched/<name>` in the saved-page layout (hash from `fetched.render`)."""
+    from rbotlib import fetched
+
+    meta = {
+        "url": url,
+        "retrieved": "2026-10-10",
+        "question": question,
+        "content_type": "text/html",
+    }
+    path = run / fetched.FOLDER / name
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(fetched.render({**meta, **front}, "Saved page text.\n"), encoding="utf-8")
+    return path

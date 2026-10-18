@@ -19,7 +19,7 @@ from typing import Any
 
 import proxy_continue
 
-from rbotlib import state
+from rbotlib import approve, fetched, state
 from rbotlib.catalog import load_catalog
 from rbotlib.corpus import CorpusError, Pack, Registry, repo_root
 from rbotlib.fsio import write_atomic
@@ -96,6 +96,11 @@ def new_out(out: Path, pack_id: str, module: str) -> Path:
     return root / f"{module}-{n}"
 
 
+def _switched_off(module: str, step: dict[str, Any]) -> bool:
+    """A step approval skipped with its own recorded reason (Deep Research not approved)."""
+    return step["status"] == "skipped" and step.get("reason") == approve.SKIPS.get(module)
+
+
 def _unqualified(run: Path, deps: list[str]) -> tuple[Source | None, list[str]]:
     record = state.read(run)
     if record["approval"] is None:
@@ -103,6 +108,8 @@ def _unqualified(run: Path, deps: list[str]) -> tuple[Source | None, list[str]]:
     missing, models = [], {}
     for module in deps:
         step = record["steps"].get(module)
+        if step is not None and _switched_off(module, step):
+            continue  # switched off by approval: this source run never needed the module
         path = output_path(run, f"handoffs/{module}.md")
         ok = step is not None and step["status"] in TERMINAL and path.is_file()
         if ok and hashlib.sha256(path.read_bytes()).hexdigest() != step.get("sha256"):
@@ -177,9 +184,30 @@ def rewrite_run_id(raw: bytes, run_id: str) -> bytes:
     return b"".join(lines)
 
 
+def import_fetched(run: Path, source: Source) -> bool:
+    """Copy the source run's saved pages byte for byte (a symlinked folder or file is refused);
+    True when a `fetched/` folder was copied."""
+    folder = Path(source.where) / fetched.FOLDER
+    if folder.is_symlink():
+        raise CorpusError(f"{folder}: a symlinked fetched/ folder is not imported")
+    if not folder.is_dir():
+        return False
+    target = output_path(run, fetched.FOLDER)
+    target.mkdir(exist_ok=True)
+    for path in sorted(folder.iterdir()):
+        if path.is_symlink():
+            raise CorpusError(f"{path}: a symlink in fetched/ is not imported")
+        if path.is_file():
+            (target / path.name).write_bytes(path.read_bytes())
+    return True
+
+
 def import_module(run: Path, selected: dict[str, Any], source: Source, native: Native) -> str:
     """Write the source bytes as the module's own Handoff, report and accept natively."""
     module = selected["step"]
+    if module == "CP-DR" and source.label != "fixtures" and import_fetched(run, source):
+        # the message lists the qualified saved pages, so prepare it again with the pages in place
+        native(run, "dispatch-message", ["--module", module])
     message = output_path(run, selected["dispatch"]).read_bytes()
     original = source.read(module)
     imported = rewrite_run_id(original, state.read(run)["run_id"])

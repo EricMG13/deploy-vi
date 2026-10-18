@@ -161,3 +161,48 @@ def test_cp1_consumers_include_the_real_register_readers(rules: Rules) -> None:
         "cp1.operating_kpi_schedule",
     ):
         assert "CP-2" in tables[table_id]
+
+
+def test_cp_dr_states_the_fetch_limits_and_bars_model_knowledge() -> None:
+    """Plan 10 R2 and R15: a 3-page cap per question, the fetched locator, no model knowledge."""
+    text = (FOLDERS / "CP-DR" / "MODULE.md").read_text("utf-8")
+    assert "at most 3 pages per question" in text
+    assert "<URL> retrieved <YYYY-MM-DD>" in text
+    assert "fetched/<nn>-<host>.md" in text
+    assert "Do not use model background knowledge" in text
+
+
+def test_cp_dr_requires_contrary_search_dated_downside_chain_and_reconciliation() -> None:
+    """Plan 10 task 10.8a: the A/B round 1 depth fixes sit in the CP-DR process text."""
+    text = (FOLDERS / "CP-DR" / "MODULE.md").read_text("utf-8")
+    assert "Before writing `none found`, search every pack source" in text
+    assert "segment and period splits" in text and "name what was searched" in text
+    for part in (
+        "starting condition",
+        "first break",
+        "financial transmission",
+        "consequence for creditors",
+        "trigger with a date or a threshold",
+    ):
+        assert part in text
+    assert "dated downside chain" in text
+    assert "list every conflict across sources, periods, definitions and the upstream" in text
+    assert "CP-0, CP-1A and CP-1" in text
+    assert "signing and announcement dates" in text
+    assert "when CP-1 is present, use it for the entity, period and perimeter" in text
+    assert "say where it was used" in text
+
+
+def test_cp0_research_prompt_names_the_ids_consumers_and_the_pack_silence_rule() -> None:
+    """Plan 10 R11: Q1..Q5, consumers CP-2, CP-3, CP-6, a public source class, pack silence."""
+    text = (FOLDERS / "CP-0" / "MODULE.md").read_text("utf-8")
+    assert "`Q1` to `Q5`" in text
+    assert "(`CP-2`, `CP-3` or `CP-6`)" in text
+    assert "was checked and found silent" in text
+    assert "whose answer is in the pack" in text and "names a confidential or non-public" in text
+
+
+def test_cp2_cites_the_deep_research_sector_view_for_the_outlook() -> None:
+    """Plan 10 R13: cpdr.sector_view.outlook is cited evidence; CP-2 may differ and says why."""
+    text = (FOLDERS / "CP-2" / "MODULE.md").read_text("utf-8")
+    assert "cpdr.sector_view" in text and "say why" in text

@@ -25,6 +25,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from rbotlib import fetch
 from rbotlib.brief import (
     BRIEF,
     CP0,
@@ -54,9 +55,13 @@ CLASS_LABEL = {
     "portfolio": "Portfolio Context",
 }
 PORTFOLIO_FILES = ("Portfolio positions", "Portfolio limits")
-FETCH_NOTE = (
-    "Deep Research fetches public sources only when this host offers a fetch tool; "
-    "without one it works from the Source Pack alone (ADR 0004)."
+FETCH_NOTE_ON = (
+    "Deep Research may fetch public pages for the questions you approve; each page is saved "
+    "under fetched/ and cited with its URL and retrieval date."
+)
+FETCH_NOTE_OFF = (
+    "Fetch is not available on this host: Deep Research will work from the Source Pack "
+    "alone (ADR 0004)."
 )
 
 
@@ -326,7 +331,7 @@ def grade_run(run: Path, root: Path, rules: Rules) -> dict[str, Any]:
             for r in _records(brief.tables.get("brief.research_questions"))
         ],
         "prior_case": _records(brief.tables.get("brief.prior_case")),
-        "fetch_note": FETCH_NOTE,
+        "fetch_note": FETCH_NOTE_ON if fetch.available() else FETCH_NOTE_OFF,
         "pathways": pathways,
     }
 
@@ -384,7 +389,7 @@ def _menu_flags(grading: dict[str, Any]) -> list[str]:
         "",
         *(gaps or ["- None."]),
         "",
-        f"Fetch: {grading['fetch_note']}",
+        grading["fetch_note"],
     ]
 
 

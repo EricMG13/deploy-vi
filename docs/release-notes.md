@@ -1,5 +1,17 @@
 # Release notes
 
+## Unreleased (Plan 10: Deep Research)
+
+- CP-DR (Deep Research) joins the `full` list of Full Credit Assessment right after CP-1A; `quick` is unchanged.
+- `rbot fetch` is new: off by default, enabled by `RBOT_FETCH=1`, with the mode recorded at Approval (`approval.fetch`). `grade` states which note applies before Approval.
+- Downstream readers (CP-2, CP-3, CP-5, CP-6) may cite qualified `fetched/` pages, each with its URL and retrieval date.
+- Validator: new finding `research_policy` for CP-DR answers, evidence and approved question ids.
+- cp-start: CP-0 offers up to five research questions `Q1`..`Q5` (consumers CP-2, CP-3, CP-6); the analyst keeps or drops them with `approve --deep-research yes|no --untick <id>…`. CP-2 cites `cpdr.sector_view.outlook` when CP-DR is accepted.
+- Proxy: `proxy_run --fetch` requires `RBOT_FETCH=1` in the environment and never sets it; a run without `--fetch` refuses while the variable is set. The scorecard prints the recorded `Fetch: on|off`.
+- A/B harness: an expected identity may list aliases (any spelling matches after folding), and a trailing parenthetical qualifier on the recorded value is ignored; a record still covers at most one expected row (owner, 2026-10-17).
+- Record run on czr-2026q2-primary (full, Deep Research approved, fetch off): R1–R8 PASS. Scorecard: docs/corpus-runs/2026-10-17-czr-2026q2-primary-full-credit-assessment-full-rc6.md.
+- A/B: CP-DR PASS on round 2 (docs/ab/2026-10-17-CP-DR-czr-2026q2-primary-r2.md); round 1 FAIL is kept (docs/ab/2026-10-17-CP-DR-czr-2026q2-primary.md) and led to the CP-DR process revision.
+
 ## Unreleased (Plan 09: Quick depth)
 
 - FCA offers `quick`: CP-0, CP-1, CP-1A, CP-1B, MODEL, CP-L10, CP-3, FIT, CP-5, CP-6 (CP-8 joins in Plan 11). Deep Research and the Full-only modules (CP-2, CP-1D, CP-2A, CP-2E, CP-2G, PROJECTION) do not run at quick.

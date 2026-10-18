@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
 import threading
 from collections.abc import Callable
 from pathlib import Path
@@ -26,7 +27,8 @@ FCA_FULL = (
     "CP-0 CP-1 CP-1A CP-DR CP-1B CP-1D MODEL CP-1C CP-2 CP-2A CP-2E CP-4 CP-2D CP-2G "
     "PROJECTION CP-2H CP-3D CP-3C CP-4C CP-3 FIT CP-5 CP-6 CP-8"
 ).split()
-QUESTION = "| RQ-1 | Is demand recovering? | Sets the Sector Outlook | CP-2 | Industry data |"
+QUESTION = "| Q1 | Is demand recovering? | Sets the Sector Outlook | CP-2 | Industry data |"
+QUESTION2 = "| Q2 | Is regulation tightening? | Sets the Sector Outlook | CP-3 | Regulators |"
 PRIOR = (
     "| old/report.html | 2026-07-15 | 20260715-acme-earnings-update"
     " | EARNINGS_UPDATE | full | Yes |"
@@ -202,11 +204,49 @@ def test_questions_prior_case_and_primary_follow_the_approval(root: Path, tmp_pa
 
 def test_an_unticked_question_switches_deep_research_off(root: Path, tmp_path: Path) -> None:
     run = _ready(root, tmp_path, rows=PRIOR)
-    assert _approve(root, run, "--untick", "RQ-1") == 0
+    assert _approve(root, run, "--untick", "Q1") == 0
     state = _state(run.parent / "20261011-acme-full-credit-assessment")
     assert state["deep_research"] is False
     assert state["steps"]["CP-DR"]["reason"] == "not approved"
     assert state["steps"]["CP-8"]["reason"] == "no prior case"
+
+
+TWO = f"{QUESTION}\n{QUESTION2}"
+
+
+def test_unticking_one_of_two_questions_keeps_deep_research(
+    root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(sys.modules[__name__], "QUESTION", TWO)
+    run = _ready(root, tmp_path, rows=PRIOR)
+    assert _approve(root, run, "--untick", "Q2") == 0
+    target = run.parent / "20261011-acme-full-credit-assessment"
+    state = _state(target)
+    assert state["deep_research"] is True and state["steps"]["CP-DR"]["status"] == "pending"
+    assert [[r[0], r[-1]] for r in _brief(target).tables["brief.research_questions"].rows] == [
+        ["Q1", "Yes"],
+        ["Q2", "No"],
+    ]
+
+
+@pytest.mark.parametrize("extra", [["--untick", "Q1", "Q2"], ["--deep-research", "no"]])
+def test_no_ticked_question_or_no_deep_research_skips_cp_dr(
+    root: Path, tmp_path: Path, extra: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(sys.modules[__name__], "QUESTION", TWO)
+    run = _ready(root, tmp_path, rows=PRIOR)
+    assert _approve(root, run, *extra) == 0
+    state = _state(run.parent / "20261011-acme-full-credit-assessment")
+    assert state["deep_research"] is False
+    cp_dr = state["steps"]["CP-DR"]
+    assert (cp_dr["status"], cp_dr["reason"]) == ("skipped", "not approved")
+
+
+def test_a_cp0_with_no_questions_skips_cp_dr(root: Path, tmp_path: Path) -> None:
+    run = _ready(root, tmp_path)
+    assert _approve(root, run) == 0
+    state = _state(run.parent / "20261011-acme-full-credit-assessment")
+    assert state["steps"]["CP-DR"]["reason"] == "not approved"
 
 
 def test_a_blocked_pathway_needs_the_acknowledgement(
@@ -234,7 +274,7 @@ REFUSALS = [
     ("run-state", [], "state must be an existing regular file"),
     ("grading", [], "grading.json; run rbot grade first"),
     (None, ["--primary", "yes"], "a Primary run needs a new tranche"),
-    (None, ["--untick", "RQ-9"], "no research question RQ-9"),
+    (None, ["--untick", "Q9"], "no research question Q9"),
     (None, ["--prior-case", "yes"], "no Prior Case was offered"),
 ]
 
@@ -388,7 +428,7 @@ def test_a_hand_edited_brief_is_refused(
 ) -> None:
     run = _ready(root, tmp_path, rows=PRIOR)
     brief = run / "run-brief.md"
-    row = "| RQ-1 | Is demand recovering? | CP-2 | Yes |\n"
+    row = "| Q1 | Is demand recovering? | CP-2 | Yes |\n"
     assert row in brief.read_text(encoding="utf-8")
     brief.write_text(brief.read_text(encoding="utf-8").replace(row, ""), encoding="utf-8")
     assert main(["--root", str(root), "grade", "--run", str(run)]) == 0
@@ -543,3 +583,17 @@ def test_readback_refuses_when_only_one_published_file_differs(
     capsys.readouterr()
     assert _approve(root, run) == 1
     assert "Approval readback differs" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(("value", "mode"), [("1", "on"), (None, "off"), ("0", "off")])
+def test_approval_records_the_fetch_mode(
+    root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, value: str | None, mode: str
+) -> None:
+    if value is None:
+        monkeypatch.delenv("RBOT_FETCH", raising=False)
+    else:
+        monkeypatch.setenv("RBOT_FETCH", value)
+    run = _ready(root, tmp_path)
+    assert _approve(root, run) == 0
+    target = run.parent / "20261011-acme-full-credit-assessment"
+    assert _state(target)["approval"]["fetch"] == mode

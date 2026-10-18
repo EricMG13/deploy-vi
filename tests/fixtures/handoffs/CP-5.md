@@ -36,6 +36,7 @@ The prior Structuring EBITDA finding is fixed: CP-1 registers the arranger's 150
 | CP-0 | Pass | Traceable | — |
 | CP-1 | Restricted | Traceable | FY2023 debt and most call schedules are not in the pack |
 | CP-1A | Restricted | Traceable | no corporate ratings |
+| CP-DR | Restricted | Traceable | pack-only (fetching off); no agency or peer reports in the pack |
 | CP-1B | Restricted | Traceable | no KPIs and no guidance in the pack |
 | CP-1D | Restricted | Traceable | synergy actions not evidenced |
 | MODEL | Pass | Traceable | Structuring EBITDA 3,742 includes the cited 150; SSIM EBITDA 3,592 excludes the unrealized benefit (F-1 Fixed) |

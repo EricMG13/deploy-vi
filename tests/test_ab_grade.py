@@ -301,3 +301,64 @@ def test_r14_conversion_names_the_registers_its_methods_read() -> None:
     assert "<!-- table-id: T3.5 -->" in cp3
     assert "#### T3.5 — RV Table" in cp3
     assert "<!-- table-id: T3B.8 -->" in cp3
+
+
+# --- Task 10.7b: R5/F identity matching accepts listed aliases ---------------------------------
+
+
+def _filled_rows(identities: list[dict[str, object]], rows: list[list[str]]) -> int:
+    from rbotlib.handoff import Table
+    from rbotlib.rules import load_rules
+
+    entry = {"table": "t", "expected_rows": len(identities), "expected_identities": identities}
+    table = Table(["facility_id", "value"], rows)
+    return ab_grade._filled(table, {"value"}, entry, load_rules())
+
+
+def test_a_listed_alias_matches_and_a_string_identity_is_unchanged() -> None:
+    ids: list[dict[str, object]] = [
+        {"facility_id": ["CEI-SSN-2030", "SSN-2030"]},
+        {"facility_id": "B"},
+    ]
+    assert _filled_rows(ids, [["SSN_2030", "1"], ["b", "2"]]) == 2
+    assert _filled_rows(ids, [["SSN30", "1"], ["b", "2"]]) == 1
+
+
+def test_a_trailing_parenthetical_on_the_record_side_is_ignored() -> None:
+    ids: list[dict[str, object]] = [{"facility_id": "Sector Average BB"}]
+    assert _filled_rows(ids, [["Sector Average BB (includes Term Loan B)", "1"]]) == 1
+    assert _filled_rows(ids, [["Sector (x) Average BB", "1"]]) == 0
+    expected_with_paren: list[dict[str, object]] = [{"facility_id": "Sector Average (BB)"}]
+    assert _filled_rows(expected_with_paren, [["Sector Average", "1"]]) == 0
+
+
+def test_an_alias_list_cannot_cover_two_expected_rows_with_one_record() -> None:
+    ids: list[dict[str, object]] = [
+        {"facility_id": ["A", "SHARED"]},
+        {"facility_id": ["B", "SHARED"]},
+    ]
+    assert _filled_rows(ids, [["SHARED", "1"]]) == 0
+    assert _filled_rows(ids, [["SHARED", "1"], ["B", "2"]]) == 1
+
+
+def test_alias_lists_validate_and_duplicates_use_the_first_spelling() -> None:
+    ab_grade._check_identities([{"a": ["X", "Y"]}, {"a": "Z"}], 2, "t")
+    for bad in ([{"a": []}, {"a": "Z"}], [{"a": ["X", ""]}, {"a": "Z"}], [{"a": 3}, {"a": "Z"}]):
+        with pytest.raises(ab_grade.ABError, match="nonempty text"):
+            ab_grade._check_identities(bad, 2, "t")
+    with pytest.raises(ab_grade.ABError, match="duplicated"):
+        ab_grade._check_identities([{"a": ["X", "Q"]}, {"a": ["x", "R"]}], 2, "t")
+
+
+def test_f_counts_pre_rc_shaped_rows_against_the_alias_expectations() -> None:
+    text = (FIXTURES / "handoffs" / "CP-3.md").read_text("utf-8")
+    for old, new in (("CEI-SSN-2030", "SSN_2030"), ("CEI-SSN-2032", "SSN_2032")):
+        text = text.replace(f"| {old} |", f"| {new} |")
+    text = text.replace("| CEI-SN-2029 |", "| SN_2029 |").replace("| CEI-SN-2032 |", "| SN_2032 |")
+    text = text.replace(
+        "Gaming sector average, BB |",
+        "Sector Ratings Average BB (includes CEI Term Loan B and B-1) |",
+    )
+    text = text.replace("Gaming sector average, B |", "Sector Ratings Average B |")
+    assert "SSN_2030" in text and "Sector Ratings Average B |" in text
+    assert _cp3_fill(text) == "129/129"

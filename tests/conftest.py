@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from fetch_server import FetchServer, Route, Starter
 
 from rbotlib.cli import main
 from rbotlib.contract import contract_from_dict
@@ -164,3 +165,17 @@ def prepared_run(corpus_pack: Callable[[str], Path]) -> Iterator[Callable[[str],
     yield get
     for pack_id, path in made.items():
         assert_tree_unchanged(f"prepared run {pack_id}", path, digests[pack_id], ())
+
+
+@pytest.fixture
+def server() -> Iterator[Starter]:
+    """Start local HTTP servers for the fetch tests; each is shut down after the test."""
+    started: list[FetchServer] = []
+
+    def start(routes: dict[str, Route]) -> FetchServer:
+        started.append(FetchServer(routes).__enter__())
+        return started[-1]
+
+    yield start
+    for item in started:
+        item.__exit__()
