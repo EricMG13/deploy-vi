@@ -45,7 +45,7 @@ def test_valid_repeated_edit_has_current_digest_and_original_receipts(
         assert (run / state.STATE).read_bytes() == unchanged
     assert evidence(run) == history
     assert cli.main(["model", "--run", str(run)]) == 0
-    assert next_step.select(run, RBOT_ROOT)["step"] == "CP-3"
+    assert next_step.select(run, RBOT_ROOT)["step"] == "CP-1C"
 
 
 @pytest.mark.parametrize("edit", ["wrong-issuer", "missing", "symlink", "malformed"])
