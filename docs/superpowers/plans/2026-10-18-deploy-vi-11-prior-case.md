@@ -83,6 +83,8 @@ Native reader ruling after executed11.1a: retained pending CP-0 identity is admi
 
 ### 11.3 — Native diff publication and fresh CP-8 grants (11A; <=750 lines)
 
+Execution refinement after tested reader548352e/comparer5e7bc83/candidatesab16f68/CP0749c1f4/Approval0c9e335: implement three complete capabilities before activation, each<=800 including evidence:11.3a read-only native prior/current input qualification and deterministic bindings;11.3b locked native diff CLI+canonical pair publication/use;11.3c CP8 dispatch/accept/resume grants and controller continuation. Each waits tested predecessor; no production placeholder/relaxed Report terminal gate. Original11.3 requirements below remain binding across these scopes.
+
 **Depends:** tested11.1/11.2. **Write set:** `diff.py` native command portion (split small `prior.py` qualification helper if needed), `cli.py`, `dispatch.py`, `resume.py`, `rbot/SKILL.md`, `scripts/proxy_continue.py`; new `tests/test_diff_cli.py`, `tests/test_prior_dispatch.py`; affected `tests/test_dispatch_boundaries.py`, `tests/test_proxy_continue.py`.
 
 **Contract:** `diff.add_command(sub)` installs `diff --run RUN --prior report.html|report.md`. A shared read-only `qualified_prior(run, root, record)` returns the selected original report, current diff object and canonical Markdown after checking the entire input binding. This helper must be callable during dispatch's existing held lock without acquiring another one and without publication. Do not call `run_json.build` or `dispatch.qualified_message` recursively.
