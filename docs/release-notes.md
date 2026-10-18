@@ -8,6 +8,9 @@
 - Validator: new finding `research_policy` for CP-DR answers, evidence and approved question ids.
 - cp-start: CP-0 offers up to five research questions `Q1`..`Q5` (consumers CP-2, CP-3, CP-6); the analyst keeps or drops them with `approve --deep-research yes|no --untick <id>…`. CP-2 cites `cpdr.sector_view.outlook` when CP-DR is accepted.
 - Proxy: `proxy_run --fetch` requires `RBOT_FETCH=1` in the environment and never sets it; a run without `--fetch` refuses while the variable is set. The scorecard prints the recorded `Fetch: on|off`.
+- A/B harness: an expected identity may list aliases (any spelling matches after folding), and a trailing parenthetical qualifier on the recorded value is ignored; a record still covers at most one expected row (owner, 2026-10-17).
+- Record run on czr-2026q2-primary (full, Deep Research approved, fetch off): R1–R8 PASS. Scorecard: docs/corpus-runs/2026-10-17-czr-2026q2-primary-full-credit-assessment-full-rc6.md.
+- A/B: CP-DR PASS on round 2 (docs/ab/2026-10-17-CP-DR-czr-2026q2-primary-r2.md); round 1 FAIL is kept (docs/ab/2026-10-17-CP-DR-czr-2026q2-primary.md) and led to the CP-DR process revision.
 
 ## Unreleased (Plan 09: Quick depth)
 
