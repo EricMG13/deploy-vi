@@ -63,6 +63,10 @@ class Source:
 
 def plan_dependencies(module: str, pathway: str, depth: str) -> list[str]:
     """Modules the target needs: catalog order before it, plus declared Handoff inputs."""
+    if module == "CP-8":
+        raise CorpusError(
+            "isolated CP-8 requires its own actual approved prior; import unavailable"
+        )
     rules = load_rules(RBOT_ROOT)
     selected = load_catalog(RBOT_ROOT).pathway(pathway)
     if selected is None or depth not in selected.depths:

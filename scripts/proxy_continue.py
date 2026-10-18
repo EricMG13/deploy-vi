@@ -97,6 +97,36 @@ def worker(run: Path, selected: state.Record, label: str | None) -> None:
         print("Attach --model only to the genuine dispatch-receipt; provider/model stays unknown")
 
 
+def _prior_before_selection(run: Path, native: Native) -> None:
+    record = state.read(run)
+    if "CP-8" not in record["plan"] or record["steps"]["CP-8"]["status"] not in (
+        "pending",
+        "running",
+    ):
+        return
+    from rbotlib import current, prior_diff
+    from rbotlib import next as selection
+
+    selection._eligible(record)
+    current.reconcile(run, RBOT_ROOT)
+    record = state.read(run)
+    outstanding = next(
+        (n for n in record["plan"] if record["steps"][n]["status"] in ("pending", "running")), None
+    )
+    if outstanding != "CP-8":
+        return
+    # A persisted selection is already a grant, even before a receipt is reported.
+    names = (*prior_diff.NAMES, "dispatch/CP-8.md")
+    if any((run / n).exists() or (run / n).is_symlink() for n in names) or record["steps"][
+        "CP-8"
+    ].get("attempts", 0):
+        with state.publication(run) as checked:
+            prior_diff.qualified_prior(run, RBOT_ROOT, state.read(run))
+            checked()
+    else:
+        native(run, "diff", ["--prior", record["prior_case"]["report"]])
+
+
 def advance(
     run: Path,
     label: str | None,
@@ -108,6 +138,7 @@ def advance(
         return
     # Each host becomes terminal or returns its genuine refusal/error. Never retry it here.
     for _ in range(len(state.read(run)["plan"]) + 1):
+        _prior_before_selection(run, native)
         selected = json.loads(native(run, "next", None))
         if selected["kind"] == "module":
             if on_module is not None and on_module(selected):

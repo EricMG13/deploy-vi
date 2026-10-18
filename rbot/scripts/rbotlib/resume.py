@@ -39,6 +39,14 @@ def fingerprint(run: Path, root: Path, record: state.Record, event: state.Record
         else None
     )
     artifacts = {n: dispatch._sha(dispatch._file(run, n)) for n in sorted(names) if n != failed_own}
+    # The pre-intent projection is stale after installation; qualification requires
+    # the actual guarded record, while its binding excludes CP8's own publication.
+    artifacts.update(
+        {
+            g["path"]: g["sha256"]
+            for g in dispatch._prior_grants(run, root, event["module"], state.read(run))
+        }
+    )
     if failed_own is not None:
         dispatch._target(run, failed_own)  # metadata safety still precedes publication
         artifacts[failed_own] = event["result"]["sha256"]
