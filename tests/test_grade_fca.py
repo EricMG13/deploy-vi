@@ -36,7 +36,7 @@ from rbotlib.rules import RBOT_ROOT
 NO_STATEMENTS = (
     "Blocked",
     ["CP-1", "CP-1B", "MODEL", "CP-2", "CP-3", "CP-6"],
-    ["CP-1A", "CP-1D", "FIT"],
+    ["CP-1A", "CP-1D", "CP-1C", "CP-2A", "CP-4", "CP-2D", "FIT"],
 )
 GRADES: dict[str, tuple[str, list[str], list[str]]] = {
     "czr-2026q2-primary": ("Available", [], []),
