@@ -217,8 +217,18 @@ def _fold(text: str) -> str:
     return "".join(ch for ch in text.casefold() if ch.isalnum())
 
 
-def _matches(record: dict[str, str], identity: dict[str, str]) -> bool:
-    return all(_fold(record.get(k.casefold(), "")) == _fold(v) for k, v in identity.items())
+def _spellings(value: str | list[str]) -> list[str]:
+    return [value] if isinstance(value, str) else value
+
+
+def _value_matches(recorded: str, value: str | list[str]) -> bool:
+    """A recorded value equals any listed spelling, with or without one trailing (qualifier)."""
+    bare = _fold(re.sub(r"\s*\([^()]*\)\s*$", "", recorded))
+    return any(_fold(s) in (_fold(recorded), bare) for s in _spellings(value))
+
+
+def _matches(record: dict[str, str], identity: dict[str, Any]) -> bool:
+    return all(_value_matches(record.get(k.casefold(), ""), v) for k, v in identity.items())
 
 
 def _expected_records(
@@ -288,6 +298,12 @@ def _check_entry(entry: dict[str, Any], contract: Contract, expectations: Path) 
         raise ABError(f"{entry['table']}: expected identity uses an unknown column")
 
 
+def _texts(value: object) -> bool:
+    """A nonempty string, or a nonempty list of them (aliases, first spelling canonical)."""
+    items = [value] if isinstance(value, str) else value
+    return isinstance(items, list) and bool(items) and all(isinstance(i, str) and i for i in items)
+
+
 def _check_identities(identities: object, rows: int, table: str) -> None:
     if not isinstance(identities, list) or len(identities) != rows:
         raise ABError(f"{table}: expected_identities must match expected_rows")
@@ -296,12 +312,12 @@ def _check_identities(identities: object, rows: int, table: str) -> None:
         if (
             not isinstance(identity, dict)
             or not identity
-            or not all(
-                isinstance(k, str) and isinstance(v, str) and k and v for k, v in identity.items()
-            )
+            or not all(isinstance(k, str) and k and _texts(v) for k, v in identity.items())
         ):
             raise ABError(f"{table}: expected identities need nonempty text keys and values")
-        keys.append(tuple(sorted((normalise(k), normalise(v)) for k, v in identity.items())))
+        keys.append(
+            tuple(sorted((normalise(k), normalise(_spellings(v)[0])) for k, v in identity.items()))
+        )
     if len(set(keys)) != len(keys):
         raise ABError(f"{table}: an expected identity is duplicated")
 
