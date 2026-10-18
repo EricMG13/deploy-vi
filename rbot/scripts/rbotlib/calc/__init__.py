@@ -15,11 +15,14 @@ from decimal import Decimal
 from pathlib import Path
 from types import ModuleType
 
-from rbotlib.calc import bond_analytics
+from rbotlib.calc import bond_analytics, peer_statistics
 from rbotlib.calc.bond_analytics import CalcError
 from rbotlib.fsio import write_atomic
 
-CALCULATORS: dict[str, ModuleType] = {"bond_analytics": bond_analytics}
+CALCULATORS: dict[str, ModuleType] = {
+    "bond_analytics": bond_analytics,
+    "peer_statistics": peer_statistics,
+}
 
 
 def read_input(path: Path) -> object:
