@@ -1,6 +1,6 @@
-# gitleaks' default rules. Exemptions are by path only, and only where a file holds
-# content digests or identifier-shaped sample data and nothing that could be a
-# credential.
+# gitleaks' default rules. The allowlists below cover only content digests or
+# identifier-shaped sample data, never credentials. .gitleaksignore separately
+# pins verified historical prose findings to exact commit:file:rule:line identities.
 [extend]
 useDefault = true
 

@@ -14,6 +14,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from state_receipt_assertions import outcome_bytes
 
+from conftest import HANG_TIMEOUT
 from rbotlib.cli import main
 from rbotlib.fsio import write_atomic
 
@@ -171,7 +172,7 @@ def test_shared_lock_refuses_overlap_then_reads_the_latest_state(tmp_path: Path)
     def change(record: dict[str, Any]) -> None:
         record["worker_note"] = "first update"
         inside.set()
-        assert release.wait(10)
+        assert release.wait(HANG_TIMEOUT)
 
     def first() -> None:
         try:
@@ -181,7 +182,7 @@ def test_shared_lock_refuses_overlap_then_reads_the_latest_state(tmp_path: Path)
 
     thread = threading.Thread(target=first)
     thread.start()
-    assert inside.wait(10)
+    assert inside.wait(HANG_TIMEOUT)
     try:
         child = subprocess.run(
             [
@@ -197,7 +198,7 @@ def test_shared_lock_refuses_overlap_then_reads_the_latest_state(tmp_path: Path)
             ],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=HANG_TIMEOUT,
             check=False,
         )
         assert child.returncode == 1 and "holds this run" in child.stdout + child.stderr
@@ -361,7 +362,7 @@ def test_malformed_log_refuses_before_terminal_state_publication(tmp_path: Path,
         ],
         capture_output=True,
         text=True,
-        timeout=2,
+        timeout=HANG_TIMEOUT,
         check=False,
     )
     assert child.returncode == 1
@@ -383,7 +384,7 @@ def test_nonregular_state_refuses_promptly_in_real_process(tmp_path: Path, kind:
         [sys.executable, "rbot/scripts/rbot.py", "state", "--run", str(run)],
         capture_output=True,
         text=True,
-        timeout=2,
+        timeout=HANG_TIMEOUT,
         check=False,
     )
     assert child.returncode == 1

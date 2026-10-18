@@ -12,6 +12,7 @@ import pytest
 from test_bootstrap import approve, pending, ready
 from test_modules import _blocked
 
+from conftest import HANG_TIMEOUT
 from rbotlib import cli, dispatch, state
 from rbotlib.contract import load_contract
 from rbotlib.rules import RBOT_ROOT, load_rules
@@ -87,7 +88,7 @@ def killed(run: Path, phase: str, argv: list[str]) -> subprocess.CompletedProces
         env=os.environ | {"PYTHONPATH": str(RBOT_ROOT / "scripts")},
         capture_output=True,
         text=True,
-        timeout=20,
+        timeout=HANG_TIMEOUT,
     )
     assert result.returncode == 73, result.stderr
     return result
@@ -346,7 +347,7 @@ def test_original_native_module_owner_finishes_after_refused_contender(tmp_path:
         text=True,
     )
     try:
-        deadline = time.monotonic() + 10
+        deadline = time.monotonic() + HANG_TIMEOUT
         while not (run / ".held-fixture").exists() and time.monotonic() < deadline:
             time.sleep(0.01)
         assert (run / ".held-fixture").exists()
@@ -355,7 +356,7 @@ def test_original_native_module_owner_finishes_after_refused_contender(tmp_path:
         assert (run / state.STATE).read_bytes() == before
         assert (run / "log/rbot.log").read_bytes() == log
         (run / ".continue-fixture").touch()
-        _, error = process.communicate(timeout=10)
+        _, error = process.communicate(timeout=HANG_TIMEOUT)
         assert process.returncode == 3, error
         assert state.read(run)["steps"]["CP-1"]["status"] == "blocked"
     finally:
