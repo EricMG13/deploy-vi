@@ -20,6 +20,7 @@ from rbotlib.calc import (
     covenant_headroom,
     liquidity_bridge,
     peer_statistics,
+    rate_fx_sensitivity,
 )
 from rbotlib.calc.bond_analytics import CalcError
 from rbotlib.fsio import write_atomic
@@ -29,6 +30,7 @@ CALCULATORS: dict[str, ModuleType] = {
     "covenant_headroom": covenant_headroom,
     "liquidity_bridge": liquidity_bridge,
     "peer_statistics": peer_statistics,
+    "rate_fx_sensitivity": rate_fx_sensitivity,
 }
 
 
