@@ -75,7 +75,7 @@ Write one Handoff, `handoffs/CP-1B.md`, carrying these tables:
 
 - `unit` takes exactly one of: UNITS; THOUSANDS; MILLIONS
 
-**Early-warning signals** — at least 0 row(s); read by CP-2, CP-6, REPORT.
+**Early-warning signals** — at least 0 row(s); read by CP-2, CP-2A, CP-6, REPORT.
 
 <!-- table: cp1b.signals -->
 | signal* | evidence* | severity* | credit_implication* | cite* |

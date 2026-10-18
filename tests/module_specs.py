@@ -616,3 +616,28 @@ TABLES["CP-1C"] = [
     ),
 ]
 INPUTS["CP-1C"] = Inputs("CP-0 CP-1", "MODEL", "issuer market", "issuer as_of_date")
+
+
+TABLES["CP-2A"] = [
+    TableSpec(
+        "cp2a.downside_paths",
+        2,
+        "path_id* driver* first_break* transmission* consequence* time_horizon* "
+        "probability*:ordinal impact*:ordinal confidence*:confidence cite*",
+        "CP-2G CP-3 CP-6 CP-3C CP-4C CP-2D CP-2E CP-2H REPORT",
+    ),
+    TableSpec(
+        "cp2a.sensitivities",
+        0,
+        "sensitivity* input_basis* method* result* unit_label* interpretation* "
+        "status*:calc_status cite*",
+        "CP-2G CP-3 CP-6 REPORT",
+    ),
+    TableSpec(
+        "cp2a.triggers",
+        1,
+        "trigger_id* indicator* lead_lag*:lead_lag threshold* linked_path* consequence* cite*",
+        "CP-6 CP-2H CP-3 REPORT",
+    ),
+]
+INPUTS["CP-2A"] = Inputs("CP-0 CP-1 CP-2 MODEL", "CP-1A CP-1B CP-DR", "issuer", "as_of_date")

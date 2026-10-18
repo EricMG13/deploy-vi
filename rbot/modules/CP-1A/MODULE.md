@@ -48,7 +48,7 @@ Write one Handoff, `handoffs/CP-1A.md`, carrying these tables:
 | description* | cite* |
 |---|---|
 
-**Business facts** — at least 3 row(s); read by CP-2, CP-DR, CP-3, CP-L10.
+**Business facts** — at least 3 row(s); read by CP-2, CP-2A, CP-DR, CP-3, CP-L10.
 
 <!-- table: cp1a.business_facts -->
 | item* | fact* | risk_mechanism* | credit_implication* | evidence_quality* | cite* |
@@ -64,7 +64,7 @@ Write one Handoff, `handoffs/CP-1A.md`, carrying these tables:
 
 - `risk_direction` takes exactly one of: Positive; Neutral; Negative
 
-**Transactions and events** — at least 1 row(s); read by CP-2, CP-6, CP-L10, CP-DR.
+**Transactions and events** — at least 1 row(s); read by CP-2, CP-2A, CP-6, CP-L10, CP-DR.
 
 <!-- table: cp1a.transactions_events -->
 | event_date* | event* | status* | credit_relevance* | perimeter_change* | cite* |

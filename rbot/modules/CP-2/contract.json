@@ -41,7 +41,7 @@
         {"name": "basis", "critical": true, "scale": "depth_basis"},
         {"name": "cite", "critical": true}
       ],
-      "consumers": ["REPORT", "CP-3", "CP-5", "CP-6"]
+      "consumers": ["REPORT", "CP-2A", "CP-3", "CP-5", "CP-6"]
     },
     {
       "id": "snapshot.strengths_weaknesses",
@@ -65,7 +65,7 @@
         {"name": "confidence", "critical": true, "scale": "confidence"},
         {"name": "cite", "critical": true}
       ],
-      "consumers": ["CP-3", "CP-6", "CP-5"]
+      "consumers": ["CP-2A", "CP-3", "CP-6", "CP-5"]
     },
     {
       "id": "cp2.watch_items",
@@ -76,7 +76,7 @@
         {"name": "why_it_matters", "critical": true}, {"name": "credit_impact", "critical": true},
         {"name": "cite"}
       ],
-      "consumers": ["CP-6", "REPORT"]
+      "consumers": ["CP-6", "CP-2A", "REPORT"]
     }
   ],
   "prohibited": [

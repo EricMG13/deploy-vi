@@ -58,7 +58,7 @@
         {"name": "evidence_quality", "critical": true, "scale": "evidence_quality"},
         {"name": "cite", "critical": true}
       ],
-      "consumers": ["CP-2", "CP-DR", "CP-3", "CP-L10"]
+      "consumers": ["CP-2", "CP-2A", "CP-DR", "CP-3", "CP-L10"]
     },
     {
       "id": "cp1a.ownership_governance",
@@ -81,7 +81,7 @@
         {"name": "perimeter_change", "critical": true, "scale": "yes_no"},
         {"name": "cite", "critical": true}
       ],
-      "consumers": ["CP-2", "CP-6", "CP-L10", "CP-DR"]
+      "consumers": ["CP-2", "CP-2A", "CP-6", "CP-L10", "CP-DR"]
     },
     {
       "id": "cp1a.ratings_register",

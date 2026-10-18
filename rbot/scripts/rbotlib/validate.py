@@ -31,6 +31,8 @@ from rbotlib.rules import Rules
 EXIT_VALID, EXIT_USAGE, EXIT_MALFORMED, EXIT_BLOCKED, EXIT_IDENTITY = 0, 1, 2, 3, 4
 MAX_HANDOFF_BYTES = 98_304
 ROW_KEYS = {
+    "cp2a.downside_paths": ("path_id",),
+    "cp2a.triggers": ("trigger_id",),
     "snapshot.recommendation": ("strategy",),
     "snapshot.instrument_recommendation": ("facility_id",),
     "snapshot.instrument_levels": ("facility_id",),
@@ -539,10 +541,35 @@ def _blocked_gate(h: Handoff, rules: Rules) -> list[Finding]:
     ]
 
 
+def _path_links(h: Handoff, rules: Rules) -> list[Finding]:
+    """Concrete triggers must name a path; Blocked gap cells remain legitimate gaps."""
+    paths, triggers = h.tables.get("cp2a.downside_paths"), h.tables.get("cp2a.triggers")
+    path_at = _column(paths, "path_id") if paths else None
+    link_at = _column(triggers, "linked_path") if triggers else None
+    if paths is None or triggers is None or path_at is None or link_at is None:
+        return []  # structural findings already explain missing tables/columns
+    identities = {
+        normalise(row[path_at])
+        for row in paths.rows
+        if len(row) == len(paths.columns) and not rules.is_placeholder(row[path_at])
+    }
+    return [
+        Finding(
+            "unknown_linked_path", f"cp2a.triggers row {n}: unknown linked_path {row[link_at]!r}"
+        )
+        for n, row in enumerate(triggers.rows, 1)
+        if len(row) == len(triggers.columns)
+        and not rules.is_placeholder(row[link_at])
+        and normalise(row[link_at]) not in identities
+    ]
+
+
 def _module_findings(
     h: Handoff, contract: Contract, rules: Rules, run: Path | None
 ) -> list[Finding]:
     """A module's own checks beyond its tables: CP-0's in `rbotlib.cp0` (Plan 04), CP-3's gate."""
+    if contract.module_id == "CP-2A":
+        return _path_links(h, rules)
     if contract.module_id == "CP-3":
         return _blocked_gate(h, rules)
     if contract.module_id == "CP-DR":
