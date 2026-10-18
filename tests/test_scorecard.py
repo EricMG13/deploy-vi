@@ -21,6 +21,9 @@ from rbotlib.rules import RBOT_ROOT, load_rules
 PACK = "czr-2026q2-primary"
 EXPECTATIONS = Path(__file__).parent / "corpus" / "expectations"
 HANDOFFS = Path(__file__).parent / "fixtures" / "handoffs"
+FULL_PLAN = (
+    "CP-0 CP-1 CP-1A CP-DR CP-1B CP-1D MODEL CP-1C CP-2 CP-2A CP-2E CP-4 CP-2D CP-3 FIT CP-5 CP-6"
+).split()
 
 
 def snapshot(run: Path) -> dict[str, bytes]:
@@ -74,7 +77,14 @@ def test_accepted_run_reports_measured_ratios_and_unknowns(run: Path, tmp_path: 
     assert {pending_row[k] for k in ("Attempts", "Citations", "Gaps", "Started", "Model")} == {
         "unknown"
     }
-    assert "Steps accepted (verified): 1/12" in text
+    assert state.read(run)["plan"] == FULL_PLAN
+    steps = text.split("## Steps\n", 1)[1].split("\n## ", 1)[0]
+    assert [line.split(" | ")[0][2:] for line in steps.strip().splitlines()[2:]] == FULL_PLAN
+    assert "- Steps accepted (verified): 1/17" in text.splitlines()
+    assert [name for name in FULL_PLAN if cols(text, name)["Accepted"] == "yes"] == ["CP-0"]
+    assert cols(text, "CP-DR")["Status"] == cols(text, "FIT")["Status"] == "skipped"
+    for name in ("CP-1C", "CP-2A", "CP-2E", "CP-4", "CP-2D"):
+        assert cols(text, name)["Status"] == "pending" and cols(text, name)["Accepted"] == "no"
     assert "| CP-3 | 0/129 | step not accepted: cells unfilled |" in text
     assert "unknown: model.json is not in the run." in text
     assert text.rstrip().splitlines()[-1].startswith("Not verified: Copilot behaviour")
@@ -132,7 +142,9 @@ def test_handoff_edited_after_acceptance_is_not_counted_accepted(run: Path, tmp_
     cp0 = cols(text, "CP-0")
     assert cp0["Status"] == "accepted" and cp0["Accepted"] == "no"
     assert "MISMATCH: Handoff bytes differ from the recorded digest" in cp0["Notes"]
-    assert cp0["Citations"] == "unknown" and "Steps accepted (verified): 0/12" in text
+    assert (
+        cp0["Citations"] == "unknown" and "- Steps accepted (verified): 0/17" in text.splitlines()
+    )
 
 
 def test_a_deleted_handoff_is_not_counted_accepted(run: Path, tmp_path: Path) -> None:

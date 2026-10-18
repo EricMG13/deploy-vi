@@ -585,3 +585,160 @@ TABLES["CP-DR"] = [
 INPUTS["CP-DR"] = Inputs(
     "CP-0 CP-1A", "CP-1", "issuer market", "research_questions issuer as_of_date"
 )
+
+
+TABLES["CP-1C"] = [
+    TableSpec(
+        "cp1c.peer_set",
+        1,
+        "peer* selection_basis* comparability*:comparability data_availability* cite*",
+        "CP-2 CP-3 REPORT",
+    ),
+    TableSpec(
+        "cp1c.peer_metrics",
+        3,
+        "peer* metric_id* value* unit_label* period* currency definition_note cite*",
+        "CP-2 CP-3 CP-2G REPORT",
+    ),
+    TableSpec(
+        "cp1c.positioning",
+        1,
+        "metric_id* unit_label* borrower_value* peer_min* peer_q1* peer_median* peer_q3* "
+        "peer_max* n* position*:position credit_implication* cite*",
+        "CP-2 CP-3 CP-6 REPORT",
+    ),
+    TableSpec(
+        "cp1c.valuation_multiples",
+        0,
+        "entity* basis*:multiple_basis ev ev_ebitda_x ev_revenue_x implied_ev_low "
+        "implied_ev_median implied_ev_high currency* unit*:unit period* cite*",
+        "CP-3 CP-6 CP-4C REPORT",
+    ),
+]
+INPUTS["CP-1C"] = Inputs("CP-0 CP-1", "MODEL", "issuer market", "issuer as_of_date")
+
+
+TABLES["CP-2A"] = [
+    TableSpec(
+        "cp2a.downside_paths",
+        2,
+        "path_id* driver* first_break* transmission* consequence* time_horizon* "
+        "probability*:ordinal impact*:ordinal confidence*:confidence cite*",
+        "CP-2G CP-3 CP-6 CP-3C CP-4C CP-2D CP-2E CP-2H REPORT",
+    ),
+    TableSpec(
+        "cp2a.sensitivities",
+        0,
+        "sensitivity* input_basis* method* result* unit_label* interpretation* "
+        "status*:calc_status cite*",
+        "CP-2G CP-3 CP-6 REPORT",
+    ),
+    TableSpec(
+        "cp2a.triggers",
+        1,
+        "trigger_id* indicator* lead_lag*:lead_lag threshold* linked_path* consequence* cite*",
+        "CP-6 CP-2H CP-3 REPORT",
+    ),
+]
+INPUTS["CP-2A"] = Inputs("CP-0 CP-1 CP-2 MODEL", "CP-1A CP-1B CP-DR", "issuer", "as_of_date")
+
+
+TABLES["CP-4"] = [
+    TableSpec(
+        "cp4.document_register",
+        1,
+        "document* document_type*:document_type document_date* parties* "
+        "governing_law status* cite*",
+        "CP-3C CP-4C CP-5 REPORT",
+    ),
+    TableSpec(
+        "cp4.covenant_tests",
+        1,
+        "test* test_type*:test_type direction*:trigger_direction threshold* current_value* "
+        "unit_label* basis* headroom* status*:trigger_status cite*",
+        "CP-2D CP-3C CP-4C CP-6 CP-3 REPORT",
+    ),
+    TableSpec(
+        "cp4.capacity_register",
+        1,
+        "capacity_type* basket* formula* used* remaining* currency* unit*:unit "
+        "status*:calc_status severity*:severity risk_mechanism* credit_implication* cite*",
+        "CP-3C CP-4C CP-3 CP-6 REPORT",
+    ),
+    TableSpec(
+        "cp4.structure_map",
+        0,
+        "entity* role* inside_credit_group*:yes_no guarantees* liens* reachable_value* cite*",
+        "CP-4C CP-3 CP-3C REPORT",
+    ),
+    TableSpec(
+        "cp4.red_flags",
+        1,
+        "flag* provision* creditor_risk* severity*:severity pd_lgd_effect* cite*",
+        "CP-3 CP-3C CP-4C CP-6 REPORT",
+    ),
+    TableSpec(
+        "cp4.ebitda_definition",
+        1,
+        "feature* clause* cap_or_condition* capacity_effect* cite*",
+        "CP-3C CP-6 REPORT",
+    ),
+    TableSpec(
+        "cp4.protection_score", 1, "area* score*:five_point evidence* cite*", "CP-6 CP-3 REPORT"
+    ),
+]
+INPUTS["CP-4"] = Inputs("CP-0 CP-1 MODEL", "CP-1A CP-1D CP-2 CP-L10", "issuer", "as_of_date")
+
+
+TABLES["CP-2D"] = [
+    TableSpec(
+        "cp2d.liquidity_sources",
+        1,
+        "component* amount* currency* unit*:unit accessible*:yes_no restriction cite*",
+        "CP-2G CP-3C CP-4C CP-6 REPORT",
+    ),
+    TableSpec(
+        "cp2d.cash_uses_12m",
+        1,
+        "use* amount* currency* unit*:unit timing* mandatory*:yes_no cite*",
+        "CP-2G CP-3C CP-4C REPORT",
+    ),
+    TableSpec(
+        "cp2d.bridge",
+        3,
+        "step* kind*:bridge_kind amount* currency* unit*:unit basis* cite*",
+        "CP-6 CP-3C CP-4C CP-2G REPORT",
+    ),
+    TableSpec(
+        "cp2d.runway",
+        4,
+        "item* value* unit_label* basis* cite",
+        "CP-6 CP-3C CP-4C CP-2G CP-2H REPORT",
+    ),
+]
+INPUTS["CP-2D"] = Inputs("CP-0 CP-1 MODEL", "CP-4 CP-2 CP-L10 CP-2A CP-1B", "issuer", "as_of_date")
+
+
+TABLES["CP-2E"] = [
+    TableSpec(
+        "cp2e.exposures",
+        1,
+        "exposure* kind*:exposure_kind amount currency* unit*:unit hedge_status* "
+        "transmission* credit_implication* cite*",
+        "CP-2G CP-3 CP-6 REPORT",
+    ),
+    TableSpec(
+        "cp2e.sensitivities",
+        1,
+        "sensitivity* shock* formula* cash_impact* currency* unit*:unit status*:calc_status cite*",
+        "CP-2G CP-6 CP-3 REPORT",
+    ),
+    TableSpec(
+        "cp2e.hedges",
+        0,
+        "hedge* notional* currency* unit*:unit covered_instrument* rate_or_strike* "
+        "maturity_date* cite*",
+        "CP-2G CP-3C REPORT",
+    ),
+]
+INPUTS["CP-2E"] = Inputs("CP-0 CP-1 MODEL", "CP-2 CP-2A", "issuer market", "as_of_date")

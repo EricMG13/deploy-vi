@@ -23,6 +23,7 @@ from rbotlib.rules import RBOT_ROOT, Rules
 from rbotlib.validate import check
 
 MODULES = sorted(TABLES)
+# CP1C Primary lacks four aligned operating peers; its truthful fixture is Blocked.
 FOLDERS = RBOT_ROOT / "modules"
 
 
@@ -67,7 +68,10 @@ def test_module_md_is_generated_and_within_the_budget(module_id: str, rules: Rul
 
 @pytest.mark.parametrize("module_id", MODULES)
 def test_the_fixture_handoff_validates(module_id: str, rules: Rules) -> None:
-    assert check(fixture(module_id), contract(module_id, rules), rules) == (0, [])
+    assert check(fixture(module_id), contract(module_id, rules), rules) == (
+        3 if module_id in {"CP-1C", "CP-4", "CP-2D", "CP-2E"} else 0,
+        [],
+    )
 
 
 @pytest.mark.corpus
@@ -76,7 +80,10 @@ def test_handoff_fixtures_validate(
     module_id: str, prepared_run: Callable[[str], Path], rules: Rules
 ) -> None:
     run = prepared_run("czr-2026q2-primary")
-    assert check(fixture(module_id), contract(module_id, rules), rules, run) == (0, [])
+    assert check(fixture(module_id), contract(module_id, rules), rules, run) == (
+        3 if module_id in {"CP-1C", "CP-4", "CP-2D", "CP-2E"} else 0,
+        [],
+    )
 
 
 def _blocked(text: str, c: Contract) -> str:

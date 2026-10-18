@@ -1,9 +1,11 @@
 """`scripts/acceptance.py check`: the run bar R1-R8 on finished fixture runs (Plan 08 task 08.4a).
 
-The baseline is Plan 07's `complete_run` (hand-written Handoffs through the real native commands,
-never live model evidence). `rbot render` is not in this branch, so `report.html` and `report.md`
-are written by the fixture (the embedded document is the real `run_json.build`) and the report
-fields go through `state.update`: R2 is exercised on those files, not on a real render's output.
+The positive baseline declares the historical v1 Full12 scope in a private catalog before
+Plan 07's `complete_run` grades and approves it. Current contracts and fixture facts are retained;
+a separate current Full17 run must refuse its genuinely Blocked/uncited modules. These are
+hand-written Handoffs through real native commands, never live model evidence. The fixture
+writes report files with the real `run_json.build` and updates state: R2 tests these files,
+not the renderer.
 Each case flips exactly one row of the baseline, on a fresh copy of the pack put back from a
 snapshot; three runs are built once per module (accepted, failed CP-1B, dropped rows).
 """
@@ -15,7 +17,7 @@ import hashlib
 import io
 import json
 import shutil
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import NamedTuple
 
@@ -23,13 +25,17 @@ import acceptance
 import pytest
 import report_run
 import scorecard
+import test_bootstrap
 from report_run import complete_run
+from test_accept import accept as NATIVE_ACCEPT
 
+import ab_grade
 from rbotlib import approve, attempts, dispatch, state
+from rbotlib.cli import main as NATIVE_MAIN
 from rbotlib.inventory import RunError
 from rbotlib.report import run_json
 from rbotlib.report.html_parts import embed_json
-from rbotlib.rules import RBOT_ROOT
+from rbotlib.rules import RBOT_ROOT, load_rules
 
 PACK = "czr-2026q2-primary"
 LABEL = "fixture-model"
@@ -43,6 +49,60 @@ EXTRA_LIMITS = "".join(
 )
 DROPPED = 5  # of CP-3 instrument_levels' 7 facility rows: 45 of the 335 measured cells
 Verdicts = dict[str, tuple[str, str, str]]
+
+INSTALLED_ROOT = RBOT_ROOT
+V1_FULL = [
+    "CP-0",
+    "CP-1",
+    "CP-1A",
+    "CP-DR",
+    "CP-1B",
+    "CP-1D",
+    "MODEL",
+    "CP-2",
+    "CP-3",
+    "FIT",
+    "CP-5",
+    "CP-6",
+]
+
+
+@contextlib.contextmanager
+def selected_root(root: Path) -> Iterator[None]:
+    """Bind native commands, receipts, validation and scoring to one real fixture root."""
+
+    def command(argv: list[str]) -> int:
+        if "--root" in argv:
+            assert Path(argv[argv.index("--root") + 1]) == root
+        else:
+            argv = ["--root", str(root), *argv]
+        return NATIVE_MAIN(argv)
+
+    def accept(run: Path, module: str = "CP-0") -> int:
+        return NATIVE_ACCEPT(run, root=root, module=module)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setitem(globals(), "RBOT_ROOT", root)
+        for module in (report_run, acceptance, scorecard, ab_grade):
+            patch.setattr(module, "RBOT_ROOT", root)
+        for module in (acceptance, scorecard, ab_grade):
+            patch.setattr(module, "load_rules", lambda: load_rules(root))
+        patch.setattr(report_run, "main", command)
+        patch.setattr(test_bootstrap, "main", command)
+        patch.setattr(report_run, "accept", accept)
+        yield
+
+
+@pytest.fixture(scope="module", autouse=True)
+def v1_root(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Path]:
+    """Scope is declared before grading/approval; never cut steps from approved state."""
+    root = shutil.copytree(INSTALLED_ROOT, tmp_path_factory.mktemp("acceptance-v1") / "rbot")
+    path = root / "catalog.json"
+    catalog = json.loads(path.read_text(encoding="utf-8"))
+    catalog["pathways"][0]["depths"]["full"] = V1_FULL
+    path.write_text(json.dumps(catalog), encoding="utf-8")
+    with selected_root(root):
+        yield root
 
 
 def send(run: Path, root: Path, module: str = "CP-0", name: str = "fixture-send") -> None:
@@ -189,6 +249,46 @@ def test_baseline_passes_every_row(base: Verdicts) -> None:
     assert {k: v[0] for k, v in base.items()} == dict.fromkeys(
         ("R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8"), "PASS"
     ), base
+
+
+def test_positive_scope_and_host_origin_are_bound_before_approval(
+    accepted: Built,
+    v1_root: Path,
+) -> None:
+    record = state.read(reset(accepted))
+    assert record["plan"] == V1_FULL
+    assert v1_root != INSTALLED_ROOT
+    original = json.loads((INSTALLED_ROOT / "catalog.json").read_text(encoding="utf-8"))
+    assert len(original["pathways"][0]["depths"]["full"]) == 17
+    assert scorecard._forged(accepted.run, record) is None
+    with selected_root(INSTALLED_ROOT):
+        assert scorecard._forged(accepted.run, record) is not None
+    assert scorecard._forged(accepted.run, record) is None  # nested context restored
+
+
+@pytest.fixture(scope="module")
+def current17(
+    corpus_pack: Callable[[str], Path],
+    tmp_path_factory: pytest.TempPathFactory,
+    v1_root: Path,
+) -> Built:
+    with selected_root(INSTALLED_ROOT):
+        return build(corpus_pack, tmp_path_factory, "current-full17")
+
+
+def test_current_full17_retains_blocked_and_uncited_refusals(current17: Built) -> None:
+    with selected_root(INSTALLED_ROOT):
+        run = reset(current17)
+        record = state.read(run)
+        catalog = json.loads((RBOT_ROOT / "catalog.json").read_text(encoding="utf-8"))
+        assert record["plan"] == catalog["pathways"][0]["depths"]["full"]
+        assert len(record["plan"]) == 17
+        got = verdicts(run)
+        assert {k for k, v in got.items() if v[0] != "PASS"} == {"R3", "R4"}, got
+        for module in ("CP-1C", "CP-4", "CP-2D", "CP-2E"):
+            assert record["steps"][module]["status"] == "blocked"
+            assert module in got["R3"][2]
+            assert f"{module} unmeasurable" in got["R4"][2]
 
 
 def test_report_is_a_table_and_exit_is_zero(run: Path, capsys: pytest.CaptureFixture[str]) -> None:

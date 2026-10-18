@@ -39,7 +39,7 @@ Write one Handoff, `handoffs/CP-DR.md`, carrying these tables:
 
 - `status` takes exactly one of: Answered; Partly answered; Unanswered
 
-**Evidence items with independence** — at least 1 row(s); read by CP-2, CP-3, CP-6, REPORT.
+**Evidence items with independence** — at least 1 row(s); read by CP-2, CP-2A, CP-3, CP-6, REPORT.
 
 <!-- table: cpdr.evidence -->
 | evidence_id* | question_id* | claim* | claim_type* | source_type* | source_date* | independence* | cite* |
@@ -47,7 +47,7 @@ Write one Handoff, `handoffs/CP-DR.md`, carrying these tables:
 
 - `source_type` takes exactly one of: Pack; Fetched
 
-**Answer per question with contrary evidence** — at least 1 row(s); read by CP-2, CP-3, CP-6, REPORT.
+**Answer per question with contrary evidence** — at least 1 row(s); read by CP-2, CP-2A, CP-3, CP-6, REPORT.
 
 <!-- table: cpdr.answers -->
 | question_id* | answer* | evidence_ids* | contrary_evidence* | uncertainty* | consequence_for* | cite* |

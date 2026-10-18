@@ -52,7 +52,7 @@
         {"name": "value"}, {"name": "calculation_status", "critical": true}, {"name": "source_id"},
         {"name": "source_locator"}
       ],
-      "consumers": ["MODEL", "CP-1B", "CP-1D", "CP-5", "CP-2"]
+      "consumers": ["MODEL", "CP-1B", "CP-1D", "CP-4", "CP-2D", "CP-5", "CP-2"]
     },
     {
       "id": "cp1.adjusted_ebitda_bridge",
@@ -65,7 +65,7 @@
         {"name": "display_priority", "critical": true}, {"name": "period_id", "critical": true},
         {"name": "value"}, {"name": "source_id"}, {"name": "source_locator"}
       ],
-      "consumers": ["MODEL", "CP-1D", "CP-2"]
+      "consumers": ["MODEL", "CP-1D", "CP-4", "CP-2"]
     },
     {
       "id": "cp1.segment_revenue_schedule",
@@ -108,7 +108,7 @@
         {"name": "fixed_rate"}, {"name": "annual_amortisation"}, {"name": "source_id"},
         {"name": "source_locator"}
       ],
-      "consumers": ["MODEL", "CP-3", "FIT", "CP-1D", "CP-2"]
+      "consumers": ["MODEL", "CP-3", "CP-4", "CP-2E", "CP-2D", "FIT", "CP-1D", "CP-2"]
     },
     {
       "id": "cp1.pro_forma_adjustment_register",
@@ -156,7 +156,7 @@
         {"name": "call_schedule"}, {"name": "listed_market", "critical": true, "scale": "yes_no"},
         {"name": "cite", "critical": true}
       ],
-      "consumers": ["MODEL", "CP-3", "FIT", "REPORT"]
+      "consumers": ["MODEL", "CP-3", "CP-4", "FIT", "REPORT"]
     },
     {
       "id": "cp1.reconciliation_checks",
@@ -181,7 +181,7 @@
         {"name": "materiality", "critical": true, "scale": "materiality"},
         {"name": "resolution", "critical": true}, {"name": "cite", "critical": true}
       ],
-      "consumers": ["CP-1B", "CP-1D", "CP-5"]
+      "consumers": ["CP-1B", "CP-1D", "CP-4", "CP-5"]
     },
     {
       "id": "cp1.entity_profile",
@@ -195,7 +195,7 @@
         {"name": "perimeter", "critical": true}, {"name": "accounting_basis", "critical": true},
         {"name": "cite", "critical": true}
       ],
-      "consumers": ["MODEL", "CP-1A", "CP-5"]
+      "consumers": ["MODEL", "CP-1A", "CP-4", "CP-5"]
     }
   ],
   "prohibited": [

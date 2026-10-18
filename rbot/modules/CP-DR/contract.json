@@ -117,6 +117,7 @@
       ],
       "consumers": [
         "CP-2",
+        "CP-2A",
         "CP-3",
         "CP-6",
         "REPORT"
@@ -158,6 +159,7 @@
       ],
       "consumers": [
         "CP-2",
+        "CP-2A",
         "CP-3",
         "CP-6",
         "REPORT"

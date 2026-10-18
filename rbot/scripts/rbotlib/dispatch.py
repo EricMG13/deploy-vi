@@ -405,6 +405,31 @@ def _fetch_lines(
     return sentence, [*lines, ("Qualified fetched files", pages)], writes
 
 
+def _calculator_writes(run: Path, module: str) -> tuple[str | None, list[str]]:
+    name = {
+        "CP-3": "bond_analytics",
+        "CP-1C": "peer_statistics",
+        "CP-4": "covenant_headroom",
+        "CP-2D": "liquidity_bridge",
+        "CP-2E": "rate_fx_sensitivity",
+    }.get(module)
+    if name is None:
+        return None, []
+    paths = [
+        str(_target(run, f"calc/{module}-{name}{suffix}")) for suffix in (".json", ".out.json")
+    ]
+    if module == "CP-1C":
+        folder = output_path(run, "calc/CP-1C")
+        if folder.exists() and not folder.is_dir():
+            raise RunError(f"{folder}: calculator namespace must be a directory")
+        for entry in folder.rglob("*"):
+            guarded = output_path(run, str(entry.relative_to(run)))
+            if not guarded.is_file() and not guarded.is_dir():
+                raise RunError(f"{entry}: unsupported calculator namespace entry")
+        paths.append(str(folder))
+    return name, paths
+
+
 def _message(
     run: Path,
     root: Path,
@@ -433,15 +458,7 @@ def _message(
         str(run),
     ]
     own = [str(_target(run, f"handoffs/{module}.md"))]
-    calculator = (
-        [
-            str(run / f"calc/{module}-bond_analytics.json"),
-            str(run / f"calc/{module}-bond_analytics.out.json"),
-        ]
-        if module == "CP-3"
-        else []
-    )
-    calculator = [str(_target(run, str(Path(p).relative_to(run)))) for p in calculator]
+    calculator_name, calculator = _calculator_writes(run, module)
     scripts = output_path(root, f"modules/{module}/scripts")
     if scripts.exists() and not scripts.is_dir():
         raise RunError(f"{scripts}: module scripts must be a directory")
@@ -463,7 +480,7 @@ def _message(
         ("Missing/failed optional input limitations", missing),
         ("Source limitations", limitations),
         ("Allowed scripts", str(scripts) if scripts.is_dir() else None),
-        ("Allowed calculator", "bond_analytics" if calculator else None),
+        ("Allowed calculator", calculator_name),
         ("May write only", own + folder + calculator),
         *grant,
     ]

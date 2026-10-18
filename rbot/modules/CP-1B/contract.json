@@ -97,7 +97,7 @@
         {"name": "severity", "critical": true, "scale": "severity"},
         {"name": "credit_implication", "critical": true}, {"name": "cite", "critical": true}
       ],
-      "consumers": ["CP-2", "CP-6", "REPORT"]
+      "consumers": ["CP-2", "CP-2A", "CP-6", "REPORT"]
     }
   ],
   "prohibited": [

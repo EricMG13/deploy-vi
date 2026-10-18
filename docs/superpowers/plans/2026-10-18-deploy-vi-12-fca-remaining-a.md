@@ -50,6 +50,8 @@ Typed calculator sidecars use `calc/CP-1C-peer_statistics.json`, `calc/CP-2E-rat
 
 These do not block the first pure calculator. They do block claiming unavailable numeric outputs or unproved host provenance as complete. Record final choices and failing/passing witnesses in the owning task brief; do not ask the owner to choose routine filenames, quantile arithmetic or task granularity.
 
+Execution refinement after tested12.3: Rate/FX scope is held for the explicit cap decision. CP4 depends on tested CP0/CP1/MODEL and covenant arithmetic, while CP2E is not its input; CP4 may port after12.3/12.6, then CP2E inserts before it when released. Preserve the final canonical order and all consumer/input checks.
+
 ## Bounded implementation sequence
 
 Each row is one natural PR-sized scope, fresh implementer, compact report, causal failing tests first for defects, confidence-review after edits, actual commands/exits. Estimates include generated MODULE.md, test/fixture/doc/evidence lines and repair headroom. Core implementations should target≤650; legal≤720. Recheck measured budget before adding scope. Root may parallelize calculator cores with Plan11 diff work; serialize new Module/catalog/upstream contract edits after Plan11 or in disjoint isolated branches. Do not land a new folder with stale consumer/spec/membership expectations.

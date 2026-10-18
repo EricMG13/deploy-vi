@@ -158,7 +158,10 @@ def test_render_cli_exit_codes_and_summary_text(
     assert f"report.html: {run / 'report.html'}" in out
     assert f"report.md: {run / 'report.md'}" in out
     assert "Recommendation:" in out and "CLO: 3 - MW" in out
-    assert "Limitations: " in out and "Blocked/failed/skipped: none" in out
+    assert "Limitations: " in out and (
+        "Blocked/failed/skipped: CP-1C (blocked), CP-2E (blocked), "
+        "CP-4 (blocked), CP-2D (blocked)" in out
+    )
     assert main([*args, "--md-only"]) == 0
     assert "report.html" not in capsys.readouterr().out
     changed_handoff(run)
