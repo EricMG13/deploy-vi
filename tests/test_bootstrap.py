@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from state_receipt_assertions import outcome_bytes
 
+from conftest import HANG_TIMEOUT
 from cp0_fixture import cp0_handoff
 from rbotlib import bootstrap, state
 from rbotlib.cli import main
@@ -327,7 +328,7 @@ def test_completion_and_approval_share_actual_writer_lock(
 
     def slow(run: Path, root: Path, rules: Rules) -> bootstrap.QualifiedCP0:
         inside.set()
-        assert done.wait(10)
+        assert done.wait(HANG_TIMEOUT)
         return real(run, root, rules)
 
     monkeypatch.setattr(ap, "_cp0_step", slow)
@@ -342,7 +343,7 @@ def test_completion_and_approval_share_actual_writer_lock(
     thread = threading.Thread(target=approve_in_thread)
     thread.start()
     try:
-        assert inside.wait(10)
+        assert inside.wait(HANG_TIMEOUT)
         with pytest.raises(RunError, match="holds"):
             bootstrap.complete_cp0(run, root, load_rules(root))
     finally:
@@ -382,7 +383,7 @@ def test_fifo_handoff_refuses_before_opening_and_releases_writer_lock(
         env=os.environ | {"PYTHONPATH": str(Path(__file__).parents[1] / "rbot/scripts")},
     )
     try:
-        out, err = process.communicate(timeout=2)
+        out, err = process.communicate(timeout=HANG_TIMEOUT)
     finally:
         if process.poll() is None:
             process.kill()
