@@ -1,0 +1,254 @@
+[
+ {
+  "marker": 1,
+  "page": 2,
+  "line_text": "Cash and cash equivalents | $965 | $887",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 2,
+  "page": 2,
+  "line_text": "Restricted cash | 96 | 85",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 3,
+  "page": 22,
+  "line_text": "CEI Revolving Credit Facility capacity, net of outstanding balance | 2,130",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 4,
+  "page": 22,
+  "line_text": "CVA Revolving Credit Facility capacity | 25",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 5,
+  "page": 22,
+  "line_text": "Revolver capacity committed to letters of credit | (96)",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 6,
+  "page": 22,
+  "line_text": "Revolver capacity committed to specific reserves | (40)",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 7,
+  "page": 22,
+  "line_text": "Revolver capacity committed as regulatory requirement | (56)",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 8,
+  "page": 4,
+  "line_text": "Net cash provided by operating activities | 675 | 680",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 9,
+  "page": 4,
+  "line_text": "Accounts receivable | (24) | (37)",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 10,
+  "page": 4,
+  "line_text": "Prepaid expenses and other assets | (88) | (47)",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 11,
+  "page": 4,
+  "line_text": "Accounts payable, accrued expenses and other liabilities | 52 | 61",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 12,
+  "page": 5,
+  "line_text": "Cash interest paid for debt | $368 | $405",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 13,
+  "page": 4,
+  "line_text": "Purchase of property and equipment | (335) | (453)",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 14,
+  "page": 9,
+  "line_text": "Annual maturities of long-term debt | $55 | $114 | $767 | $1,574 | $3,962 | $5,335 | $11,807",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 15,
+  "page": 9,
+  "line_text": "Estimated interest payments | 370 | 750 | 680 | 650 | 420 | 300 | 3,170",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 16,
+  "page": 9,
+  "line_text": "Total debt service obligation (a) | $425 | $864 | $1,447 | $2,224 | $4,382 | $5,635 | $14,977",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 17,
+  "page": 22,
+  "line_text": "We estimate our lease payments to VICI and GLPI to be approximately $687 million for the remainder of 2026.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 18,
+  "page": 22,
+  "line_text": "Growth and renovation projects | $117 | $130 | $170",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 19,
+  "page": 22,
+  "line_text": "Caesars Digital | 37 | 25 | 35",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 20,
+  "page": 22,
+  "line_text": "Maintenance projects | 181 | 155 | 185",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 21,
+  "page": 22,
+  "line_text": "We expect that our current liquidity, including availability of borrowings under our committed credit facility and cash flows from operations will be sufficient to fund our operations, capital requirements and service our outstanding indebtedness for the next twelve months and beyond.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 22,
+  "page": 23,
+  "line_text": "As of June 30, 2026, we were in compliance with all of the applicable financial covenants described above.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 23,
+  "page": 9,
+  "line_text": "Total debt | 11,807 | 11,705 | 11,792",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 24,
+  "page": 2,
+  "line_text": "Current portion of long-term debt | 114 | 114",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 25,
+  "page": 2,
+  "line_text": "Long-term debt | 11,585 | 11,670",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 26,
+  "page": 11,
+  "line_text": "Balance at June 30 | 41 | 39 | 92 | 86 | 545 | 586",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 27,
+  "page": 11,
+  "line_text": "The Company generally has three types of liabilities related to contracts with customers: (1) outstanding chip liability, which represents the amounts owed in exchange for gaming chips held by customers, (2) Caesars Rewards player loyalty program obligations, which represent the deferred allocation of revenue relating to reward credits granted to Caesars Rewards members based on certain types of customer spend, including online and retail gaming, hotel, dining, retail shopping, and player loyalty program incentives earned, and (3) customer deposits and other deferred revenue, which primarily represents funds deposited by customers related to gaming play or advance payments received for goods and services yet to be provided (such as advance ticket sales, deposits on rooms and convention space, unpaid wagers, iGaming deposits, or future sports bets).",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 28,
+  "page": 20,
+  "line_text": "Adjusted EBITDA | $410 | $469 | $(59) | (12.6)% | $836 | $902 | $(66) | (7.3)%",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 29,
+  "page": 20,
+  "line_text": "Adjusted EBITDA | $488 | $439 | $49 | 11.2% | $923 | $879 | $44 | 5.0%",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 30,
+  "page": 20,
+  "line_text": "Adjusted EBITDA | $68 | $80 | $(12) | (15.0)% | $137 | $123 | $14 | 11.4%",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 31,
+  "page": 17,
+  "line_text": "Subsequent to June 30, 2026, we launched mobile sports betting and iGaming in Alberta, Canada on July 13, 2026.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 32,
+  "page": 24,
+  "line_text": "risks related to the Merger, including, but not limited to: (a) risks related to the combination of the Company and Fertitta Gaming and the integration of their respective businesses and assets; (b) the inability to consummate the proposed transaction within the anticipated time period, or at all, due to any reason, including the failure to obtain stockholder approval to adopt the Merger Agreement, the failure to obtain required regulatory approvals for the proposed transaction or the failure to satisfy the other conditions to the consummation of the proposed transaction; (c) the risk that the financing required to fund the proposed transaction is not obtained on the terms anticipated or at all; (d) potential adverse reactions or changes to business or employee relationships, including those resulting from the announcement or completion of the proposed transaction, such as the ability of the Company to maintain relationships with its customers, suppliers and others with whom it does business; (e) the nature, cost and outcome of any litigation and other legal proceedings, including any such proceedings related to the proposed transaction and instituted against the Company and/or its directors, executive officers or other related persons; (f) the possibility that the anticipated benefits of the proposed transaction, including cost savings and expected synergies, are not realized when expected or at all, including as a result of the impact of, or issues arising from, the integration of the two companies; (g) conditions imposed on the companies in order to obtain required regulatory approvals; (h) uncertainties in the global economy and credit markets and its potential impact on Fertitta Gaming’s ability to finance the proposed transaction; (i) the possibility that the proposed transaction may be more expensive to complete than anticipated, including as a result of unexpected factors or events; (j) disruption of the Company’s current plans and operations or diversion of management’s attention from ongoing business operations and opportunities; (k) the ability to retain and hire certain key employees of the Company; (l) risks associated with increased leverage from the proposed transaction; (m) changes in the value of the Company’s common stock between the date of the Merger Agreement and the closing of the proposed transaction or that the Company’s stock price may decline significantly if the proposed transaction is not consummated; (n) competitive responses to the proposed transaction; (o) legislative, regulatory and economic developments; (p) uncertainties as to the timing of the consummation of the proposed transaction and the ability of each party to consummate the proposed transaction; (q) the risk that the Merger Agreement may be terminated in circumstances requiring the Company to pay a termination fee; (r) the effect of the announcement of the proposed transaction on the Company’s operating results and business generally; (s) other factors that could affect the Company’s business such as, without limitation, changes in national, regional and local economic and market",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 33,
+  "page": 1,
+  "line_text": "INCREMENTAL ASSUMPTION AGREEMENT NO. 3, dated as of February 6, 2024 (this “Agreement”), by and among CAESARS ENTERTAINMENT, INC., a Delaware corporation (f/k/a ELDORADO RESORTS, INC., a Nevada corporation), as borrower (the “Borrower”), the Subsidiary Loan Parties party hereto, the Incremental Term B-1 Lender (as defined below) and the Administrative Agent (as defined below), relating to that certain Credit Agreement, dated as of July 20, 2020 (as modified by that certain Incremental Assumption Agreement No. 1, dated as of July 20, 2020, as amended by that certain First Amendment to Credit Agreement, dated as of November 10, 2021, as amended by that certain Second Amendment to Credit Agreement, dated as of January 26, 2022, as amended by that certain Third Amendment to Credit Agreement, dated as of October 5, 2022, as modified by that certain Incremental Assumption Agreement No. 2, dated as of February 6, 2023 and as further amended, restated, supplemented, waived or otherwise modified from time to time prior to the date hereof, the “Existing Credit Agreement”; and the Existing Credit Agreement as amended and modified by this Agreement, and as it may be further amended, restated, supplemented, waived or otherwise modified from time to time, the “Credit Agreement”), among the Borrower, the Lenders party thereto from time to time, JPMORGAN CHASE BANK, N.A., as administrative agent for the Lenders (together with its successors and assigns in such capacity, the “Administrative Agent”), and U.S. BANK NATIONAL ASSOCIATION, as collateral agent for the Secured Parties (together with its successors and assigns in such capacity, the “Collateral Agent”).",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 34,
+  "page": 1,
+  "line_text": "FOURTH AMENDMENT TO CREDIT AGREEMENT, dated as of May 9, 2024 (this “Agreement”), by and among CAESARS ENTERTAINMENT, INC., a Delaware corporation (f/k/a ELDORADO RESORTS, INC., a Nevada corporation), as borrower (the “Borrower”), the Lenders party hereto and the Administrative Agent (as defined below), relating to that certain Credit Agreement, dated as of July 20, 2020 (as modified by that certain Incremental Assumption Agreement No. 1, dated as of July 20, 2020, as amended by that certain First Amendment to Credit Agreement, dated as of November 10, 2021, as amended by that certain Second Amendment to Credit Agreement, dated as of January 26, 2022, as amended by that certain Third Amendment to Credit Agreement, dated as of October 5, 2022, as modified by that certain Incremental Assumption Agreement No. 2, dated as of February 6, 2023, as modified by that certain Incremental Assumption Agreement No. 3, dated as of February 6, 2024, and as further amended, restated, supplemented, waived or otherwise modified from time to time prior to the date hereof, the “Credit Agreement”), among the Borrower, the Lenders party thereto from time to time, JPMORGAN CHASE BANK, N.A., as administrative agent for the Lenders (together with its successors and assigns in such capacity, the “Administrative Agent”), and U.S. BANK NATIONAL ASSOCIATION, as collateral agent for the Secured Parties.",
+  "document_sha256": "32f91de6ef3ff93d9924eb8d4e3dc4734d28b68ed1da0f816a085ffdcb085c95"
+ },
+ {
+  "marker": 35,
+  "page": 1,
+  "line_text": "FIFTH AMENDMENT TO CREDIT AGREEMENT, dated as of November 25, 2024 (this “Agreement”), by and among CAESARS ENTERTAINMENT, INC., a Delaware corporation (f/k/a ELDORADO RESORTS, INC., a Nevada corporation), as borrower (the “Borrower”), the Lenders party hereto and the Administrative Agent (as defined below), relating to that certain Credit Agreement, dated as of July 20, 2020 (as modified by that certain Incremental Assumption Agreement No. 1, dated as of July 20, 2020, as amended by that certain First Amendment to Credit Agreement, dated as of November 10, 2021, as amended by that certain Second Amendment to Credit Agreement, dated as of January 26, 2022, as amended by that certain Third Amendment to Credit Agreement, dated as of October 5, 2022, as modified by that certain Incremental Assumption Agreement No. 2, dated as of February 6, 2023, as modified by that certain Incremental Assumption Agreement No. 3, dated as of February 6, 2024, as amended by that certain Fourth Amendment to Credit Agreement, dated as of May 9, 2024, and as further amended, restated, supplemented, waived or otherwise modified from time to time prior to the date hereof, the “Credit Agreement”), among the Borrower, the Lenders party thereto from time to time, JPMORGAN CHASE BANK, N.A., as administrative agent for the Lenders (together with its successors and assigns in such capacity, the “Administrative Agent”), and U.S. BANK NATIONAL ASSOCIATION, as collateral agent for the Secured Parties.",
+  "document_sha256": "7f2b5c777dc3347938a007eaea63a623b299a1188dbcfbe8980d389a0bcfc5b3"
+ },
+ {
+  "marker": 36,
+  "page": 28,
+  "line_text": "In our opinion, the financial statements present fairly, in all material respects, the financial position of the Company as of December 31, 2025 and 2024, and the results of its operations and its cash flows for each of the three years in the period ended December 31, 2025, in conformity with accounting principles generally accepted in the United States of America.",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 37,
+  "page": 5,
+  "line_text": "Income taxes paid, net | 11 | 58",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 38,
+  "page": 4,
+  "line_text": "Distributions to noncontrolling interest owners | (41) | (30)",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 39,
+  "page": 10,
+  "line_text": "CEI is party to a credit agreement, dated as of July 20, 2020, with JPMorgan Chase Bank, N.A., as administrative agent, U.S. Bank National Association, as collateral agent, and certain banks and other financial institutions and lenders party thereto (the “CEI Credit Agreement”), which, as amended, provides for the CEI Revolving Credit Facility in an aggregate principal amount of $2.25 billion (the “CEI Revolving Credit Facility”) and will mature on January 31, 2028.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 40,
+  "page": 9,
+  "line_text": "CEI Revolving Credit Facility | 2028 | variable | $120 | $120 | $160",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 41,
+  "page": 10,
+  "line_text": "On April 26, 2024, Caesars Virginia, LLC entered into a credit agreement with Wells Fargo Bank, N.A., as administrative agent and collateral agent, and certain banks and other financial institutions and lenders party thereto, which provides for a senior secured first lien multi-draw term loan facility up to an aggregate principal amount of $400 million (the “CVA Delayed Draw Term Loan”) and a senior secured first lien revolving credit facility in an aggregate principal amount of $25 million (the “CVA Revolving Credit Facility”), both maturing on April 26, 2029.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 42,
+  "page": 4,
+  "line_text": "We believe that business at our regional properties outside of Las Vegas is subject to seasonality, including seasonality based on the weather in the region in which they operate and the travel habits of visitors.",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ }
+]

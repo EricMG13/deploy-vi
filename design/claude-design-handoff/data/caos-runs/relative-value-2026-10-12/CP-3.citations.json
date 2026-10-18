@@ -1,0 +1,356 @@
+[
+ {
+  "marker": 1,
+  "page": 9,
+  "line_text": "CEI Revolving Credit Facility | 2028 | variable | $120 | $120 | $160",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 2,
+  "page": 9,
+  "line_text": "CEI Term Loan A | 2028 | variable | 619 | 618 | 636",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 3,
+  "page": 9,
+  "line_text": "CEI Term Loan B | 2030 | variable | 2,018 | 1,993 | 2,002",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 4,
+  "page": 9,
+  "line_text": "CEI Term Loan B-1 | 2031 | variable | 2,835 | 2,808 | 2,820",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 5,
+  "page": 9,
+  "line_text": "CEI Senior Secured Notes due 2030 | 2030 | 7.00% | 2,000 | 1,987 | 1,986",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 6,
+  "page": 9,
+  "line_text": "CEI Senior Secured Notes due 2032 | 2032 | 6.50% | 1,500 | 1,487 | 1,486",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 7,
+  "page": 9,
+  "line_text": "CVA Delayed Draw Term Loan | 2029 | variable | 376 | 372 | 381",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 8,
+  "page": 9,
+  "line_text": "CEI Senior Notes due 2029 | 2029 | 4.625% | 1,200 | 1,193 | 1,192",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 9,
+  "page": 9,
+  "line_text": "CEI Senior Notes due 2032 | 2032 | 6.00% | 1,100 | 1,088 | 1,087",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 10,
+  "page": 9,
+  "line_text": "Special Improvement District Bonds | 2037 | 4.30% | 38 | 38 | 40",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 11,
+  "page": 9,
+  "line_text": "Long-term notes and other payables | 1 | 1 | 2",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 12,
+  "page": 9,
+  "line_text": "Total debt | 11,807 | 11,705 | 11,792",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 13,
+  "page": 2,
+  "line_text": "Current portion of long-term debt | 114 | 114",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 14,
+  "page": 2,
+  "line_text": "Long-term debt | 11,585 | 11,670",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 15,
+  "page": 9,
+  "line_text": "Deferred finance charges associated with the CEI Revolving Credit Facility | — | (6) | (8)",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 16,
+  "page": 1,
+  "line_text": "CUSIP: 12769GAC4",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 17,
+  "page": 1,
+  "line_text": "Last trade price: $93.28",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 18,
+  "page": 1,
+  "line_text": "Last trade yield: 8.063520%",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 19,
+  "page": 1,
+  "line_text": "Last trade date: 10/1/2026",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 20,
+  "page": 1,
+  "line_text": "CUSIP: 12769GAD2",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 21,
+  "page": 1,
+  "line_text": "Last trade price: $84.94",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 22,
+  "page": 1,
+  "line_text": "Last trade yield: 9.318398%",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 23,
+  "page": 1,
+  "line_text": "Last trade date: 10/1/2026",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 24,
+  "page": 1,
+  "line_text": "- No spread, benchmark curve, seniority, dealer quote, trade size, or intraday timestamp was displayed in the observed summary.",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 25,
+  "page": 1,
+  "line_text": "Last trade yield: 6.722997%",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 26,
+  "page": 1,
+  "line_text": "Last trade yield: 6.644415%",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 27,
+  "page": 1,
+  "line_text": "Maturity date: 9/15/2029",
+  "document_sha256": "e17cea1bb90debdeb8c1fea9c352132b57ae9b27ee0d3225fb67c6466d7d0e4a"
+ },
+ {
+  "marker": 28,
+  "page": 1,
+  "line_text": "Maturity date: 7/1/2029",
+  "document_sha256": "666c0f36ace32336dffbcff324eaec5b4657edade407bb0b8a0e8d8fb405de6d"
+ },
+ {
+  "marker": 29,
+  "page": 43,
+  "line_text": "The Indebtedness evidenced by the Notes and the Note Guarantees will be senior secured Indebtedness of the Company and the Subsidiary Guarantors, respectively, and will be secured by a first-priority (subject to certain permitted liens and exceptions) security interest in the Collateral in favor of the Collateral Agent for the benefit of the holders of the Notes, the CEI Credit Facilities, the 2025 Secured Notes, the 2030 Secured Notes and other future first-priority lien obligations that may be issued in compliance with the terms of this Indenture.",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 30,
+  "page": 11,
+  "line_text": "The CEI Revolving Credit Facility, the CEI Term Loan A, the CEI Term Loan B, the CEI Term Loan B-1, the CEI Senior Secured Notes due 2030 and the CEI Senior Secured Notes due 2032 are guaranteed on a senior secured basis by each existing and future material wholly-owned domestic subsidiary of the Company and are secured by substantially all of the existing and future property and assets of the Company and its subsidiary guarantors (subject to certain exceptions).",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 31,
+  "page": 11,
+  "line_text": "CEI does not provide a guarantee of these facilities.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 32,
+  "page": 16,
+  "line_text": "Adjusted EBITDA | $920 | $955 | $1,807 | $1,839",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 33,
+  "page": 4,
+  "line_text": "Net cash provided by operating activities | 675 | 680",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 34,
+  "page": 4,
+  "line_text": "Purchase of property and equipment | (335) | (453)",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 35,
+  "page": 5,
+  "line_text": "Cash interest paid for debt | $368 | $405",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 36,
+  "page": 5,
+  "line_text": "Cash interest paid for rent related to GLPI and VICI Leases | 686 | 672",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 37,
+  "page": 22,
+  "line_text": "Total | $2,928",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 38,
+  "page": 20,
+  "line_text": "Adjusted EBITDA | $410 | $469 | $(59) | (12.6)% | $836 | $902 | $(66) | (7.3)%",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 39,
+  "page": 20,
+  "line_text": "Adjusted EBITDA | $488 | $439 | $49 | 11.2% | $923 | $879 | $44 | 5.0%",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 40,
+  "page": 9,
+  "line_text": "Annual maturities of long-term debt | $55 | $114 | $767 | $1,574 | $3,962 | $5,335 | $11,807",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 41,
+  "page": 13,
+  "line_text": "(25) other Liens securing Obligations, the outstanding principal amount of which does not, taken together with the principal amount of all other Obligations secured by Liens Incurred under this clause (25) that are at that time outstanding, exceed the greater of $750.0 million and 32.5% of EBITDA for the Applicable Measurement Period;",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 42,
+  "page": 34,
+  "line_text": "The applicable assets included in the Collateral shall be automatically released from the Liens securing the Notes, and the applicable Subsidiary Guarantor shall be automatically released from its obligations under this Indenture and the Security Documents, under any one or more of the following circumstances or any applicable circumstance as provided in the First Lien Intercreditor Agreement (and any future First Lien Intercreditor Agreement), any Junior Lien Intercreditor Agreement or the Security Documents:",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 43,
+  "page": 1,
+  "line_text": "Each New Guarantor hereby agrees, jointly and severally with all existing guarantors (if any), to unconditionally guarantee the Company’s Obligations under the Notes and the Indenture on the terms and subject to the conditions set forth in Article XIII of the Indenture and to be bound by all other applicable provisions of the Indenture and the Notes and to perform all of the obligations and agreements of a guarantor under the Indenture.",
+  "document_sha256": "3621f08611f4c6a6faed734993a3f2d9c97041693053ffa97624cbe5b7299aea"
+ },
+ {
+  "marker": 44,
+  "page": 5,
+  "line_text": "Each of the Company and Fertitta Gaming’s obligation to consummate the Merger is subject to the satisfaction or waiver of certain conditions, including, among others, approval of the Merger by the holders of at least a majority of all of the outstanding shares of Company Common Stock, the expiration or termination of any applicable waiting period under the HSR Act, and the receipt of certain gaming regulatory approvals.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 45,
+  "page": 56,
+  "line_text": "10.37 | Fourth Amendment to Credit Agreement, dated as of May 9, 2024, by and among Caesars Entertainment, Inc., the lenders party thereto and JPMorgan Chase Bank, N.A., as administrative agent. | Previously filed on Form 8-K filed on May 9, 2024.",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 46,
+  "page": 10,
+  "line_text": "As of June 30, 2026, the Company was in compliance with all of the applicable financial covenants described above.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 47,
+  "page": 11,
+  "line_text": "Balance at June 30 | 41 | 39 | 92 | 86 | 545 | 586",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 48,
+  "page": 22,
+  "line_text": "Total estimated capital expenditures from unrestricted cash | $335 | $310 | $390",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 49,
+  "page": 43,
+  "line_text": "On or after February 15, 2027, the Company may redeem the Notes at its option, in whole at any time or in part from time to time, upon not less than 10 nor more than 60 days’ prior notice mailed by first-class mail, or delivered electronically if held by DTC, to each holder’s registered address, which in the case of Global Notes shall be the Depository, at the following redemption prices (expressed as a percentage of principal amount), plus accrued and unpaid interest, if any, to, but excluding, the redemption date (subject to the right of holders of record on the relevant Record Date to receive interest due on the relevant Interest Payment Date), if redeemed during the 12-month period commencing on February 15 of the years set forth below:",
+  "document_sha256": "0809ab3981090bd2c23950da9530adb10e96882ddfa7db4404635e014d4c1119"
+ },
+ {
+  "marker": 50,
+  "page": 1,
+  "line_text": "Section 8.01(b) of the Indenture shall be replaced with the following language:",
+  "document_sha256": "0af4615b9a52e91e2675adacbbc90ecc7b21a61dc8205b4b2459cf4b9db0a219"
+ },
+ {
+  "marker": 51,
+  "page": 17,
+  "line_text": "Subsequent to June 30, 2026, we launched mobile sports betting and iGaming in Alberta, Canada on July 13, 2026.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 52,
+  "page": 2,
+  "line_text": "Long-term financing obligations | 13,157 | 13,096",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 53,
+  "page": 22,
+  "line_text": "Our estimated debt service (including principal and interest) is approximately $425 million for the remainder of 2026.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 54,
+  "page": 22,
+  "line_text": "We estimate our lease payments to VICI and GLPI to be approximately $687 million for the remainder of 2026.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 55,
+  "page": 1,
+  "line_text": "Moody's rating shown: B1",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 56,
+  "page": 1,
+  "line_text": "Moody's rating shown: Caa1",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 57,
+  "page": 1,
+  "line_text": "Next call date: 10/15/2027",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 58,
+  "page": 23,
+  "line_text": "Adjusted EBITDA | 3,624 | 3,739 | 3,938",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 59,
+  "page": 55,
+  "line_text": "4.13 | Indenture (6.00% CEI Senior Notes due 2032) dated as of October 17, 2024, by and among Caesars Entertainment, Inc., the subsidiary guarantors party thereto, and U.S. Bank Trust Company, National Association, as Trustee. | Previously filed on Form 8-K filed on October 17, 2024.",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ }
+]

@@ -1,0 +1,74 @@
+/* RBOT Workbench design tokens. Every colour, size and weight the other files use. */
+:root {
+  /* Brand */
+  --navy: #000533;
+  --navy-2: #0A1046;
+  --navy-line: rgba(199, 203, 224, 0.28);
+  --on-navy-2: #C7CBE0;
+  --blue: #0017E5;
+  --blue-hover: #0012B8;
+  --blue-tint: #E6E9FE;
+  --blue-row: #E9ECFB;
+
+  /* Neutral */
+  --ground: #EEF0F5;
+  --panel: #FFFFFF;
+  --rule: #DDE1EA;
+  --rule-soft: #EEF0F5;
+  --ink: #000533;
+  --ink-2: #4A5068;
+  --ink-3: #5F657C;
+  --mark-quiet: #7C839C;
+  --hover-row: #F5F6FB;
+
+  /* Signal (meaning for the creditor; never alone) */
+  --pos: #0E7A46;
+  --pos-fill: #DCF5E7;
+  --pos-on-navy: #7EE2A8;
+  --cau: #8A5300;
+  --cau-fill: #FFF1C7;
+  --cau-on-navy: #FFD166;
+  --neg: #B3261E;
+  --neg-fill: #FBE0DD;
+  --neg-on-navy: #FFB4B0;
+  --neg-wash: #FDF1EF;
+  --neu: #4A5068;
+  --neu-fill: #E7E9F0;
+
+  /* Chart */
+  --chart-issuer: #0017E5;
+  --chart-compare: #C4410C;
+  --chart-neutral: #8A90A6;
+
+  /* Type */
+  --font-display: 'Red Hat Display', system-ui, sans-serif;
+  --font-text: 'Red Hat Text', system-ui, sans-serif;
+  --font-mono: 'Red Hat Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --fs-title: 18px;
+  --fs-body: 13.5px;
+  --fs-label: 11.5px;
+  --fs-table: 12px;
+  --fs-head: 11px;
+  --fs-micro: 11px;
+
+  /* Space (4px rhythm) */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+
+  /* Shape and depth */
+  --r-chip: 3px;
+  --r-input: 4px;
+  --shadow-float: 0 8px 28px rgba(0, 5, 51, 0.22), 0 2px 6px rgba(0, 5, 51, 0.12);
+
+  /* Layout */
+  --rail-w: 56px;
+  --nav-w: 240px;
+  --insp-w: 300px;
+  --z-bar: 2;
+  --z-layer: 50;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}

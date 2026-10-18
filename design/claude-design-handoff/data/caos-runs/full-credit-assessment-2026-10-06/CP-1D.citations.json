@@ -1,0 +1,152 @@
+[
+ {
+  "marker": 1,
+  "page": 23,
+  "line_text": "Adjusted EBITDA | 3,624 | 3,739 | 3,938",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 2,
+  "page": 23,
+  "line_text": "Impairment charges (c) | 182 | 302 | 95",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 3,
+  "page": 23,
+  "line_text": "Transaction costs and other, net (d) | 72 | (285) | 6",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 4,
+  "page": 23,
+  "line_text": "Stock-based compensation expense | 95 | 94 | 104",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 5,
+  "page": 22,
+  "line_text": "Adjusted EBITDA represents net income (loss) before interest income and interest expense net of interest capitalized, (benefit) provision for income taxes, depreciation and amortization, stock-based compensation expense, (gain) loss on extinguishment of debt, impairment charges, other (income) loss, net income (loss) attributable to noncontrolling interests, transaction costs associated with our acquisitions, developments, and divestitures, and non-cash changes in equity method investments.",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 6,
+  "page": 16,
+  "line_text": "Adjusted EBITDA | $920 | $955 | $1,807 | $1,839",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 7,
+  "page": 16,
+  "line_text": "Transaction costs and other, net (a) | 29 | 41 | 45 | 54",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 8,
+  "page": 16,
+  "line_text": "Stock-based compensation expense | 23 | 24 | 47 | 50",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 9,
+  "page": 16,
+  "line_text": "Net income attributable to noncontrolling interests | 21 | 17 | 36 | 34",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 10,
+  "page": 16,
+  "line_text": "(Benefit) provision for income taxes | (12) | 13 | — | 24",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 11,
+  "page": 16,
+  "line_text": "Other income | (7) | (1) | (5) | —",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 12,
+  "page": 16,
+  "line_text": "Interest expense, net | 573 | 579 | 1,142 | 1,153",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 13,
+  "page": 16,
+  "line_text": "Depreciation and amortization | 355 | 364 | 702 | 721",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 14,
+  "page": 31,
+  "line_text": "Net cash provided by operating activities | 1,302 | 1,075 | 1,809",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 15,
+  "page": 4,
+  "line_text": "Net cash provided by operating activities | 675 | 680",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 16,
+  "page": 5,
+  "line_text": "Cash interest paid for debt | $368 | $405",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 17,
+  "page": 2,
+  "line_text": "Long-term financing obligations | 13,157 | 13,096",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 18,
+  "page": 2,
+  "line_text": "Current portion of long-term debt | 114 | 114",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 19,
+  "page": 2,
+  "line_text": "Long-term debt | 11,585 | 11,670",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 20,
+  "page": 37,
+  "line_text": "Total lease liability | $742",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 21,
+  "page": 38,
+  "line_text": "Financing obligation | $1,284 | $11,705",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 22,
+  "page": 39,
+  "line_text": "As of December 31, 2025 and 2024, obligations related to these agreements were $318 million and $421 million, respectively, with contracts extending through 2040.",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 23,
+  "page": 37,
+  "line_text": "The Company’s finance lease ROU assets and liabilities were $136 million and $147 million as of December 31, 2025, respectively, and $60 million and $68 million as of December 31, 2024, respectively.",
+  "document_sha256": "172309048af2a6a2dab515d765f00a7c89bf8c874c6104a5e3a052b66cad4512"
+ },
+ {
+  "marker": 24,
+  "page": 11,
+  "line_text": "Balance at June 30 | 41 | 39 | 92 | 86 | 545 | 586",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 25,
+  "page": 8,
+  "line_text": "As of June 30, 2026 and December 31, 2025, obligations related to these agreements were $309 million and $318 million, respectively, with contracts extending through 2040.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ }
+]

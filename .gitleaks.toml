@@ -13,6 +13,20 @@ description = "design mockup sample data: identifier-shaped key fields"
 targetRules = ["generic-api-key"]
 paths = ['''design/mockups/shared/data\.js$''']
 
+# The Claude Design hand-off pack and the Front Pages data builder carry the same
+# generated sample-data shape: `"key"` and `"formula_keys"` fields holding metric
+# identifiers and formula text. Owner-approved 2026-10-17 (ADR 0006). Exempt that
+# one rule in these four files; every other rule still scans them.
+[[allowlists]]
+description = "design hand-off sample data: identifier-shaped key and formula fields"
+targetRules = ["generic-api-key"]
+paths = [
+  '''design/claude-design-handoff/data/front-pages-data\.json$''',
+  '''design/claude-design-handoff/data/rbot-data-base\.json$''',
+  '''design/claude-design-handoff/reference/report-a-current/runnable/shared/data\.js$''',
+  '''design/mockups/front-pages/fp-data\.js$''',
+]
+
 # tests/test_report_assets.py pins the frozen house report assets by git blob id and
 # sha256 (content digests only, e.g. `"tokens.css": "baf86efa..."`), which trip
 # generic-api-key. Exempt that one rule in that one file; every other rule still

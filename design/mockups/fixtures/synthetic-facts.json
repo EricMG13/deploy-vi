@@ -1,0 +1,298 @@
+{
+  "note": "Shared synthetic test facts for the design fixtures. Every value here is invented for design and is not a fact about Caesars. Content modules read these instead of inventing their own, so one fact has one value across every module and run. Real figures are never placed here. Real but often-missed facts are listed under real_reminders with their sources.",
+  "real_reminders": {
+    "tlb_tlb1_margin": {
+      "value": "SOFR + 2.25%",
+      "source": "CZR_2024_Credit_Agreement_Fifth_Amendment.txt",
+      "line": 20,
+      "excerpt": "with respect to any Term B Loan, 2.25% per annum in the case of any Term Benchmark Loan"
+    },
+    "proposed_trade_test_clo_i": {
+      "value": "US$5,000,000 par of the 6.50% secured 2032s",
+      "source": "TEST_CLO_I_Mandate_and_Exposures_2026-10-02.txt",
+      "line": 146,
+      "note": "synthetic portfolio, real price"
+    }
+  },
+  "czr": {
+    "merger_tranches": {
+      "rationale": "The merger's committed debt is unstated (G8). Three tranches sized so new debt plus assumed debt and equity fund the stated US$17.6bn transaction value; pricing set near CZR's own secured and unsecured levels on TRACE.",
+      "commitment_date": "2026-05-27",
+      "use_of_proceeds": "LBO",
+      "tranches": [
+        {
+          "tranche_id": "NEW-1",
+          "instrument": "Incremental Term Loan B (first lien)",
+          "debt_type": "Term loan",
+          "size": "2500",
+          "price_talk": "SOFR + 300 bps",
+          "talk_low_bps": "275",
+          "talk_mid_bps": "300",
+          "talk_high_bps": "325",
+          "oid": "99.00",
+          "talk_stage": "Initial talk",
+          "maturity_date": "2033-06-30",
+          "expected_ratings": "Ba3 / BB-",
+          "cr_score": "3"
+        },
+        {
+          "tranche_id": "NEW-2",
+          "instrument": "Senior Secured Notes due 2033",
+          "debt_type": "Senior secured notes",
+          "size": "1500",
+          "price_talk": "7.25%-7.50%",
+          "talk_low_pct": "7.25",
+          "talk_mid_pct": "7.375",
+          "talk_high_pct": "7.50",
+          "oid": "100.00",
+          "talk_stage": "Initial talk",
+          "maturity_date": "2033-07-15",
+          "expected_ratings": "Ba3 / BB-",
+          "cr_score": "3"
+        },
+        {
+          "tranche_id": "NEW-3",
+          "instrument": "Senior Notes due 2034 (unsecured)",
+          "debt_type": "Senior unsecured notes",
+          "size": "1000",
+          "price_talk": "8.75%-9.00%",
+          "talk_low_pct": "8.75",
+          "talk_mid_pct": "8.875",
+          "talk_high_pct": "9.00",
+          "oid": "100.00",
+          "talk_stage": "Initial talk",
+          "maturity_date": "2034-07-15",
+          "expected_ratings": "Caa1 / B-",
+          "cr_score": "2"
+        }
+      ],
+      "cash_to_balance_sheet": "0"
+    },
+    "rate_deck": {
+      "rationale": "No forward curve is in the pack (gap rate_deck); a flat-to-falling SOFR path for design.",
+      "reference_rate": "SOFR",
+      "deck_date": "2026-10-02",
+      "base": {
+        "FY2026": "4.30",
+        "FY2027": "3.90",
+        "FY2028": "3.70"
+      },
+      "downside": {
+        "FY2026": "4.80",
+        "FY2027": "4.90",
+        "FY2028": "4.70"
+      },
+      "floor_pct": "0.00"
+    },
+    "projection_drivers": {
+      "rationale": "No guidance (G13). Base keeps FY2025's shape; Downside is a Las Vegas downturn with Regional flat.",
+      "base": {
+        "revenue_growth_pct": {
+          "FY2026": "2.0",
+          "FY2027": "2.5",
+          "FY2028": "2.5"
+        },
+        "adjusted_ebitda_margin_pct": {
+          "FY2026": "31.0",
+          "FY2027": "31.5",
+          "FY2028": "31.5"
+        },
+        "capex": {
+          "FY2026": "760",
+          "FY2027": "800",
+          "FY2028": "820"
+        },
+        "cash_taxes": {
+          "FY2026": "40",
+          "FY2027": "60",
+          "FY2028": "70"
+        },
+        "working_capital_change": {
+          "FY2026": "-50",
+          "FY2027": "-40",
+          "FY2028": "-40"
+        }
+      },
+      "downside": {
+        "revenue_growth_pct": {
+          "FY2026": "-3.0",
+          "FY2027": "-4.0",
+          "FY2028": "1.0"
+        },
+        "adjusted_ebitda_margin_pct": {
+          "FY2026": "29.0",
+          "FY2027": "28.0",
+          "FY2028": "28.5"
+        },
+        "capex": {
+          "FY2026": "700",
+          "FY2027": "600",
+          "FY2028": "650"
+        },
+        "cash_taxes": {
+          "FY2026": "30",
+          "FY2027": "20",
+          "FY2028": "30"
+        },
+        "working_capital_change": {
+          "FY2026": "-80",
+          "FY2027": "-60",
+          "FY2028": "-40"
+        }
+      }
+    },
+    "loan_marks": {
+      "rationale": "No loan prices in the pack (G18). Bids set near par for first-lien loans of a B1/BB- credit, a touch below the TLB-1's size discount.",
+      "level_date": "2026-10-01",
+      "quote_type": "Dealer quote",
+      "freshness": "Current",
+      "facilities": {
+        "CEI Term Loan B": {
+          "bid": "99.250",
+          "ask": "99.750",
+          "floor_pct": "0.50"
+        },
+        "CEI Term Loan B-1": {
+          "bid": "99.125",
+          "ask": "99.625",
+          "floor_pct": "0.50"
+        },
+        "CEI Term Loan A": {
+          "bid": "99.500",
+          "ask": "100.000",
+          "floor_pct": "0.00"
+        }
+      }
+    },
+    "spreads": {
+      "rationale": "No Treasury curve in the pack (G19). Spread-to-worst set from the real TRACE yields against a synthetic 6-year Treasury of 4.10%.",
+      "treasury_6y_pct": "4.10"
+    },
+    "issue_ratings_other": {
+      "rationale": "Issue ratings for the term loans, 2030 secured notes and 2029 notes are not in the pack; set to match the TRACE-rated notes of the same rank.",
+      "CEI Term Loan B": "B1 / BB-",
+      "CEI Term Loan B-1": "B1 / BB-",
+      "CEI Term Loan A": "B1 / BB-",
+      "CEI 7.00% Senior Secured Notes 2030": "B1 / BB-",
+      "CEI 4.625% Senior Notes 2029": "Caa1 / B-"
+    },
+    "agency": {
+      "rationale": "No agency report in the pack (gap agency_triggers). Thresholds typical of a B1 gaming credit.",
+      "moodys": {
+        "cfr": "B1",
+        "outlook": "Negative",
+        "downgrade_trigger": "Debt/EBITDA (Moody's adjusted) above 6.0x",
+        "current_moodys_leverage_x": "5.6",
+        "upgrade_trigger": "Debt/EBITDA below 5.0x"
+      },
+      "sp": {
+        "issuer_rating": "BB-",
+        "outlook": "CreditWatch Negative",
+        "downgrade_trigger": "Debt/EBITDA (S&P adjusted) above 5.5x",
+        "current_sp_leverage_x": "5.2"
+      }
+    },
+    "rp_investment_baskets": {
+      "rationale": "Baskets not extracted (gap rp_capacity). Typical general and builder baskets for this credit agreement vintage.",
+      "general_rp_basket": "500",
+      "rp_used": "0",
+      "builder_basket": "1450",
+      "builder_used": "300",
+      "general_investment_basket": "750",
+      "investment_used": "120",
+      "unrestricted_sub_capacity": "900"
+    },
+    "deep_research": {
+      "rationale": "No fetched sources in the pack. Three approved questions with synthetic fetched sources (labelled synthetic) to show CP-DR.",
+      "questions": [
+        {
+          "question_id": "RQ1",
+          "question": "How have Las Vegas Strip RevPAR and visitation trended in 2026 against 2025?",
+          "consumer_module": "CP-2",
+          "status": "Answered"
+        },
+        {
+          "question_id": "RQ2",
+          "question": "What regulatory approvals does the Fertitta merger need, and in which states?",
+          "consumer_module": "CP-1A",
+          "status": "Answered"
+        },
+        {
+          "question_id": "RQ3",
+          "question": "How are peers' online sports betting margins moving under higher state taxes?",
+          "consumer_module": "CP-1C",
+          "status": "Unanswered"
+        }
+      ]
+    },
+    "prior_case": {
+      "rationale": "No earlier RBOT Report exists. A synthetic prior Earnings Update for Q1 2026 dated 2026-08-05 so CP-8 and the What changed view can be designed.",
+      "prior_run_id": "FIX-CZR-EU-Q1-2026",
+      "report_date": "2026-08-05",
+      "pathway": "EARNINGS_UPDATE",
+      "depth": "full",
+      "prior_values": {
+        "credit_score": "3 - Fair",
+        "credit_direction": "Stable",
+        "sector_outlook": "Neutral",
+        "recommendation_CLO": "3 - MW",
+        "recommendation_Indexed Loans": "3 - MW",
+        "recommendation_Indexed HY": "2 - Modest OW",
+        "net_leverage_x": "3.04",
+        "liquidity_usdm": "3,050",
+        "las_vegas_adj_ebitda_margin_pct": "43.1"
+      },
+      "prior_thesis": "Secured debt is well covered; the merger adds debt of unknown size. Prefer secured.",
+      "prior_catalysts": [
+        "Merger financing terms disclosed by Q3 2026",
+        "Las Vegas margin stabilises in Q2 2026"
+      ]
+    },
+    "indexed_hy_book": {
+      "rationale": "A second synthetic portfolio, an Indexed HY book modelled on the real Federated Hermes fund's four Caesars positions (N-PORT, 30 June 2026), with synthetic limits so Fit can run. Positions are real; NAV and limits are synthetic.",
+      "portfolio_id": "TEST_HY_I",
+      "portfolio_name": "Test Indexed HY I",
+      "strategy": "Indexed HY",
+      "nav": "491.6",
+      "par": "502.0",
+      "currency": "USD",
+      "unit": "MILLIONS",
+      "limits": [
+        {
+          "limit_id": "H-01",
+          "category": "Concentration",
+          "parameter": "Single issuer",
+          "scope": "issuer",
+          "limit_value": "1.0",
+          "unit": "pct_nav",
+          "limit_kind": "Hard"
+        },
+        {
+          "limit_id": "H-02",
+          "category": "Rating",
+          "parameter": "CCC and below",
+          "scope": "rating_bucket",
+          "scope_value": "CCC",
+          "limit_value": "12.0",
+          "unit": "pct_nav",
+          "limit_kind": "Hard",
+          "current_value": "12.1"
+        },
+        {
+          "limit_id": "H-03",
+          "category": "Industry",
+          "parameter": "Gaming and leisure",
+          "scope": "sector",
+          "limit_value": "8.0",
+          "unit": "pct_nav",
+          "limit_kind": "Soft",
+          "current_value": "2.6"
+        }
+      ],
+      "note": "The real Caesars positions are about 0.59% of NAV (H-01 headroom about 0.41%, so every instrument is at most Watch). H-02 is already over its 12.0% Hard limit at 12.1% (synthetic), so any CCC-rated Caesars instrument (the 6.00% unsecured 2032s, Caa1) Breaches and is capped at Avoid: this is the Breaches state."
+    }
+  },
+  "larchmere": {
+    "note": "Larchmere Leisure Group, Inc. is fictional; every figure is synthetic. Sponsor: Quillon Ridge Partners (fictional). See FIXTURES.md section 3 for the story the numbers must tell."
+  }
+}

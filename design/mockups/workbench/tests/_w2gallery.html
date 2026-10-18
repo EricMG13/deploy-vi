@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset="utf-8">
+<body style="margin:0;background:#888">
+<iframe id="f" style="border:0;display:block"></iframe><pre id="out"></pre>
+<script>
+const q = new URLSearchParams(location.search);
+const f = document.getElementById('f');
+const W = +(q.get('w') || 924);
+f.style.width = W + 'px'; f.style.height = (q.get('hgt') || 900) + 'px';
+f.src = '/design/mockups/workbench/dist/rbot-workbench.html#/' + q.get('run') + '/limitations';
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+f.onload = async () => {
+  await sleep(800);
+  const w = f.contentWindow, d = w.document, WB = w.WB;
+  const only = (q.get('only') || '').split(',').filter(Boolean);
+  const host = d.createElement('div');
+  host.style.cssText = 'position:absolute;left:0;top:0;width:' + (W - 20) + 'px;background:#EEF0F5;padding:8px;z-index:9999';
+  d.body.style.overflow = 'visible'; d.documentElement.style.overflow = 'visible'; d.body.style.height = 'auto';
+  d.body.appendChild(host);
+  const log = [];
+  for (const c of WB.run.charts) {
+    if (only.length && !only.some((o) => c.chart_id.endsWith(o))) continue;
+    const p = d.createElement('section'); p.className = 'panel'; p.style.margin = '0 0 10px';
+    const h = d.createElement('div'); h.textContent = c.chart_id + ' (' + c.kind + ')'; h.style.cssText = 'font:600 11px monospace;padding:4px 12px;background:#fff';
+    p.appendChild(h); p.appendChild(WB.chartSlot(c)); host.appendChild(p);
+  }
+  await sleep(500);
+  d.documentElement.style.height = host.offsetHeight + 40 + 'px';
+  f.style.height = host.offsetHeight + 40 + 'px';
+  window.__h = host.offsetHeight;
+  log.push('height=' + host.offsetHeight, 'errors=' + JSON.stringify(w.__wbErrors || []).slice(0, 600), 'charts=' + d.querySelectorAll('.wbc svg.wbc-svg').length, 'errs=' + d.querySelectorAll('.wbc-err').length);
+  document.getElementById('out').textContent = log.join('\n');
+  document.title = 'done';
+};
+</script>

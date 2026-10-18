@@ -1,0 +1,350 @@
+[
+ {
+  "marker": 1,
+  "page": 9,
+  "line_text": "CEI Revolving Credit Facility | 2028 | variable | $120 | $120 | $160",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 2,
+  "page": 9,
+  "line_text": "CEI Term Loan A | 2028 | variable | 619 | 618 | 636",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 3,
+  "page": 9,
+  "line_text": "CVA Delayed Draw Term Loan | 2029 | variable | 376 | 372 | 381",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 4,
+  "page": 9,
+  "line_text": "CEI Term Loan B | 2030 | variable | 2,018 | 1,993 | 2,002",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 5,
+  "page": 9,
+  "line_text": "CEI Term Loan B-1 | 2031 | variable | 2,835 | 2,808 | 2,820",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 6,
+  "page": 9,
+  "line_text": "CEI Senior Secured Notes due 2030 | 2030 | 7.00% | 2,000 | 1,987 | 1,986",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 7,
+  "page": 9,
+  "line_text": "CEI Senior Secured Notes due 2032 | 2032 | 6.50% | 1,500 | 1,487 | 1,486",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 8,
+  "page": 9,
+  "line_text": "CEI Senior Notes due 2029 | 2029 | 4.625% | 1,200 | 1,193 | 1,192",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 9,
+  "page": 9,
+  "line_text": "CEI Senior Notes due 2032 | 2032 | 6.00% | 1,100 | 1,088 | 1,087",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 10,
+  "page": 9,
+  "line_text": "Special Improvement District Bonds | 2037 | 4.30% | 38 | 38 | 40",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 11,
+  "page": 9,
+  "line_text": "Long-term notes and other payables | 1 | 1 | 2",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 12,
+  "page": 9,
+  "line_text": "Annual maturities of long-term debt | $55 | $114 | $767 | $1,574 | $3,962 | $5,335 | $11,807",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 13,
+  "page": 9,
+  "line_text": "Total debt | 11,807 | 11,705 | 11,792",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 14,
+  "page": 2,
+  "line_text": "Current portion of long-term debt | 114 | 114",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 15,
+  "page": 2,
+  "line_text": "Long-term debt | 11,585 | 11,670",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 16,
+  "page": 9,
+  "line_text": "Deferred finance charges associated with the CEI Revolving Credit Facility | — | (6) | (8)",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 17,
+  "page": 2,
+  "line_text": "Cash and cash equivalents | $965 | $887",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 18,
+  "page": 10,
+  "line_text": "As of June 30, 2026, the Company had $1.9 billion of available borrowing capacity under the CEI Revolving Credit Facility, after consideration of $96 million in outstanding letters of credit, $56 million committed for regulatory purposes, the outstanding amount, and the reserves described above.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 19,
+  "page": 4,
+  "line_text": "Net cash provided by operating activities | 675 | 680",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 20,
+  "page": 4,
+  "line_text": "Purchase of property and equipment | (335) | (453)",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 21,
+  "page": 9,
+  "line_text": "Total debt service obligation (a) | $425 | $864 | $1,447 | $2,224 | $4,382 | $5,635 | $14,977",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 22,
+  "page": 22,
+  "line_text": "We estimate our lease payments to VICI and GLPI to be approximately $687 million for the remainder of 2026.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 23,
+  "page": 22,
+  "line_text": "We expect that our current liquidity, including availability of borrowings under our committed credit facility and cash flows from operations will be sufficient to fund our operations, capital requirements and service our outstanding indebtedness for the next twelve months and beyond.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 24,
+  "page": 23,
+  "line_text": "As of June 30, 2026, long-term variable-rate borrowings totaled $6.0 billion under the CEI Term Loans, the CVA Delayed Draw Term Loan and the CEI Revolving Credit Facility, and no amounts were outstanding under the CVA Revolving Credit Facility.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 25,
+  "page": 7,
+  "line_text": "As of June 30, 2026 and December 31, 2025, the Company did not hold any cash flow hedges or any derivative financial instruments for trading purposes.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 26,
+  "page": 1,
+  "line_text": "Last trade price: $93.28",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 27,
+  "page": 1,
+  "line_text": "Last trade yield: 8.063520%",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 28,
+  "page": 1,
+  "line_text": "Last trade price: $84.94",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 29,
+  "page": 1,
+  "line_text": "Last trade yield: 9.318398%",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 30,
+  "page": 1,
+  "line_text": "- FINRA labels the price and yield as the last trade, not bid, mid, ask, or an evaluated price.",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 31,
+  "page": 1,
+  "line_text": "- No spread, benchmark curve, seniority, dealer quote, trade size, or intraday timestamp was displayed in the observed summary.",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 32,
+  "page": 16,
+  "line_text": "Adjusted EBITDA | $920 | $955 | $1,807 | $1,839",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 33,
+  "page": 20,
+  "line_text": "Adjusted EBITDA | $410 | $469 | $(59) | (12.6)% | $836 | $902 | $(66) | (7.3)%",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 34,
+  "page": 20,
+  "line_text": "Our Las Vegas segment’s net revenues, net income, Adjusted EBITDA and Adjusted EBITDA margin declined for the three and six months ended June 30, 2026, as compared to the same prior year periods, primarily due to lower city-wide leisure customer visitation resulting in decreased non-gaming revenues, lower hotel occupancy and compressed hotel rates.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 35,
+  "page": 20,
+  "line_text": "Adjusted EBITDA | $488 | $439 | $49 | 11.2% | $923 | $879 | $44 | 5.0%",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 36,
+  "page": 10,
+  "line_text": "As of June 30, 2026, the Company was in compliance with all of the applicable financial covenants described above.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 37,
+  "page": 17,
+  "line_text": "Subsequent to June 30, 2026, we launched mobile sports betting and iGaming in Alberta, Canada on July 13, 2026.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 38,
+  "page": 25,
+  "line_text": "Under the terms of the Merger Agreement, we are subject to certain restrictions on the conduct of our business prior to completing the Merger, generally requiring us to conduct our businesses in all material respects in the ordinary course of business, to use reasonable best efforts to cooperate in seeking regulatory approvals, and to not engage in certain specified activities without Fertitta Gaming’s prior consent.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 39,
+  "page": 25,
+  "line_text": "The Merger is subject to certain conditions, some or all of which may not be satisfied, and the Merger may not be completed on a timely basis, if at all.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 40,
+  "page": 13,
+  "line_text": "There were no share repurchases made during the three and six months ended June 30, 2026.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 43,
+  "page": 32,
+  "line_text": "(2) any other subsidiary of the Borrower, whether now owned or hereafter acquired or created, that is designated by the Borrower as an Unrestricted Subsidiary hereunder after the Third Amendment Effective Date by written notice to the Administrative Agent;",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 44,
+  "page": 50,
+  "line_text": "Borrower is in Pro Forma Compliance after giving effect to such Project Financing or Qualified Non-Recourse Debt, on the later of the date that is ten (10) Business Days following the date of the delivery of the Project Notice to the Administrative Agent and the date a mortgage or other security document securing the Project Financing or Qualified Non-Recourse Debt is executed and delivered for recording pending, or is executed and delivered substantially concurrently with, the release of the Mortgage securing the Obligations (if any), the security interest and Mortgage on the applicable Mortgaged Property or other properties (if any) shall be automatically released, and if the Subsidiary Loan Party that owns or leases such Mortgaged Property or other properties is being designated as a Qualified Non-Recourse Subsidiary, the Obligations of such Subsidiary Loan Party under the Guarantee Agreement and the other Loan Documents shall be automatically released and terminated, in each case all without delivery of any instrument or performance of any act by any party (and any Loan Party shall be permitted to take any action in connection therewith consistent with such release including, without limitation, the filing of UCC termination statements).",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 45,
+  "page": 39,
+  "line_text": "(h) (i) Notwithstanding anything to the contrary in Section 2.11(a) or 2.18(c) (which provisions shall not be applicable to this Section 2.11(h)), the Borrower shall have the right at any time and from time to time to prepay Term Loans and/or repay Revolving Facility Loans of any Class (with, in the case of Revolving Facility Loans under any Revolving Facility, a corresponding permanent reduction in the Revolving Facility Commitment of each Lender who receives a Discounted Voluntary Prepayment), to the Lenders at a discount to the par value of such Loans and on a non pro rata basis (each, a “Discounted Voluntary Prepayment”) pursuant to the procedures described in this Section 2.11(h);",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 46,
+  "page": 43,
+  "line_text": "(e) Notwithstanding anything to the contrary in this Agreement, including Section 2.11(a) or Section 2.18(c) (which provisions shall not be applicable to clauses (e) through (i) of this Section 2.21), pursuant to one or more offers made from time to time by the Borrower to all Lenders of any Class of Term Loans and/or Revolving Facility Commitments, on a pro rata basis (based, in the case of an offer to the Lenders under any Class of Term Loans, on the aggregate outstanding Term Loans of such Class and, in the case of an offer to the Lenders under any Revolving Facility, on the aggregate outstanding Revolving Facility Commitments under such Revolving Facility, as applicable) and on the same terms (“Pro Rata Extension Offers”), the Borrower is hereby permitted to consummate transactions with individual Lenders from time to time to extend the maturity date of such Lender’s Loans and/or Commitments of such Class and/or to otherwise modify the terms of such Lender’s Loans and/or Commitments of such Class pursuant to the terms of the relevant Pro Rata Extension Offer (including without limitation increasing or reducing the interest rate or fees payable in respect of such Lender’s Loans and/or Commitments and/or modifying the amortization schedule in respect of such Lender’s Loans).",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ },
+ {
+  "marker": 48,
+  "page": 11,
+  "line_text": "The CVA Revolving Credit Facility and the CVA Delayed Draw Term Loan are secured by substantially all material assets of Caesars Virginia, LLC and any newly formed wholly-owned subsidiary of Caesars Virginia, LLC.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 49,
+  "page": 11,
+  "line_text": "CEI does not provide a guarantee of these facilities.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 50,
+  "page": 10,
+  "line_text": "CEI is party to a credit agreement, dated as of July 20, 2020, with JPMorgan Chase Bank, N.A., as administrative agent, U.S. Bank National Association, as collateral agent, and certain banks and other financial institutions and lenders party thereto (the “CEI Credit Agreement”), which, as amended, provides for the CEI Revolving Credit Facility in an aggregate principal amount of $2.25 billion (the “CEI Revolving Credit Facility”) and will mature on January 31, 2028.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 51,
+  "page": 10,
+  "line_text": "The CEI Term Loan A will mature on January 31, 2028.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 52,
+  "page": 10,
+  "line_text": "On April 26, 2024, Caesars Virginia, LLC entered into a credit agreement with Wells Fargo Bank, N.A., as administrative agent and collateral agent, and certain banks and other financial institutions and lenders party thereto, which provides for a senior secured first lien multi-draw term loan facility up to an aggregate principal amount of $400 million (the “CVA Delayed Draw Term Loan”) and a senior secured first lien revolving credit facility in an aggregate principal amount of $25 million (the “CVA Revolving Credit Facility”), both maturing on April 26, 2029.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 53,
+  "page": 10,
+  "line_text": "The CEI Term Loan B will mature on February 6, 2030.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 54,
+  "page": 10,
+  "line_text": "The CEI Senior Secured Notes due 2030 will mature on February 15, 2030, with interest payable semi-annually on February 15 and August 15 of each year.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 55,
+  "page": 10,
+  "line_text": "The CEI Term Loan B-1 will mature on February 6, 2031.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 56,
+  "page": 10,
+  "line_text": "The CEI Senior Secured Notes due 2032 will mature on February 15, 2032, with interest payable semi-annually on February 15 and August 15 of each year.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 57,
+  "page": 10,
+  "line_text": "The CEI Senior Notes due 2029 will mature on October 15, 2029, with interest payable semi-annually on April 15 and October 15 of each year.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 58,
+  "page": 10,
+  "line_text": "The CEI Senior Notes due 2032 will mature on October 15, 2032, with interest payable semi-annually on April 15 and October 15 of each year.",
+  "document_sha256": "f369ce5f1ebeddd9a0d4ce02ce3958112267d8701d1a348dfd6dc82d2034793a"
+ },
+ {
+  "marker": 59,
+  "page": 1,
+  "line_text": "Next call date: 2/15/2027",
+  "document_sha256": "4018aaa62309df6cd66a9b5fc766c4a9429e886e649023de2bad8673baf8aa51"
+ },
+ {
+  "marker": 60,
+  "page": 1,
+  "line_text": "Next call date: 10/15/2027",
+  "document_sha256": "256c646128b7b670ebeb2e795aaced255373b488261b7f5c9111f933e2226b24"
+ },
+ {
+  "marker": 61,
+  "page": 1,
+  "line_text": "INCREMENTAL ASSUMPTION AGREEMENT NO. 3, dated as of February 6, 2024 (this “Agreement”), by and among CAESARS ENTERTAINMENT, INC., a Delaware corporation (f/k/a ELDORADO RESORTS, INC., a Nevada corporation), as borrower (the “Borrower”), the Subsidiary Loan Parties party hereto, the Incremental Term B-1 Lender (as defined below) and the Administrative Agent (as defined below), relating to that certain Credit Agreement, dated as of July 20, 2020 (as modified by that certain Incremental Assumption Agreement No. 1, dated as of July 20, 2020, as amended by that certain First Amendment to Credit Agreement, dated as of November 10, 2021, as amended by that certain Second Amendment to Credit Agreement, dated as of January 26, 2022, as amended by that certain Third Amendment to Credit Agreement, dated as of October 5, 2022, as modified by that certain Incremental Assumption Agreement No. 2, dated as of February 6, 2023 and as further amended, restated, supplemented, waived or otherwise modified from time to time prior to the date hereof, the “Existing Credit Agreement”; and the Existing Credit Agreement as amended and modified by this Agreement, and as it may be further amended, restated, supplemented, waived or otherwise modified from time to time, the “Credit Agreement”), among the Borrower, the Lenders party thereto from time to time, JPMORGAN CHASE BANK, N.A., as administrative agent for the Lenders (together with its successors and assigns in such capacity, the “Administrative Agent”), and U.S. BANK NATIONAL ASSOCIATION, as collateral agent for the Secured Parties (together with its successors and assigns in such capacity, the “Collateral Agent”).",
+  "document_sha256": "25bea1d14fd9bb22838775f6fe056cd00741dc3d50eb1b79cc53498db502941c"
+ }
+]
