@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from conftest import HANG_TIMEOUT
 from rbotlib import runlog, runs, state
 from rbotlib.inventory import RunError
 
@@ -46,7 +47,7 @@ def test_owner_death_releases_real_lock(tmp_path: Path, kind: str) -> None:
             else:
                 runlog.Receipt(run, ["contender"])
         process.kill()
-        assert process.wait(timeout=10) == -9
+        assert process.wait(timeout=HANG_TIMEOUT) == -9
         state.update(run, lambda record: record.update(probe=True))
         receipt = runlog.Receipt(run, ["after-death"])
         receipt.append(0)
@@ -55,7 +56,7 @@ def test_owner_death_releases_real_lock(tmp_path: Path, kind: str) -> None:
     finally:
         if process.poll() is None:
             process.kill()
-            process.wait(timeout=10)
+            process.wait(timeout=HANG_TIMEOUT)
 
 
 def test_unknown_sentinel_refuses(tmp_path: Path) -> None:

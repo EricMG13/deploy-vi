@@ -10,6 +10,7 @@ from host_process import command, finish, start
 from test_host_fit import fit_run
 from test_model_host import eligible
 
+from conftest import HANG_TIMEOUT
 from rbotlib import cli, host_evidence, state
 from rbotlib import next as next_step
 from rbotlib.rules import RBOT_ROOT
@@ -27,7 +28,7 @@ def test_active_owner_and_killed_registration(tmp_path: Path, kind: str) -> None
         assert contender.returncode == 1 and "holds" in contender.stderr
         assert state.read(run)["steps"][kind.upper()] == original
         process.kill()
-        assert process.wait(timeout=10) == -9
+        assert process.wait(timeout=HANG_TIMEOUT) == -9
         selected = next_step.select(run, RBOT_ROOT)
         assert selected["step"] == kind.upper()
         resumed = command(run, kind)
@@ -52,7 +53,7 @@ def test_publication_interruption_is_truthfully_reconciled(tmp_path: Path, phase
         original = state.read(run)["steps"]["MODEL"]
         prefix = (run / "log/rbot.log").read_bytes()
         process.kill()
-        assert process.wait(timeout=10) == -9
+        assert process.wait(timeout=HANG_TIMEOUT) == -9
         resumed = command(run, "model")
         current = state.read(run)["steps"]["MODEL"]
         if phase == "commit":
@@ -70,7 +71,7 @@ def test_public_next_after_receipt_interruption_can_continue(tmp_path: Path) -> 
     run = eligible(tmp_path, RBOT_ROOT)
     process = start(run, "model", "log")
     process.kill()
-    assert process.wait(timeout=10) == -9
+    assert process.wait(timeout=HANG_TIMEOUT) == -9
     try:
         assert cli.main(["next", "--run", str(run)]) == 0
         resumed = command(run, "model")
@@ -94,7 +95,7 @@ def test_every_host_publication_boundary(tmp_path: Path, kind: str, phase: str) 
         prefix = (run / "log/rbot.log").read_bytes()
         files = {str(p.relative_to(run)): p.read_bytes() for p in run.glob("fit/*.json")}
         process.kill()
-        assert process.wait(timeout=10) == -9
+        assert process.wait(timeout=HANG_TIMEOUT) == -9
         result = command(run, kind)
         current = state.read(run)["steps"][kind.upper()]
         if phase == "commit":
@@ -125,7 +126,7 @@ def test_simultaneous_continuations_admit_one_owner(tmp_path: Path, kind: str) -
     run = eligible(tmp_path, RBOT_ROOT) if kind == "model" else fit_run(tmp_path)
     prior = start(run, kind, "build")
     prior.kill()
-    assert prior.wait(timeout=10) == -9
+    assert prior.wait(timeout=HANG_TIMEOUT) == -9
     process = start(run, kind, "build")
     try:
         before = (run / state.STATE).read_bytes()
@@ -135,7 +136,7 @@ def test_simultaneous_continuations_admit_one_owner(tmp_path: Path, kind: str) -
         assert process.stdin is not None
         process.stdin.write("continue\n")
         process.stdin.flush()
-        stdout, stderr = process.communicate(timeout=20)
+        stdout, stderr = process.communicate(timeout=HANG_TIMEOUT)
         assert process.returncode == 0 and "BUILT" in stdout, stderr
         evidence = state.read(run)["steps"][kind.upper()]["host_execution"]
         assert len(evidence["invocations"]) == 2 and evidence["invocations"][-1]["exit"] == 0
@@ -163,7 +164,7 @@ def test_tampered_continuation_refuses_before_build(tmp_path: Path, change: str)
     run = eligible(tmp_path, RBOT_ROOT)
     process = start(run, "model", "intent" if change in ("receipt", "receipt-list") else "build")
     process.kill()
-    assert process.wait(timeout=10) == -9
+    assert process.wait(timeout=HANG_TIMEOUT) == -9
     try:
         record = state.read(run)
         evidence = record["steps"]["MODEL"]["host_execution"]
@@ -219,7 +220,7 @@ def test_interrupted_caught_failure_never_rebuilds(tmp_path: Path, kind: str, ph
     run = eligible(tmp_path, RBOT_ROOT) if kind == "model" else fit_run(tmp_path)
     process = start(run, kind, phase)
     process.kill()
-    assert process.wait(timeout=10) == -9
+    assert process.wait(timeout=HANG_TIMEOUT) == -9
     try:
         before = state.read(run)["steps"][kind.upper()]
         result = command(run, kind)
@@ -243,7 +244,7 @@ def test_partial_output_sets_preserve_or_refuse_foreign_files(
     name = "model.json" if kind == "model" else "fit/FUND.json"
     process = start(run, kind, "output-" + Path(name).name)
     process.kill()
-    assert process.wait(timeout=10) == -9
+    assert process.wait(timeout=HANG_TIMEOUT) == -9
     try:
         target = run / name
         if conflict == "missing":
@@ -272,7 +273,7 @@ def test_caught_failure_is_terminal_after_source_changes(tmp_path: Path) -> None
     run = eligible(tmp_path, RBOT_ROOT)
     process = start(run, "model", "failure")
     process.kill()
-    assert process.wait(timeout=10) == -9
+    assert process.wait(timeout=HANG_TIMEOUT) == -9
     try:
         record = state.read(run)
         (Path(record["pack_root"]) / "acme_10k.txt").write_bytes(b"later source correction")
@@ -298,7 +299,7 @@ def test_repeated_native_rows_with_same_clock_remain_attributable(
     run = eligible(tmp_path, RBOT_ROOT)
     process = start(run, "model", "log")
     process.kill()
-    assert process.wait(timeout=10) == -9
+    assert process.wait(timeout=HANG_TIMEOUT) == -9
     try:
         monkeypatch.setattr(runlog, "datetime", Clock)
         assert cli.main(["next", "--run", str(run)]) == 0
@@ -344,7 +345,7 @@ def test_continuation_rechecks_origin_and_approved_inputs(tmp_path: Path, change
     run = eligible(tmp_path, root)
     process = start(run, "model", "build", root)
     process.kill()
-    assert process.wait(timeout=10) == -9
+    assert process.wait(timeout=HANG_TIMEOUT) == -9
     try:
         record = state.read(run)
         if change == "approval":

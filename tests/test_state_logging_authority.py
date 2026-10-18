@@ -12,6 +12,8 @@ import pytest
 from state_receipt_assertions import outcome_bytes
 from test_state import seeded
 
+from conftest import HANG_TIMEOUT
+
 
 def snapshot(root: Path) -> dict[str, bytes | None]:
     return {
@@ -25,7 +27,7 @@ def call(selected: str, cwd: Path | None = None) -> subprocess.CompletedProcess[
         cwd=cwd,
         capture_output=True,
         text=True,
-        timeout=2,
+        timeout=HANG_TIMEOUT,
         check=False,
     )
 
@@ -185,7 +187,7 @@ def test_missing_parent_segment_refuses_before_state_publication(tmp_path: Path)
         ],
         capture_output=True,
         text=True,
-        timeout=2,
+        timeout=HANG_TIMEOUT,
         check=False,
     )
     assert result.returncode == 1 and "error:" in result.stdout + result.stderr
