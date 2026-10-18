@@ -11,6 +11,7 @@ from host_process import finish, start
 from test_host_fit import fit_run
 from test_model_host import eligible
 
+from conftest import HANG_TIMEOUT
 from rbotlib import fit, grade, inventory, prepare, runlog, state
 from rbotlib.model import run as writer
 from rbotlib.rules import RBOT_ROOT, load_rules
@@ -58,7 +59,7 @@ def test_direct_publisher_cannot_change_active_host(
         assert process.stdin is not None
         process.stdin.write("continue\n")
         process.stdin.flush()
-        stdout, stderr = process.communicate(timeout=20)
+        stdout, stderr = process.communicate(timeout=HANG_TIMEOUT)
         assert process.returncode == 0, stderr
         assert "BUILT" in stdout and state.read(run)["steps"][kind.upper()]["status"] == "accepted"
     finally:

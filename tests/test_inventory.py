@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import shutil
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -281,8 +282,13 @@ def test_a_pack_root_that_is_the_run_or_a_bad_run_state_is_named(tmp_path: Path)
 
 @pytest.mark.corpus
 @pytest.mark.parametrize("pack_id", [p.id for p in CORPUS.packs])
-def test_inventory_is_deterministic(pack_id: str, corpus_pack: Callable[[str], Path]) -> None:
-    run = make_run(corpus_pack(pack_id), f"20261011-{pack_id}-inventory")
+def test_inventory_is_deterministic(
+    pack_id: str, corpus_pack: Callable[[str], Path], tmp_path: Path
+) -> None:
+    pack = shutil.copytree(
+        corpus_pack(pack_id), tmp_path / "working pack", ignore=shutil.ignore_patterns("rbot-runs")
+    )
+    run = make_run(pack, f"20261011-{pack_id}-inventory")
     runs = []
     for _ in range(2):
         assert main(["inventory", "--run", str(run)]) == 0
