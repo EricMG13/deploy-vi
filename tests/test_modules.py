@@ -161,3 +161,12 @@ def test_cp1_consumers_include_the_real_register_readers(rules: Rules) -> None:
         "cp1.operating_kpi_schedule",
     ):
         assert "CP-2" in tables[table_id]
+
+
+def test_cp_dr_states_the_fetch_limits_and_bars_model_knowledge() -> None:
+    """Plan 10 R2 and R15: a 3-page cap per question, the fetched locator, no model knowledge."""
+    text = (FOLDERS / "CP-DR" / "MODULE.md").read_text("utf-8")
+    assert "at most 3 pages per question" in text
+    assert "<URL> retrieved <YYYY-MM-DD>" in text
+    assert "fetched/<nn>-<host>.md" in text
+    assert "Do not use model background knowledge" in text

@@ -41,7 +41,7 @@
         {"name": "sha256", "critical": true},
         {"name": "note"}
       ],
-      "consumers": ["CP-1", "CP-1A", "CP-5", "RUN_BRIEF", "REPORT"]
+      "consumers": ["CP-1", "CP-1A", "CP-DR", "CP-5", "RUN_BRIEF", "REPORT"]
     },
     {
       "id": "cp0.run_brief_prefill",
@@ -67,7 +67,7 @@
         {"name": "consumer_module", "critical": true},
         {"name": "evidence_needed", "critical": true}
       ],
-      "consumers": ["RUN_BRIEF", "REPORT"]
+      "consumers": ["RUN_BRIEF", "CP-DR", "REPORT"]
     },
     {
       "id": "cp0.prior_case",

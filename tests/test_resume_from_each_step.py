@@ -18,7 +18,21 @@ from rbotlib.contract import load_contract
 from rbotlib.rules import RBOT_ROOT, load_rules
 from test_grade import ACME, FILES
 
-STEPS = ["CP-0", "CP-1", "CP-1A", "CP-1B", "CP-1D", "MODEL", "CP-2", "CP-3", "FIT", "CP-5", "CP-6"]
+STEPS = [
+    "CP-0",
+    "CP-1",
+    "CP-1A",
+    "CP-DR",
+    "CP-1B",
+    "CP-1D",
+    "MODEL",
+    "CP-2",
+    "CP-3",
+    "FIT",
+    "CP-5",
+    "CP-6",
+]
+RUN_STEPS = [s for s in STEPS if s != "CP-DR"]  # Deep Research is not approved here: skipped
 CONTROLLER = [
     "new-run",
     "inventory",
@@ -28,7 +42,7 @@ CONTROLLER = [
     "brief-edits",
     "grade",
     "Approval",
-    *STEPS[1:],
+    *RUN_STEPS[1:],
 ]
 CHILD = (
     "from rbotlib.cli import main; import os, sys; code=main(sys.argv[1:]); "
@@ -86,7 +100,7 @@ def handoff(run: Path, module: str) -> None:
     (run / f"handoffs/{module}.md").write_text(text)
 
 
-def flow(path: Path, stop: str) -> tuple[list[str], dict[str, tuple[str, int]]]:
+def flow(path: Path, stop: str) -> tuple[list[str], dict[str, tuple[str, int | None]]]:
     pack = path / "pack"
     pack.mkdir(parents=True)
     for name in FILES:
@@ -173,12 +187,14 @@ def flow(path: Path, stop: str) -> tuple[list[str], dict[str, tuple[str, int]]]:
     record = state.read(run)
     assert record["approval"]["analyst"] == "Generated controller"
     assert not (run / "model.xlsx").exists()
-    return visited, {m: (s["status"], s["attempts"]) for m, s in record["steps"].items()}
+    # a skipped step was never attempted, so it has no attempts count
+    return visited, {m: (s["status"], s.get("attempts")) for m, s in record["steps"].items()}
 
 
 @pytest.mark.parametrize("stop", CONTROLLER)
 def test_resume_after_every_native_controller_step(tmp_path: Path, stop: str) -> None:
     expected = flow(tmp_path / "uninterrupted", "none")
     assert flow(tmp_path / "interrupted", stop) == expected
-    assert expected[0] == STEPS[1:]
+    assert expected[0] == RUN_STEPS[1:]
+    assert expected[1]["CP-DR"] == ("skipped", None)
     assert json.dumps(expected[1])  # all terminal outcomes are compared, not accepted-state seeds
