@@ -4,7 +4,7 @@ run_id: 20261011-czr-full-credit-assessment
 issuer_id: CZR
 analysis_date: 2026-10-02
 qa_status: Pass
-inputs: CP-0, CP-1, CP-1A, CP-1B, CP-1D, CP-2, CP-3, MODEL, FIT
+inputs: CP-0, CP-1, CP-1A, CP-DR, CP-1B, CP-1D, MODEL, CP-1C, CP-2, CP-2A, CP-2E, CP-4, CP-2D, CP-3, FIT
 ---
 
 ## Analysis
@@ -40,13 +40,18 @@ The prior Structuring EBITDA finding is fixed: CP-1 registers the arranger's 150
 | CP-1B | Restricted | Traceable | no KPIs and no guidance in the pack |
 | CP-1D | Restricted | Traceable | synergy actions not evidenced |
 | MODEL | Pass | Traceable | Structuring EBITDA 3,742 includes the cited 150; SSIM EBITDA 3,592 excludes the unrealized benefit (F-1 Fixed) |
+| CP-1C | Blocked | Partly traceable | no four comparable operating peers; aligned peer statistics and borrower positioning unavailable |
 | CP-2 | Restricted | Traceable | — |
+| CP-2A | Restricted | Partly traceable | conditional downside paths only; probability, impact and closing date unknown |
+| CP-2E | Blocked | Partly traceable | current/PF rate population and full-period hedge basis unreconciled; sensitivity unavailable |
+| CP-4 | Blocked | Partly traceable | governing documents available; current legal ratios, bridge and basket usage missing |
+| CP-2D | Blocked | Partly traceable | historical liquidity is not current accessible opening; forward cash schedules and runway unavailable |
 | CP-3 | Restricted | Traceable | floor benefit and STW not computed |
 | FIT | Restricted | Traceable | minimum limits not sized |
 
 ## Gaps
 
-- No CP-1C, CP-2A, CP-4 or other full-depth modules in this run's Pathway list yet: their checks are absent.
+- Full-depth CP-1C, CP-2E, CP-4 and CP-2D remain Blocked on their named critical input gaps; CP-2A has conditional paths with unknown probability, impact and timing. These gaps do not establish peer ranking, hedge protection, legal headroom or liquidity runway.
 
 ## Citations
 
