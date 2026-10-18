@@ -123,11 +123,11 @@ def test_actual_returned_model_command_completes_and_advances(tmp_path: Path) ->
     assert set(current["outputs"]) == {"model.json", "handoffs/MODEL.md"}
     assert not (run / "model.xlsx").exists()
     assert json.loads((run / "model.json").read_text())["inputs"]["CP-1D"] is None
-    assert next_step.select(run, root)["step"] == "CP-3"
+    assert next_step.select(run, root)["step"] == "CP-1C"
     rows = (run / "log/rbot.log").read_bytes().splitlines()
     model_rows = [row for row in rows if b" model --run " in row]
     assert len(model_rows) == 1 and model_rows[0].endswith(b"\t0")
-    assert str(run / "handoffs/MODEL.md") in (run / "dispatch/CP-3.md").read_text()
+    assert str(run / "handoffs/MODEL.md") in (run / "dispatch/CP-1C.md").read_text()
 
 
 def test_public_log_failure_cannot_leave_model_accepted(
@@ -161,7 +161,7 @@ def test_retired_workbook_leftover_does_not_block_managed_pair(tmp_path: Path) -
     legacy.write_bytes(b"legacy analyst workbook")
     assert cli.main(["model", "--run", str(run)]) == 0
     assert set(state.read(run)["steps"]["MODEL"]["outputs"]) == {"model.json", "handoffs/MODEL.md"}
-    assert next_step.select(run, RBOT_ROOT)["step"] == "CP-3"
+    assert next_step.select(run, RBOT_ROOT)["step"] == "CP-1C"
     assert legacy.read_bytes() == b"legacy analyst workbook"
 
 
@@ -209,6 +209,8 @@ def test_either_input_or_context_change_during_execution_is_named(
 def test_cp3_message_declares_the_calculator_and_its_write_paths(tmp_path: Path) -> None:
     run = eligible(tmp_path, RBOT_ROOT)
     assert cli.main(["model", "--run", str(run)]) == 0
+    assert next_step.select(run, RBOT_ROOT)["step"] == "CP-1C"
+    state.set_status(run, "CP-1C", "failed", "fixture peer producer failed")
     assert next_step.select(run, RBOT_ROOT)["step"] == "CP-3"
     cp3 = (run / "dispatch/CP-3.md").read_text()
     inputs = json.dumps(str(run / "calc/CP-3-bond_analytics.json"))

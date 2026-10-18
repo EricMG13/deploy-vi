@@ -80,7 +80,7 @@
     {
       "id": "FULL_CREDIT_ASSESSMENT", "label": "Full Credit Assessment", "front_page": "credit_snapshot",
       "depths": {
-        "full": ["CP-0", "CP-1", "CP-1A", "CP-DR", "CP-1B", "CP-1D", "MODEL", "CP-2", "CP-3", "FIT", "CP-5", "CP-6"],
+        "full": ["CP-0", "CP-1", "CP-1A", "CP-DR", "CP-1B", "CP-1D", "MODEL", "CP-1C", "CP-2", "CP-3", "FIT", "CP-5", "CP-6"],
         "quick": ["CP-0", "CP-1", "CP-1A", "CP-1B", "MODEL", "CP-L10", "CP-3", "FIT", "CP-5", "CP-6"]
       }
     }

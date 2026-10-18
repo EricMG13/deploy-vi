@@ -585,3 +585,34 @@ TABLES["CP-DR"] = [
 INPUTS["CP-DR"] = Inputs(
     "CP-0 CP-1A", "CP-1", "issuer market", "research_questions issuer as_of_date"
 )
+
+
+TABLES["CP-1C"] = [
+    TableSpec(
+        "cp1c.peer_set",
+        1,
+        "peer* selection_basis* comparability*:comparability data_availability* cite*",
+        "CP-2 CP-3 REPORT",
+    ),
+    TableSpec(
+        "cp1c.peer_metrics",
+        3,
+        "peer* metric_id* value* unit_label* period* currency definition_note cite*",
+        "CP-2 CP-3 CP-2G REPORT",
+    ),
+    TableSpec(
+        "cp1c.positioning",
+        1,
+        "metric_id* unit_label* borrower_value* peer_min* peer_q1* peer_median* peer_q3* "
+        "peer_max* n* position*:position credit_implication* cite*",
+        "CP-2 CP-3 CP-6 REPORT",
+    ),
+    TableSpec(
+        "cp1c.valuation_multiples",
+        0,
+        "entity* basis*:multiple_basis ev ev_ebitda_x ev_revenue_x implied_ev_low "
+        "implied_ev_median implied_ev_high currency* unit*:unit period* cite*",
+        "CP-3 CP-6 CP-4C REPORT",
+    ),
+]
+INPUTS["CP-1C"] = Inputs("CP-0 CP-1", "MODEL", "issuer market", "issuer as_of_date")
