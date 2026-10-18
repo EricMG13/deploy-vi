@@ -49,13 +49,13 @@ Write one Handoff, `handoffs/CP-1.md`, carrying these tables:
 - `period_type` takes exactly one of: QUARTER; YTD; FY; LTM; PERIOD_END
 - `unit` takes exactly one of: UNITS; THOUSANDS; MILLIONS
 
-**Model account register** — at least 1 row(s); read by MODEL, CP-1B, CP-1D, CP-5, CP-2.
+**Model account register** — at least 1 row(s); read by MODEL, CP-1B, CP-1D, CP-4, CP-5, CP-2.
 
 <!-- table: cp1.model_account_register -->
 | metric_id* | period_id* | value | calculation_status* | source_id | source_locator |
 |---|---|---|---|---|---|
 
-**Adjusted EBITDA bridge** — at least 0 row(s); read by MODEL, CP-1D, CP-2.
+**Adjusted EBITDA bridge** — at least 0 row(s); read by MODEL, CP-1D, CP-4, CP-2.
 
 <!-- table: cp1.adjusted_ebitda_bridge -->
 | addback_id* | addback_label* | addback_classification* | realization_status* | display_priority* | period_id* | value | source_id | source_locator |
@@ -79,7 +79,7 @@ Write one Handoff, `handoffs/CP-1.md`, carrying these tables:
 
 - `value_type` takes exactly one of: PERIOD_END; PERIOD_FLOW; RATE
 
-**Debt facility register** — at least 1 row(s); read by MODEL, CP-3, FIT, CP-1D, CP-2.
+**Debt facility register** — at least 1 row(s); read by MODEL, CP-3, CP-4, FIT, CP-1D, CP-2.
 
 <!-- table: cp1.debt_facility_register -->
 | facility_id* | facility_name* | period_id* | facility_type* | currency* | carrying_value | drawn_amount | commitment | secured_status* | seniority* | margin_or_coupon* | maturity_date | lease_classification* | rate_type | reference_rate | spread_bps | floor_bps | fixed_rate | annual_amortisation | source_id | source_locator |
@@ -105,7 +105,7 @@ Write one Handoff, `handoffs/CP-1.md`, carrying these tables:
 
 - `unit` takes exactly one of: UNITS; THOUSANDS; MILLIONS
 
-**Instrument identity** — at least 1 row(s); read by MODEL, CP-3, FIT, REPORT.
+**Instrument identity** — at least 1 row(s); read by MODEL, CP-3, CP-4, FIT, REPORT.
 
 <!-- table: cp1.instrument_identity -->
 | facility_id* | instrument_name* | debt_type* | bloomberg_id | isin | cusip | issuer_entity* | rating_moodys | rating_sp | rating_fitch | call_schedule | listed_market* | cite* |
@@ -120,7 +120,7 @@ Write one Handoff, `handoffs/CP-1.md`, carrying these tables:
 | check_id* | period_id* | check_type* | reported_value | calculated_value | difference | status* | explanation* | cite |
 |---|---|---|---|---|---|---|---|---|
 
-**Definition conflicts** — at least 0 row(s); read by CP-1B, CP-1D, CP-5.
+**Definition conflicts** — at least 0 row(s); read by CP-1B, CP-1D, CP-4, CP-5.
 
 <!-- table: cp1.definition_conflicts -->
 | metric_id* | issuer_definition* | canonical_definition* | periods_affected* | materiality* | resolution* | cite* |
@@ -128,7 +128,7 @@ Write one Handoff, `handoffs/CP-1.md`, carrying these tables:
 
 - `materiality` takes exactly one of: High; Medium; Low; Not assessable
 
-**Entity profile** — at least 1 row(s); read by MODEL, CP-1A, CP-5.
+**Entity profile** — at least 1 row(s); read by MODEL, CP-1A, CP-4, CP-5.
 
 <!-- table: cp1.entity_profile -->
 | entity* | role* | fiscal_year_end* | reporting_currency* | reporting_unit* | perimeter* | accounting_basis* | cite* |

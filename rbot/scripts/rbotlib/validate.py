@@ -31,6 +31,8 @@ from rbotlib.rules import Rules
 EXIT_VALID, EXIT_USAGE, EXIT_MALFORMED, EXIT_BLOCKED, EXIT_IDENTITY = 0, 1, 2, 3, 4
 MAX_HANDOFF_BYTES = 98_304
 ROW_KEYS = {
+    "cp4.covenant_tests": ("test",),
+    "cp4.capacity_register": ("capacity_type", "basket"),
     "cp2a.downside_paths": ("path_id",),
     "cp2a.triggers": ("trigger_id",),
     "snapshot.recommendation": ("strategy",),
@@ -564,10 +566,33 @@ def _path_links(h: Handoff, rules: Rules) -> list[Finding]:
     ]
 
 
+def _legal_gate(h: Handoff) -> list[Finding]:
+    """Require an authored executed governing record; source anchoring remains separate."""
+    if h.front_matter.get("qa_status") == "Blocked":
+        return []
+    table = h.tables.get("cp4.document_register")
+    at = [_column(table, n) for n in ("document_type", "status")] if table else []
+    if table is None or None in at:
+        return []  # existing structural findings explain missing table/columns
+    kind, status = (i or 0 for i in at)
+    if any(
+        normalise(row[kind]) in {"credit agreement", "indenture"}
+        and normalise(row[status]) == "executed"
+        for row in table.rows
+        if len(row) == len(table.columns)
+    ):
+        return []
+    return [
+        Finding("legal_document_gate", "CP-4 requires an executed credit agreement or indenture")
+    ]
+
+
 def _module_findings(
     h: Handoff, contract: Contract, rules: Rules, run: Path | None
 ) -> list[Finding]:
     """A module's own checks beyond its tables: CP-0's in `rbotlib.cp0` (Plan 04), CP-3's gate."""
+    if contract.module_id == "CP-4":
+        return _legal_gate(h)
     if contract.module_id == "CP-2A":
         return _path_links(h, rules)
     if contract.module_id == "CP-3":

@@ -56,7 +56,7 @@ Write one Handoff, `handoffs/CP-1A.md`, carrying these tables:
 
 - `evidence_quality` takes exactly one of: Audited; Issuer-stated; Third-party; Analyst
 
-**Ownership and governance** — at least 1 row(s); read by CP-2, CP-6, CP-L10.
+**Ownership and governance** — at least 1 row(s); read by CP-2, CP-4, CP-6, CP-L10.
 
 <!-- table: cp1a.ownership_governance -->
 | topic* | fact* | risk_direction* | credit_implication* | cite* |

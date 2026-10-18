@@ -69,7 +69,7 @@
         {"name": "risk_direction", "critical": true, "scale": "risk_direction"},
         {"name": "credit_implication", "critical": true}, {"name": "cite", "critical": true}
       ],
-      "consumers": ["CP-2", "CP-6", "CP-L10"]
+      "consumers": ["CP-2", "CP-4", "CP-6", "CP-L10"]
     },
     {
       "id": "cp1a.transactions_events",

@@ -41,7 +41,7 @@
         {"name": "basis", "critical": true, "scale": "depth_basis"},
         {"name": "cite", "critical": true}
       ],
-      "consumers": ["REPORT", "CP-2A", "CP-3", "CP-5", "CP-6"]
+      "consumers": ["REPORT", "CP-2A", "CP-3", "CP-4", "CP-5", "CP-6"]
     },
     {
       "id": "snapshot.strengths_weaknesses",

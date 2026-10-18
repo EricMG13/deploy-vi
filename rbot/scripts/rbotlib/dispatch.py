@@ -406,7 +406,9 @@ def _fetch_lines(
 
 
 def _calculator_writes(run: Path, module: str) -> tuple[str | None, list[str]]:
-    name = {"CP-3": "bond_analytics", "CP-1C": "peer_statistics"}.get(module)
+    name = {"CP-3": "bond_analytics", "CP-1C": "peer_statistics", "CP-4": "covenant_headroom"}.get(
+        module
+    )
     if name is None:
         return None, []
     paths = [

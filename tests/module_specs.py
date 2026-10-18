@@ -641,3 +641,50 @@ TABLES["CP-2A"] = [
     ),
 ]
 INPUTS["CP-2A"] = Inputs("CP-0 CP-1 CP-2 MODEL", "CP-1A CP-1B CP-DR", "issuer", "as_of_date")
+
+
+TABLES["CP-4"] = [
+    TableSpec(
+        "cp4.document_register",
+        1,
+        "document* document_type*:document_type document_date* parties* "
+        "governing_law status* cite*",
+        "CP-3C CP-4C CP-5 REPORT",
+    ),
+    TableSpec(
+        "cp4.covenant_tests",
+        1,
+        "test* test_type*:test_type direction*:trigger_direction threshold* current_value* "
+        "unit_label* basis* headroom* status*:trigger_status cite*",
+        "CP-2D CP-3C CP-4C CP-6 CP-3 REPORT",
+    ),
+    TableSpec(
+        "cp4.capacity_register",
+        1,
+        "capacity_type* basket* formula* used* remaining* currency* unit*:unit "
+        "status*:calc_status severity*:severity risk_mechanism* credit_implication* cite*",
+        "CP-3C CP-4C CP-3 CP-6 REPORT",
+    ),
+    TableSpec(
+        "cp4.structure_map",
+        0,
+        "entity* role* inside_credit_group*:yes_no guarantees* liens* reachable_value* cite*",
+        "CP-4C CP-3 CP-3C REPORT",
+    ),
+    TableSpec(
+        "cp4.red_flags",
+        1,
+        "flag* provision* creditor_risk* severity*:severity pd_lgd_effect* cite*",
+        "CP-3 CP-3C CP-4C CP-6 REPORT",
+    ),
+    TableSpec(
+        "cp4.ebitda_definition",
+        1,
+        "feature* clause* cap_or_condition* capacity_effect* cite*",
+        "CP-3C CP-6 REPORT",
+    ),
+    TableSpec(
+        "cp4.protection_score", 1, "area* score*:five_point evidence* cite*", "CP-6 CP-3 REPORT"
+    ),
+]
+INPUTS["CP-4"] = Inputs("CP-0 CP-1 MODEL", "CP-1A CP-1D CP-2 CP-L10", "issuer", "as_of_date")

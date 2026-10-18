@@ -28,6 +28,7 @@ SHIPPED = {
     "CP-DR",
     "CP-2",
     "CP-2A",
+    "CP-4",
     "CP-3",
     "CP-5",
     "CP-6",

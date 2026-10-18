@@ -69,7 +69,7 @@ def test_module_md_is_generated_and_within_the_budget(module_id: str, rules: Rul
 @pytest.mark.parametrize("module_id", MODULES)
 def test_the_fixture_handoff_validates(module_id: str, rules: Rules) -> None:
     assert check(fixture(module_id), contract(module_id, rules), rules) == (
-        3 if module_id == "CP-1C" else 0,
+        3 if module_id in {"CP-1C", "CP-4"} else 0,
         [],
     )
 
@@ -81,7 +81,7 @@ def test_handoff_fixtures_validate(
 ) -> None:
     run = prepared_run("czr-2026q2-primary")
     assert check(fixture(module_id), contract(module_id, rules), rules, run) == (
-        3 if module_id == "CP-1C" else 0,
+        3 if module_id in {"CP-1C", "CP-4"} else 0,
         [],
     )
 

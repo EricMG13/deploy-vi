@@ -36,7 +36,7 @@
         {"name": "rationale", "critical": true}, {"name": "recurrence", "critical": true},
         {"name": "cite", "critical": true}
       ],
-      "consumers": ["MODEL", "CP-2", "CP-6", "REPORT"]
+      "consumers": ["MODEL", "CP-2", "CP-4", "CP-6", "REPORT"]
     },
     {
       "id": "cp1d.cash_conversion",
