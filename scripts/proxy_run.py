@@ -199,7 +199,9 @@ def _transport_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--from-run", help="isolated source run (default: newest qualifying)")
     parser.add_argument("--fixtures", action="store_true", help="isolated source: fixture Handoffs")
     parser.add_argument("--model-label", help="requested caller label; never provider proof")
-    parser.add_argument("--fetch", action="store_true", help="request unavailable Plan10 fetch")
+    parser.add_argument(
+        "--fetch", action="store_true", help="needs RBOT_FETCH=1 in the environment"
+    )
     parser.add_argument("--reported-module", help="genuine controller dispatch report target")
     parser.add_argument("--receipt")
     parser.add_argument("--reporter")

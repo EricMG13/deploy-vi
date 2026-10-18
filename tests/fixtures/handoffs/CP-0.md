@@ -77,7 +77,7 @@ Hand-written test fixture of a CP-0 Handoff for the synthetic Primary pack `czr-
 <!-- table: cp0.research_questions -->
 | question_id | question | why_it_matters | consumer_module | evidence_needed |
 |---|---|---|---|---|
-| RQ-1 | How is Las Vegas Strip visitation trending into 2027? | Las Vegas drives the largest segment's Adjusted EBITDA | CP-2 | Visitation and convention statistics |
+| Q1 | How is Las Vegas Strip visitation trending into 2027? | Las Vegas drives the largest segment's Adjusted EBITDA | CP-2 | Public tourism-authority visitation and convention statistics; the pack holds no visitation series and was checked and is silent on it |
 
 <!-- table: cp0.prior_case -->
 | file | report_date | run_id | pathway | depth | offered |

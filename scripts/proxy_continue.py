@@ -11,7 +11,7 @@ import unicodedata
 from collections.abc import Callable
 from pathlib import Path
 
-from rbotlib import dispatch, state
+from rbotlib import dispatch, fetch, state
 from rbotlib.corpus import CorpusError
 from rbotlib.rules import RBOT_ROOT
 
@@ -34,8 +34,11 @@ def check_options(args: argparse.Namespace) -> None:
         or any(unicodedata.category(c) in ("Cc", "Cf", "Cs", "Zl", "Zp") for c in label)
     ):
         raise CorpusError("model-label: require 1-200 printable characters; caller claim only")
-    if args.fetch:
-        raise CorpusError("Plan10 fetch unavailable; no network fetch performed")
+    live = fetch.available()
+    if args.fetch and not live:
+        raise CorpusError("--fetch requires RBOT_FETCH=1 in the environment; it is never set here")
+    if live and not args.fetch:
+        raise CorpusError("RBOT_FETCH is set; pass --fetch to run with fetch, or unset it")
     if args.module is not None and not args.module.strip():
         raise CorpusError("--module requires a nonempty Module id")
 
