@@ -153,8 +153,11 @@ def doc_bytes() -> bytes:
 
 
 def test_cp8_completion_and_volatile_fields_do_not_stale_binding(native: tuple[Path, Path]) -> None:
+    from test_diff_cli import publish
+
     run, root = native
     before = prior_context.capture(run, root)
+    assert publish(run, root) == 0
     blocked(run, root, "CP-8")
     state.update(run, lambda r: r.update(volatile_counter=999))
     with (run / "log/rbot.log").open("ab") as log:
