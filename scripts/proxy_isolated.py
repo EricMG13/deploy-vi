@@ -19,7 +19,7 @@ from typing import Any
 
 import proxy_continue
 
-from rbotlib import state
+from rbotlib import fetched, state
 from rbotlib.catalog import load_catalog
 from rbotlib.corpus import CorpusError, Pack, Registry, repo_root
 from rbotlib.fsio import write_atomic
@@ -177,9 +177,30 @@ def rewrite_run_id(raw: bytes, run_id: str) -> bytes:
     return b"".join(lines)
 
 
+def import_fetched(run: Path, source: Source) -> bool:
+    """Copy the source run's saved pages byte for byte (a symlinked folder or file is refused);
+    True when a `fetched/` folder was copied."""
+    folder = Path(source.where) / fetched.FOLDER
+    if folder.is_symlink():
+        raise CorpusError(f"{folder}: a symlinked fetched/ folder is not imported")
+    if not folder.is_dir():
+        return False
+    target = output_path(run, fetched.FOLDER)
+    target.mkdir(exist_ok=True)
+    for path in sorted(folder.iterdir()):
+        if path.is_symlink():
+            raise CorpusError(f"{path}: a symlink in fetched/ is not imported")
+        if path.is_file():
+            (target / path.name).write_bytes(path.read_bytes())
+    return True
+
+
 def import_module(run: Path, selected: dict[str, Any], source: Source, native: Native) -> str:
     """Write the source bytes as the module's own Handoff, report and accept natively."""
     module = selected["step"]
+    if module == "CP-DR" and source.label != "fixtures" and import_fetched(run, source):
+        # the message lists the qualified saved pages, so prepare it again with the pages in place
+        native(run, "dispatch-message", ["--module", module])
     message = output_path(run, selected["dispatch"]).read_bytes()
     original = source.read(module)
     imported = rewrite_run_id(original, state.read(run)["run_id"])

@@ -37,9 +37,9 @@ def _identity(
     return []
 
 
-def _citation_guard(text: str) -> None:
+def _citation_guard(run: Path, module: str, text: str) -> None:
     try:
-        dispatch._pack_citations(text)
+        dispatch.citation_guard(run, module, text)
     except HandoffError:
         return  # the independent checker returns malformed2 for unreadable structure
 
@@ -57,7 +57,7 @@ def _observe(
         text = raw.decode("utf-8")
         rules = load_rules(root)
         contract = load_contract(dispatch._file(root, f"modules/{module}/contract.json"), rules)
-        _citation_guard(text)
+        _citation_guard(run, module, text)
         code, findings = check(text, contract, rules, run)
         identity = _identity(run, module, text, rules, record)
         if module == "CP-0" and code in (0, 3) and not identity:
