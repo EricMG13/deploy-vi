@@ -12,6 +12,7 @@ exposes none of them.
 
 from __future__ import annotations
 
+import argparse
 import http.client
 import io
 import ipaddress
@@ -19,6 +20,7 @@ import os
 import re
 import socket
 import ssl
+import sys
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -28,7 +30,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, Protocol, TypedDict, Unpack, cast
 from urllib.parse import SplitResult, quote, urljoin, urlsplit
 
-from rbotlib import fetched
+from rbotlib import fetched, state
 from rbotlib.inventory import RunError, output_path
 
 if TYPE_CHECKING:
@@ -482,3 +484,73 @@ def save_page(run: Path, page: Page, question: str) -> Path:
         path.unlink(missing_ok=True)
         raise
     return path
+
+
+NO_TOOL = "rbot fetch: no fetch tool"
+
+
+def _refuse_unless_authorized(run: Path, question: str) -> None:
+    """Checks 2 to 5 of the order (ruling P9); the first failure is the only message."""
+    record = state.read(run)
+    if record["approval"] is None:
+        raise FetchRefused("rbot fetch: the run is not approved")
+    if record["approval"].get("fetch", "off") != "on":
+        raise FetchRefused(NO_TOOL)
+    if not record["deep_research"]:
+        raise FetchRefused("rbot fetch: Deep Research is not approved for this run")
+    step = record["steps"].get("CP-DR")
+    if step is None:
+        raise FetchRefused("rbot fetch: CP-DR is not in this run's plan")
+    if step["status"] == "skipped":
+        raise FetchRefused("rbot fetch: CP-DR is skipped in this run")
+    approved = fetched.approved_questions(run)
+    listed = ", ".join(approved) or "none"
+    if not question:
+        raise FetchRefused(f"rbot fetch: --question is required; approved questions: {listed}")
+    if question not in approved:
+        raise FetchRefused(
+            f"rbot fetch: {question!r} is not an approved question; approved questions: {listed}"
+        )
+
+
+def execute(
+    run: Path,
+    root: Path,
+    url: str,
+    question: str,
+    *,
+    env: Mapping[str, str] = os.environ,
+    **seams: Unpack[Seams],
+) -> Path:
+    """Authorize, then fetch and save one page; return its path (an existing one is not refetched).
+
+    The checks run in the order of ruling P9; each refusal is a `FetchRefused`. `root` is the
+    rbot tree, kept for the command signature. The seams are for tests only.
+    """
+    if not available(env):
+        raise FetchRefused(NO_TOOL)
+    _refuse_unless_authorized(run, question)
+    target = check_url(url).geturl()
+    if (existing := fetched.saved_path(run, target)) is not None:
+        return existing
+    return save_page(run, fetch_page(url, **seams), question)
+
+
+def run_command(args: argparse.Namespace) -> int:
+    """Print the saved path relative to the run (0), or one stderr line (1)."""
+    run = Path(args.run_dir)
+    try:
+        path = execute(run, args.root, args.url, args.question or "")
+    except (RunError, OSError) as exc:
+        print(str(exc) if isinstance(exc, FetchRefused) else f"rbot fetch: {exc}", file=sys.stderr)
+        return 1
+    print(path.relative_to(run).as_posix())
+    return 0
+
+
+def add_command(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    parser = sub.add_parser("fetch", help="fetch one public page for an approved research question")
+    parser.add_argument("--run", dest="run_dir", required=True, help="the run folder")
+    parser.add_argument("--url", required=True)
+    parser.add_argument("--question", help="an approved research question id (required)")
+    parser.set_defaults(run=run_command, log_run_guard=state.log_run_path)

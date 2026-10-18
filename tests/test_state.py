@@ -430,3 +430,19 @@ def test_lineage_refuses_either_malformed_approved_origin_shape(approved_origins
 
     with pytest.raises(RunError, match="malformed CP-0 binding"):
         state._lineage(_lineage_record(approved_origins))
+
+
+def test_approval_fetch_mode_is_on_off_or_absent(tmp_path: Path) -> None:
+    from rbotlib import state
+    from rbotlib.inventory import RunError
+
+    run, data = seeded(tmp_path)
+    assert "fetch" not in data["approval"]
+    state.validate(state.read(run), run)  # absent reads as off
+    for mode in ("on", "off"):
+        record = state.read(run)
+        record["approval"]["fetch"] = mode
+        state.validate(record, run)
+    record["approval"]["fetch"] = "maybe"
+    with pytest.raises(RunError, match=r"approval\.fetch"):
+        state.validate(record, run)

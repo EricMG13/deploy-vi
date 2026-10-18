@@ -543,3 +543,17 @@ def test_readback_refuses_when_only_one_published_file_differs(
     capsys.readouterr()
     assert _approve(root, run) == 1
     assert "Approval readback differs" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(("value", "mode"), [("1", "on"), (None, "off"), ("0", "off")])
+def test_approval_records_the_fetch_mode(
+    root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, value: str | None, mode: str
+) -> None:
+    if value is None:
+        monkeypatch.delenv("RBOT_FETCH", raising=False)
+    else:
+        monkeypatch.setenv("RBOT_FETCH", value)
+    run = _ready(root, tmp_path)
+    assert _approve(root, run) == 0
+    target = run.parent / "20261011-acme-full-credit-assessment"
+    assert _state(target)["approval"]["fetch"] == mode
