@@ -8,6 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from conftest import HANG_TIMEOUT
 from rbotlib.rules import RBOT_ROOT
 
 CHILD = """
@@ -67,7 +68,7 @@ def start(run: Path, kind: str, phase: str, root: Path = RBOT_ROOT) -> subproces
         env={**os.environ, "PYTHONPATH": os.pathsep.join([str(RBOT_ROOT / "scripts")])},
     )
     assert process.stdout is not None
-    assert select.select([process.stdout], [], [], 20)[0], "host missed target boundary"
+    assert select.select([process.stdout], [], [], HANG_TIMEOUT)[0], "host missed target boundary"
     # Required command output can precede a later boundary.
     while process.stdout.readline().strip() != "BOUNDARY":
         assert process.poll() is None, "host exited before target boundary"
@@ -77,7 +78,7 @@ def start(run: Path, kind: str, phase: str, root: Path = RBOT_ROOT) -> subproces
 def finish(process: subprocess.Popen[str]) -> None:
     if process.poll() is None:
         process.kill()
-        process.communicate(timeout=10)
+        process.communicate(timeout=HANG_TIMEOUT)
 
 
 def command(run: Path, kind: str, root: Path = RBOT_ROOT) -> subprocess.CompletedProcess[str]:
@@ -93,6 +94,6 @@ def command(run: Path, kind: str, root: Path = RBOT_ROOT) -> subprocess.Complete
         ],
         capture_output=True,
         text=True,
-        timeout=20,
+        timeout=HANG_TIMEOUT,
         check=False,
     )

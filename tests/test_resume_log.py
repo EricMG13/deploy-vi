@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from test_bootstrap import pending
 
+from conftest import HANG_TIMEOUT
 from rbotlib import cli, runlog, state
 from rbotlib.rules import RBOT_ROOT
 
@@ -40,7 +41,7 @@ def test_killed_ordinary_row_remains_attributed(tmp_path: Path, phase: str) -> N
         env=os.environ | {"PYTHONPATH": str(RBOT_ROOT / "scripts")},
         capture_output=True,
         text=True,
-        timeout=20,
+        timeout=HANG_TIMEOUT,
     )
     assert child.returncode == 73, child.stderr
     original = state.read(run)["command_receipts"][-1]
@@ -153,7 +154,7 @@ def test_pending_ordinary_then_registered_host_keeps_exact_frontiers(tmp_path: P
         env=os.environ | {"PYTHONPATH": str(RBOT_ROOT / "scripts")},
         capture_output=True,
         text=True,
-        timeout=20,
+        timeout=HANG_TIMEOUT,
     )
     assert child.returncode == 73, child.stderr
     original = state.read(run)["command_receipts"][-1]

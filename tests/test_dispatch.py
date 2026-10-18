@@ -15,6 +15,7 @@ import pytest
 from state_receipt_assertions import outcome_bytes
 from test_bootstrap import approve, pending, ready
 
+from conftest import HANG_TIMEOUT
 from rbotlib import bootstrap, dispatch, state
 from rbotlib.cli import main
 from rbotlib.rules import RBOT_ROOT, load_rules
@@ -194,7 +195,7 @@ def test_unsupported_paths_refuse_before_open(
         ],
         capture_output=True,
         text=True,
-        timeout=3,
+        timeout=HANG_TIMEOUT,
     )
     assert proc.returncode == 1 and ("error:" in proc.stdout + proc.stderr)
     if relative == "handoffs/CP-0.md":

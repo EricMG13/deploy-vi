@@ -14,6 +14,7 @@ from test_host_fit import fit_run
 from test_legacy_ownership import legacy, observe, snapshot
 from test_model_host import eligible
 
+from conftest import HANG_TIMEOUT
 from rbotlib import cli, runlog, state
 from rbotlib.inventory import RunError
 from rbotlib.rules import RBOT_ROOT
@@ -94,14 +95,14 @@ def old_start(run: Path, kind: str, script: str = OLD) -> subprocess.Popen[str]:
 def finish(process: subprocess.Popen[str]) -> None:
     if process.poll() is None:
         process.kill()
-        process.communicate(timeout=10)
+        process.communicate(timeout=HANG_TIMEOUT)
 
 
 def release(process: subprocess.Popen[str]) -> None:
     assert process.stdin is not None
     process.stdin.write("continue\n")
     process.stdin.flush()
-    stdout, stderr = process.communicate(timeout=20)
+    stdout, stderr = process.communicate(timeout=HANG_TIMEOUT)
     assert process.returncode == 0, stdout + stderr
 
 
@@ -176,7 +177,7 @@ def test_new_active_owner_finishes_after_contender_refusal(tmp_path: Path, kind:
             [sys.executable, str(RBOT_ROOT / "scripts/rbot.py"), kind, "--run", str(run)],
             capture_output=True,
             text=True,
-            timeout=20,
+            timeout=HANG_TIMEOUT,
             check=False,
         )
         assert contender.returncode == 1

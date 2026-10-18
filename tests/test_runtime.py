@@ -38,7 +38,7 @@ def build(repo: Path, commit: str, output: Path) -> dict[str, Any]:
         timeout=30,
     )
     if result.returncode:
-        raise ValueError(result.stdout + result.stderr)
+        raise ValueError(f"build exit {result.returncode}: {result.stdout}{result.stderr}")
     return metadata(output)
 
 
@@ -366,3 +366,16 @@ def test_installed_controller_outside_repo_preserves_source(
     assert record["report"] == dict(written_at=None, html_sha256=None, md_sha256=None)
     assert source.read_bytes() == original
     assert invoke(installed, "version").returncode == 0
+
+
+def test_build_survives_tar_stopping_before_archive_padding(
+    committed: tuple[Path, str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A reader that quits early must not SIGPIPE the exporter (exit 141 under load)."""
+    real_tar = shutil.which("tar")
+    shim = tmp_path / "bin" / "tar"
+    shim.parent.mkdir()
+    shim.write_text(f'#!/bin/sh\ncase " $* " in *" -f "*) exec "{real_tar}" "$@" ;; esac\nexit 0\n')
+    shim.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{shim.parent}{os.pathsep}{os.environ['PATH']}")
+    assert build(*committed, tmp_path / "out")["git_sha"] == committed[1]
