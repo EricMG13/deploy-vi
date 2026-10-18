@@ -24,10 +24,12 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from html.parser import HTMLParser
+from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple, Protocol, TypedDict, Unpack, cast
 from urllib.parse import SplitResult, quote, urljoin, urlsplit
 
-from rbotlib.inventory import RunError
+from rbotlib import fetched
+from rbotlib.inventory import RunError, output_path
 
 if TYPE_CHECKING:
     from _typeshed import WriteableBuffer
@@ -436,3 +438,47 @@ def fetch_page(url: str, **seams: Unpack[Seams]) -> Page:
     if reply.status != 200:
         raise FetchRefused(f"page answered with status {reply.status}")
     return _page(first, current, reply, seams.get("today"))
+
+
+MAX_SAVED = 99
+_QUESTION = re.compile(r"[A-Za-z0-9_.-]{1,32}")
+
+
+def save_page(run: Path, page: Page, question: str) -> Path:
+    """Save the page as `fetched/<nn>-<host>.md`.
+
+    A URL already saved returns its existing path and writes nothing.
+    """
+    if not _QUESTION.fullmatch(question):
+        raise FetchRefused(f"question {question!r} is not a question id")
+    folder = output_path(run, fetched.FOLDER)
+    if (existing := fetched.saved_path(run, page.url)) is not None:
+        return existing
+    try:
+        folder.mkdir(exist_ok=True)
+    except FileExistsError as exc:
+        raise FetchRefused(f"{folder} is not a folder") from exc
+    taken = [int(m[1]) for p in folder.iterdir() if (m := fetched.NAME.fullmatch(p.name))]
+    number = max(taken, default=0) + 1
+    if number > MAX_SAVED:
+        raise FetchRefused(f"fetched/ is full ({MAX_SAVED} pages)")
+    host = _ascii_host(urlsplit(page.url).hostname or "")[:80]
+    path = output_path(run, f"{fetched.FOLDER}/{number:02d}-{host}.md")
+    front = {
+        "url": page.url,
+        "final_url": page.final_url,
+        "retrieved": page.retrieved,
+        "question": question,
+        "content_type": page.content_type,
+    }
+    text = fetched.render(front, page.body)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+    try:
+        with os.fdopen(os.open(path, flags, 0o644), "wb") as handle:
+            handle.write(text.encode("utf-8"))
+    except FileExistsError as exc:
+        raise FetchRefused(f"{path.name} already exists") from exc
+    except OSError:
+        path.unlink(missing_ok=True)
+        raise
+    return path
