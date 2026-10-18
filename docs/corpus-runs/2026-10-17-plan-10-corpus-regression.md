@@ -29,7 +29,7 @@ origin/main moved to `b4f39c3` (Plan 09 PRs #91–#99 merged) during execution. 
 | full suite at db2d91b, chunked runner (owner decision 2026-10-17) | every chunk exit 0; 4198 passed, 1 skipped, 0 failed; coverage 95% (floor 80); slowest chunk (report tests with headless Chrome) 1 h 27 m |
 | single-process `RBOT_REQUIRE_CORPUS=1 pytest tests -m corpus` at db2d91b | exit 0; 255 passed (34 m 42 s) |
 | `rbot.py check` at db2d91b | exit 0 |
-| PR size per branch | 10.1a 599, 10.1b 766, 10.1c 299, 10.3 516, 10.2 390, 10.4 607, 10.5 249, 10.6 199, 10.7-record 152, 10.8-records 694, 10.8b-closeout SIZE (all ≤ 800) |
+| PR size per branch | 10.1a 599, 10.1b 766, 10.1c 299, 10.3 516, 10.2 390, 10.4 607, 10.5 249, 10.6 199, 10.7-record 152, 10.8-records 694, 10.8b-closeout 157 (all ≤ 800) |
 
 ## Record run
 
