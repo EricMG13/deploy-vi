@@ -14,10 +14,12 @@ import argparse
 import json
 import logging
 import os
+import re
 import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
@@ -220,11 +222,40 @@ def _walk(pack: Path, run: Path) -> tuple[list[Path], list[dict[str, str]]]:
     return keep + _earlier_reports(pack, run, skipped), skipped
 
 
+class _ReportMarker(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.found = False
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self.found |= ("id", "rbot-run") in attrs
+
+
+def report_marker(text: str, kind: str) -> bool:
+    """Structural discovery only; malformed payloads remain candidates for diagnosis."""
+    if kind == "html":
+        parser = _ReportMarker()
+        parser.feed(text)
+        return parser.found
+    fence = ""
+    for line in text.split("\n"):
+        match = re.fullmatch(r" {0,3}(`{3,}|~{3,})(.*)", line)
+        if match is None:
+            continue
+        if not fence:
+            if match[2].strip() == "json rbot-run":
+                return True
+            fence = match[1]
+        elif match[1][0] == fence[0] and len(match[1]) >= len(fence) and not match[2].strip():
+            fence = ""
+    return False
+
+
 def _entry(path: Path, rel: str) -> dict[str, Any]:
     kind = kind_of(path)
     report = False
     if kind in ("html", "md"):
-        report = REPORT_MARKER in path.read_text(encoding="utf-8", errors="replace")
+        report = report_marker(path.read_text(encoding="utf-8", errors="replace"), kind)
     entry: dict[str, Any] = {
         "path": rel,
         "size": path.stat().st_size,

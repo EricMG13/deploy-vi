@@ -430,14 +430,35 @@ def _calculator_writes(run: Path, module: str) -> tuple[str | None, list[str]]:
     return name, paths
 
 
+def _prior_grants(run: Path, root: Path, module: str, record: state.Record) -> list[dict[str, str]]:
+    if module != "CP-8":
+        return []
+    from rbotlib import prior_diff
+
+    prior, _, _ = prior_diff.qualified_prior(run, root, record)
+    paths = [prior.source_path, *(_file(run, name) for name in prior_diff.NAMES)]
+    grants = [dict(path=str(path), sha256=_sha(path)) for path in paths]
+    prior_diff.qualified_prior(run, root, record)  # bind the digests to canonical readback
+    return grants
+
+
 def _message(
     run: Path,
     root: Path,
     contract: Contract,
     record: state.Record,
-    inputs: tuple[list[dict[str, Any]], dict[str, Any] | None, Rules, dict[str, dict[str, str]]],
+    inputs: tuple[list[dict[str, Any]], dict[str, Any] | None, Rules, dict[str, dict[str, str]]]
+    | tuple[
+        list[dict[str, Any]],
+        dict[str, Any] | None,
+        Rules,
+        dict[str, dict[str, str]],
+        list[dict[str, str]],
+    ],
 ) -> str:
-    rows, findings, rules, classified = inputs
+    rows, findings, rules, classified = inputs[:4]
+    # Keep four-field calculator callers; the qualified entry passes its checked grants.
+    prior = inputs[4] if len(inputs) == 5 else _prior_grants(run, root, contract.module_id, record)
     module = contract.module_id
     handoffs, blocked, missing = _handoffs(run, root, contract, record, rules)
     classes, sources, limitations = _sources(run, contract, rows, record, classified)
@@ -483,6 +504,7 @@ def _message(
         ("Allowed calculator", calculator_name),
         ("May write only", own + folder + calculator),
         *grant,
+        *([("Qualified prior artifacts (read-only)", prior)] if prior else []),
     ]
     lines = [
         f"You are running RBOT module {module}.",
@@ -517,6 +539,7 @@ def qualified_message(
     run: Path, root: Path, module: str, record: state.Record, findings: str | None = None
 ) -> str:
     """Pure current input qualification reused under the shared lock by evidence owners."""
+    prior = _prior_grants(run, root, module, record)
     for name in (
         "rules.json",
         "catalog.json",
@@ -538,7 +561,7 @@ def qualified_message(
         root,
         contract,
         record,
-        (rows, _findings(run, module, findings), rules, classified),
+        (rows, _findings(run, module, findings), rules, classified, prior),
     )
 
 

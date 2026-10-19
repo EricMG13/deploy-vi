@@ -23,6 +23,7 @@ from rbotlib import (
     grade,
     inventory,
     prepare,
+    prior_diff,
     runlog,
     runs,
     state,
@@ -189,6 +190,7 @@ def _arguments(argv: list[str] | None) -> argparse.Namespace:
     grade.add_command(sub)
     approve.add_commands(sub)
     fetch.add_command(sub)
+    prior_diff.add_command(sub)
     calc.add_command(sub)
     fit.add_command(sub)
     state.add_command(sub)

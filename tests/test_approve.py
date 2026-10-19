@@ -10,18 +10,21 @@ from typing import Any
 
 import pytest
 from state_receipt_assertions import outcome_bytes
+from test_prior_report import document
 
 import rbotlib.approve as ap
 from builders import make_run
 from conftest import FIXTURES, HANG_TIMEOUT
+from cp0_fixture import cp0_handoff
 from rbotlib.approve import ApprovalError, new_name
 from rbotlib.bootstrap import QualifiedCP0
 from rbotlib.cli import main
 from rbotlib.handoff import Handoff, parse
+from rbotlib.report.html_parts import embed_json
 from rbotlib.rules import Rules
 from rbotlib.validate import run_findings
 from spec_fixture import SOURCES, build_tree
-from test_grade import FILES, _acme, _graded
+from test_grade import FILES, _acme
 
 FCA_FULL = (
     "CP-0 CP-1 CP-1A CP-DR CP-1B CP-1D MODEL CP-1C CP-2 CP-2A CP-2E CP-4 CP-2D CP-2G "
@@ -36,11 +39,23 @@ PRIOR = (
 OTHER = (
     "| old/other.html | 2026-07-15 | 20260715-zeta-earnings-update | EARNINGS_UPDATE | full | No |"
 )
-REPORT = (
-    "<html><body><h1>RBOT Report</h1></body>"
-    '<script type="application/json" id="rbot-run">{}</script></html>\n'
-)
-REPORTS = {"old/report.html": REPORT, "old/other.html": REPORT}
+
+
+def _report(issuer: str, run_id: str) -> str:
+    doc = document()
+    doc["run_id"] = run_id
+    doc["generated_at"] = "2026-07-15T12:00:00+00:00"
+    doc["pathway"] = "EARNINGS_UPDATE"
+    for front in (doc["run_brief"]["front_matter"], doc["handoffs"]["MODEL"]["front_matter"]):
+        front.update(issuer_id=issuer, run_id=run_id)
+    doc["run_brief"]["tables"]["snapshot.run_header"]["rows"] = [[run_id, issuer, "2026-07-15"]]
+    return "<html><body><h1>RBOT Report</h1></body>" + embed_json(doc) + "</html>\n"
+
+
+REPORTS = {
+    "old/report.html": _report("ACME", "20260715-acme-earnings-update"),
+    "old/other.html": _report("ZETA", "20260715-zeta-earnings-update"),
+}
 REPORT_CLASSES = {
     "old/report.html": ("issuer", "RBOT Report", "Acme Holdings, Inc.", "Yes"),
     "old/other.html": ("issuer", "RBOT Report", "Zeta Corp", "No"),
@@ -69,9 +84,16 @@ def _ready(
     objective: bool = True,
 ) -> Path:
     """A graded Acme run with objective and analyst set; optionally a question with the
-    Prior Case `rows` (the pack then holds two earlier RBOT Reports) and a new tranche."""
-    run = _acme(tmp_path, REPORTS if rows else None, managed=True)
-    _graded(root, run, FILES | (REPORT_CLASSES if rows else {}))
+    Prior Case `rows` (the pack holds exactly those earlier Reports) and a new tranche."""
+    reports = {name: raw for name, raw in REPORTS.items() if f"| {name} |" in rows}
+    run = _acme(tmp_path, reports, managed=True)
+    classes = FILES | {name: REPORT_CLASSES[name] for name in reports}
+    cp0 = run / "handoffs" / "CP-0.md"
+    cp0.parent.mkdir(exist_ok=True)
+    cp0.write_text(
+        cp0_handoff(run, ("Acme Holdings, Inc.", "ACME"), "2026-10-02", classes, primary=False),
+        encoding="utf-8",
+    )
     if rows:
         cp0 = run / "handoffs" / "CP-0.md"
         text = cp0.read_text(encoding="utf-8")
@@ -84,7 +106,7 @@ def _ready(
             f"offered |\n|---|---|---|---|---|---|\n{rows}\n",
         )
         cp0.write_text(text, encoding="utf-8")
-        assert main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"]) == 0
+    assert main(["brief", "--run", str(run), "--from", "handoffs/CP-0.md"]) == 0
     edits = ["--set", "analyst=A. Analyst"] + (["--set", "objective=Annual review"] * objective)
     if tranche:
         edits += ["--set-tranche", "NEW-1", "instrument=Term Loan B"]

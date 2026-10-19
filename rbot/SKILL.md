@@ -50,6 +50,14 @@ that acknowledgement only if received. Exit1 waits with its reason. Success: tak
 
 ## Native Module/host loop
 
+Before `next`, inspect the approved plan/state. If installed CP-8 is the next outstanding
+step, use only `state.prior_case.report`: run `diff --run "<RUN>" --prior "<approved report>"`
+once before its first selection. Reuse a valid existing canonical pair read-only. An existing
+selection/receipt, missing half-pair or stale inputs pauses with the exact native diff command;
+never regenerate during retry/accept. This conditional workflow does not activate the Prior
+Case menu offer above. CP-8 reads only its granted original Report and both diff files and
+writes only its own Handoff; no fetching. `next` selects only and never executes diff.
+
 `next --run "<RUN>"`: consume JSON only on exit0. For `kind=module`, send the exact returned
 `dispatch` file to a fresh Module with its declared grants. Preparation is not a send.
 Measure SKILL/canon/MODULE/dispatch UTF-8 bytes separately against provisional51200; excess
